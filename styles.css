@@ -129,7 +129,7 @@ button {
 
 .brand-sub {
   display: block;
-  margin-top: 4px;
+  margin-top: 1px;
   padding-left: 0.24em;
   font-size: 0.58rem;
   font-weight: 850;
@@ -1099,7 +1099,7 @@ h3 {
   }
 
   .brand-sub {
-    margin-top: 3px;
+    margin-top: 1px;
     font-size: 0.52rem;
   }
 
