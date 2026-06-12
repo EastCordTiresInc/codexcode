@@ -105,22 +105,36 @@ button {
 .brand {
   flex: 0 0 auto;
   display: inline-flex;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: center;
   text-decoration: none;
-  font-size: 1.2rem;
   line-height: 1;
+}
+
+.brand-main {
+  display: block;
+  font-size: 1.32rem;
   font-weight: 900;
-  letter-spacing: -0.055em;
+  letter-spacing: -0.06em;
 }
 
 .brand-east {
   color: var(--red);
 }
 
-.brand-tires {
-  margin-left: 7px;
-  font-size: 0.65em;
-  letter-spacing: 0.08em;
+.brand-cord,
+.brand-sub {
+  color: var(--ink);
+}
+
+.brand-sub {
+  display: block;
+  margin-top: 4px;
+  padding-left: 0.24em;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.3em;
+  text-align: center;
 }
 
 .main-nav {
@@ -843,6 +857,11 @@ h3 {
   color: var(--white);
 }
 
+.brand-light .brand-cord,
+.brand-light .brand-sub {
+  color: var(--white);
+}
+
 .footer-brand p {
   max-width: 390px;
   margin: 20px 0 0;
@@ -1072,7 +1091,16 @@ h3 {
   }
 
   .brand {
-    font-size: 1.08rem;
+    line-height: 0.95;
+  }
+
+  .brand-main {
+    font-size: 1.18rem;
+  }
+
+  .brand-sub {
+    margin-top: 3px;
+    font-size: 0.52rem;
   }
 
   .hero {
