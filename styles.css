@@ -122,9 +122,19 @@ button {
   color: var(--red);
 }
 
+.brand-word {
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .brand-cord,
 .brand-sub {
   color: var(--ink);
+}
+
+.brand-text-dark,
+.brand-text-dark .brand-cord {
+  color: var(--white);
 }
 
 .brand-sub {
