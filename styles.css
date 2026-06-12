@@ -132,6 +132,11 @@ button {
   color: var(--ink);
 }
 
+.brand-text-dark,
+.brand-text-dark .brand-cord {
+  color: var(--white);
+}
+
 .brand-sub {
   display: block;
   margin-top: 1px;
