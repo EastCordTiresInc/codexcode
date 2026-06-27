@@ -763,6 +763,10 @@ h3 {
   gap: 15px;
 }
 
+.placeholder-grid.inventory-only {
+  grid-template-columns: 1fr;
+}
+
 .placeholder-card {
   min-height: 235px;
   padding: 24px;
