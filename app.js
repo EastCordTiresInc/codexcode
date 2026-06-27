@@ -10,6 +10,40 @@ function closeMenu() {
   document.body.classList.remove("menu-open");
 }
 
+function forceFooterLogo() {
+  const footerBrand = document.querySelector(".footer-brand");
+  const footerText = footerBrand?.querySelector("p");
+  if (!footerBrand || !footerText) return;
+
+  let footerLogo = footerBrand.querySelector(".footer-logo");
+  if (!footerLogo) {
+    footerLogo = footerBrand.querySelector("img") || document.createElement("img");
+    footerBrand.insertBefore(footerLogo, footerText);
+  }
+
+  footerLogo.src = "/assets/eastcord-logo-red-white.png";
+  footerLogo.alt = "EastCord Tires";
+  footerLogo.className = "footer-logo";
+
+  if (!document.querySelector("#footer-logo-style")) {
+    const style = document.createElement("style");
+    style.id = "footer-logo-style";
+    style.textContent = `
+      .footer-logo {
+        display: block;
+        width: 220px;
+        max-width: 100%;
+        height: auto;
+        object-fit: contain;
+        opacity: 1;
+        visibility: visible;
+        margin-bottom: 20px;
+      }
+    `;
+    document.head.append(style);
+  }
+}
+
 menuButton.addEventListener("click", () => {
   const isOpen = menuButton.getAttribute("aria-expanded") === "true";
   menuButton.setAttribute("aria-expanded", String(!isOpen));
@@ -28,4 +62,5 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeMenu();
 });
 
+forceFooterLogo();
 currentYear.textContent = new Date().getFullYear();
