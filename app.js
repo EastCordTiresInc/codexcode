@@ -21,38 +21,9 @@ function forceFooterLogo() {
     footerBrand.insertBefore(footerLogo, footerText);
   }
 
-  footerLogo.src = "/assets/eastcord-logo-footer-red-white.png";
+  footerLogo.src = "/assets/eastcord-logo-red-white.png";
   footerLogo.alt = "EastCord Tires";
   footerLogo.className = "footer-logo";
-  footerLogo.removeAttribute("style");
-  Object.assign(footerLogo.style, {
-    display: "block",
-    width: "220px",
-    maxWidth: "100%",
-    height: "auto",
-    objectFit: "contain",
-    opacity: "1",
-    visibility: "visible",
-    marginBottom: "20px",
-  });
-
-  if (!document.querySelector("#footer-logo-style")) {
-    const style = document.createElement("style");
-    style.id = "footer-logo-style";
-    style.textContent = `
-      .footer-logo {
-        display: block;
-        width: 220px;
-        max-width: 100%;
-        height: auto;
-        object-fit: contain;
-        opacity: 1;
-        visibility: visible;
-        margin-bottom: 20px;
-      }
-    `;
-    document.head.append(style);
-  }
 }
 
 menuButton.addEventListener("click", () => {
