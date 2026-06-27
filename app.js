@@ -24,6 +24,17 @@ function forceFooterLogo() {
   footerLogo.src = "/assets/eastcord-logo-red-white.png";
   footerLogo.alt = "EastCord Tires";
   footerLogo.className = "footer-logo";
+  footerLogo.removeAttribute("style");
+  Object.assign(footerLogo.style, {
+    display: "block",
+    width: "220px",
+    maxWidth: "100%",
+    height: "auto",
+    objectFit: "contain",
+    opacity: "1",
+    visibility: "visible",
+    marginBottom: "20px",
+  });
 
   if (!document.querySelector("#footer-logo-style")) {
     const style = document.createElement("style");
