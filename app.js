@@ -21,7 +21,7 @@ function forceFooterLogo() {
     footerBrand.insertBefore(footerLogo, footerText);
   }
 
-  footerLogo.src = "/assets/eastcord-logo-red-white.png?v=619148c";
+  footerLogo.src = "/assets/eastcord-logo-footer-red-white.png";
   footerLogo.alt = "EastCord Tires";
   footerLogo.className = "footer-logo";
   footerLogo.removeAttribute("style");
