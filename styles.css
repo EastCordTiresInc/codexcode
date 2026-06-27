@@ -105,17 +105,15 @@ button {
 .brand {
   flex: 0 0 auto;
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
   text-decoration: none;
   line-height: 1;
 }
 
-.brand-main {
+.brand-logo img {
+  width: clamp(132px, 14vw, 178px);
+  height: auto;
   display: block;
-  font-size: 1.32rem;
-  font-weight: 900;
-  letter-spacing: -0.06em;
 }
 
 .brand-east {
@@ -127,24 +125,8 @@ button {
   text-transform: uppercase;
 }
 
-.brand-cord,
-.brand-sub {
+.brand-cord {
   color: var(--ink);
-}
-
-.brand-text-dark,
-.brand-text-dark .brand-cord {
-  color: var(--white);
-}
-
-.brand-sub {
-  display: block;
-  margin-top: 1px;
-  padding-left: 0.24em;
-  font-size: 0.58rem;
-  font-weight: 850;
-  letter-spacing: 0.3em;
-  text-align: center;
 }
 
 .main-nav {
@@ -867,9 +849,8 @@ h3 {
   color: var(--white);
 }
 
-.brand-light .brand-cord,
-.brand-light .brand-sub {
-  color: var(--white);
+.brand-light img {
+  width: clamp(150px, 16vw, 205px);
 }
 
 .footer-brand p {
@@ -1104,13 +1085,8 @@ h3 {
     line-height: 0.95;
   }
 
-  .brand-main {
-    font-size: 1.18rem;
-  }
-
-  .brand-sub {
-    margin-top: 1px;
-    font-size: 0.52rem;
+  .brand-logo img {
+    width: 126px;
   }
 
   .hero {
