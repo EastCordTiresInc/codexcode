@@ -1,0 +1,37 @@
+.used-tires-card {
+  background-position: 70% center;
+  box-shadow: 0 26px 60px rgba(17, 18, 20, 0.18);
+}
+
+.used-tires-card::before {
+  background:
+    linear-gradient(180deg, rgba(17, 18, 20, 0.62), rgba(17, 18, 20, 0.9)),
+    linear-gradient(90deg, rgba(17, 18, 20, 0.92) 0%, rgba(17, 18, 20, 0.76) 42%, rgba(17, 18, 20, 0.48) 100%);
+}
+
+.used-tires-card .card-copy strong {
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.48);
+}
+
+.used-tires-card .card-copy > span {
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.42);
+}
+
+@media (max-width: 800px) {
+  .used-tires-card {
+    background-position: 76% center;
+  }
+}
+
+@media (max-width: 560px) {
+  .used-tires-card {
+    background-position: 82% center;
+  }
+
+  .used-tires-card::before {
+    background:
+      linear-gradient(180deg, rgba(17, 18, 20, 0.68), rgba(17, 18, 20, 0.92)),
+      linear-gradient(90deg, rgba(17, 18, 20, 0.95) 0%, rgba(17, 18, 20, 0.84) 56%, rgba(17, 18, 20, 0.58) 100%);
+  }
+}
