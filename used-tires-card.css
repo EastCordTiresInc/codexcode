@@ -63,8 +63,10 @@
 }
 
 .used-tires-card .card-arrow {
+  position: absolute;
   right: 28px;
   bottom: 27px;
+  z-index: 1;
   color: var(--white);
   font-size: 1.7rem;
   line-height: 1;
