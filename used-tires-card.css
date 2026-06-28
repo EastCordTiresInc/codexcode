@@ -1,9 +1,6 @@
 .used-tires-card {
   background-color: var(--ink);
-  background-image:
-    linear-gradient(180deg, rgba(17, 18, 20, 0.08), rgba(17, 18, 20, 0.34)),
-    linear-gradient(90deg, rgba(17, 18, 20, 0.46) 0%, rgba(17, 18, 20, 0.22) 44%, rgba(17, 18, 20, 0.08) 100%),
-    url("assets/used-tires-bg.png");
+  background-image: url("assets/used-tires-bg.png");
   background-size: cover;
   background-position: 72% center;
   background-repeat: no-repeat;
@@ -11,18 +8,31 @@
 }
 
 .used-tires-card::before {
-  background:
-    radial-gradient(circle at 20% 86%, rgba(0, 0, 0, 0.74), rgba(0, 0, 0, 0.42) 36%, transparent 66%),
-    linear-gradient(180deg, transparent 44%, rgba(0, 0, 0, 0.48) 100%);
+  display: none;
+}
+
+.used-tires-card .service-number,
+.used-tires-card .card-arrow {
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+
+.used-tires-card .card-copy {
+  width: min(100%, 300px);
+  margin-top: auto;
+  padding: 14px 16px;
+  color: var(--white);
+  background: rgba(0, 0, 0, 0.62);
+  border-radius: 14px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
 }
 
 .used-tires-card .card-copy strong {
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.58);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.62);
 }
 
 .used-tires-card .card-copy > span {
   color: rgba(255, 255, 255, 0.94);
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.54);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.56);
 }
 
 @media (max-width: 800px) {
@@ -36,9 +46,8 @@
     background-position: 86% center;
   }
 
-  .used-tires-card::before {
-    background:
-      radial-gradient(circle at 20% 86%, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.52) 40%, transparent 70%),
-      linear-gradient(180deg, transparent 36%, rgba(0, 0, 0, 0.56) 100%);
+  .used-tires-card .card-copy {
+    width: min(100%, 320px);
+    padding: 13px 15px;
   }
 }
