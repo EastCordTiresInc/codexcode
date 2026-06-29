@@ -93,7 +93,6 @@
   color: var(--white);
   background-color: #1f2225;
   background-size: cover;
-  background-position: center;
   background-repeat: no-repeat;
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow: 0 34px 76px rgba(17, 18, 20, 0.24);
@@ -101,18 +100,16 @@
 
 .new-tires-card {
   background-image:
-    linear-gradient(180deg, rgba(10, 11, 13, 0.02) 0%, rgba(10, 11, 13, 0.04) 34%, rgba(10, 11, 13, 0.32) 62%, rgba(10, 11, 13, 0.82) 100%),
-    linear-gradient(90deg, rgba(10, 11, 13, 0.18) 0%, rgba(10, 11, 13, 0.02) 56%, rgba(10, 11, 13, 0.08) 100%),
-    url("assets/new-tires-bg.png");
-  background-position: 58% center;
+    linear-gradient(180deg, rgba(0, 0, 0, 0.04) 0%, rgba(0, 0, 0, 0.08) 38%, rgba(0, 0, 0, 0.34) 68%, rgba(0, 0, 0, 0.72) 100%),
+    url("assets/new-tires-bg.png?v=2");
+  background-position: 60% center;
 }
 
 .changeover-card {
   background-image:
-    linear-gradient(180deg, rgba(10, 11, 13, 0.03) 0%, rgba(10, 11, 13, 0.06) 34%, rgba(10, 11, 13, 0.34) 62%, rgba(10, 11, 13, 0.84) 100%),
-    linear-gradient(90deg, rgba(10, 11, 13, 0.24) 0%, rgba(10, 11, 13, 0.04) 56%, rgba(10, 11, 13, 0.08) 100%),
-    url("assets/changeover-bg.png");
-  background-position: 72% center;
+    linear-gradient(180deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.08) 38%, rgba(0, 0, 0, 0.34) 68%, rgba(0, 0, 0, 0.72) 100%),
+    url("assets/changeover-bg.png?v=2");
+  background-position: 64% center;
 }
 
 .new-tires-card::before,
@@ -206,7 +203,7 @@
   }
 
   .changeover-card {
-    background-position: 74% center;
+    background-position: 64% center;
   }
 }
 
@@ -257,18 +254,16 @@
 
   .new-tires-card {
     background-image:
-      linear-gradient(180deg, rgba(10, 11, 13, 0.03) 0%, rgba(10, 11, 13, 0.06) 34%, rgba(10, 11, 13, 0.38) 65%, rgba(10, 11, 13, 0.84) 100%),
-      linear-gradient(90deg, rgba(10, 11, 13, 0.2) 0%, rgba(10, 11, 13, 0.03) 58%, rgba(10, 11, 13, 0.1) 100%),
-      url("assets/new-tires-bg.png");
-    background-position: 62% center;
+      linear-gradient(180deg, rgba(0, 0, 0, 0.04) 0%, rgba(0, 0, 0, 0.08) 38%, rgba(0, 0, 0, 0.36) 68%, rgba(0, 0, 0, 0.74) 100%),
+      url("assets/new-tires-bg.png?v=2");
+    background-position: 60% center;
   }
 
   .changeover-card {
     background-image:
-      linear-gradient(180deg, rgba(10, 11, 13, 0.03) 0%, rgba(10, 11, 13, 0.06) 34%, rgba(10, 11, 13, 0.4) 65%, rgba(10, 11, 13, 0.86) 100%),
-      linear-gradient(90deg, rgba(10, 11, 13, 0.24) 0%, rgba(10, 11, 13, 0.04) 58%, rgba(10, 11, 13, 0.1) 100%),
-      url("assets/changeover-bg.png");
-    background-position: 76% center;
+      linear-gradient(180deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.08) 38%, rgba(0, 0, 0, 0.36) 68%, rgba(0, 0, 0, 0.74) 100%),
+      url("assets/changeover-bg.png?v=2");
+    background-position: 64% center;
   }
 
   .new-tires-card .service-icon,
