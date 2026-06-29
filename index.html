@@ -146,44 +146,6 @@
           </div>
         </div>
       </section>
-
-      <section class="contact section" id="contact" aria-labelledby="contact-title">
-        <div class="shell contact-shell">
-          <div>
-            <p class="eyebrow"><span></span> Appointment request</p>
-            <h2 id="contact-title">Tell us what tire service you need.</h2>
-            <p>
-              Send your vehicle details, tire size, and preferred timing. We will follow up with availability and next steps.
-            </p>
-          </div>
-
-          <form class="contact-form" name="appointment" method="POST" data-netlify="true">
-            <input type="hidden" name="form-name" value="appointment" />
-            <label>
-              Name
-              <input type="text" name="name" autocomplete="name" required />
-            </label>
-            <label>
-              Phone or email
-              <input type="text" name="contact" autocomplete="email" required />
-            </label>
-            <label>
-              Service needed
-              <select name="service" required>
-                <option value="">Select a service</option>
-                <option>Used tires</option>
-                <option>New tires</option>
-                <option>Changeover / swap appointment</option>
-              </select>
-            </label>
-            <label>
-              Vehicle / tire details
-              <textarea name="details" rows="5" placeholder="Example: 225/45R17, sedan, preferred appointment date"></textarea>
-            </label>
-            <button type="submit" class="button primary">Submit request</button>
-          </form>
-        </div>
-      </section>
     </main>
 
     <footer class="site-footer">
