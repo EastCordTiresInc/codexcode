@@ -1,7 +1,12 @@
+.service-grid {
+  align-items: start;
+}
+
 .used-tires-card {
   isolation: isolate;
+  width: 100%;
+  min-width: 0;
   min-height: clamp(480px, 42vw, 540px);
-  aspect-ratio: 4 / 5;
   overflow: hidden;
   color: var(--white);
   background-color: #1f2225;
