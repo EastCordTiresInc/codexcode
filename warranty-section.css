@@ -1,0 +1,48 @@
+.warranty {
+  padding: 76px 0 96px;
+  background:
+    linear-gradient(rgba(228, 229, 231, 0.58) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(228, 229, 231, 0.58) 1px, transparent 1px),
+    linear-gradient(135deg, #fff 45%, #f7f7f6);
+  background-size: 70px 70px, 70px 70px, auto;
+}
+
+.warranty-banner {
+  box-shadow: 0 32px 80px rgba(229, 36, 42, 0.2), 0 26px 80px rgba(17, 18, 20, 0.08);
+}
+
+.warranty-button {
+  color: #776268;
+  background: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  opacity: 1;
+}
+
+.warranty-button:hover,
+.warranty-button:focus-visible {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.warranty-button[aria-disabled="true"] {
+  cursor: default;
+}
+
+.warranty-button[aria-disabled="true"]:hover {
+  transform: none;
+}
+
+@media (max-width: 560px) {
+  .warranty {
+    padding: 54px 0 64px;
+    background-size: 48px 48px, 48px 48px, auto;
+  }
+
+  .warranty .shell {
+    width: min(100% - 28px, var(--shell));
+  }
+
+  .warranty-banner {
+    border-radius: 24px;
+  }
+}
