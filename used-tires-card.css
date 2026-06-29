@@ -1,15 +1,19 @@
 .used-tires-card {
   isolation: isolate;
+  min-height: clamp(480px, 42vw, 540px);
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  color: var(--white);
   background-color: #1f2225;
   background-image:
-    linear-gradient(180deg, rgba(10, 11, 13, 0.02) 0%, rgba(10, 11, 13, 0.08) 36%, rgba(10, 11, 13, 0.5) 72%, rgba(10, 11, 13, 0.84) 100%),
-    linear-gradient(90deg, rgba(10, 11, 13, 0.24) 0%, rgba(10, 11, 13, 0.03) 54%, rgba(10, 11, 13, 0.12) 100%),
+    linear-gradient(180deg, rgba(10, 11, 13, 0.02) 0%, rgba(10, 11, 13, 0.04) 34%, rgba(10, 11, 13, 0.32) 62%, rgba(10, 11, 13, 0.82) 100%),
+    linear-gradient(90deg, rgba(10, 11, 13, 0.18) 0%, rgba(10, 11, 13, 0.02) 56%, rgba(10, 11, 13, 0.08) 100%),
     url("assets/used-tires-bg.png");
   background-size: cover;
-  background-position: 58% center;
+  background-position: 61% center;
   background-repeat: no-repeat;
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 26px 58px rgba(17, 18, 20, 0.2);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 34px 76px rgba(17, 18, 20, 0.24);
 }
 
 .used-tires-card::before {
@@ -22,23 +26,23 @@
 }
 
 .used-tires-card .service-icon {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   color: var(--white);
   background: linear-gradient(145deg, #f0444a 0%, var(--red) 54%, #c9171d 100%);
-  border-radius: 19px;
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.2), 0 10px 24px rgba(229, 36, 42, 0.28);
+  border-radius: 20px;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.24), 0 12px 26px rgba(229, 36, 42, 0.3);
 }
 
 .used-tires-card .service-icon svg {
-  width: 31px;
+  width: 34px;
   stroke-width: 1.75;
 }
 
 .used-tires-card .card-copy {
-  width: min(100%, 320px);
+  width: min(100%, 330px);
   margin-top: auto;
-  padding-top: 56px;
+  padding-top: clamp(120px, 15vw, 180px);
   color: var(--white);
   background: transparent;
   border-radius: 0;
@@ -46,76 +50,78 @@
 }
 
 .used-tires-card .card-copy strong {
-  max-width: 320px;
+  max-width: 330px;
   color: var(--white);
-  font-size: clamp(1.65rem, 2.35vw, 2rem);
-  line-height: 1.05;
-  letter-spacing: -0.035em;
-  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.58);
+  font-size: clamp(1.9rem, 2.8vw, 2.35rem);
+  line-height: 1.03;
+  letter-spacing: -0.04em;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
 }
 
 .used-tires-card .card-copy > span {
-  max-width: 300px;
+  max-width: 305px;
   color: rgba(255, 255, 255, 0.96);
-  font-size: 1rem;
+  font-size: 1.06rem;
   line-height: 1.58;
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.64);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.66);
 }
 
 .used-tires-card .card-arrow {
   position: absolute;
-  right: 28px;
-  bottom: 27px;
+  right: 32px;
+  bottom: 31px;
   z-index: 1;
   display: block;
   color: var(--white);
-  font-size: 1.7rem;
+  font-size: 2rem;
   line-height: 1;
-  text-shadow: 0 3px 14px rgba(0, 0, 0, 0.68);
+  text-shadow: 0 3px 16px rgba(0, 0, 0, 0.7);
 }
 
 @media (max-width: 800px) {
   .used-tires-card {
-    background-position: 64% center;
+    min-height: clamp(440px, 82vw, 520px);
+    background-position: 66% center;
   }
 }
 
 @media (max-width: 560px) {
   .used-tires-card {
+    min-height: clamp(440px, 112vw, 520px);
     background-image:
-      linear-gradient(180deg, rgba(10, 11, 13, 0.04) 0%, rgba(10, 11, 13, 0.12) 34%, rgba(10, 11, 13, 0.56) 72%, rgba(10, 11, 13, 0.86) 100%),
-      linear-gradient(90deg, rgba(10, 11, 13, 0.28) 0%, rgba(10, 11, 13, 0.06) 58%, rgba(10, 11, 13, 0.14) 100%),
+      linear-gradient(180deg, rgba(10, 11, 13, 0.03) 0%, rgba(10, 11, 13, 0.06) 34%, rgba(10, 11, 13, 0.38) 65%, rgba(10, 11, 13, 0.84) 100%),
+      linear-gradient(90deg, rgba(10, 11, 13, 0.2) 0%, rgba(10, 11, 13, 0.03) 58%, rgba(10, 11, 13, 0.1) 100%),
       url("assets/used-tires-bg.png");
-    background-position: 70% center;
+    background-position: 72% center;
   }
 
   .used-tires-card .service-icon {
-    width: 58px;
-    height: 58px;
-    border-radius: 17px;
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
   }
 
   .used-tires-card .service-icon svg {
-    width: 28px;
+    width: 30px;
   }
 
   .used-tires-card .card-copy {
     width: min(100%, 320px);
-    padding-top: 48px;
+    padding-top: clamp(132px, 34vw, 170px);
   }
 
   .used-tires-card .card-copy strong {
-    font-size: 1.55rem;
+    font-size: clamp(1.75rem, 7vw, 2rem);
   }
 
   .used-tires-card .card-copy > span {
-    max-width: 260px;
-    font-size: 0.92rem;
+    max-width: 280px;
+    font-size: 0.96rem;
   }
 
   .used-tires-card .card-arrow {
-    right: 24px;
-    bottom: 24px;
-    font-size: 1.45rem;
+    right: 25px;
+    bottom: 25px;
+    font-size: 1.7rem;
   }
 }
