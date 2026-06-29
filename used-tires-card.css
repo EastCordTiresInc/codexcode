@@ -83,10 +83,130 @@
   text-shadow: 0 3px 16px rgba(0, 0, 0, 0.7);
 }
 
+.new-tires-card,
+.changeover-card {
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(480px, 42vw, 540px);
+  overflow: hidden;
+  color: var(--white);
+  background-color: #1f2225;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 34px 76px rgba(17, 18, 20, 0.24);
+}
+
+.new-tires-card {
+  background-image:
+    linear-gradient(180deg, rgba(10, 11, 13, 0.02) 0%, rgba(10, 11, 13, 0.04) 34%, rgba(10, 11, 13, 0.32) 62%, rgba(10, 11, 13, 0.82) 100%),
+    linear-gradient(90deg, rgba(10, 11, 13, 0.18) 0%, rgba(10, 11, 13, 0.02) 56%, rgba(10, 11, 13, 0.08) 100%),
+    url("assets/new-tires-bg.png");
+  background-position: 58% center;
+}
+
+.changeover-card {
+  background-image:
+    linear-gradient(180deg, rgba(10, 11, 13, 0.03) 0%, rgba(10, 11, 13, 0.06) 34%, rgba(10, 11, 13, 0.34) 62%, rgba(10, 11, 13, 0.84) 100%),
+    linear-gradient(90deg, rgba(10, 11, 13, 0.24) 0%, rgba(10, 11, 13, 0.04) 56%, rgba(10, 11, 13, 0.08) 100%),
+    url("assets/changeover-bg.png");
+  background-position: 72% center;
+}
+
+.new-tires-card::before,
+.changeover-card::before {
+  display: none;
+}
+
+.new-tires-card > *,
+.changeover-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.new-tires-card .service-number,
+.changeover-card .service-number {
+  display: none;
+}
+
+.new-tires-card .service-icon,
+.changeover-card .service-icon {
+  width: 72px;
+  height: 72px;
+  color: var(--white);
+  background: linear-gradient(145deg, #f0444a 0%, var(--red) 54%, #c9171d 100%);
+  border-radius: 20px;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.24), 0 12px 26px rgba(229, 36, 42, 0.3);
+}
+
+.new-tires-card .service-icon svg,
+.changeover-card .service-icon svg {
+  width: 34px;
+  stroke-width: 1.75;
+}
+
+.new-tires-card .card-copy,
+.changeover-card .card-copy {
+  width: min(100%, 330px);
+  margin-top: auto;
+  padding-top: clamp(120px, 15vw, 180px);
+  color: var(--white);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.new-tires-card .card-copy strong,
+.changeover-card .card-copy strong {
+  max-width: 330px;
+  color: var(--white);
+  font-size: clamp(1.9rem, 2.8vw, 2.35rem);
+  line-height: 1.03;
+  letter-spacing: -0.04em;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+.new-tires-card .card-copy > span,
+.changeover-card .card-copy > span {
+  max-width: 305px;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 1.06rem;
+  line-height: 1.58;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.66);
+}
+
+.new-tires-card .card-arrow,
+.changeover-card .card-arrow {
+  position: absolute;
+  right: 32px;
+  bottom: 31px;
+  z-index: 1;
+  display: block;
+  color: var(--white);
+  font-size: 2rem;
+  line-height: 1;
+  text-shadow: 0 3px 16px rgba(0, 0, 0, 0.7);
+}
+
 @media (max-width: 800px) {
   .used-tires-card {
     min-height: clamp(440px, 82vw, 520px);
     background-position: 66% center;
+  }
+
+  .new-tires-card,
+  .changeover-card {
+    min-height: clamp(440px, 82vw, 520px);
+  }
+
+  .new-tires-card {
+    background-position: 60% center;
+  }
+
+  .changeover-card {
+    background-position: 74% center;
   }
 }
 
@@ -125,6 +245,63 @@
   }
 
   .used-tires-card .card-arrow {
+    right: 25px;
+    bottom: 25px;
+    font-size: 1.7rem;
+  }
+
+  .new-tires-card,
+  .changeover-card {
+    min-height: clamp(440px, 112vw, 520px);
+  }
+
+  .new-tires-card {
+    background-image:
+      linear-gradient(180deg, rgba(10, 11, 13, 0.03) 0%, rgba(10, 11, 13, 0.06) 34%, rgba(10, 11, 13, 0.38) 65%, rgba(10, 11, 13, 0.84) 100%),
+      linear-gradient(90deg, rgba(10, 11, 13, 0.2) 0%, rgba(10, 11, 13, 0.03) 58%, rgba(10, 11, 13, 0.1) 100%),
+      url("assets/new-tires-bg.png");
+    background-position: 62% center;
+  }
+
+  .changeover-card {
+    background-image:
+      linear-gradient(180deg, rgba(10, 11, 13, 0.03) 0%, rgba(10, 11, 13, 0.06) 34%, rgba(10, 11, 13, 0.4) 65%, rgba(10, 11, 13, 0.86) 100%),
+      linear-gradient(90deg, rgba(10, 11, 13, 0.24) 0%, rgba(10, 11, 13, 0.04) 58%, rgba(10, 11, 13, 0.1) 100%),
+      url("assets/changeover-bg.png");
+    background-position: 76% center;
+  }
+
+  .new-tires-card .service-icon,
+  .changeover-card .service-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+  }
+
+  .new-tires-card .service-icon svg,
+  .changeover-card .service-icon svg {
+    width: 30px;
+  }
+
+  .new-tires-card .card-copy,
+  .changeover-card .card-copy {
+    width: min(100%, 320px);
+    padding-top: clamp(132px, 34vw, 170px);
+  }
+
+  .new-tires-card .card-copy strong,
+  .changeover-card .card-copy strong {
+    font-size: clamp(1.75rem, 7vw, 2rem);
+  }
+
+  .new-tires-card .card-copy > span,
+  .changeover-card .card-copy > span {
+    max-width: 280px;
+    font-size: 0.96rem;
+  }
+
+  .new-tires-card .card-arrow,
+  .changeover-card .card-arrow {
     right: 25px;
     bottom: 25px;
     font-size: 1.7rem;
