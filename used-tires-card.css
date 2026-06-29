@@ -11,11 +11,10 @@
   color: var(--white);
   background-color: #1f2225;
   background-image:
-    linear-gradient(180deg, rgba(10, 11, 13, 0.02) 0%, rgba(10, 11, 13, 0.04) 34%, rgba(10, 11, 13, 0.32) 62%, rgba(10, 11, 13, 0.82) 100%),
-    linear-gradient(90deg, rgba(10, 11, 13, 0.18) 0%, rgba(10, 11, 13, 0.02) 56%, rgba(10, 11, 13, 0.08) 100%),
-    url("assets/used-tires-bg.png");
+    linear-gradient(180deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.04) 42%, rgba(0, 0, 0, 0.24) 68%, rgba(0, 0, 0, 0.66) 100%),
+    url("assets/used-tires-bg.png?v=4");
   background-size: cover;
-  background-position: 61% center;
+  background-position: 64% center;
   background-repeat: no-repeat;
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow: 0 34px 76px rgba(17, 18, 20, 0.24);
@@ -190,7 +189,7 @@
 @media (max-width: 800px) {
   .used-tires-card {
     min-height: clamp(440px, 82vw, 520px);
-    background-position: 66% center;
+    background-position: 70% center;
   }
 
   .new-tires-card,
@@ -211,10 +210,9 @@
   .used-tires-card {
     min-height: clamp(440px, 112vw, 520px);
     background-image:
-      linear-gradient(180deg, rgba(10, 11, 13, 0.03) 0%, rgba(10, 11, 13, 0.06) 34%, rgba(10, 11, 13, 0.38) 65%, rgba(10, 11, 13, 0.84) 100%),
-      linear-gradient(90deg, rgba(10, 11, 13, 0.2) 0%, rgba(10, 11, 13, 0.03) 58%, rgba(10, 11, 13, 0.1) 100%),
-      url("assets/used-tires-bg.png");
-    background-position: 72% center;
+      linear-gradient(180deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.06) 42%, rgba(0, 0, 0, 0.28) 68%, rgba(0, 0, 0, 0.70) 100%),
+      url("assets/used-tires-bg.png?v=4");
+    background-position: 74% center;
   }
 
   .used-tires-card .service-icon {
