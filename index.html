@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="warranty-section.css?v=1" />
     <link rel="stylesheet" href="footer-section.css?v=1" />
     <link rel="stylesheet" href="auth.css" />
+    <link rel="stylesheet" href="chat.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -230,6 +231,44 @@
       </div>
     </footer>
 
+    <div class="chat-widget" data-chat-widget>
+      <section class="chat-panel" id="chat-panel" aria-labelledby="chat-title" aria-hidden="true">
+        <div class="chat-panel-header">
+          <div>
+            <p>Support</p>
+            <h2 id="chat-title">EastCord Tires Support</h2>
+          </div>
+          <button class="chat-close" type="button" aria-label="Close chat" data-chat-close>X</button>
+        </div>
+        <div class="chat-body">
+          <p class="chat-welcome">Hi! How can we help you today?</p>
+          <div class="chat-options" aria-label="Quick chat options">
+            <button type="button">Check tire availability</button>
+            <button type="button">Used tires</button>
+            <button type="button">New tires</button>
+            <button type="button">Changeover / swap appointment</button>
+            <button type="button">Mobile tire service</button>
+          </div>
+          <form class="chat-form" data-chat-form>
+            <label class="sr-only" for="chat-message">Message</label>
+            <input id="chat-message" type="text" placeholder="Type your message..." autocomplete="off" />
+            <button type="submit">Send</button>
+          </form>
+          <p class="chat-note" data-chat-note>
+            This chat is ready for a live chatbot provider. Messages are not sent yet.
+          </p>
+        </div>
+      </section>
+      <button class="chat-toggle" type="button" aria-controls="chat-panel" aria-expanded="false" data-chat-toggle>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5.5A3.5 3.5 0 0 1 7.5 2h9A3.5 3.5 0 0 1 20 5.5v6A3.5 3.5 0 0 1 16.5 15H11l-5 4v-4.3A3.5 3.5 0 0 1 4 11.5v-6Z"></path>
+          <path d="M8 7h8M8 10h5"></path>
+        </svg>
+        <span>Chat with us</span>
+      </button>
+    </div>
+
     <script type="module" src="auth.js"></script>
+    <script src="chat.js" defer></script>
   </body>
 </html>
