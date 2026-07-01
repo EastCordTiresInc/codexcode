@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="video-section.css?v=1" />
     <link rel="stylesheet" href="warranty-section.css?v=1" />
     <link rel="stylesheet" href="footer-section.css?v=1" />
+    <link rel="stylesheet" href="auth.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -107,6 +108,62 @@
         </div>
       </section>
 
+      <section class="inventory section" id="inventory" aria-labelledby="inventory-title">
+        <div class="shell">
+          <div class="section-heading inventory-heading">
+            <div>
+              <p class="eyebrow"><span></span> Tire inventory</p>
+              <h2 id="inventory-title">Browse tires before you sign in.</h2>
+            </div>
+            <p>
+              View passenger tire sizes, brands, prices, stock, and product details. Login is only required when you proceed to checkout.
+            </p>
+          </div>
+
+          <div class="store-layout">
+            <div class="inventory-panel">
+              <div class="inventory-toolbar" aria-label="Inventory filters">
+                <label>
+                  Search tires
+                  <input id="inventory-search" type="search" placeholder="Search by size, brand, or type" autocomplete="off" />
+                </label>
+                <label>
+                  Tire type
+                  <select id="inventory-filter">
+                    <option value="all">All tires</option>
+                    <option value="used">Used tires</option>
+                    <option value="new">New tires</option>
+                  </select>
+                </label>
+              </div>
+              <div class="inventory-list" id="inventory-list" aria-live="polite"></div>
+            </div>
+
+            <aside class="cart-panel" id="cart" aria-labelledby="cart-title">
+              <div class="cart-header">
+                <div>
+                  <p class="cart-kicker">Your cart</p>
+                  <h3 id="cart-title">Selected tires</h3>
+                </div>
+                <a class="cart-auth-link" href="login.html">Login</a>
+              </div>
+              <div class="auth-status" id="auth-status">Browsing as guest</div>
+              <div class="cart-items" id="cart-items"></div>
+              <div class="cart-summary">
+                <span>Total</span>
+                <strong id="cart-total">$0.00</strong>
+              </div>
+              <button class="button button-primary checkout-button" id="checkout-button" type="button">
+                Proceed to Checkout
+              </button>
+              <p class="cart-note" id="checkout-message">
+                You can browse and add tires without an account. Login is required before payment.
+              </p>
+            </aside>
+          </div>
+        </div>
+      </section>
+
       <section class="media-band section" aria-label="EastCord Tires video">
         <div class="shell media-shell single">
           <div class="media-card video-card" aria-label="Tire installation animation video">
@@ -172,5 +229,7 @@
         <span>Mississauga, Ontario</span>
       </div>
     </footer>
+
+    <script type="module" src="auth.js"></script>
   </body>
 </html>
