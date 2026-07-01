@@ -176,11 +176,19 @@
 }
 
 .cart-auth-link,
-.auth-alt a {
+.auth-alt a,
+.text-button {
   color: var(--red);
   font-size: 0.82rem;
   font-weight: 800;
   text-decoration: none;
+}
+
+.text-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .auth-status {
