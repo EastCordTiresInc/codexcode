@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Eastcord Tires offers used tires, new tires, and tire changeover appointments in Milton, Ontario."
+      content="Eastcord Tires offers used tires, new tires, and tire changeover appointments in Brantford, Ontario."
     />
-    <title>EASTCORD TIRES | Used & New Tires in Milton</title>
+    <title>EASTCORD TIRES | Used & New Tires in Brantford</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="used-tires-card.css?v=13" />
     <link rel="stylesheet" href="video-section.css?v=1" />
     <link rel="stylesheet" href="warranty-section.css?v=1" />
     <link rel="stylesheet" href="footer-section.css?v=1" />
+    <link rel="stylesheet" href="auth.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -146,17 +147,73 @@
           </div>
         </div>
       </section>
+
+      <section class="inventory section" id="inventory" aria-labelledby="inventory-title">
+        <div class="shell">
+          <div class="section-heading inventory-heading">
+            <div>
+              <p class="eyebrow"><span></span> Tire inventory</p>
+              <h2 id="inventory-title">Browse tires before you sign in.</h2>
+            </div>
+            <p>
+              View passenger tire sizes, brands, prices, stock, and product details. Login is only required when you proceed to checkout.
+            </p>
+          </div>
+
+          <div class="store-layout">
+            <div class="inventory-panel">
+              <div class="inventory-toolbar" aria-label="Inventory filters">
+                <label>
+                  Search tires
+                  <input id="inventory-search" type="search" placeholder="Search by size, brand, or type" autocomplete="off" />
+                </label>
+                <label>
+                  Tire type
+                  <select id="inventory-filter">
+                    <option value="all">All tires</option>
+                    <option value="used">Used tires</option>
+                    <option value="new">New tires</option>
+                  </select>
+                </label>
+              </div>
+              <div class="inventory-list" id="inventory-list" aria-live="polite"></div>
+            </div>
+
+            <aside class="cart-panel" id="cart" aria-labelledby="cart-title">
+              <div class="cart-header">
+                <div>
+                  <p class="cart-kicker">Your cart</p>
+                  <h3 id="cart-title">Selected tires</h3>
+                </div>
+                <a class="cart-auth-link" href="login.html">Login</a>
+              </div>
+              <div class="auth-status" id="auth-status">Browsing as guest</div>
+              <div class="cart-items" id="cart-items"></div>
+              <div class="cart-summary">
+                <span>Total</span>
+                <strong id="cart-total">$0.00</strong>
+              </div>
+              <button class="button button-primary checkout-button" id="checkout-button" type="button">
+                Proceed to Checkout
+              </button>
+              <p class="cart-note" id="checkout-message">
+                You can browse and add tires without an account. Login is required before payment.
+              </p>
+            </aside>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer class="site-footer">
       <div class="shell footer-grid">
         <div>
           <img src="assets/eastcord-logo-red-white.png" alt="EastCord Tires" class="footer-logo" />
-          <p>Used tires, new tires, and changeover services for Mississauga and beyond.</p>
+          <p>Used tires, new tires, and changeover services for Brantford and beyond.</p>
         </div>
         <div>
           <h3>Head Office</h3>
-          <p class="footer-address">4011 Brickstone Mews, Mississauga, ON L5B 0J7</p>
+          <p class="footer-address">585-814 Colborne St, Brantford, ON, N3S 0K4</p>
         </div>
         <div>
           <h3>Quick Links</h3>
@@ -169,8 +226,10 @@
       </div>
       <div class="shell footer-bottom">
         <span>© 2026 EastCord Tires.</span>
-        <span>Mississauga, Ontario</span>
+        <span>Brantford, Ontario</span>
       </div>
     </footer>
+
+    <script type="module" src="auth.js"></script>
   </body>
 </html>
