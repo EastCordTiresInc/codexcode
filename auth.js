@@ -10,49 +10,8 @@ import {
 
 const CART_KEY = 'eastcord-cart';
 const RETURN_KEY = 'eastcord-return-to';
-
-const inventory = [
-  {
-    id: 'used-205-55r16-all-season',
-    type: 'used',
-    title: 'Used All-Season Tire',
-    brand: 'Inspected passenger tire',
-    size: '205/55R16',
-    price: 60,
-    stock: 8,
-    details: 'Quality checked used passenger tire. Final availability is confirmed before payment.',
-  },
-  {
-    id: 'used-225-65r17-all-season',
-    type: 'used',
-    title: 'Used All-Season Tire',
-    brand: 'Inspected passenger tire',
-    size: '225/65R17',
-    price: 70,
-    stock: 6,
-    details: 'Inspected used tire option for passenger vehicles and SUVs.',
-  },
-  {
-    id: 'new-205-55r16-touring',
-    type: 'new',
-    title: 'New Touring Tire',
-    brand: 'Passenger touring tire',
-    size: '205/55R16',
-    price: 115,
-    stock: 12,
-    details: 'New passenger tire with dependable everyday performance.',
-  },
-  {
-    id: 'new-225-65r17-all-season',
-    type: 'new',
-    title: 'New All-Season Tire',
-    brand: 'Passenger all-season tire',
-    size: '225/65R17',
-    price: 145,
-    stock: 10,
-    details: 'New all-season passenger tire with long-lasting value.',
-  },
-];
+const INVENTORY_SOURCE_URL = 'assets/inventory.json';
+const EMPTY_INVENTORY_MESSAGE = 'Inventory will appear here once products are added.';
 
 const money = new Intl.NumberFormat('en-CA', {
   style: 'currency',
@@ -60,6 +19,8 @@ const money = new Intl.NumberFormat('en-CA', {
 });
 
 let currentUser = null;
+let inventory = [];
+let inventoryLoaded = false;
 
 init();
 
@@ -73,6 +34,8 @@ async function init() {
 
   if (document.querySelector('#inventory-list')) {
     bindInventoryControls();
+    renderInventory();
+    await loadInventory();
     renderInventory();
     renderCart();
     bindCheckout();
@@ -93,6 +56,74 @@ async function processAuthCallback() {
   }
 }
 
+async function loadInventory() {
+  try {
+    const response = await fetch(INVENTORY_SOURCE_URL, { cache: 'no-store' });
+    if (!response.ok) {
+      inventory = [];
+      return;
+    }
+
+    const data = await response.json();
+    const records = Array.isArray(data) ? data : data.products || data.inventory || data.items || [];
+    inventory = records.map(normalizeInventoryItem).filter(Boolean);
+  } catch (_error) {
+    inventory = [];
+  } finally {
+    inventoryLoaded = true;
+  }
+}
+
+function normalizeInventoryItem(record, index) {
+  if (!record || typeof record !== 'object') return null;
+
+  const brand = clean(record.brand || record.Brand);
+  const model = clean(record.model || record.Model);
+  const size = clean(record.size || record.Size || record.tireSize || record['Tire Size']);
+  const type = clean(record.type || record.Type || record.tireType || record['Tire Type'] || record.category || record.Category);
+  const loadRating = clean(record.loadRating || record['Load Rating'] || record.load || record.Load || record.rating || record.Rating);
+  const tag = clean(record.tag || record.Tag || record.category || record.Category);
+  const details = clean(record.details || record.Details || record.description || record.Description || record.notes || record.Notes);
+  const title = clean(record.title || record.Title || record.name || record.Name || record.productName || record['Product Name']);
+  const price = parsePrice(record.price || record.Price || record.salePrice || record['Sale Price']);
+  const stock = parseStock(record.stock || record.Stock || record.quantity || record.Quantity || record.qty || record.Qty);
+  const sourceId = clean(record.id || record.ID || record.sku || record.SKU || record.productId || record['Product ID']);
+  const displayTitle = title || [brand, model, size].filter(Boolean).join(' ');
+
+  if (!displayTitle && !brand && !model && !size) return null;
+
+  return {
+    id: sourceId || `inventory-${index}`,
+    type,
+    title: displayTitle || 'Inventory item',
+    brand,
+    model,
+    size,
+    loadRating,
+    price,
+    stock,
+    tag,
+    details,
+  };
+}
+
+function clean(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).trim();
+}
+
+function parsePrice(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const amount = Number(String(value).replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function parseStock(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const amount = Number(String(value).replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(amount) ? amount : null;
+}
+
 function bindInventoryControls() {
   document.querySelector('#inventory-search')?.addEventListener('input', renderInventory);
   document.querySelector('#inventory-filter')?.addEventListener('change', renderInventory);
@@ -102,35 +133,52 @@ function renderInventory() {
   const list = document.querySelector('#inventory-list');
   if (!list) return;
 
+  if (!inventoryLoaded) {
+    list.innerHTML = '<p class="empty-cart">Loading inventory...</p>';
+    return;
+  }
+
+  if (!inventory.length) {
+    list.innerHTML = `<p class="empty-cart">${EMPTY_INVENTORY_MESSAGE}</p>`;
+    return;
+  }
+
   const search = document.querySelector('#inventory-search')?.value.trim().toLowerCase() ?? '';
   const filter = document.querySelector('#inventory-filter')?.value ?? 'all';
 
   const products = inventory.filter((item) => {
-    const matchesType = filter === 'all' || item.type === filter;
-    const searchable = `${item.title} ${item.brand} ${item.size} ${item.details}`.toLowerCase();
+    const itemType = item.type.toLowerCase();
+    const matchesType = filter === 'all' || itemType.includes(filter);
+    const searchable = [item.title, item.brand, item.model, item.size, item.loadRating, item.tag, item.details]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
     return matchesType && searchable.includes(search);
   });
 
   if (!products.length) {
-    list.innerHTML = '<p class="empty-cart">No tires match that search. Try another size or tire type.</p>';
+    list.innerHTML = '<p class="empty-cart">No tires match that search. Try another size, brand, or tire type.</p>';
     return;
   }
 
   list.innerHTML = products.map((item) => `
     <article class="product-card">
       <div>
-        <span class="product-type">${item.type === 'used' ? 'Used tire' : 'New tire'}</span>
-        <h3>${item.title}</h3>
+        ${item.type ? `<span class="product-type">${escapeHtml(item.type)}</span>` : ''}
+        <h3>${escapeHtml(item.title)}</h3>
         <div class="product-meta">
-          <span>${item.size}</span>
-          <span>${item.brand}</span>
-          <span>${item.stock} in stock</span>
+          ${item.size ? `<span>${escapeHtml(item.size)}</span>` : ''}
+          ${item.brand ? `<span>${escapeHtml(item.brand)}</span>` : ''}
+          ${item.model ? `<span>${escapeHtml(item.model)}</span>` : ''}
+          ${item.loadRating ? `<span>${escapeHtml(item.loadRating)}</span>` : ''}
+          ${item.stock !== null ? `<span>${escapeHtml(String(item.stock))} in stock</span>` : ''}
+          ${item.tag ? `<span>${escapeHtml(item.tag)}</span>` : ''}
         </div>
-        <p>${item.details}</p>
+        ${item.details ? `<p>${escapeHtml(item.details)}</p>` : ''}
       </div>
       <div class="product-price">
-        <strong>${money.format(item.price)}</strong>
-        <button class="add-cart-button" type="button" data-add-to-cart="${item.id}">Add to cart</button>
+        <strong>${formatPrice(item.price)}</strong>
+        <button class="add-cart-button" type="button" data-add-to-cart="${escapeHtml(item.id)}" ${item.stock === 0 ? 'disabled' : ''}>Add to cart</button>
       </div>
     </article>
   `).join('');
@@ -140,15 +188,28 @@ function renderInventory() {
   });
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatPrice(price) {
+  return price === null ? 'Price pending' : money.format(price);
+}
+
 function addToCart(productId) {
   const item = inventory.find((product) => product.id === productId);
-  if (!item) return;
+  if (!item || item.stock === 0) return;
 
   const cart = getCart();
   const existing = cart.find((cartItem) => cartItem.id === productId);
 
   if (existing) {
-    existing.qty = Math.min(existing.qty + 1, item.stock);
+    existing.qty = item.stock === null ? existing.qty + 1 : Math.min(existing.qty + 1, item.stock);
   } else {
     cart.push({ id: productId, qty: 1 });
   }
@@ -195,18 +256,21 @@ function renderCart() {
   list.innerHTML = lines.map((line) => `
     <div class="cart-item">
       <div>
-        <strong>${line.title}</strong>
-        <span>${line.size} - ${money.format(line.price)} each</span>
+        <strong>${escapeHtml(line.title)}</strong>
+        <span>${[line.size, formatPrice(line.price)].filter(Boolean).map(escapeHtml).join(' - ')}</span>
       </div>
-      <div class="cart-qty" aria-label="Quantity controls for ${line.title}">
-        <button class="qty-button" type="button" data-cart-decrease="${line.id}">-</button>
+      <div class="cart-qty" aria-label="Quantity controls for ${escapeHtml(line.title)}">
+        <button class="qty-button" type="button" data-cart-decrease="${escapeHtml(line.id)}">-</button>
         <span>${line.qty}</span>
-        <button class="qty-button" type="button" data-cart-increase="${line.id}">+</button>
+        <button class="qty-button" type="button" data-cart-increase="${escapeHtml(line.id)}">+</button>
       </div>
     </div>
   `).join('');
 
-  total.textContent = money.format(lines.reduce((sum, line) => sum + line.price * line.qty, 0));
+  const hasPendingPrice = lines.some((line) => line.price === null);
+  total.textContent = hasPendingPrice
+    ? 'Price pending'
+    : money.format(lines.reduce((sum, line) => sum + line.price * line.qty, 0));
 
   list.querySelectorAll('[data-cart-decrease]').forEach((button) => {
     button.addEventListener('click', () => updateCartQty(button.dataset.cartDecrease, -1));
@@ -222,7 +286,8 @@ function updateCartQty(productId, change) {
   const cart = getCart()
     .map((item) => {
       if (item.id !== productId) return item;
-      return { ...item, qty: Math.min(Math.max(item.qty + change, 0), product?.stock ?? item.qty) };
+      const maxQty = product?.stock ?? item.qty + change;
+      return { ...item, qty: Math.min(Math.max(item.qty + change, 0), maxQty) };
     })
     .filter((item) => item.qty > 0);
 
@@ -367,7 +432,7 @@ function renderAuthStatus() {
   if (!status) return;
 
   if (currentUser) {
-    status.innerHTML = `Logged in as ${currentUser.email}. <button class="text-button" type="button" data-logout>Log out</button>`;
+    status.innerHTML = `Logged in as ${escapeHtml(currentUser.email)}. <button class="text-button" type="button" data-logout>Log out</button>`;
     if (authLink) authLink.textContent = 'Account ready';
     bindLogoutButtons();
     return;
