@@ -5,12 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Eastcord Tires offers used tires, new tires, and tire changeover appointments in Milton, Ontario."
+      content="Eastcord Tires offers used tires, new tires, and tire changeover appointments in Brantford, Ontario."
     />
-    <title>EASTCORD TIRES | Used & New Tires in Milton</title>
+    <title>EASTCORD TIRES | Used & New Tires in Brantford</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="used-tires-card.css?v=13" />
     <link rel="stylesheet" href="video-section.css?v=1" />
+    <link rel="stylesheet" href="warranty-section.css?v=1" />
+    <link rel="stylesheet" href="footer-section.css?v=1" />
+    <link rel="stylesheet" href="auth.css" />
+    <link rel="stylesheet" href="chat.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -119,77 +123,85 @@
         </div>
       </section>
 
-      <section class="inventory section" id="inventory" aria-labelledby="inventory-title">
+      <section class="warranty section" id="warranty" aria-labelledby="warranty-title">
         <div class="shell">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow"><span></span> Tire inventory</p>
-              <h2 id="inventory-title">Choose used or new tires for your passenger vehicle.</h2>
+          <div class="warranty-banner">
+            <div class="warranty-seal" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 3 5.5 5.7v5.2c0 4.1 2.6 7.8 6.5 9.1 3.9-1.3 6.5-5 6.5-9.1V5.7L12 3Z"></path>
+                <path d="m8.8 12.1 2.1 2.1 4.4-4.6"></path>
+              </svg>
             </div>
-            <p>Browse the options below, then tell us what you need through the appointment form.</p>
-          </div>
-
-          <div class="inventory-layout">
-            <article class="inventory-card featured">
-              <div>
-                <p class="eyebrow"><span></span> Used tires</p>
-                <h3>Inspected used tires with practical value.</h3>
-                <p>
-                  Explore available used tire options for passenger vehicles and request fitment support before you buy.
-                </p>
-              </div>
-              <a class="text-link" href="#contact">Ask about used tires</a>
-            </article>
-
-            <article class="inventory-card">
-              <div>
-                <p class="eyebrow"><span></span> New tires</p>
-                <h3>Quality new tires for dependable daily driving.</h3>
-                <p>
-                  Tell us your vehicle and tire size so we can help source new tires that match your needs.
-                </p>
-              </div>
-              <a class="text-link" href="#contact">Ask about new tires</a>
-            </article>
+            <div>
+              <p class="eyebrow light"><span></span> Buy with confidence</p>
+              <h2 id="warranty-title">1 Month Exchange Warranty</h2>
+              <p>Download our warranty policy for full details.</p>
+            </div>
+            <a class="button warranty-button" href="#warranty" aria-disabled="true">
+              Download Warranty Policy
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3v12"></path>
+                <path d="m7 10 5 5 5-5"></path>
+                <path d="M5 21h14"></path>
+              </svg>
+            </a>
           </div>
         </div>
       </section>
 
-      <section class="contact section" id="contact" aria-labelledby="contact-title">
-        <div class="shell contact-shell">
-          <div>
-            <p class="eyebrow"><span></span> Appointment request</p>
-            <h2 id="contact-title">Tell us what tire service you need.</h2>
+      <section class="inventory section" id="inventory" aria-labelledby="inventory-title">
+        <div class="shell">
+          <div class="section-heading inventory-heading">
+            <div>
+              <p class="eyebrow"><span></span> Tire inventory</p>
+              <h2 id="inventory-title">Browse tires before you sign in.</h2>
+            </div>
             <p>
-              Send your vehicle details, tire size, and preferred timing. We will follow up with availability and next steps.
+              View passenger tire sizes, brands, prices, stock, and product details. Login is only required when you proceed to checkout.
             </p>
           </div>
 
-          <form class="contact-form" name="appointment" method="POST" data-netlify="true">
-            <input type="hidden" name="form-name" value="appointment" />
-            <label>
-              Name
-              <input type="text" name="name" autocomplete="name" required />
-            </label>
-            <label>
-              Phone or email
-              <input type="text" name="contact" autocomplete="email" required />
-            </label>
-            <label>
-              Service needed
-              <select name="service" required>
-                <option value="">Select a service</option>
-                <option>Used tires</option>
-                <option>New tires</option>
-                <option>Changeover / swap appointment</option>
-              </select>
-            </label>
-            <label>
-              Vehicle / tire details
-              <textarea name="details" rows="5" placeholder="Example: 225/45R17, sedan, preferred appointment date"></textarea>
-            </label>
-            <button type="submit" class="button primary">Submit request</button>
-          </form>
+          <div class="store-layout">
+            <div class="inventory-panel">
+              <div class="inventory-toolbar" aria-label="Inventory filters">
+                <label>
+                  Search tires
+                  <input id="inventory-search" type="search" placeholder="Search by size, brand, or type" autocomplete="off" />
+                </label>
+                <label>
+                  Tire type
+                  <select id="inventory-filter">
+                    <option value="all">All tires</option>
+                    <option value="used">Used tires</option>
+                    <option value="new">New tires</option>
+                  </select>
+                </label>
+              </div>
+              <div class="inventory-list" id="inventory-list" aria-live="polite"></div>
+            </div>
+
+            <aside class="cart-panel" id="cart" aria-labelledby="cart-title">
+              <div class="cart-header">
+                <div>
+                  <p class="cart-kicker">Your cart</p>
+                  <h3 id="cart-title">Selected tires</h3>
+                </div>
+                <a class="cart-auth-link" href="login.html">Login</a>
+              </div>
+              <div class="auth-status" id="auth-status">Browsing as guest</div>
+              <div class="cart-items" id="cart-items"></div>
+              <div class="cart-summary">
+                <span>Total</span>
+                <strong id="cart-total">$0.00</strong>
+              </div>
+              <button class="button button-primary checkout-button" id="checkout-button" type="button">
+                Proceed to Checkout
+              </button>
+              <p class="cart-note" id="checkout-message">
+                You can browse and add tires without an account. Login is required before payment.
+              </p>
+            </aside>
+          </div>
         </div>
       </section>
     </main>
@@ -198,11 +210,11 @@
       <div class="shell footer-grid">
         <div>
           <img src="assets/eastcord-logo-red-white.png" alt="EastCord Tires" class="footer-logo" />
-          <p>Used tires, new tires, and changeover services for Milton and beyond.</p>
+          <p>Used tires, new tires, and changeover services for Brantford and beyond.</p>
         </div>
         <div>
           <h3>Head Office</h3>
-          <p class="footer-address">814-585 Colborne Street Brantford, ON, N3S 0K4</p>
+          <p class="footer-address">585-814 Colborne St, Brantford, ON, N3S 0K4</p>
         </div>
         <div>
           <h3>Quick Links</h3>
@@ -215,8 +227,48 @@
       </div>
       <div class="shell footer-bottom">
         <span>© 2026 EastCord Tires.</span>
-        <span>Milton, Ontario</span>
+        <span>Brantford, Ontario</span>
       </div>
     </footer>
+
+    <div class="chat-widget" data-chat-widget>
+      <section class="chat-panel" id="chat-panel" aria-labelledby="chat-title" aria-hidden="true">
+        <div class="chat-panel-header">
+          <div>
+            <p>Support</p>
+            <h2 id="chat-title">EastCord Tires Support</h2>
+          </div>
+          <button class="chat-close" type="button" aria-label="Close chat" data-chat-close>X</button>
+        </div>
+        <div class="chat-body">
+          <p class="chat-welcome">Hi! How can we help you today?</p>
+          <div class="chat-options" aria-label="Quick chat options">
+            <button type="button">Check tire availability</button>
+            <button type="button">Used tires</button>
+            <button type="button">New tires</button>
+            <button type="button">Changeover / swap appointment</button>
+            <button type="button">Mobile tire service</button>
+          </div>
+          <form class="chat-form" data-chat-form>
+            <label class="sr-only" for="chat-message">Message</label>
+            <input id="chat-message" type="text" placeholder="Type your message..." autocomplete="off" />
+            <button type="submit">Send</button>
+          </form>
+          <p class="chat-note" data-chat-note>
+            This chat is ready for a live chatbot provider. Messages are not sent yet.
+          </p>
+        </div>
+      </section>
+      <button class="chat-toggle" type="button" aria-controls="chat-panel" aria-expanded="false" data-chat-toggle>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5.5A3.5 3.5 0 0 1 7.5 2h9A3.5 3.5 0 0 1 20 5.5v6A3.5 3.5 0 0 1 16.5 15H11l-5 4v-4.3A3.5 3.5 0 0 1 4 11.5v-6Z"></path>
+          <path d="M8 7h8M8 10h5"></path>
+        </svg>
+        <span>Chat with us</span>
+      </button>
+    </div>
+
+    <script type="module" src="auth.js"></script>
+    <script src="chat.js" defer></script>
   </body>
 </html>
