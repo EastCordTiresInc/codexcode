@@ -6,8 +6,8 @@
 .footer-grid {
   padding: 96px 0 84px;
   display: grid;
-  grid-template-columns: minmax(320px, 1.25fr) minmax(360px, 0.9fr) minmax(170px, 0.45fr);
-  gap: clamp(56px, 8vw, 150px);
+  grid-template-columns: minmax(320px, 1.25fr) minmax(170px, 0.45fr);
+  gap: clamp(56px, 12vw, 220px);
   align-items: start;
 }
 
@@ -44,14 +44,6 @@
   text-transform: uppercase;
 }
 
-.footer-address {
-  max-width: none;
-  color: var(--white) !important;
-  font-size: clamp(1.05rem, 1.35vw, 1.32rem) !important;
-  line-height: 1.45 !important;
-  white-space: nowrap;
-}
-
 .footer-grid a {
   display: block;
   width: fit-content;
@@ -86,10 +78,6 @@
 
   .footer-grid > div:first-child {
     grid-column: 1 / -1;
-  }
-
-  .footer-address {
-    white-space: normal;
   }
 }
 
