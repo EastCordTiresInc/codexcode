@@ -6,8 +6,8 @@
 .footer-grid {
   padding: 96px 0 84px;
   display: grid;
-  grid-template-columns: minmax(320px, 1.25fr) minmax(170px, 0.45fr);
-  gap: clamp(56px, 12vw, 220px);
+  grid-template-columns: minmax(320px, 1.25fr) minmax(150px, 0.45fr) minmax(170px, 0.45fr);
+  gap: clamp(48px, 8vw, 140px);
   align-items: start;
 }
 
@@ -42,6 +42,11 @@
   line-height: 1.2;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+}
+
+.footer-social-links {
+  display: grid;
+  justify-items: start;
 }
 
 .footer-grid a {
