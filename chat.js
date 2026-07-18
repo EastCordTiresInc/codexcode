@@ -7,6 +7,7 @@ const inventoryLink = '#inventory';
 const appointmentLink = 'https://hosted.miocommerce.com/io/eastcord-tires/booking/b95731f5-cadb-4849-877c-6238425fd25c';
 const warrantyLink = 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf';
 const inquiryFormName = 'eastcord-other-inquiry';
+const inquiryFrameName = 'eastcord-inquiry-submit-frame';
 
 const mainOptions = [
   { label: 'Used Tires', action: 'used-tires' },
@@ -210,6 +211,18 @@ function createField({ label, name, type = 'text', required = false, autocomplet
   return field;
 }
 
+function getInquiryFrame() {
+  let frame = document.querySelector(`iframe[name="${inquiryFrameName}"]`);
+  if (frame) return frame;
+
+  frame = document.createElement('iframe');
+  frame.name = inquiryFrameName;
+  frame.title = 'EastCord Tires inquiry submission';
+  frame.hidden = true;
+  document.body.appendChild(frame);
+  return frame;
+}
+
 function showInquiryForm() {
   if (!chatOptions) return;
 
@@ -223,8 +236,10 @@ function showInquiryForm() {
   form.className = 'chat-inquiry-form';
   form.name = inquiryFormName;
   form.method = 'POST';
+  form.action = '/';
+  form.target = inquiryFrameName;
   form.dataset.netlify = 'true';
-  form.dataset.netlifyHoneypot = 'bot-field';
+  form.setAttribute('netlify-honeypot', 'bot-field');
   form.noValidate = true;
 
   form.innerHTML = `
@@ -272,7 +287,14 @@ function showInquiryForm() {
   window.setTimeout(() => form.querySelector('input[name="full-name"]')?.focus(), 120);
 }
 
-async function handleInquirySubmit(event) {
+function showInquiryConfirmation() {
+  clearElement(chatOptions);
+  chatOptions.classList.remove('form-mode');
+  addMessage('bot', 'Thank you for contacting EastCord Tires. We received your inquiry and will get back to you shortly.');
+  renderActions([{ label: 'Back to questions', action: 'main-menu' }]);
+}
+
+function handleInquirySubmit(event) {
   event.preventDefault();
 
   const form = event.currentTarget;
@@ -290,26 +312,18 @@ async function handleInquirySubmit(event) {
   submit.disabled = true;
   submit.textContent = 'Sending...';
 
-  try {
-    const formData = new FormData(form);
-    const response = await fetch('/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams(formData).toString(),
-    });
+  const frame = getInquiryFrame();
+  let confirmed = false;
 
-    if (!response.ok) throw new Error('Submission failed');
+  const confirmOnce = () => {
+    if (confirmed) return;
+    confirmed = true;
+    showInquiryConfirmation();
+  };
 
-    clearElement(chatOptions);
-    chatOptions.classList.remove('form-mode');
-    addMessage('bot', 'Thank you for contacting EastCord Tires. We received your inquiry and will get back to you shortly.');
-    renderActions([{ label: 'Back to questions', action: 'main-menu' }]);
-  } catch (errorMessage) {
-    error.textContent = 'Sorry, your inquiry could not be sent. Please email info@eastcordtires.ca or call 365-822-5553.';
-    error.hidden = false;
-    submit.disabled = false;
-    submit.textContent = 'Send Inquiry';
-  }
+  frame.addEventListener('load', confirmOnce, { once: true });
+  window.setTimeout(confirmOnce, 1600);
+  HTMLFormElement.prototype.submit.call(form);
 }
 
 function handleAction(action) {
