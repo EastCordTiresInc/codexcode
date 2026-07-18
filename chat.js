@@ -77,6 +77,8 @@ const faqItems = [
   },
 ];
 
+let suppressNextClick = false;
+
 function clearElement(element) {
   if (!element) return;
   while (element.firstChild) {
@@ -169,13 +171,23 @@ function toggleChat() {
 
 function handleChatToggleEvent(event) {
   if (!event.target.closest('[data-chat-toggle]')) return;
+
+  if (event.type === 'click' && suppressNextClick) {
+    suppressNextClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
+  if (event.type === 'touchend') suppressNextClick = true;
+
   event.preventDefault();
+  event.stopPropagation();
   toggleChat();
 }
 
 showQuestions();
 
-chatToggle?.addEventListener('click', toggleChat);
 chatToggle?.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault();
@@ -183,8 +195,8 @@ chatToggle?.addEventListener('keydown', (event) => {
   }
 });
 
-document.addEventListener('click', handleChatToggleEvent);
-document.addEventListener('touchend', handleChatToggleEvent);
+document.addEventListener('click', handleChatToggleEvent, true);
+document.addEventListener('touchend', handleChatToggleEvent, true);
 
 chatClose?.addEventListener('click', () => setChatOpen(false));
 
