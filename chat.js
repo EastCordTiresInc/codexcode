@@ -163,11 +163,28 @@ function setChatOpen(isOpen) {
   }
 }
 
+function toggleChat() {
+  setChatOpen(!chatPanel?.classList.contains('open'));
+}
+
+function handleChatToggleEvent(event) {
+  if (!event.target.closest('[data-chat-toggle]')) return;
+  event.preventDefault();
+  toggleChat();
+}
+
 showQuestions();
 
-chatToggle?.addEventListener('click', () => {
-  setChatOpen(!chatPanel?.classList.contains('open'));
+chatToggle?.addEventListener('click', toggleChat);
+chatToggle?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    toggleChat();
+  }
 });
+
+document.addEventListener('click', handleChatToggleEvent);
+document.addEventListener('touchend', handleChatToggleEvent);
 
 chatClose?.addEventListener('click', () => setChatOpen(false));
 
