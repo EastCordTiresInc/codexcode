@@ -1,6 +1,5 @@
 const chatToggle = document.querySelector('[data-chat-toggle]');
 const chatPanel = document.querySelector('#chat-panel');
-const chatClose = document.querySelector('[data-chat-close]');
 const chatOptions = document.querySelector('[data-chat-options]');
 const chatAnswer = document.querySelector('[data-chat-answer]');
 
@@ -169,8 +168,17 @@ function toggleChat() {
   setChatOpen(!chatPanel?.classList.contains('open'));
 }
 
-function handleChatToggleEvent(event) {
-  if (!event.target.closest('[data-chat-toggle]')) return;
+function handleChatControlEvent(event) {
+  const closeButton = event.target.closest('[data-chat-close]');
+  if (closeButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    setChatOpen(false);
+    return;
+  }
+
+  const toggleButton = event.target.closest('[data-chat-toggle]');
+  if (!toggleButton) return;
 
   if (event.type === 'click' && suppressNextClick) {
     suppressNextClick = false;
@@ -195,10 +203,8 @@ chatToggle?.addEventListener('keydown', (event) => {
   }
 });
 
-document.addEventListener('click', handleChatToggleEvent, true);
-document.addEventListener('touchend', handleChatToggleEvent, true);
-
-chatClose?.addEventListener('click', () => setChatOpen(false));
+document.addEventListener('click', handleChatControlEvent, true);
+document.addEventListener('touchend', handleChatControlEvent, true);
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') setChatOpen(false);
