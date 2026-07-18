@@ -1,79 +1,19 @@
 const chatToggle = document.querySelector('[data-chat-toggle]');
 const chatPanel = document.querySelector('#chat-panel');
+const chatThread = document.querySelector('[data-chat-thread]');
 const chatOptions = document.querySelector('[data-chat-options]');
-const chatAnswer = document.querySelector('[data-chat-answer]');
 
-const faqItems = [
-  {
-    question: 'What does EastCord Tires sell?',
-    answer: 'EastCord Tires offers used tires, new tires, and tire changeover/swap services for passenger vehicles.',
-  },
-  {
-    question: 'Why choose used tires?',
-    answer: 'Used tires can be a budget-friendly option when they are properly inspected and still have usable tread life.',
-  },
-  {
-    question: 'How are used tires inspected?',
-    answer: 'We check used tires for visible damage, sidewall issues, bubbles, cracks, leaks, and overall condition before sale.',
-  },
-  {
-    question: 'What is the used tire warranty?',
-    answer: 'Used tires include a 1-month exchange warranty. Original receipt is required.',
-    links: [
-      {
-        label: 'View Warranty Policy',
-        href: 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf',
-        external: true,
-      },
-    ],
-  },
-  {
-    question: 'How do I know my tire size?',
-    answer: 'You can find your tire size on the sidewall of your tire. Example: 205/55R16.',
-  },
-  {
-    question: 'Should I buy 1, 2, or 4 tires?',
-    answer: 'It depends on your current tire condition. If one tire is damaged, one may work. If tread is uneven, a pair or full set may be better.',
-  },
-  {
-    question: 'What is the difference between all-season, winter, and summer tires?',
-    answer: 'All-season tires are for general use, winter tires are for cold/snow, and summer tires are for warmer weather.',
-  },
-  {
-    question: 'How do I check used tire availability?',
-    answer: 'Use our used tire inventory/order section or contact us with your tire size and quantity.',
-    links: [
-      {
-        label: 'Check Used Tires',
-        href: '#inventory',
-      },
-    ],
-  },
-  {
-    question: 'Do you offer installation or changeover?',
-    answer: 'Yes, customers can book tire changeover/swap service through our appointment booking page.',
-    links: [
-      {
-        label: 'Book Appointment',
-        href: 'https://hosted.miocommerce.com/io/eastcord-tires/booking/b95731f5-cadb-4849-877c-6238425fd25c',
-        external: true,
-      },
-    ],
-  },
-  {
-    question: 'How can I contact EastCord Tires?',
-    answer: 'Email: info@eastcordtires.ca\nPhone: 365-822-5553',
-    links: [
-      {
-        label: 'Email EastCord Tires',
-        href: 'mailto:info@eastcordtires.ca',
-      },
-      {
-        label: 'Call 365-822-5553',
-        href: 'tel:3658225553',
-      },
-    ],
-  },
+const inventoryLink = '#inventory';
+const appointmentLink = 'https://hosted.miocommerce.com/io/eastcord-tires/booking/b95731f5-cadb-4849-877c-6238425fd25c';
+const warrantyLink = 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf';
+
+const mainOptions = [
+  { label: 'Used Tires', action: 'used-tires' },
+  { label: 'New Tires', action: 'new-tires' },
+  { label: 'Tire Changeover / Swap', action: 'changeover' },
+  { label: 'Used Tire Warranty', action: 'warranty' },
+  { label: 'Tire Size Help', action: 'size-help' },
+  { label: 'Contact EastCord', action: 'contact' },
 ];
 
 let suppressNextClick = false;
@@ -85,13 +25,33 @@ function clearElement(element) {
   }
 }
 
-function createLink(link) {
-  const anchor = document.createElement('a');
-  anchor.className = 'chat-answer-link';
-  anchor.href = link.href;
-  anchor.textContent = link.label;
+function scrollThreadToBottom() {
+  if (!chatThread) return;
+  chatThread.scrollTop = chatThread.scrollHeight;
+}
 
-  if (link.external) {
+function addMessage(type, text) {
+  if (!chatThread) return;
+
+  const message = document.createElement('div');
+  message.className = `chat-message ${type}`;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble';
+  bubble.textContent = text;
+
+  message.appendChild(bubble);
+  chatThread.appendChild(message);
+  scrollThreadToBottom();
+}
+
+function createActionLink({ label, href, external }) {
+  const anchor = document.createElement('a');
+  anchor.className = 'chat-action-link';
+  anchor.href = href;
+  anchor.textContent = label;
+
+  if (external) {
     anchor.target = '_blank';
     anchor.rel = 'noopener noreferrer';
   }
@@ -99,56 +59,129 @@ function createLink(link) {
   return anchor;
 }
 
-function showQuestions() {
-  if (!chatOptions || !chatAnswer) return;
+function createActionButton({ label, action }) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.dataset.chatAction = action;
+  return button;
+}
 
-  chatAnswer.hidden = true;
-  clearElement(chatAnswer);
-  chatOptions.hidden = false;
+function renderActions(actions) {
+  if (!chatOptions) return;
+
   clearElement(chatOptions);
 
-  faqItems.forEach((item, index) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = item.question;
-    button.addEventListener('click', () => showAnswer(index));
-    chatOptions.appendChild(button);
+  actions.forEach((action) => {
+    if (action.href) {
+      chatOptions.appendChild(createActionLink(action));
+      return;
+    }
+
+    chatOptions.appendChild(createActionButton(action));
   });
 }
 
-function showAnswer(index) {
-  if (!chatOptions || !chatAnswer) return;
+function renderMainMenu() {
+  renderActions(mainOptions);
+}
 
-  const item = faqItems[index];
-  if (!item) return;
+function resetConversation() {
+  clearElement(chatThread);
+  addMessage('bot', 'Hi! Welcome to EastCord Tires 👋\nHow can we help you today?');
+  renderMainMenu();
+}
 
-  chatOptions.hidden = true;
-  chatAnswer.hidden = false;
-  clearElement(chatAnswer);
+function addBackToMain(actions = []) {
+  return [...actions, { label: 'Back to main menu', action: 'main-menu' }];
+}
 
-  const question = document.createElement('h3');
-  question.textContent = item.question;
+function showUsedTires() {
+  addMessage('customer', 'Used Tires');
+  addMessage(
+    'bot',
+    'EastCord Tires offers used tires for passenger vehicles. Used tires can be a budget-friendly option when they are properly inspected and still have usable tread life.'
+  );
+  renderActions(addBackToMain([
+    { label: 'How are used tires inspected?', action: 'used-inspection' },
+    { label: 'How do I check used tire availability?', action: 'used-availability' },
+  ]));
+}
 
-  const answer = document.createElement('p');
-  answer.textContent = item.answer;
+function showUsedInspection() {
+  addMessage('customer', 'How are used tires inspected?');
+  addMessage(
+    'bot',
+    'We check used tires for visible damage, sidewall issues, bubbles, cracks, leaks, and overall condition before sale.'
+  );
+  renderActions(addBackToMain([
+    { label: 'Check used tire availability', href: inventoryLink },
+  ]));
+}
 
-  const actions = document.createElement('div');
-  actions.className = 'chat-answer-actions';
+function showUsedAvailability() {
+  addMessage('customer', 'How do I check used tire availability?');
+  addMessage('bot', 'Use our used tire inventory/order section or contact us with your tire size and quantity.');
+  renderActions(addBackToMain([
+    { label: 'Check Used Tires', href: inventoryLink },
+  ]));
+}
 
-  (item.links || []).forEach((link) => {
-    actions.appendChild(createLink(link));
-  });
+function showNewTires() {
+  addMessage('customer', 'New Tires');
+  addMessage('bot', 'Yes, EastCord Tires also offers new tires. You can use our new tire section to search and order available options.');
+  renderActions(addBackToMain([
+    { label: 'Shop New Tires', href: inventoryLink },
+  ]));
+}
 
-  const backButton = document.createElement('button');
-  backButton.type = 'button';
-  backButton.className = 'chat-back-button';
-  backButton.textContent = 'Back to questions';
-  backButton.addEventListener('click', showQuestions);
+function showChangeover() {
+  addMessage('customer', 'Tire Changeover / Swap');
+  addMessage('bot', 'Yes, customers can book tire changeover/swap service through our appointment booking page.');
+  renderActions(addBackToMain([
+    { label: 'Book Appointment', href: appointmentLink, external: true },
+  ]));
+}
 
-  chatAnswer.append(question, answer);
-  if (actions.childElementCount) chatAnswer.appendChild(actions);
-  chatAnswer.appendChild(backButton);
-  backButton.focus();
+function showWarranty() {
+  addMessage('customer', 'Used Tire Warranty');
+  addMessage('bot', 'Used tires include a 1-month exchange warranty. Original receipt is required.');
+  renderActions(addBackToMain([
+    { label: 'View Warranty Policy', href: warrantyLink, external: true },
+  ]));
+}
+
+function showSizeHelp() {
+  addMessage('customer', 'Tire Size Help');
+  addMessage('bot', 'You can find your tire size on the sidewall of your tire. Example: 205/55R16.');
+  renderActions(addBackToMain([
+    { label: 'Check Used Tires', href: inventoryLink },
+  ]));
+}
+
+function showContact() {
+  addMessage('customer', 'Contact EastCord');
+  addMessage('bot', 'You can contact EastCord Tires by email or phone.\n\nEmail: info@eastcordtires.ca\nPhone: 365-822-5553');
+  renderActions(addBackToMain([
+    { label: 'Email EastCord', href: 'mailto:info@eastcordtires.ca' },
+    { label: 'Call 365-822-5553', href: 'tel:3658225553' },
+  ]));
+}
+
+function handleAction(action) {
+  const actions = {
+    'main-menu': resetConversation,
+    'used-tires': showUsedTires,
+    'used-inspection': showUsedInspection,
+    'used-availability': showUsedAvailability,
+    'new-tires': showNewTires,
+    changeover: showChangeover,
+    warranty: showWarranty,
+    'size-help': showSizeHelp,
+    contact: showContact,
+  };
+
+  actions[action]?.();
 }
 
 function setChatOpen(isOpen) {
@@ -159,8 +192,8 @@ function setChatOpen(isOpen) {
   chatToggle.setAttribute('aria-expanded', String(isOpen));
 
   if (isOpen) {
-    showQuestions();
-    window.setTimeout(() => chatOptions?.querySelector('button')?.focus(), 120);
+    resetConversation();
+    window.setTimeout(() => chatOptions?.querySelector('button, a')?.focus(), 120);
   }
 }
 
@@ -194,7 +227,11 @@ function handleChatControlEvent(event) {
   toggleChat();
 }
 
-showQuestions();
+chatOptions?.addEventListener('click', (event) => {
+  const actionButton = event.target.closest('[data-chat-action]');
+  if (!actionButton) return;
+  handleAction(actionButton.dataset.chatAction);
+});
 
 chatToggle?.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' || event.key === ' ') {
