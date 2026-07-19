@@ -13,43 +13,74 @@
 }
 
 .brand-tile {
-  min-height: 78px;
+  min-height: 88px;
   padding: 20px 22px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 14px;
-  color: var(--ink);
+  color: transparent;
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(228, 229, 231, 0.96);
   border-radius: 18px;
   box-shadow: 0 12px 30px rgba(17, 18, 20, 0.045);
-  font-size: clamp(1rem, 1.35vw, 1.16rem);
+  font-size: 0;
   font-weight: 820;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
+  overflow: hidden;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.brand-tile::after {
+.brand-tile::before {
   content: "";
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
-  background: var(--red);
-  border-radius: 50%;
-  opacity: 0.24;
-  transition: opacity 180ms ease, transform 180ms ease;
+  display: block;
+  width: min(78%, 210px);
+  height: 48px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.brand-tile:nth-child(1)::before {
+  background-image: url("assets/brands/michelin.svg");
+}
+
+.brand-tile:nth-child(2)::before {
+  background-image: url("assets/brands/bridgestone.svg");
+}
+
+.brand-tile:nth-child(3)::before {
+  background-image: url("assets/brands/goodyear.svg");
+}
+
+.brand-tile:nth-child(4)::before {
+  background-image: url("assets/brands/continental.svg");
+}
+
+.brand-tile:nth-child(5)::before {
+  background-image: url("assets/brands/yokohama.svg");
+}
+
+.brand-tile:nth-child(6)::before {
+  background-image: url("assets/brands/hankook.svg");
+}
+
+.brand-tile:nth-child(7)::before {
+  background-image: url("assets/brands/firestone.svg");
+}
+
+.brand-tile:nth-child(8)::before {
+  background-image: url("assets/brands/bfgoodrich.svg");
+}
+
+.brand-tile:nth-child(9)::before {
+  background-image: url("assets/brands/general-tire.svg");
 }
 
 .brand-tile:hover {
   transform: translateY(-3px);
   border-color: rgba(229, 36, 42, 0.44);
   box-shadow: 0 18px 42px rgba(17, 18, 20, 0.075);
-}
-
-.brand-tile:hover::after {
-  opacity: 1;
-  transform: scale(1.15);
 }
 
 .brand-note {
@@ -79,9 +110,14 @@
   }
 
   .brand-tile {
-    min-height: 64px;
+    min-height: 72px;
     padding: 17px 18px;
     border-radius: 15px;
+  }
+
+  .brand-tile::before {
+    width: min(82%, 190px);
+    height: 42px;
   }
 
   .brand-actions {
