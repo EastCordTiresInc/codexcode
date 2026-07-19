@@ -1,0 +1,137 @@
+.policy-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(228, 229, 231, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(228, 229, 231, 0.5) 1px, transparent 1px),
+    linear-gradient(135deg, #ffffff 42%, #f7f7f6 100%);
+  background-size: 70px 70px, 70px 70px, auto;
+}
+
+.policy-hero {
+  padding: 92px 0 36px;
+}
+
+.policy-hero h1 {
+  max-width: 820px;
+  font-size: clamp(2.8rem, 6vw, 5.8rem);
+}
+
+.policy-effective-date {
+  margin: 22px 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 720;
+}
+
+.policy-content {
+  padding: 0 0 96px;
+}
+
+.policy-card {
+  padding: clamp(28px, 5vw, 58px);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(228, 229, 231, 0.94);
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(17, 18, 20, 0.08);
+}
+
+.policy-section + .policy-section {
+  margin-top: 34px;
+  padding-top: 34px;
+  border-top: 1px solid var(--line);
+}
+
+.policy-section h2 {
+  margin-bottom: 16px;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1.12;
+}
+
+.policy-section p {
+  margin: 0;
+  color: #34363a;
+  font-size: 1rem;
+  line-height: 1.78;
+}
+
+.policy-section p + p {
+  margin-top: 14px;
+}
+
+.policy-contact {
+  margin-top: 40px;
+  padding: 24px;
+  background: #111214;
+  border-radius: 18px;
+  color: var(--white);
+}
+
+.policy-contact h2 {
+  margin-bottom: 12px;
+  font-size: 1.35rem;
+}
+
+.policy-contact p {
+  margin: 0;
+  color: #c7c9ce;
+  line-height: 1.7;
+}
+
+.policy-contact a {
+  color: var(--white);
+  font-weight: 780;
+  text-decoration: none;
+}
+
+.policy-contact a:hover,
+.policy-contact a:focus-visible {
+  color: #ffb8bb;
+}
+
+.footer-legal {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-legal a {
+  color: #a3a7ae;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.footer-legal a:hover,
+.footer-legal a:focus-visible {
+  color: var(--white);
+}
+
+.footer-legal-separator {
+  color: #4d5056;
+}
+
+@media (max-width: 640px) {
+  .policy-hero {
+    padding: 72px 0 28px;
+  }
+
+  .policy-content {
+    padding-bottom: 70px;
+  }
+
+  .policy-card {
+    border-radius: 18px;
+  }
+
+  .policy-section + .policy-section {
+    margin-top: 26px;
+    padding-top: 26px;
+  }
+
+  .footer-legal {
+    gap: 7px;
+    line-height: 1.6;
+  }
+}
