@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="used-tires-card.css?v=13" />
     <link rel="stylesheet" href="video-section.css?v=1" />
     <link rel="stylesheet" href="warranty-section.css?v=1" />
+    <link rel="stylesheet" href="popular-brands.css" />
     <link rel="stylesheet" href="footer-section.css?v=3" />
     <link rel="stylesheet" href="auth.css" />
     <link rel="stylesheet" href="contact-section.css" />
@@ -60,7 +61,7 @@
           </div>
 
           <div class="service-grid">
-            <a class="service-card used-tires-card" id="used-tires" href="#inventory">
+            <a class="service-card used-tires-card" id="used-tires" href="#tire-brands">
               <span class="service-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="8"></circle>
@@ -75,7 +76,7 @@
               <span class="card-arrow" aria-hidden="true">↗</span>
             </a>
 
-            <a class="service-card new-tires-card" id="new-tires" href="#inventory">
+            <a class="service-card new-tires-card" id="new-tires" href="#tire-brands">
               <span class="service-number">02</span>
               <span class="service-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24">
@@ -154,58 +155,35 @@
         </div>
       </section>
 
-      <section class="inventory section" id="inventory" aria-labelledby="inventory-title">
+      <section class="popular-brands section" id="tire-brands" aria-labelledby="tire-brands-title">
         <div class="shell">
-          <div class="section-heading inventory-heading">
+          <div class="section-heading">
             <div>
-              <p class="eyebrow"><span></span> Tire inventory</p>
-              <h2 id="inventory-title">Browse tires before you sign in.</h2>
+              <p class="eyebrow"><span></span> Popular brands</p>
+              <h2 id="tire-brands-title">Popular Tire Brands We Help You Find</h2>
             </div>
             <p>
-              View passenger tire sizes, brands, prices, stock, and product details. Login is only required when you proceed to checkout.
+              We help customers find used and new tires from popular brands based on size, season, and current availability.
             </p>
           </div>
 
-          <div class="store-layout">
-            <div class="inventory-panel">
-              <div class="inventory-toolbar" aria-label="Inventory filters">
-                <label>
-                  Search tires
-                  <input id="inventory-search" type="search" placeholder="Search by size, brand, or type" autocomplete="off" />
-                </label>
-                <label>
-                  Tire type
-                  <select id="inventory-filter">
-                    <option value="all">All tires</option>
-                    <option value="used">Used tires</option>
-                    <option value="new">New tires</option>
-                  </select>
-                </label>
-              </div>
-              <div class="inventory-list" id="inventory-list" aria-live="polite"></div>
-            </div>
+          <div class="brand-tile-grid" aria-label="Popular tire brands customers often look for">
+            <div class="brand-tile">Michelin</div>
+            <div class="brand-tile">Bridgestone</div>
+            <div class="brand-tile">Goodyear</div>
+            <div class="brand-tile">Continental</div>
+            <div class="brand-tile">Yokohama</div>
+            <div class="brand-tile">Hankook</div>
+            <div class="brand-tile">Firestone</div>
+            <div class="brand-tile">BFGoodrich</div>
+            <div class="brand-tile">General Tire</div>
+          </div>
 
-            <aside class="cart-panel" id="cart" aria-labelledby="cart-title">
-              <div class="cart-header">
-                <div>
-                  <p class="cart-kicker">Your cart</p>
-                  <h3 id="cart-title">Selected tires</h3>
-                </div>
-                <a class="cart-auth-link" href="login.html">Login</a>
-              </div>
-              <div class="auth-status" id="auth-status">Browsing as guest</div>
-              <div class="cart-items" id="cart-items"></div>
-              <div class="cart-summary">
-                <span>Total</span>
-                <strong id="cart-total">$0.00</strong>
-              </div>
-              <button class="button button-primary checkout-button" id="checkout-button" type="button">
-                Proceed to Checkout
-              </button>
-              <p class="cart-note" id="checkout-message">
-                You can browse and add tires without an account. Login is required before payment.
-              </p>
-            </aside>
+          <p class="brand-note">Availability may vary by tire size, season, and current stock.</p>
+
+          <div class="brand-actions" aria-label="Tire brand section actions">
+            <a class="button button-primary" href="#used-tires">Check Used Tires</a>
+            <a class="button button-dark" href="#new-tires">Shop New Tires</a>
           </div>
         </div>
       </section>
@@ -257,8 +235,8 @@
         <div class="footer-info">
           <h3>Tire Information</h3>
           <div class="footer-info-links" aria-label="EastCord Tires tire information links">
-            <a href="/#inventory">Used Tires</a>
-            <a href="/#inventory">New Tires</a>
+            <a href="/#used-tires">Used Tires</a>
+            <a href="/#new-tires">New Tires</a>
             <a href="/tire-size-guide">Tire Size Guide</a>
             <a href="/tire-season-guide">Tire Season Guide</a>
             <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
