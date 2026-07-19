@@ -380,6 +380,61 @@ function handleChatControlEvent(event) {
   toggleChat();
 }
 
+function ensureFooterLegalStyles() {
+  if (document.querySelector('[data-footer-legal-styles]')) return;
+
+  const style = document.createElement('style');
+  style.dataset.footerLegalStyles = 'true';
+  style.textContent = `
+    .footer-legal {
+      width: 100%;
+      margin: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      line-height: 1.6;
+    }
+
+    .footer-legal a {
+      color: #a3a7ae;
+      font-weight: 760;
+      text-decoration: none;
+      transition: color 180ms ease;
+    }
+
+    .footer-legal a:hover,
+    .footer-legal a:focus-visible {
+      color: #ffffff;
+    }
+
+    .footer-legal-separator {
+      color: #4d5056;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function renderFooterLegalLinks() {
+  const footerBottom = document.querySelector('.site-footer .footer-bottom');
+  if (!footerBottom) return;
+
+  ensureFooterLegalStyles();
+  footerBottom.innerHTML = `
+    <p class="footer-legal">
+      <span>© 2026 EastCord Tires</span>
+      <span class="footer-legal-separator">|</span>
+      <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+      <span class="footer-legal-separator">|</span>
+      <a href="/privacy-policy">Privacy Policy</a>
+      <span class="footer-legal-separator">|</span>
+      <a href="/cookie-policy">Cookie Policy</a>
+      <span class="footer-legal-separator">|</span>
+      <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Warranty Policy</a>
+    </p>
+  `;
+}
+
 chatOptions?.addEventListener('click', (event) => {
   const actionButton = event.target.closest('[data-chat-action]');
   if (!actionButton) return;
@@ -399,3 +454,5 @@ document.addEventListener('touchend', handleChatControlEvent, true);
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') setChatOpen(false);
 });
+
+renderFooterLegalLinks();
