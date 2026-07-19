@@ -36,35 +36,18 @@
   aspect-ratio: 4 / 3;
   min-height: 132px;
   margin-bottom: 18px;
-  display: block;
-  background-color: #111214;
-  background-image: var(--guide-photo);
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
+  background-color: #f7f7f6;
   border: 1px solid rgba(228, 229, 231, 0.92);
   border-radius: 16px;
   overflow: hidden;
 }
 
-.guide-card:nth-child(1) .guide-visual {
-  --guide-photo: url("/images/guides/used-tire-buying-guide.png");
-}
-
-.guide-card:nth-child(2) .guide-visual {
-  --guide-photo: url("/images/guides/winter-vs-all-season-tires.png");
-}
-
-.guide-card:nth-child(3) .guide-visual {
-  --guide-photo: url("/images/guides/how-to-read-tire-size.png");
-}
-
-.guide-card:nth-child(4) .guide-visual {
-  --guide-photo: url("/images/guides/used-tire-inspection-process.png");
-}
-
-.guide-visual svg {
-  display: none;
+.guide-visual img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
 }
 
 .guide-card h3 {
