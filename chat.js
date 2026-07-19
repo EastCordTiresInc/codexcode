@@ -6,8 +6,7 @@ const chatOptions = document.querySelector('[data-chat-options]');
 const inventoryLink = '#inventory';
 const appointmentLink = 'https://hosted.miocommerce.com/io/eastcord-tires/booking/b95731f5-cadb-4849-877c-6238425fd25c';
 const warrantyLink = 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf';
-const inquiryFormName = 'eastcord-other-inquiry';
-const inquiryFrameName = 'eastcord-inquiry-submit-frame';
+const inquiryFormName = 'eastcord-inquiry';
 
 const mainOptions = [
   { label: 'Used Tires', action: 'used-tires' },
@@ -211,18 +210,6 @@ function createField({ label, name, type = 'text', required = false, autocomplet
   return field;
 }
 
-function getInquiryFrame() {
-  let frame = document.querySelector(`iframe[name="${inquiryFrameName}"]`);
-  if (frame) return frame;
-
-  frame = document.createElement('iframe');
-  frame.name = inquiryFrameName;
-  frame.title = 'EastCord Tires inquiry submission';
-  frame.hidden = true;
-  document.body.appendChild(frame);
-  return frame;
-}
-
 function showInquiryForm() {
   if (!chatOptions) return;
 
@@ -237,7 +224,6 @@ function showInquiryForm() {
   form.name = inquiryFormName;
   form.method = 'POST';
   form.action = '/';
-  form.target = inquiryFrameName;
   form.dataset.netlify = 'true';
   form.setAttribute('netlify-honeypot', 'bot-field');
   form.noValidate = true;
@@ -261,16 +247,16 @@ function showInquiryForm() {
   form.appendChild(error);
 
   form.append(
-    createField({ label: 'Full Name', name: 'full-name', required: true, autocomplete: 'name' }),
-    createField({ label: 'Email Address', name: 'email', type: 'email', required: true, autocomplete: 'email' }),
-    createField({ label: 'Phone Number', name: 'phone', type: 'tel', autocomplete: 'tel' }),
+    createField({ label: 'Full Name', name: 'Full Name', required: true, autocomplete: 'name' }),
+    createField({ label: 'Email Address', name: 'Email Address', type: 'email', required: true, autocomplete: 'email' }),
+    createField({ label: 'Phone Number', name: 'Phone Number', type: 'tel', autocomplete: 'tel' }),
     createField({
       label: 'Inquiry Type',
-      name: 'inquiry-type',
+      name: 'Inquiry Type',
       required: true,
       options: ['Used tire question', 'New tire question', 'Appointment question', 'Warranty question', 'General inquiry'],
     }),
-    createField({ label: 'Message', name: 'message', type: 'textarea', required: true })
+    createField({ label: 'Message', name: 'Message', type: 'textarea', required: true })
   );
 
   const submit = document.createElement('button');
@@ -284,7 +270,7 @@ function showInquiryForm() {
   chatOptions.appendChild(form);
 
   form.addEventListener('submit', handleInquirySubmit);
-  window.setTimeout(() => form.querySelector('input[name="full-name"]')?.focus(), 120);
+  window.setTimeout(() => form.querySelector('[name="Full Name"]')?.focus(), 120);
 }
 
 function showInquiryConfirmation() {
@@ -294,7 +280,7 @@ function showInquiryConfirmation() {
   renderActions([{ label: 'Back to questions', action: 'main-menu' }]);
 }
 
-function handleInquirySubmit(event) {
+async function handleInquirySubmit(event) {
   event.preventDefault();
 
   const form = event.currentTarget;
@@ -312,18 +298,26 @@ function handleInquirySubmit(event) {
   submit.disabled = true;
   submit.textContent = 'Sending...';
 
-  const frame = getInquiryFrame();
-  let confirmed = false;
+  try {
+    const body = new URLSearchParams(new FormData(form)).toString();
+    const response = await fetch(form.action || '/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
 
-  const confirmOnce = () => {
-    if (confirmed) return;
-    confirmed = true;
+    if (!response.ok) {
+      throw new Error(`Netlify rejected the inquiry with status ${response.status}`);
+    }
+
     showInquiryConfirmation();
-  };
-
-  frame.addEventListener('load', confirmOnce, { once: true });
-  window.setTimeout(confirmOnce, 1600);
-  HTMLFormElement.prototype.submit.call(form);
+  } catch (submissionError) {
+    error.textContent = 'Sorry, the inquiry could not be sent. Please try again or email info@eastcordtires.ca.';
+    error.hidden = false;
+    submit.disabled = false;
+    submit.textContent = 'Send Inquiry';
+    console.error('EastCord inquiry form submission failed:', submissionError);
+  }
 }
 
 function handleAction(action) {
