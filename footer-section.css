@@ -72,6 +72,31 @@
   font-size: 0.9rem;
 }
 
+.footer-legal {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-legal a {
+  color: #a3a7ae;
+  font-weight: 760;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.footer-legal a:hover,
+.footer-legal a:focus-visible {
+  color: var(--white);
+}
+
+.footer-legal-separator {
+  color: #4d5056;
+}
+
 @media (max-width: 1000px) {
   .footer-grid {
     grid-template-columns: 1fr 1fr;
@@ -105,5 +130,10 @@
 
   .footer-bottom {
     padding: 24px 0 28px;
+  }
+
+  .footer-legal {
+    gap: 7px;
+    line-height: 1.6;
   }
 }
