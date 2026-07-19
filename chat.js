@@ -6,6 +6,7 @@ const chatOptions = document.querySelector('[data-chat-options]');
 const inventoryLink = '#inventory';
 const appointmentLink = 'https://hosted.miocommerce.com/io/eastcord-tires/booking/b95731f5-cadb-4849-877c-6238425fd25c';
 const warrantyLink = 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf';
+const inquiryFormName = 'eastcord-inquiry';
 
 const mainOptions = [
   { label: 'Used Tires', action: 'used-tires' },
@@ -14,6 +15,7 @@ const mainOptions = [
   { label: 'Used Tire Warranty', action: 'warranty' },
   { label: 'Tire Size Help', action: 'size-help' },
   { label: 'Contact EastCord', action: 'contact' },
+  { label: 'Other Inquiry', action: 'other-inquiry' },
 ];
 
 let suppressNextClick = false;
@@ -59,11 +61,12 @@ function createActionLink({ label, href, external }) {
   return anchor;
 }
 
-function createActionButton({ label, action }) {
+function createActionButton({ label, action, className }) {
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent = label;
   button.dataset.chatAction = action;
+  if (className) button.className = className;
   return button;
 }
 
@@ -71,6 +74,7 @@ function renderActions(actions) {
   if (!chatOptions) return;
 
   clearElement(chatOptions);
+  chatOptions.classList.remove('form-mode');
 
   actions.forEach((action) => {
     if (action.href) {
@@ -168,6 +172,154 @@ function showContact() {
   ]));
 }
 
+function createField({ label, name, type = 'text', required = false, autocomplete, options }) {
+  const field = document.createElement('label');
+  field.className = 'chat-form-field';
+
+  const labelText = document.createElement('span');
+  labelText.textContent = required ? `${label} *` : label;
+  field.appendChild(labelText);
+
+  let input;
+  if (options) {
+    input = document.createElement('select');
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select one';
+    input.appendChild(placeholder);
+
+    options.forEach((option) => {
+      const optionElement = document.createElement('option');
+      optionElement.value = option;
+      optionElement.textContent = option;
+      input.appendChild(optionElement);
+    });
+  } else if (type === 'textarea') {
+    input = document.createElement('textarea');
+    input.rows = 4;
+  } else {
+    input = document.createElement('input');
+    input.type = type;
+  }
+
+  input.name = name;
+  input.required = required;
+  if (autocomplete) input.autocomplete = autocomplete;
+  field.appendChild(input);
+
+  return field;
+}
+
+function showInquiryForm() {
+  if (!chatOptions) return;
+
+  addMessage('customer', 'Other Inquiry');
+  addMessage('bot', 'Please send us your question and EastCord Tires will follow up shortly.');
+
+  clearElement(chatOptions);
+  chatOptions.classList.add('form-mode');
+
+  const form = document.createElement('form');
+  form.className = 'chat-inquiry-form';
+  form.name = inquiryFormName;
+  form.method = 'POST';
+  form.action = '/';
+  form.dataset.netlify = 'true';
+  form.setAttribute('netlify-honeypot', 'bot-field');
+  form.noValidate = true;
+
+  form.innerHTML = `
+    <input type="hidden" name="form-name" value="${inquiryFormName}" />
+    <input type="hidden" name="subject" value="New EastCord Tires chat inquiry" />
+    <p class="chat-honeypot" aria-hidden="true">
+      <label>Do not fill this out <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
+    </p>
+  `;
+
+  const title = document.createElement('h3');
+  title.textContent = 'Other Inquiry';
+  form.appendChild(title);
+
+  const error = document.createElement('p');
+  error.className = 'chat-form-error';
+  error.setAttribute('role', 'alert');
+  error.hidden = true;
+  form.appendChild(error);
+
+  form.append(
+    createField({ label: 'Full Name', name: 'Full Name', required: true, autocomplete: 'name' }),
+    createField({ label: 'Email Address', name: 'Email Address', type: 'email', required: true, autocomplete: 'email' }),
+    createField({ label: 'Phone Number', name: 'Phone Number', type: 'tel', autocomplete: 'tel' }),
+    createField({
+      label: 'Inquiry Type',
+      name: 'Inquiry Type',
+      required: true,
+      options: ['Used tire question', 'New tire question', 'Appointment question', 'Warranty question', 'General inquiry'],
+    }),
+    createField({ label: 'Message', name: 'Message', type: 'textarea', required: true })
+  );
+
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.className = 'chat-submit-button';
+  submit.textContent = 'Send Inquiry';
+
+  const back = createActionButton({ label: 'Back to questions', action: 'main-menu', className: 'chat-secondary-button' });
+
+  form.append(submit, back);
+  chatOptions.appendChild(form);
+
+  form.addEventListener('submit', handleInquirySubmit);
+  window.setTimeout(() => form.querySelector('[name="Full Name"]')?.focus(), 120);
+}
+
+function showInquiryConfirmation() {
+  clearElement(chatOptions);
+  chatOptions.classList.remove('form-mode');
+  addMessage('bot', 'Thank you for contacting EastCord Tires. We received your inquiry and will get back to you shortly.');
+  renderActions([{ label: 'Back to questions', action: 'main-menu' }]);
+}
+
+async function handleInquirySubmit(event) {
+  event.preventDefault();
+
+  const form = event.currentTarget;
+  const error = form.querySelector('.chat-form-error');
+  const submit = form.querySelector('.chat-submit-button');
+
+  if (!form.checkValidity()) {
+    error.textContent = 'Please fill out Full Name, Email Address, Inquiry Type, and Message before sending.';
+    error.hidden = false;
+    form.querySelector(':invalid')?.focus();
+    return;
+  }
+
+  error.hidden = true;
+  submit.disabled = true;
+  submit.textContent = 'Sending...';
+
+  try {
+    const body = new URLSearchParams(new FormData(form)).toString();
+    const response = await fetch(form.action || '/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Netlify rejected the inquiry with status ${response.status}`);
+    }
+
+    showInquiryConfirmation();
+  } catch (submissionError) {
+    error.textContent = 'Sorry, the inquiry could not be sent. Please try again or email info@eastcordtires.ca.';
+    error.hidden = false;
+    submit.disabled = false;
+    submit.textContent = 'Send Inquiry';
+    console.error('EastCord inquiry form submission failed:', submissionError);
+  }
+}
+
 function handleAction(action) {
   const actions = {
     'main-menu': resetConversation,
@@ -179,6 +331,7 @@ function handleAction(action) {
     warranty: showWarranty,
     'size-help': showSizeHelp,
     contact: showContact,
+    'other-inquiry': showInquiryForm,
   };
 
   actions[action]?.();
