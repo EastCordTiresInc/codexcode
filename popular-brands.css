@@ -18,63 +18,38 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  color: transparent;
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(228, 229, 231, 0.96);
   border-radius: 18px;
   box-shadow: 0 12px 30px rgba(17, 18, 20, 0.045);
-  font-size: 0;
-  font-weight: 820;
-  letter-spacing: 0;
   overflow: hidden;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.brand-tile::before {
-  content: "";
+.brand-logo {
   display: block;
   width: min(78%, 210px);
+  max-width: 100%;
   height: 48px;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
+  object-fit: contain;
+  object-position: center;
 }
 
-.brand-tile:nth-child(1)::before {
-  background-image: url("assets/brands/michelin.svg");
+.brand-logo-bridgestone {
+  width: min(84%, 230px);
+  height: 50px;
 }
 
-.brand-tile:nth-child(2)::before {
-  background-image: url("assets/brands/bridgestone.svg");
+.brand-logo-goodyear,
+.brand-logo-yokohama,
+.brand-logo-hankook,
+.brand-logo-bfgoodrich {
+  width: min(80%, 218px);
 }
 
-.brand-tile:nth-child(3)::before {
-  background-image: url("assets/brands/goodyear.svg");
-}
-
-.brand-tile:nth-child(4)::before {
-  background-image: url("assets/brands/continental.svg");
-}
-
-.brand-tile:nth-child(5)::before {
-  background-image: url("assets/brands/yokohama.svg");
-}
-
-.brand-tile:nth-child(6)::before {
-  background-image: url("assets/brands/hankook.svg");
-}
-
-.brand-tile:nth-child(7)::before {
-  background-image: url("assets/brands/firestone.svg");
-}
-
-.brand-tile:nth-child(8)::before {
-  background-image: url("assets/brands/bfgoodrich.svg");
-}
-
-.brand-tile:nth-child(9)::before {
-  background-image: url("assets/brands/general-tire.svg");
+.brand-logo-general {
+  width: min(88%, 240px);
+  height: 58px;
 }
 
 .brand-tile:hover {
@@ -115,9 +90,15 @@
     border-radius: 15px;
   }
 
-  .brand-tile::before {
+  .brand-logo {
     width: min(82%, 190px);
     height: 42px;
+  }
+
+  .brand-logo-bridgestone,
+  .brand-logo-general {
+    width: min(88%, 210px);
+    height: 48px;
   }
 
   .brand-actions {
