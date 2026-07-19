@@ -1,0 +1,108 @@
+.popular-brands {
+  background:
+    linear-gradient(rgba(228, 229, 231, 0.42) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(228, 229, 231, 0.42) 1px, transparent 1px),
+    linear-gradient(135deg, #ffffff 48%, #f7f7f6 100%);
+  background-size: 70px 70px, 70px 70px, auto;
+}
+
+.brand-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.brand-tile {
+  min-height: 88px;
+  padding: 20px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(228, 229, 231, 0.96);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(17, 18, 20, 0.045);
+  overflow: hidden;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.brand-logo {
+  display: block;
+  width: min(78%, 210px);
+  max-width: 100%;
+  height: 48px;
+  object-fit: contain;
+  object-position: center;
+}
+
+.brand-logo-bridgestone {
+  width: min(84%, 230px);
+  height: 50px;
+}
+
+.brand-logo-goodyear,
+.brand-logo-yokohama,
+.brand-logo-hankook,
+.brand-logo-bfgoodrich {
+  width: min(80%, 218px);
+}
+
+.brand-logo-general {
+  width: min(88%, 240px);
+  height: 58px;
+}
+
+.brand-tile:hover {
+  transform: translateY(-3px);
+  border-color: rgba(229, 36, 42, 0.44);
+  box-shadow: 0 18px 42px rgba(17, 18, 20, 0.075);
+}
+
+.brand-note {
+  margin: 22px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.brand-actions {
+  margin-top: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 800px) {
+  .brand-tile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .brand-tile-grid {
+    grid-template-columns: 1fr;
+    gap: 11px;
+  }
+
+  .brand-tile {
+    min-height: 72px;
+    padding: 17px 18px;
+    border-radius: 15px;
+  }
+
+  .brand-logo {
+    width: min(82%, 190px);
+    height: 42px;
+  }
+
+  .brand-logo-bridgestone,
+  .brand-logo-general {
+    width: min(88%, 210px);
+    height: 48px;
+  }
+
+  .brand-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
