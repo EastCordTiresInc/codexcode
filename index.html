@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="video-section.css?v=1" />
     <link rel="stylesheet" href="warranty-section.css?v=1" />
     <link rel="stylesheet" href="popular-brands.css" />
+    <link rel="stylesheet" href="shopping-guides.css" />
+    <link rel="stylesheet" href="tire-size-calculator.css" />
     <link rel="stylesheet" href="footer-section.css?v=3" />
     <link rel="stylesheet" href="auth.css" />
     <link rel="stylesheet" href="contact-section.css" />
@@ -208,6 +210,138 @@
         </div>
       </section>
 
+      <section class="shopping-guides section" id="shopping-guides" aria-labelledby="shopping-guides-title">
+        <div class="shell">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow"><span></span> Shopping guides</p>
+              <h2 id="shopping-guides-title">Helpful Tire Guides for EastCord Customers</h2>
+            </div>
+            <p>
+              Learn more about used tires, tire sizes, seasonal options, and how EastCord checks tires before sale.
+            </p>
+          </div>
+
+          <div class="guide-card-grid">
+            <article class="guide-card">
+              <div class="guide-visual">
+                <img src="/images/guides/used-tire-buying-guide.png" alt="Used tire buying guide" loading="lazy" />
+              </div>
+              <h3>Used Tire Buying Guide</h3>
+              <p>Learn what to check when buying used tires, including tread condition, sidewall damage, tire size, and season.</p>
+              <a class="guide-button" href="/guides/used-tire-buying-guide">Read Guide</a>
+            </article>
+
+            <article class="guide-card">
+              <div class="guide-visual">
+                <img src="/images/guides/winter-vs-all-season-tires.png" alt="Winter vs all-season tire guide" loading="lazy" />
+              </div>
+              <h3>Winter vs All-Season Tires</h3>
+              <p>Understand the difference between winter and all-season tires and which option may fit your driving needs.</p>
+              <a class="guide-button" href="/guides/winter-vs-all-season-tires">Read Guide</a>
+            </article>
+
+            <article class="guide-card">
+              <div class="guide-visual">
+                <img src="/images/guides/how-to-read-tire-size.png" alt="How to read your tire size" loading="lazy" />
+              </div>
+              <h3>How to Read Your Tire Size</h3>
+              <p>Learn how to find and understand tire size numbers like 205/55R16 on the sidewall of your tire.</p>
+              <a class="guide-button" href="/guides/how-to-read-tire-size">Read Guide</a>
+            </article>
+
+            <article class="guide-card">
+              <div class="guide-visual">
+                <img src="/images/guides/used-tire-inspection-process.png" alt="Used tire inspection process" loading="lazy" />
+              </div>
+              <h3>How We Inspect Used Tires</h3>
+              <p>See how EastCord checks used tires for visible damage, sidewall issues, bubbles, cracks, leaks, and overall condition.</p>
+              <a class="guide-button" href="/guides/how-we-inspect-used-tires">Read Guide</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="tire-calculator section" id="tire-size-calculator" aria-labelledby="tire-calculator-title">
+        <div class="shell">
+          <div class="section-heading tire-calculator-heading">
+            <div>
+              <p class="eyebrow"><span></span> Tire calculator</p>
+              <h2 id="tire-calculator-title">EastCord Tire Size Calculator</h2>
+            </div>
+            <p>Enter a tire size to estimate diameter, sidewall height, circumference, and revolutions per kilometre.</p>
+          </div>
+
+          <div class="tire-calculator-card" data-tire-calculator>
+            <div class="calculator-tabs" role="tablist" aria-label="Tire calculator options">
+              <button class="calculator-tab is-active" type="button" data-calculator-tab="single">Tire Calculator</button>
+              <button class="calculator-tab" type="button" data-calculator-tab="compare">Compare Sizes</button>
+            </div>
+
+            <div class="calculator-panel is-active" data-calculator-panel="single">
+              <form class="calculator-form" data-single-form novalidate>
+                <div class="tire-size-input-row" aria-label="Tire size input in 225 slash 60 R 17 format">
+                  <label>
+                    <span>Tire Width in mm</span>
+                    <input type="number" inputmode="decimal" min="1" placeholder="225" data-width />
+                  </label>
+                  <span class="size-separator">/</span>
+                  <label>
+                    <span>Aspect Ratio</span>
+                    <input type="number" inputmode="decimal" min="1" placeholder="60" data-aspect />
+                  </label>
+                  <span class="size-separator">R</span>
+                  <label>
+                    <span>Rim Size in inches</span>
+                    <input type="number" inputmode="decimal" min="1" placeholder="17" data-rim />
+                  </label>
+                </div>
+                <button class="button button-primary calculator-button" type="submit">Calculate</button>
+                <p class="calculator-message" data-message aria-live="polite"></p>
+              </form>
+
+              <div class="calculator-results" data-single-results hidden>
+                <div class="result-box"><span>Section width</span><strong data-section-width></strong></div>
+                <div class="result-box"><span>Sidewall height</span><strong data-sidewall></strong></div>
+                <div class="result-box"><span>Overall diameter</span><strong data-diameter></strong></div>
+                <div class="result-box"><span>Circumference</span><strong data-circumference></strong></div>
+                <div class="result-box"><span>Revs per km</span><strong data-revs></strong></div>
+              </div>
+            </div>
+
+            <div class="calculator-panel" data-calculator-panel="compare" hidden>
+              <form class="compare-form" data-compare-form novalidate>
+                <div class="compare-grid">
+                  <div class="compare-size-group" data-compare-size="original">
+                    <h3>Original Tire Size</h3>
+                    <label><span>Width</span><input type="number" inputmode="decimal" min="1" placeholder="225" data-width /></label>
+                    <label><span>Aspect Ratio</span><input type="number" inputmode="decimal" min="1" placeholder="60" data-aspect /></label>
+                    <label><span>Rim Size</span><input type="number" inputmode="decimal" min="1" placeholder="17" data-rim /></label>
+                  </div>
+                  <div class="compare-size-group" data-compare-size="new">
+                    <h3>New Tire Size</h3>
+                    <label><span>Width</span><input type="number" inputmode="decimal" min="1" placeholder="235" data-width /></label>
+                    <label><span>Aspect Ratio</span><input type="number" inputmode="decimal" min="1" placeholder="55" data-aspect /></label>
+                    <label><span>Rim Size</span><input type="number" inputmode="decimal" min="1" placeholder="17" data-rim /></label>
+                  </div>
+                </div>
+                <button class="button button-primary calculator-button" type="submit">Calculate difference</button>
+                <p class="calculator-message" data-message aria-live="polite"></p>
+              </form>
+
+              <div class="compare-results" data-compare-results hidden>
+                <div class="result-box"><span>Original diameter</span><strong data-original-diameter></strong></div>
+                <div class="result-box"><span>New diameter</span><strong data-new-diameter></strong></div>
+                <div class="result-box"><span>Diameter difference</span><strong data-diameter-difference></strong></div>
+                <div class="result-box speed-note"><span>Speedometer note</span><strong data-speed-note></strong></div>
+              </div>
+            </div>
+
+            <p class="calculator-disclaimer">This calculator is for general guidance only. Always confirm the correct tire size for your vehicle before purchase or installation.</p>
+          </div>
+        </div>
+      </section>
+
       <section class="contact-section section" id="contact" aria-labelledby="contact-title">
         <div class="shell">
           <div class="section-heading contact-heading">
@@ -321,6 +455,7 @@
     </div>
 
     <script type="module" src="auth.js"></script>
+    <script src="tire-size-calculator.js" defer></script>
     <script src="chat.js?v=2" defer></script>
   </body>
 </html>
