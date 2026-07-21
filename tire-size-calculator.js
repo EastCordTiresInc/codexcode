@@ -24,6 +24,7 @@
   const ALTERNATIVE_TAB_LABEL = 'Alternative Sizes';
   const ALTERNATIVE_HEADING = 'Possible Alternative Size References';
   const ALTERNATIVE_GUIDANCE = 'These are possible size references based on overall diameter. Always confirm vehicle fitment, rim width, load rating, speed rating, and clearance before purchase or installation.';
+  const DIAMETER_FITMENT_NOTE = 'Closest diameter does not guarantee fitment. Rim width, load rating, speed rating, brake clearance, suspension clearance, and vehicle manufacturer recommendations must be confirmed.';
   const ALTERNATIVE_DISCLAIMER = 'These sizes are for general guidance only. Tire fitment also depends on rim width, load rating, speed rating, brake clearance, suspension clearance, and vehicle manufacturer recommendations.';
 
   const formatMmValue = (value) => {
@@ -151,6 +152,15 @@
   const formatTableDiameter = (result) => `${formatInches(result.diameterInches)} in`;
   const formatSectionWidthInches = (result) => `${(result.widthMm / MM_PER_INCH).toFixed(1)} in`;
   const formatWheel = (result) => `${result.rimInches}"`;
+  const formatWidthChange = (reference) => {
+    if (reference.widthDelta === 0) {
+      return 'Same width';
+    }
+
+    const direction = reference.widthChange > 0 ? 'wider' : 'narrower';
+    const prefix = reference.widthChange > 0 ? '+' : '-';
+    return `${prefix}${Math.abs(reference.widthChange)} mm ${direction}`;
+  };
 
   const renderSingleResults = (calculator, form) => {
     const message = form.querySelector('[data-message]');
@@ -186,7 +196,7 @@
     const absoluteDifference = Math.abs(differencePercent);
 
     if (absoluteDifference <= 1) {
-      return 'Closest diameter';
+      return 'Closest diameter only';
     }
 
     if (absoluteDifference <= 2) {
@@ -208,9 +218,42 @@
     return 30;
   };
 
+  const getWidthPriority = (widthDelta) => {
+    if (widthDelta <= 10) {
+      return 0;
+    }
+
+    if (widthDelta <= 20) {
+      return 1;
+    }
+
+    return 2;
+  };
+
+  const getWheelPriority = (rimOffset) => {
+    if (rimOffset === 0) {
+      return 0;
+    }
+
+    if (rimOffset === 1) {
+      return 1;
+    }
+
+    if (rimOffset === -1) {
+      return 2;
+    }
+
+    if (rimOffset === 2) {
+      return 3;
+    }
+
+    return 4;
+  };
+
   const createAlternativeCandidate = (original, width, aspect, rim) => {
     const rimOffset = rim - original.rimInches;
-    const widthDelta = Math.abs(width - original.widthMm);
+    const widthChange = width - original.widthMm;
+    const widthDelta = Math.abs(widthChange);
     const alternative = calculateTireSize(width, aspect, rim);
     const isOriginal = width === original.widthMm && aspect === original.aspectRatio && rim === original.rimInches;
     const differencePercent = isOriginal ? 0 : ((alternative.diameterMm - original.diameterMm) / original.diameterMm) * 100;
@@ -229,7 +272,10 @@
       actualSpeed: 100 * (alternative.diameterMm / original.diameterMm),
       status: isOriginal ? 'Original size' : getAlternativeStatus(differencePercent),
       isOriginal,
+      widthChange,
       widthDelta,
+      widthPriority: getWidthPriority(widthDelta),
+      wheelPriority: getWheelPriority(rimOffset),
     };
   };
 
@@ -238,12 +284,27 @@
       return a.isOriginal ? -1 : 1;
     }
 
+    const wheelCompare = a.wheelPriority - b.wheelPriority;
+    if (wheelCompare !== 0) {
+      return wheelCompare;
+    }
+
+    const widthPriorityCompare = a.widthPriority - b.widthPriority;
+    if (widthPriorityCompare !== 0) {
+      return widthPriorityCompare;
+    }
+
+    const widthDeltaCompare = a.widthDelta - b.widthDelta;
+    if (widthDeltaCompare !== 0) {
+      return widthDeltaCompare;
+    }
+
     const differenceCompare = Math.abs(a.differencePercent) - Math.abs(b.differencePercent);
     if (differenceCompare !== 0) {
       return differenceCompare;
     }
 
-    return a.widthDelta - b.widthDelta;
+    return a.widthChange - b.widthChange;
   };
 
   const getWheelFilterRim = (filterKey, original) => (filterKey === 'same' ? original.rimInches : Number(filterKey));
@@ -298,13 +359,13 @@
   };
 
   const renderTableRows = (references) => {
-    const closestReference = references.find((reference) => !reference.isOriginal) || null;
+    const firstPracticalReference = references.find((reference) => !reference.isOriginal) || null;
 
     return references.map((reference) => {
       const differencePrefix = reference.differencePercent > 0 ? '+' : '';
       const rowClasses = [
         reference.isOriginal ? 'is-original-size' : '',
-        closestReference === reference ? 'is-closest-size' : '',
+        firstPracticalReference === reference ? 'is-closest-size' : '',
       ].filter(Boolean).join(' ');
 
       return `
@@ -316,6 +377,7 @@
           <td data-label="Difference">${differencePrefix}${reference.differencePercent.toFixed(2)}%</td>
           <td data-label="Diameter">${formatTableDiameter(reference)}</td>
           <td data-label="Width">${formatSectionWidthInches(reference)}</td>
+          <td data-label="Width Change">${formatWidthChange(reference)}</td>
           <td data-label="Wheel">${formatWheel(reference)}</td>
           <td data-label="Speedometer at 100 km/h">${reference.actualSpeed.toFixed(1)} km/h</td>
         </tr>
@@ -329,6 +391,7 @@
     }
 
     return `
+      <p class="alternative-fitment-warning">${DIAMETER_FITMENT_NOTE}</p>
       <div class="alternative-table-wrap">
         <table class="alternative-size-table">
           <thead>
@@ -337,6 +400,7 @@
               <th scope="col">Difference</th>
               <th scope="col">Diameter</th>
               <th scope="col">Width</th>
+              <th scope="col">Width Change</th>
               <th scope="col">Wheel</th>
               <th scope="col">Speedometer at 100 km/h</th>
             </tr>
