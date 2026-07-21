@@ -12,18 +12,18 @@
   };
   const COMMON_WIDTHS = [155, 165, 175, 185, 195, 205, 215, 225, 235, 245, 255, 265, 275, 285, 295, 305, 315];
   const COMMON_ASPECT_RATIOS = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75];
-  const RIM_PRIORITY_OFFSETS = [0, 1, -1, 2];
-  const RESULT_LIMITS_BY_RIM_OFFSET = {
-    0: 2,
-    1: 2,
-    '-1': 1,
-    2: 1,
-  };
-  const MAX_DIAMETER_DIFFERENCE = 2.75;
-  const MAX_ALTERNATIVES = 4;
-  const ALTERNATIVE_TAB_LABEL = 'Size References';
-  const ALTERNATIVE_HEADING = 'Possible Tire Size References';
-  const ALTERNATIVE_GUIDANCE = 'Possible size references based on overall diameter. Always confirm vehicle fitment, rim width, load rating, speed rating, and clearance before purchase or installation.';
+  const WHEEL_FILTERS = [
+    { key: 'same', label: 'Same Wheel' },
+    { key: '16', label: '16"', rim: 16 },
+    { key: '17', label: '17"', rim: 17 },
+    { key: '18', label: '18"', rim: 18 },
+    { key: '19', label: '19"', rim: 19 },
+  ];
+  const MAX_DIAMETER_DIFFERENCE = 3;
+  const MAX_TABLE_ROWS = 8;
+  const ALTERNATIVE_TAB_LABEL = 'Alternative Sizes';
+  const ALTERNATIVE_HEADING = 'Possible Alternative Size References';
+  const ALTERNATIVE_GUIDANCE = 'These are possible size references based on overall diameter. Always confirm vehicle fitment, rim width, load rating, speed rating, and clearance before purchase or installation.';
   const ALTERNATIVE_DISCLAIMER = 'These sizes are for general guidance only. Tire fitment also depends on rim width, load rating, speed rating, brake clearance, suspension clearance, and vehicle manufacturer recommendations.';
 
   const formatMmValue = (value) => {
@@ -142,11 +142,15 @@
   const setAlternativeCopy = (calculator) => {
     setText(calculator, '[data-calculator-tab="alternative"]', ALTERNATIVE_TAB_LABEL);
     setText(calculator, '[data-alternative-form] h3', ALTERNATIVE_HEADING);
+    setText(calculator, '.alternative-intro', ALTERNATIVE_GUIDANCE);
     setText(calculator, '.alternative-safety-note', ALTERNATIVE_DISCLAIMER);
   };
 
   const formatDiameter = (result) => `${formatInches(result.diameterInches)} in / ${formatMmValue(result.diameterMm)} mm`;
   const formatCircumference = (result) => `${formatInches(result.circumferenceInches)} in / ${formatMmValue(result.circumferenceMm)} mm`;
+  const formatTableDiameter = (result) => `${formatInches(result.diameterInches)} in`;
+  const formatSectionWidthInches = (result) => `${(result.widthMm / MM_PER_INCH).toFixed(1)} in`;
+  const formatWheel = (result) => `${result.rimInches}"`;
 
   const renderSingleResults = (calculator, form) => {
     const message = form.querySelector('[data-message]');
@@ -192,30 +196,30 @@
     return 'Check fitment';
   };
 
-  const getRimPriority = (rimInches, originalRimInches) => {
-    const offset = rimInches - originalRimInches;
-    const index = RIM_PRIORITY_OFFSETS.indexOf(offset);
-    return index === -1 ? RIM_PRIORITY_OFFSETS.length : index;
-  };
+  const getAllowedWidthDelta = (rimOffset) => {
+    if (rimOffset === 0) {
+      return 20;
+    }
 
-  const getAllowedWidthDelta = (rimOffset) => (rimOffset === 2 ? 10 : 20);
+    if (rimOffset === 2 || rimOffset === -2) {
+      return 10;
+    }
+
+    return 30;
+  };
 
   const createAlternativeCandidate = (original, width, aspect, rim) => {
     const rimOffset = rim - original.rimInches;
     const widthDelta = Math.abs(width - original.widthMm);
-
-    if (width === original.widthMm && aspect === original.aspectRatio && rim === original.rimInches) {
-      return null;
-    }
-
-    if (widthDelta > getAllowedWidthDelta(rimOffset)) {
-      return null;
-    }
-
     const alternative = calculateTireSize(width, aspect, rim);
-    const differencePercent = ((alternative.diameterMm - original.diameterMm) / original.diameterMm) * 100;
+    const isOriginal = width === original.widthMm && aspect === original.aspectRatio && rim === original.rimInches;
+    const differencePercent = isOriginal ? 0 : ((alternative.diameterMm - original.diameterMm) / original.diameterMm) * 100;
 
-    if (Math.abs(differencePercent) > MAX_DIAMETER_DIFFERENCE) {
+    if (!isOriginal && widthDelta > getAllowedWidthDelta(rimOffset)) {
+      return null;
+    }
+
+    if (!isOriginal && Math.abs(differencePercent) > MAX_DIAMETER_DIFFERENCE) {
       return null;
     }
 
@@ -223,93 +227,127 @@
       ...alternative,
       differencePercent,
       actualSpeed: 100 * (alternative.diameterMm / original.diameterMm),
-      status: getAlternativeStatus(differencePercent),
-      rimOffset,
-      rimPriority: getRimPriority(rim, original.rimInches),
+      status: isOriginal ? 'Original size' : getAlternativeStatus(differencePercent),
+      isOriginal,
       widthDelta,
     };
   };
 
-  const sortPracticalAlternatives = (a, b) => {
-    if (a.rimPriority !== b.rimPriority) {
-      return a.rimPriority - b.rimPriority;
+  const sortTableReferences = (a, b) => {
+    if (a.isOriginal !== b.isOriginal) {
+      return a.isOriginal ? -1 : 1;
     }
 
-    if (a.widthDelta !== b.widthDelta) {
-      return a.widthDelta - b.widthDelta;
+    const differenceCompare = Math.abs(a.differencePercent) - Math.abs(b.differencePercent);
+    if (differenceCompare !== 0) {
+      return differenceCompare;
     }
 
-    return Math.abs(a.differencePercent) - Math.abs(b.differencePercent);
+    return a.widthDelta - b.widthDelta;
   };
 
-  const generateAlternatives = (original) => {
-    const groupedAlternatives = new Map();
-    const candidateRims = RIM_PRIORITY_OFFSETS
-      .map((offset) => original.rimInches + offset)
-      .filter((rim, index, rims) => rim >= VALID_RANGES.rim.min && rim <= VALID_RANGES.rim.max && rims.indexOf(rim) === index);
+  const getWheelFilterRim = (filterKey, original) => (filterKey === 'same' ? original.rimInches : Number(filterKey));
 
-    candidateRims.forEach((rim) => {
-      COMMON_WIDTHS.forEach((width) => {
-        COMMON_ASPECT_RATIOS.forEach((aspect) => {
-          const alternative = createAlternativeCandidate(original, width, aspect, rim);
+  const getDefaultWheelFilter = (results) => {
+    const sameWheel = results.querySelector('[data-wheel-filter="same"]');
+    const activeWheel = results.querySelector('[data-wheel-filter].is-active');
 
-          if (!alternative) {
-            return;
-          }
+    if (activeWheel) {
+      return activeWheel.dataset.wheelFilter;
+    }
 
-          const rimGroup = groupedAlternatives.get(alternative.rimOffset) || [];
-          rimGroup.push(alternative);
-          groupedAlternatives.set(alternative.rimOffset, rimGroup);
-        });
-      });
-    });
+    return sameWheel ? 'same' : WHEEL_FILTERS[0].key;
+  };
 
-    const selected = [];
+  const getTableReferences = (original, filterKey) => {
+    const rim = getWheelFilterRim(filterKey, original);
+    const references = [];
 
-    RIM_PRIORITY_OFFSETS.forEach((offset) => {
-      const rimGroup = groupedAlternatives.get(offset) || [];
-      const practicalLimit = RESULT_LIMITS_BY_RIM_OFFSET[offset] || 1;
-      const sortedGroup = rimGroup.sort(sortPracticalAlternatives);
+    COMMON_WIDTHS.forEach((width) => {
+      COMMON_ASPECT_RATIOS.forEach((aspect) => {
+        const candidate = createAlternativeCandidate(original, width, aspect, rim);
 
-      sortedGroup.slice(0, practicalLimit).forEach((alternative) => {
-        if (selected.length < MAX_ALTERNATIVES) {
-          selected.push(alternative);
+        if (candidate) {
+          references.push(candidate);
         }
       });
     });
 
-    return selected.slice(0, MAX_ALTERNATIVES);
+    return references.sort(sortTableReferences).slice(0, MAX_TABLE_ROWS);
   };
 
-  const renderAlternativeCard = (alternative) => {
-    const differencePrefix = alternative.differencePercent > 0 ? '+' : '';
+  const renderWheelTabs = (activeFilterKey) => `
+    <div class="wheel-filter-tabs" aria-label="Wheel size result filters">
+      ${WHEEL_FILTERS.map((filter) => `
+        <button
+          class="wheel-filter-tab${filter.key === activeFilterKey ? ' is-active' : ''}"
+          type="button"
+          data-wheel-filter="${filter.key}"
+        >${filter.label}</button>
+      `).join('')}
+    </div>
+  `;
+
+  const renderStatusBadges = (reference) => {
+    const confirmBadge = reference.isOriginal ? '' : '<span class="alternative-fitment-note">Confirm fitment</span>';
 
     return `
-      <article class="alternative-result-card">
-        <div>
-          <h3>${formatTireSizeLabel(alternative)}</h3>
-          <span class="alternative-status">${alternative.status}</span>
-          <span class="alternative-fitment-note">Confirm fitment</span>
-        </div>
-        <dl>
-          <div>
-            <dt>Diameter</dt>
-            <dd>${formatDiameter(alternative)}</dd>
-          </div>
-          <div>
-            <dt>Difference</dt>
-            <dd>${differencePrefix}${alternative.differencePercent.toFixed(2)}%</dd>
-          </div>
-          <div>
-            <dt>Speedometer at 100 km/h</dt>
-            <dd>${alternative.actualSpeed.toFixed(1)} km/h</dd>
-          </div>
-        </dl>
-      </article>
+      <span class="alternative-status${reference.isOriginal ? ' original-status' : ''}">${reference.status}</span>
+      ${confirmBadge}
     `;
   };
 
-  const renderAlternativeResults = (calculator, form) => {
+  const renderTableRows = (references) => {
+    const closestReference = references.find((reference) => !reference.isOriginal) || null;
+
+    return references.map((reference) => {
+      const differencePrefix = reference.differencePercent > 0 ? '+' : '';
+      const rowClasses = [
+        reference.isOriginal ? 'is-original-size' : '',
+        closestReference === reference ? 'is-closest-size' : '',
+      ].filter(Boolean).join(' ');
+
+      return `
+        <tr class="${rowClasses}">
+          <td data-label="Size">
+            <strong>${formatTireSizeLabel(reference)}</strong>
+            <span class="table-badge-wrap">${renderStatusBadges(reference)}</span>
+          </td>
+          <td data-label="Difference">${differencePrefix}${reference.differencePercent.toFixed(2)}%</td>
+          <td data-label="Diameter">${formatTableDiameter(reference)}</td>
+          <td data-label="Width">${formatSectionWidthInches(reference)}</td>
+          <td data-label="Wheel">${formatWheel(reference)}</td>
+          <td data-label="Speedometer at 100 km/h">${reference.actualSpeed.toFixed(1)} km/h</td>
+        </tr>
+      `;
+    }).join('');
+  };
+
+  const renderReferenceTable = (references) => {
+    if (!references.length) {
+      return '<p class="alternative-empty-state">No close common passenger tire size references were found for this wheel size.</p>';
+    }
+
+    return `
+      <div class="alternative-table-wrap">
+        <table class="alternative-size-table">
+          <thead>
+            <tr>
+              <th scope="col">Size</th>
+              <th scope="col">Difference</th>
+              <th scope="col">Diameter</th>
+              <th scope="col">Width</th>
+              <th scope="col">Wheel</th>
+              <th scope="col">Speedometer at 100 km/h</th>
+            </tr>
+          </thead>
+          <tbody>${renderTableRows(references)}</tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  const renderAlternativeResults = (calculator, form, preferredFilterKey = null) => {
     const message = form.querySelector('[data-message]');
     const results = calculator.querySelector('[data-alternative-results]');
     const validated = readValidatedSizeFields(form);
@@ -325,17 +363,20 @@
       return;
     }
 
-    const alternatives = generateAlternatives(validated.tireSize);
-
     if (message) {
-      message.textContent = alternatives.length ? '' : 'No close common passenger tire size references were found for this size.';
+      message.textContent = '';
     }
 
     if (results) {
-      results.hidden = !alternatives.length;
-      results.innerHTML = alternatives.length
-        ? `<p class="alternative-guidance-note">${ALTERNATIVE_GUIDANCE}</p>${alternatives.map(renderAlternativeCard).join('')}`
-        : '';
+      const activeFilterKey = preferredFilterKey || getDefaultWheelFilter(results);
+      const references = getTableReferences(validated.tireSize, activeFilterKey);
+
+      results.hidden = false;
+      results.innerHTML = `
+        <p class="alternative-guidance-note">${ALTERNATIVE_GUIDANCE}</p>
+        ${renderWheelTabs(activeFilterKey)}
+        ${renderReferenceTable(references)}
+      `;
     }
   };
 
@@ -373,14 +414,28 @@
     }
 
     const alternativeForm = calculator.querySelector('[data-alternative-form]');
+    const alternativeResults = calculator.querySelector('[data-alternative-results]');
+
     if (alternativeForm) {
       setAlternativeInputBounds(alternativeForm);
       setDefaultSingleValues(alternativeForm);
-      renderAlternativeResults(calculator, alternativeForm);
+      renderAlternativeResults(calculator, alternativeForm, 'same');
 
       alternativeForm.addEventListener('submit', (event) => {
         event.preventDefault();
-        renderAlternativeResults(calculator, alternativeForm);
+        renderAlternativeResults(calculator, alternativeForm, 'same');
+      });
+    }
+
+    if (alternativeResults && alternativeForm) {
+      alternativeResults.addEventListener('click', (event) => {
+        const wheelFilter = event.target.closest('[data-wheel-filter]');
+
+        if (!wheelFilter) {
+          return;
+        }
+
+        renderAlternativeResults(calculator, alternativeForm, wheelFilter.dataset.wheelFilter);
       });
     }
   };
