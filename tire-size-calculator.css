@@ -225,7 +225,8 @@
   background: #fbfbfc;
 }
 
-.alternative-guidance-note {
+.alternative-guidance-note,
+.alternative-fitment-warning {
   margin: 0;
   padding: 16px 18px;
   border: 1px solid rgba(223, 31, 45, 0.14);
@@ -236,6 +237,13 @@
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.55;
+}
+
+.alternative-fitment-warning {
+  background: #fbfbfc;
+  border-color: rgba(15, 23, 42, 0.1);
+  border-left-color: #111317;
+  color: #3f4652;
 }
 
 .wheel-filter-tabs {
@@ -278,7 +286,7 @@
 
 .alternative-size-table {
   width: 100%;
-  min-width: 860px;
+  min-width: 980px;
   border-collapse: collapse;
   color: #111317;
 }
@@ -475,7 +483,7 @@
   }
 
   .alternative-size-table {
-    min-width: 720px;
+    min-width: 840px;
   }
 
   .alternative-size-table th,
