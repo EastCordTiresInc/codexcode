@@ -13,9 +13,15 @@
   const COMMON_WIDTHS = [155, 165, 175, 185, 195, 205, 215, 225, 235, 245, 255, 265, 275, 285, 295, 305, 315];
   const COMMON_ASPECT_RATIOS = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75];
   const RIM_PRIORITY_OFFSETS = [0, 1, -1, 2];
+  const RESULT_LIMITS_BY_RIM_OFFSET = {
+    0: 2,
+    1: 3,
+    '-1': 1,
+    2: 1,
+  };
   const MAX_DIAMETER_DIFFERENCE = 3;
   const MAX_ALTERNATIVES = 6;
-  const ALTERNATIVE_GUIDANCE = 'These are general size alternatives based on overall diameter. Always confirm vehicle fitment, rim width, load rating, speed rating, and clearance before purchase or installation.';
+  const ALTERNATIVE_GUIDANCE = 'Possible size references based on overall diameter. Always confirm vehicle fitment, rim width, load rating, speed rating, and clearance before purchase or installation.';
 
   const formatMmValue = (value) => {
     const rounded = Math.round(value * 10) / 10;
@@ -167,7 +173,7 @@
     const absoluteDifference = Math.abs(differencePercent);
 
     if (absoluteDifference <= 1) {
-      return 'Best match';
+      return 'Closest diameter';
     }
 
     if (absoluteDifference <= 2) {
@@ -183,8 +189,17 @@
     return index === -1 ? RIM_PRIORITY_OFFSETS.length : index;
   };
 
+  const getAllowedWidthDelta = (rimOffset) => (rimOffset === 2 ? 10 : 20);
+
   const createAlternativeCandidate = (original, width, aspect, rim) => {
+    const rimOffset = rim - original.rimInches;
+    const widthDelta = Math.abs(width - original.widthMm);
+
     if (width === original.widthMm && aspect === original.aspectRatio && rim === original.rimInches) {
+      return null;
+    }
+
+    if (widthDelta > getAllowedWidthDelta(rimOffset)) {
       return null;
     }
 
@@ -200,40 +215,61 @@
       differencePercent,
       actualSpeed: 100 * (alternative.diameterMm / original.diameterMm),
       status: getAlternativeStatus(differencePercent),
+      rimOffset,
       rimPriority: getRimPriority(rim, original.rimInches),
+      widthDelta,
     };
   };
 
+  const sortPracticalAlternatives = (a, b) => {
+    if (a.rimPriority !== b.rimPriority) {
+      return a.rimPriority - b.rimPriority;
+    }
+
+    if (a.widthDelta !== b.widthDelta) {
+      return a.widthDelta - b.widthDelta;
+    }
+
+    return Math.abs(a.differencePercent) - Math.abs(b.differencePercent);
+  };
+
   const generateAlternatives = (original) => {
-    const alternatives = [];
-    const widthMin = original.widthMm - 30;
-    const widthMax = original.widthMm + 30;
-    const candidateWidths = COMMON_WIDTHS.filter((width) => width >= widthMin && width <= widthMax);
+    const groupedAlternatives = new Map();
     const candidateRims = RIM_PRIORITY_OFFSETS
       .map((offset) => original.rimInches + offset)
       .filter((rim, index, rims) => rim >= VALID_RANGES.rim.min && rim <= VALID_RANGES.rim.max && rims.indexOf(rim) === index);
 
     candidateRims.forEach((rim) => {
-      candidateWidths.forEach((width) => {
+      COMMON_WIDTHS.forEach((width) => {
         COMMON_ASPECT_RATIOS.forEach((aspect) => {
           const alternative = createAlternativeCandidate(original, width, aspect, rim);
 
-          if (alternative) {
-            alternatives.push(alternative);
+          if (!alternative) {
+            return;
           }
+
+          const rimGroup = groupedAlternatives.get(alternative.rimOffset) || [];
+          rimGroup.push(alternative);
+          groupedAlternatives.set(alternative.rimOffset, rimGroup);
         });
       });
     });
 
-    return alternatives
-      .sort((a, b) => {
-        if (a.rimPriority !== b.rimPriority) {
-          return a.rimPriority - b.rimPriority;
-        }
+    const selected = [];
 
-        return Math.abs(a.differencePercent) - Math.abs(b.differencePercent);
-      })
-      .slice(0, MAX_ALTERNATIVES);
+    RIM_PRIORITY_OFFSETS.forEach((offset) => {
+      const rimGroup = groupedAlternatives.get(offset) || [];
+      const practicalLimit = RESULT_LIMITS_BY_RIM_OFFSET[offset] || 1;
+      const sortedGroup = rimGroup.sort(sortPracticalAlternatives);
+
+      sortedGroup.slice(0, practicalLimit).forEach((alternative) => {
+        if (selected.length < MAX_ALTERNATIVES) {
+          selected.push(alternative);
+        }
+      });
+    });
+
+    return selected.slice(0, MAX_ALTERNATIVES);
   };
 
   const renderAlternativeCard = (alternative) => {
@@ -244,6 +280,7 @@
         <div>
           <h3>${formatTireSizeLabel(alternative)}</h3>
           <span class="alternative-status">${alternative.status}</span>
+          <span class="alternative-fitment-note">Confirm fitment</span>
         </div>
         <dl>
           <div>
@@ -282,7 +319,7 @@
     const alternatives = generateAlternatives(validated.tireSize);
 
     if (message) {
-      message.textContent = alternatives.length ? '' : 'No close common passenger tire alternatives were found for this size.';
+      message.textContent = alternatives.length ? '' : 'No close common passenger tire size references were found for this size.';
     }
 
     if (results) {
