@@ -38,6 +38,10 @@
   line-height: 1.65;
 }
 
+.footer-grid > div:first-child p {
+  color: #ffffff;
+}
+
 .footer-grid h3 {
   margin: 0 0 34px;
   color: var(--footer-heading);
