@@ -39,8 +39,8 @@
 }
 
 .used-tires-card .service-icon svg {
-  width: 34px;
-  stroke-width: 1.75;
+  width: 43px;
+  stroke-width: 2.25;
 }
 
 .used-tires-card .card-copy {
@@ -139,8 +139,8 @@
 
 .new-tires-card .service-icon svg,
 .changeover-card .service-icon svg {
-  width: 34px;
-  stroke-width: 1.75;
+  width: 43px;
+  stroke-width: 2.25;
 }
 
 .new-tires-card .card-copy,
@@ -222,7 +222,8 @@
   }
 
   .used-tires-card .service-icon svg {
-    width: 30px;
+    width: 39px;
+    stroke-width: 2.25;
   }
 
   .used-tires-card .card-copy {
@@ -273,7 +274,8 @@
 
   .new-tires-card .service-icon svg,
   .changeover-card .service-icon svg {
-    width: 30px;
+    width: 39px;
+    stroke-width: 2.25;
   }
 
   .new-tires-card .card-copy,
