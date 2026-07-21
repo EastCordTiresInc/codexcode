@@ -15,12 +15,14 @@
   const RIM_PRIORITY_OFFSETS = [0, 1, -1, 2];
   const RESULT_LIMITS_BY_RIM_OFFSET = {
     0: 2,
-    1: 3,
+    1: 2,
     '-1': 1,
     2: 1,
   };
-  const MAX_DIAMETER_DIFFERENCE = 3;
-  const MAX_ALTERNATIVES = 6;
+  const MAX_DIAMETER_DIFFERENCE = 2.75;
+  const MAX_ALTERNATIVES = 4;
+  const ALTERNATIVE_TAB_LABEL = 'Size References';
+  const ALTERNATIVE_HEADING = 'Possible Tire Size References';
   const ALTERNATIVE_GUIDANCE = 'Possible size references based on overall diameter. Always confirm vehicle fitment, rim width, load rating, speed rating, and clearance before purchase or installation.';
   const ALTERNATIVE_DISCLAIMER = 'These sizes are for general guidance only. Tire fitment also depends on rim width, load rating, speed rating, brake clearance, suspension clearance, and vehicle manufacturer recommendations.';
 
@@ -135,6 +137,12 @@
       rim.min = VALID_RANGES.rim.min;
       rim.max = VALID_RANGES.rim.max;
     }
+  };
+
+  const setAlternativeCopy = (calculator) => {
+    setText(calculator, '[data-calculator-tab="alternative"]', ALTERNATIVE_TAB_LABEL);
+    setText(calculator, '[data-alternative-form] h3', ALTERNATIVE_HEADING);
+    setText(calculator, '.alternative-safety-note', ALTERNATIVE_DISCLAIMER);
   };
 
   const formatDiameter = (result) => `${formatInches(result.diameterInches)} in / ${formatMmValue(result.diameterMm)} mm`;
@@ -335,6 +343,8 @@
     const tabs = calculator.querySelectorAll('[data-calculator-tab]');
     const panels = calculator.querySelectorAll('[data-calculator-panel]');
 
+    setAlternativeCopy(calculator);
+
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => {
         const target = tab.dataset.calculatorTab;
@@ -364,7 +374,6 @@
 
     const alternativeForm = calculator.querySelector('[data-alternative-form]');
     if (alternativeForm) {
-      setText(calculator, '.alternative-safety-note', ALTERNATIVE_DISCLAIMER);
       setAlternativeInputBounds(alternativeForm);
       setDefaultSingleValues(alternativeForm);
       renderAlternativeResults(calculator, alternativeForm);
