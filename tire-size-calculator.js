@@ -1,5 +1,10 @@
 (() => {
   const MM_PER_INCH = 25.4;
+  const DEFAULT_TIRE_SIZE = {
+    width: 225,
+    aspect: 60,
+    rim: 17,
+  };
 
   const formatMmValue = (value) => {
     const rounded = Math.round(value * 10) / 10;
@@ -52,8 +57,52 @@
     }
   };
 
+  const setDefaultSingleValues = (form) => {
+    const widthInput = form.querySelector('[data-width]');
+    const aspectInput = form.querySelector('[data-aspect]');
+    const rimInput = form.querySelector('[data-rim]');
+
+    if (widthInput && !widthInput.value) {
+      widthInput.value = DEFAULT_TIRE_SIZE.width;
+    }
+    if (aspectInput && !aspectInput.value) {
+      aspectInput.value = DEFAULT_TIRE_SIZE.aspect;
+    }
+    if (rimInput && !rimInput.value) {
+      rimInput.value = DEFAULT_TIRE_SIZE.rim;
+    }
+  };
+
   const formatDiameter = (result) => `${formatInches(result.diameterInches)} in / ${formatMmValue(result.diameterMm)} mm`;
   const formatCircumference = (result) => `${formatInches(result.circumferenceInches)} in / ${formatMmValue(result.circumferenceMm)} mm`;
+
+  const renderSingleResults = (calculator, form) => {
+    const message = form.querySelector('[data-message]');
+    const results = calculator.querySelector('[data-single-results]');
+    const tireSize = readSizeFields(form);
+
+    if (!tireSize) {
+      if (message) {
+        message.textContent = 'Please enter a valid tire width, aspect ratio, and rim size.';
+      }
+      if (results) {
+        results.hidden = true;
+      }
+      return;
+    }
+
+    if (message) {
+      message.textContent = '';
+    }
+    if (results) {
+      results.hidden = false;
+      setText(results, '[data-section-width]', `${formatMmValue(tireSize.widthMm)} mm`);
+      setText(results, '[data-sidewall]', `${formatMmValue(tireSize.sidewallMm)} mm`);
+      setText(results, '[data-diameter]', formatDiameter(tireSize));
+      setText(results, '[data-circumference]', formatCircumference(tireSize));
+      setText(results, '[data-revs]', `${Math.round(tireSize.revsPerKm)}`);
+    }
+  };
 
   const initCalculator = (calculator) => {
     const tabs = calculator.querySelectorAll('[data-calculator-tab]');
@@ -77,34 +126,12 @@
 
     const singleForm = calculator.querySelector('[data-single-form]');
     if (singleForm) {
+      setDefaultSingleValues(singleForm);
+      renderSingleResults(calculator, singleForm);
+
       singleForm.addEventListener('submit', (event) => {
         event.preventDefault();
-
-        const message = singleForm.querySelector('[data-message]');
-        const results = calculator.querySelector('[data-single-results]');
-        const tireSize = readSizeFields(singleForm);
-
-        if (!tireSize) {
-          if (message) {
-            message.textContent = 'Please enter a valid tire width, aspect ratio, and rim size.';
-          }
-          if (results) {
-            results.hidden = true;
-          }
-          return;
-        }
-
-        if (message) {
-          message.textContent = '';
-        }
-        if (results) {
-          results.hidden = false;
-          setText(results, '[data-section-width]', `${formatMmValue(tireSize.widthMm)} mm`);
-          setText(results, '[data-sidewall]', `${formatMmValue(tireSize.sidewallMm)} mm`);
-          setText(results, '[data-diameter]', formatDiameter(tireSize));
-          setText(results, '[data-circumference]', formatCircumference(tireSize));
-          setText(results, '[data-revs]', `${Math.round(tireSize.revsPerKm)}`);
-        }
+        renderSingleResults(calculator, singleForm);
       });
     }
 
