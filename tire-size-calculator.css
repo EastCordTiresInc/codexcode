@@ -58,7 +58,7 @@
 }
 
 .calculator-form,
-.compare-form {
+.alternative-form {
   display: grid;
   gap: 20px;
 }
@@ -69,7 +69,8 @@
   column-gap: 18px;
 }
 
-.calculator-form::before {
+.calculator-form::before,
+.alternative-form::before {
   content: "Example: 225 / 60 R17";
   grid-column: 1 / -1;
   display: inline-flex;
@@ -81,6 +82,14 @@
   color: #b91c1c;
   font-size: 0.9rem;
   font-weight: 800;
+}
+
+.alternative-intro {
+  margin: 0;
+  max-width: 760px;
+  color: #626a76;
+  font-size: 0.98rem;
+  line-height: 1.65;
 }
 
 .tire-size-input-row {
@@ -95,7 +104,7 @@
 }
 
 .tire-size-input-row label,
-.compare-size-group label {
+.alternative-size-group label {
   display: grid;
   gap: 8px;
   color: #111317;
@@ -103,7 +112,7 @@
 }
 
 .tire-size-input-row label span,
-.compare-size-group label span {
+.alternative-size-group label span {
   color: #626a76;
   font-size: 0.78rem;
   letter-spacing: 0.04em;
@@ -111,7 +120,7 @@
 }
 
 .tire-size-input-row input,
-.compare-size-group input {
+.alternative-size-group input {
   width: 100%;
   min-height: 58px;
   border: 1px solid rgba(15, 23, 42, 0.16);
@@ -127,7 +136,7 @@
 }
 
 .tire-size-input-row input:focus,
-.compare-size-group input:focus {
+.alternative-size-group input:focus {
   border-color: rgba(223, 31, 45, 0.75);
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(223, 31, 45, 0.12);
@@ -166,7 +175,7 @@
 }
 
 .calculator-results,
-.compare-results {
+.alternative-results {
   display: grid;
   gap: 14px;
   margin-top: 24px;
@@ -176,8 +185,8 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
-.compare-results {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.alternative-results {
+  grid-template-columns: 1fr;
 }
 
 .result-box {
@@ -205,31 +214,176 @@
   line-height: 1.35;
 }
 
-.compare-grid {
+.alternative-size-group {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.compare-size-group {
-  display: grid;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
   padding: 18px;
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 20px;
   background: #fbfbfc;
 }
 
-.compare-size-group h3 {
+.alternative-guidance-note,
+.alternative-fitment-warning {
   margin: 0;
+  padding: 16px 18px;
+  border: 1px solid rgba(223, 31, 45, 0.14);
+  border-left: 4px solid #df1f2d;
+  border-radius: 16px;
+  background: rgba(223, 31, 45, 0.06);
+  color: #4f5663;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.alternative-fitment-warning {
+  background: #fbfbfc;
+  border-color: rgba(15, 23, 42, 0.1);
+  border-left-color: #111317;
+  color: #3f4652;
+}
+
+.wheel-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  background: #f4f5f7;
+}
+
+.wheel-filter-tab {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: transparent;
   color: #111317;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.wheel-filter-tab.is-active {
+  background: #df1f2d;
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(223, 31, 45, 0.2);
+}
+
+.alternative-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.07);
+}
+
+.alternative-size-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+  color: #111317;
+}
+
+.alternative-size-table th,
+.alternative-size-table td {
+  padding: 15px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.alternative-size-table th {
+  background: #111317;
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.alternative-size-table td {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.alternative-size-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.alternative-size-table tbody tr.is-original-size td {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.alternative-size-table tbody tr.is-closest-size td {
+  background: rgba(223, 31, 45, 0.07);
+}
+
+.alternative-size-table td strong {
+  display: block;
+  margin-bottom: 8px;
   font-size: 1rem;
 }
 
-.speed-note {
-  grid-column: 1 / -1;
-  border-color: rgba(223, 31, 45, 0.24);
-  background: linear-gradient(180deg, rgba(223, 31, 45, 0.08), rgba(255, 255, 255, 0.98));
+.table-badge-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.alternative-status,
+.alternative-fitment-note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.alternative-status {
+  color: #ffffff;
+  background: #df1f2d;
+}
+
+.alternative-status.original-status {
+  color: #111317;
+  background: #e5e7eb;
+}
+
+.alternative-fitment-note {
+  color: #4f5663;
+  background: #eef0f3;
+}
+
+.alternative-empty-state {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 18px;
+  background: #fbfbfc;
+  color: #4f5663;
+  font-weight: 800;
+}
+
+.alternative-safety-note {
+  margin: 22px 0 0;
+  padding: 16px 18px;
+  border-left: 4px solid #df1f2d;
+  border-radius: 16px;
+  background: rgba(223, 31, 45, 0.07);
+  color: #4f5663;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .calculator-disclaimer {
@@ -268,8 +422,7 @@
     grid-column: 1 / -1;
   }
 
-  .calculator-results,
-  .compare-results {
+  .calculator-results {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -280,9 +433,7 @@
     border-radius: 22px;
   }
 
-  .calculator-results,
-  .compare-results,
-  .compare-grid {
+  .calculator-results {
     grid-template-columns: 1fr;
   }
 }
@@ -298,12 +449,14 @@
     border-radius: 16px;
   }
 
-  .tire-size-input-row {
+  .tire-size-input-row,
+  .alternative-size-group {
     grid-template-columns: 1fr;
     gap: 10px;
   }
 
-  .calculator-form::before {
+  .calculator-form::before,
+  .alternative-form::before {
     width: auto;
     justify-content: center;
     text-align: center;
@@ -323,5 +476,18 @@
 
   .result-box {
     min-height: auto;
+  }
+
+  .alternative-table-wrap {
+    border-radius: 16px;
+  }
+
+  .alternative-size-table {
+    min-width: 840px;
+  }
+
+  .alternative-size-table th,
+  .alternative-size-table td {
+    padding: 13px 14px;
   }
 }
