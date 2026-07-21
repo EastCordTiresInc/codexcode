@@ -109,6 +109,27 @@
     setInputValue(form, '[data-rim]', DEFAULT_TIRE_SIZE.rim);
   };
 
+  const setAlternativeInputBounds = (form) => {
+    const width = form.querySelector('[data-width]');
+    const aspect = form.querySelector('[data-aspect]');
+    const rim = form.querySelector('[data-rim]');
+
+    if (width) {
+      width.min = VALID_RANGES.width.min;
+      width.max = VALID_RANGES.width.max;
+    }
+
+    if (aspect) {
+      aspect.min = VALID_RANGES.aspect.min;
+      aspect.max = VALID_RANGES.aspect.max;
+    }
+
+    if (rim) {
+      rim.min = VALID_RANGES.rim.min;
+      rim.max = VALID_RANGES.rim.max;
+    }
+  };
+
   const formatDiameter = (result) => `${formatInches(result.diameterInches)} in / ${formatMmValue(result.diameterMm)} mm`;
   const formatCircumference = (result) => `${formatInches(result.circumferenceInches)} in / ${formatMmValue(result.circumferenceMm)} mm`;
 
@@ -305,6 +326,7 @@
 
     const alternativeForm = calculator.querySelector('[data-alternative-form]');
     if (alternativeForm) {
+      setAlternativeInputBounds(alternativeForm);
       setDefaultSingleValues(alternativeForm);
       renderAlternativeResults(calculator, alternativeForm);
 
