@@ -1,0 +1,85 @@
+/* Keeps large page and section headings bold while improving readability. */
+:root {
+  --heading-hero-max: 4.5rem;
+  --heading-section-max: 3.25rem;
+  --heading-card-max: 3.15rem;
+}
+
+h1 {
+  max-width: 820px;
+  font-size: clamp(2.625rem, 5.4vw, var(--heading-hero-max));
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+h2 {
+  font-size: clamp(2rem, 3.8vw, var(--heading-section-max));
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.section-heading {
+  margin-bottom: clamp(34px, 4vw, 44px);
+}
+
+.section-heading h2,
+.tire-calculator-heading h2,
+.contact-heading h2 {
+  max-width: 720px;
+}
+
+.policy-hero h1 {
+  max-width: 860px;
+  font-size: clamp(2.625rem, 5.4vw, var(--heading-hero-max));
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.inspection-copy h2 {
+  max-width: 690px;
+  font-size: clamp(2rem, 3.5vw, var(--heading-card-max));
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.inspection-process h2,
+.policy-section h2 {
+  font-size: clamp(1.8rem, 2.8vw, 2.75rem);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+@media (max-width: 800px) {
+  h1,
+  .policy-hero h1 {
+    font-size: clamp(2.625rem, 9vw, 3rem);
+  }
+
+  h2,
+  .section-heading h2,
+  .tire-calculator-heading h2,
+  .contact-heading h2,
+  .inspection-copy h2 {
+    font-size: clamp(2rem, 8vw, 2.375rem);
+    line-height: 1.06;
+  }
+
+  .section-heading {
+    margin-bottom: 34px;
+  }
+}
+
+@media (max-width: 480px) {
+  h1,
+  .policy-hero h1 {
+    font-size: clamp(2.5rem, 12vw, 2.875rem);
+  }
+
+  h2,
+  .section-heading h2,
+  .tire-calculator-heading h2,
+  .contact-heading h2,
+  .inspection-copy h2 {
+    font-size: clamp(2rem, 10vw, 2.25rem);
+  }
+}
