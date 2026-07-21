@@ -5,6 +5,18 @@
     aspect: 60,
     rim: 17,
   };
+  const DEFAULT_COMPARE_SIZE = {
+    original: {
+      width: 225,
+      aspect: 60,
+      rim: 17,
+    },
+    new: {
+      width: 235,
+      aspect: 55,
+      rim: 17,
+    },
+  };
 
   const formatMmValue = (value) => {
     const rounded = Math.round(value * 10) / 10;
@@ -57,19 +69,33 @@
     }
   };
 
-  const setDefaultSingleValues = (form) => {
-    const widthInput = form.querySelector('[data-width]');
-    const aspectInput = form.querySelector('[data-aspect]');
-    const rimInput = form.querySelector('[data-rim]');
+  const setInputValue = (scope, selector, value) => {
+    const input = scope.querySelector(selector);
+    if (input && !input.value) {
+      input.value = value;
+    }
+  };
 
-    if (widthInput && !widthInput.value) {
-      widthInput.value = DEFAULT_TIRE_SIZE.width;
+  const setDefaultSingleValues = (form) => {
+    setInputValue(form, '[data-width]', DEFAULT_TIRE_SIZE.width);
+    setInputValue(form, '[data-aspect]', DEFAULT_TIRE_SIZE.aspect);
+    setInputValue(form, '[data-rim]', DEFAULT_TIRE_SIZE.rim);
+  };
+
+  const setDefaultCompareValues = (form) => {
+    const originalGroup = form.querySelector('[data-compare-size="original"]');
+    const newGroup = form.querySelector('[data-compare-size="new"]');
+
+    if (originalGroup) {
+      setInputValue(originalGroup, '[data-width]', DEFAULT_COMPARE_SIZE.original.width);
+      setInputValue(originalGroup, '[data-aspect]', DEFAULT_COMPARE_SIZE.original.aspect);
+      setInputValue(originalGroup, '[data-rim]', DEFAULT_COMPARE_SIZE.original.rim);
     }
-    if (aspectInput && !aspectInput.value) {
-      aspectInput.value = DEFAULT_TIRE_SIZE.aspect;
-    }
-    if (rimInput && !rimInput.value) {
-      rimInput.value = DEFAULT_TIRE_SIZE.rim;
+
+    if (newGroup) {
+      setInputValue(newGroup, '[data-width]', DEFAULT_COMPARE_SIZE.new.width);
+      setInputValue(newGroup, '[data-aspect]', DEFAULT_COMPARE_SIZE.new.aspect);
+      setInputValue(newGroup, '[data-rim]', DEFAULT_COMPARE_SIZE.new.rim);
     }
   };
 
@@ -101,6 +127,44 @@
       setText(results, '[data-diameter]', formatDiameter(tireSize));
       setText(results, '[data-circumference]', formatCircumference(tireSize));
       setText(results, '[data-revs]', `${Math.round(tireSize.revsPerKm)}`);
+    }
+  };
+
+  const renderCompareResults = (calculator, form) => {
+    const message = form.querySelector('[data-message]');
+    const originalGroup = form.querySelector('[data-compare-size="original"]');
+    const newGroup = form.querySelector('[data-compare-size="new"]');
+    const results = calculator.querySelector('[data-compare-results]');
+    const original = originalGroup ? readSizeFields(originalGroup) : null;
+    const next = newGroup ? readSizeFields(newGroup) : null;
+
+    if (!original || !next) {
+      if (message) {
+        message.textContent = 'Please enter valid original and new tire sizes.';
+      }
+      if (results) {
+        results.hidden = true;
+      }
+      return;
+    }
+
+    const differencePercent = ((next.diameterMm - original.diameterMm) / original.diameterMm) * 100;
+    const actualSpeed = 100 * (next.diameterMm / original.diameterMm);
+    const differencePrefix = differencePercent > 0 ? '+' : '';
+
+    if (message) {
+      message.textContent = '';
+    }
+    if (results) {
+      results.hidden = false;
+      setText(results, '[data-original-diameter]', formatDiameter(original));
+      setText(results, '[data-new-diameter]', formatDiameter(next));
+      setText(results, '[data-diameter-difference]', `${differencePrefix}${differencePercent.toFixed(2)}%`);
+      setText(
+        results,
+        '[data-speed-note]',
+        `When your speedometer reads 100 km/h, actual speed is approximately ${actualSpeed.toFixed(1)} km/h.`
+      );
     }
   };
 
@@ -137,44 +201,12 @@
 
     const compareForm = calculator.querySelector('[data-compare-form]');
     if (compareForm) {
+      setDefaultCompareValues(compareForm);
+      renderCompareResults(calculator, compareForm);
+
       compareForm.addEventListener('submit', (event) => {
         event.preventDefault();
-
-        const message = compareForm.querySelector('[data-message]');
-        const originalGroup = compareForm.querySelector('[data-compare-size="original"]');
-        const newGroup = compareForm.querySelector('[data-compare-size="new"]');
-        const results = calculator.querySelector('[data-compare-results]');
-        const original = originalGroup ? readSizeFields(originalGroup) : null;
-        const next = newGroup ? readSizeFields(newGroup) : null;
-
-        if (!original || !next) {
-          if (message) {
-            message.textContent = 'Please enter valid original and new tire sizes.';
-          }
-          if (results) {
-            results.hidden = true;
-          }
-          return;
-        }
-
-        const differencePercent = ((next.diameterMm - original.diameterMm) / original.diameterMm) * 100;
-        const actualSpeed = 100 * (next.diameterMm / original.diameterMm);
-        const differencePrefix = differencePercent > 0 ? '+' : '';
-
-        if (message) {
-          message.textContent = '';
-        }
-        if (results) {
-          results.hidden = false;
-          setText(results, '[data-original-diameter]', formatDiameter(original));
-          setText(results, '[data-new-diameter]', formatDiameter(next));
-          setText(results, '[data-diameter-difference]', `${differencePrefix}${differencePercent.toFixed(2)}%`);
-          setText(
-            results,
-            '[data-speed-note]',
-            `When your speedometer reads 100 km/h, actual speed is approximately ${actualSpeed.toFixed(1)} km/h.`
-          );
-        }
+        renderCompareResults(calculator, compareForm);
       });
     }
   };
