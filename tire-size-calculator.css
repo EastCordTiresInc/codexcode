@@ -226,6 +226,20 @@
   background: #fbfbfc;
 }
 
+.alternative-guidance-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid rgba(223, 31, 45, 0.14);
+  border-left: 4px solid #df1f2d;
+  border-radius: 16px;
+  background: rgba(223, 31, 45, 0.06);
+  color: #4f5663;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
 .alternative-result-card {
   display: grid;
   align-content: start;
