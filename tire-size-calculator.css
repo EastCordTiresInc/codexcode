@@ -253,18 +253,28 @@
   font-size: 1.25rem;
 }
 
-.alternative-status {
+.alternative-status,
+.alternative-fitment-note {
   display: inline-flex;
   align-items: center;
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  color: #ffffff;
-  background: #df1f2d;
   font-size: 0.74rem;
   font-weight: 900;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.alternative-status {
+  color: #ffffff;
+  background: #df1f2d;
+}
+
+.alternative-fitment-note {
+  margin-left: 6px;
+  color: #4f5663;
+  background: #eef0f3;
 }
 
 .alternative-result-card dl {
