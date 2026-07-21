@@ -22,6 +22,7 @@
   const MAX_DIAMETER_DIFFERENCE = 3;
   const MAX_ALTERNATIVES = 6;
   const ALTERNATIVE_GUIDANCE = 'Possible size references based on overall diameter. Always confirm vehicle fitment, rim width, load rating, speed rating, and clearance before purchase or installation.';
+  const ALTERNATIVE_DISCLAIMER = 'These sizes are for general guidance only. Tire fitment also depends on rim width, load rating, speed rating, brake clearance, suspension clearance, and vehicle manufacturer recommendations.';
 
   const formatMmValue = (value) => {
     const rounded = Math.round(value * 10) / 10;
@@ -363,6 +364,7 @@
 
     const alternativeForm = calculator.querySelector('[data-alternative-form]');
     if (alternativeForm) {
+      setText(calculator, '.alternative-safety-note', ALTERNATIVE_DISCLAIMER);
       setAlternativeInputBounds(alternativeForm);
       setDefaultSingleValues(alternativeForm);
       renderAlternativeResults(calculator, alternativeForm);
