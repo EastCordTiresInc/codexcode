@@ -8,10 +8,14 @@
   const VALID_RANGES = {
     width: { min: 125, max: 355 },
     aspect: { min: 25, max: 85 },
-    rim: { min: 12, max: 24 },
+    rim: { min: 14, max: 24 },
   };
+  const COMMON_WIDTHS = [155, 165, 175, 185, 195, 205, 215, 225, 235, 245, 255, 265, 275, 285, 295, 305, 315];
+  const COMMON_ASPECT_RATIOS = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75];
+  const RIM_PRIORITY_OFFSETS = [0, 1, -1, 2];
   const MAX_DIAMETER_DIFFERENCE = 3;
   const MAX_ALTERNATIVES = 6;
+  const ALTERNATIVE_GUIDANCE = 'These are general size alternatives based on overall diameter. Always confirm vehicle fitment, rim width, load rating, speed rating, and clearance before purchase or installation.';
 
   const formatMmValue = (value) => {
     const rounded = Math.round(value * 10) / 10;
@@ -79,7 +83,7 @@
     }
 
     if (!isWithinRange(rim, VALID_RANGES.rim)) {
-      return { error: 'Rim size should be between 12 inches and 24 inches.' };
+      return { error: 'Rim size should be between 14 inches and 24 inches.' };
     }
 
     return { tireSize: calculateTireSize(width, aspect, rim) };
@@ -152,39 +156,62 @@
     return 'Check fitment';
   };
 
-  const getRoundedStepStart = (value) => Math.ceil(value / 10) * 10;
+  const getRimPriority = (rimInches, originalRimInches) => {
+    const offset = rimInches - originalRimInches;
+    const index = RIM_PRIORITY_OFFSETS.indexOf(offset);
+    return index === -1 ? RIM_PRIORITY_OFFSETS.length : index;
+  };
+
+  const createAlternativeCandidate = (original, width, aspect, rim) => {
+    if (width === original.widthMm && aspect === original.aspectRatio && rim === original.rimInches) {
+      return null;
+    }
+
+    const alternative = calculateTireSize(width, aspect, rim);
+    const differencePercent = ((alternative.diameterMm - original.diameterMm) / original.diameterMm) * 100;
+
+    if (Math.abs(differencePercent) > MAX_DIAMETER_DIFFERENCE) {
+      return null;
+    }
+
+    return {
+      ...alternative,
+      differencePercent,
+      actualSpeed: 100 * (alternative.diameterMm / original.diameterMm),
+      status: getAlternativeStatus(differencePercent),
+      rimPriority: getRimPriority(rim, original.rimInches),
+    };
+  };
 
   const generateAlternatives = (original) => {
     const alternatives = [];
-    const widthStart = Math.max(VALID_RANGES.width.min, getRoundedStepStart(original.widthMm - 30));
-    const widthEnd = Math.min(VALID_RANGES.width.max, Math.floor((original.widthMm + 30) / 10) * 10);
-    const rimStart = Math.max(VALID_RANGES.rim.min, Math.floor(original.rimInches - 1));
-    const rimEnd = Math.min(VALID_RANGES.rim.max, Math.ceil(original.rimInches + 2));
+    const widthMin = original.widthMm - 30;
+    const widthMax = original.widthMm + 30;
+    const candidateWidths = COMMON_WIDTHS.filter((width) => width >= widthMin && width <= widthMax);
+    const candidateRims = RIM_PRIORITY_OFFSETS
+      .map((offset) => original.rimInches + offset)
+      .filter((rim, index, rims) => rim >= VALID_RANGES.rim.min && rim <= VALID_RANGES.rim.max && rims.indexOf(rim) === index);
 
-    for (let width = widthStart; width <= widthEnd; width += 10) {
-      for (let aspect = 30; aspect <= 75; aspect += 5) {
-        for (let rim = rimStart; rim <= rimEnd; rim += 1) {
-          if (width === original.widthMm && aspect === original.aspectRatio && rim === original.rimInches) {
-            continue;
+    candidateRims.forEach((rim) => {
+      candidateWidths.forEach((width) => {
+        COMMON_ASPECT_RATIOS.forEach((aspect) => {
+          const alternative = createAlternativeCandidate(original, width, aspect, rim);
+
+          if (alternative) {
+            alternatives.push(alternative);
           }
-
-          const alternative = calculateTireSize(width, aspect, rim);
-          const differencePercent = ((alternative.diameterMm - original.diameterMm) / original.diameterMm) * 100;
-
-          if (Math.abs(differencePercent) <= MAX_DIAMETER_DIFFERENCE) {
-            alternatives.push({
-              ...alternative,
-              differencePercent,
-              actualSpeed: 100 * (alternative.diameterMm / original.diameterMm),
-              status: getAlternativeStatus(differencePercent),
-            });
-          }
-        }
-      }
-    }
+        });
+      });
+    });
 
     return alternatives
-      .sort((a, b) => Math.abs(a.differencePercent) - Math.abs(b.differencePercent))
+      .sort((a, b) => {
+        if (a.rimPriority !== b.rimPriority) {
+          return a.rimPriority - b.rimPriority;
+        }
+
+        return Math.abs(a.differencePercent) - Math.abs(b.differencePercent);
+      })
       .slice(0, MAX_ALTERNATIVES);
   };
 
@@ -234,12 +261,14 @@
     const alternatives = generateAlternatives(validated.tireSize);
 
     if (message) {
-      message.textContent = alternatives.length ? '' : 'No close alternative sizes were found for this tire size.';
+      message.textContent = alternatives.length ? '' : 'No close common passenger tire alternatives were found for this size.';
     }
 
     if (results) {
       results.hidden = !alternatives.length;
-      results.innerHTML = alternatives.map(renderAlternativeCard).join('');
+      results.innerHTML = alternatives.length
+        ? `<p class="alternative-guidance-note">${ALTERNATIVE_GUIDANCE}</p>${alternatives.map(renderAlternativeCard).join('')}`
+        : '';
     }
   };
 
