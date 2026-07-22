@@ -25,6 +25,7 @@ function renderCartItem(item) {
       <p>${item.vehicleYear} ${item.vehicleMake} ${item.vehicleModel} - ${item.tireSize}</p>
       <p>${item.city}, ${item.postalCode} - ${item.preferredDate} at ${item.preferredTimeWindow}</p>
       <p>Starting price: ${window.EastCordAccount.money(item.startingPrice)} | Deposit due today: ${window.EastCordAccount.money(item.depositAmount)} | Remaining on-site: ${window.EastCordAccount.money(item.remainingBalance)}</p>
+      <p>Booking status: ${item.bookingStatus || 'Pending Confirmation'} | Payment status: ${item.paymentStatus || 'pending_checkout'}</p>
     </article>
   `;
 }
@@ -64,8 +65,8 @@ function buildNetlifyFormData(item, profile) {
   formData.set('Remaining Balance', Number(item.remainingBalance || 0).toFixed(2));
   formData.set('Booking Status', 'Pending Confirmation');
   formData.set('Service area status', item.serviceAreaStatus || 'In service area');
-  formData.set('stripe_session_id', '');
-  formData.set('payment_status', 'pending_checkout');
+  formData.set('stripe_session_id', item.stripeSessionId || '');
+  formData.set('payment_status', item.paymentStatus || 'pending_checkout');
   formData.set('Preferred Date', item.preferredDate || '');
   formData.set('Preferred Time Window', item.preferredTimeWindow || '');
   formData.set('Vehicle Year', item.vehicleYear || '');
@@ -82,7 +83,7 @@ function buildNetlifyFormData(item, profile) {
   return formData;
 }
 
-async function submitNetlifyForm(formData) {
+async function submitNetlifyFormBackup(formData) {
   const response = await fetch('/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -90,8 +91,17 @@ async function submitNetlifyForm(formData) {
   });
 
   if (!response.ok) {
-    throw new Error('Booking details could not be saved. Please try again.');
+    throw new Error('Netlify Forms backup did not save.');
   }
+}
+
+async function ensureSupabaseBooking(item, profile) {
+  if (item.bookingId) return item;
+  const bookingId = await window.EastCordAccount.saveAppointmentBooking(item, profile);
+  const updatedItem = { ...item, bookingId, paymentStatus: 'pending_checkout' };
+  const cart = window.EastCordAccount.getCart().map((cartItem) => (cartItem.id === item.id ? updatedItem : cartItem));
+  window.EastCordAccount.saveCart(cart);
+  return updatedItem;
 }
 
 async function startCheckout() {
@@ -114,12 +124,20 @@ async function startCheckout() {
     checkoutButton.textContent = 'Preparing Stripe Checkout...';
     showCartMessage('Saving booking details and preparing Stripe Checkout...', 'info');
 
-    await submitNetlifyForm(buildNetlifyFormData(items[0], profile));
+    const bookingItem = await ensureSupabaseBooking(items[0], profile);
 
+    submitNetlifyFormBackup(buildNetlifyFormData(bookingItem, profile)).catch((error) => {
+      console.warn('Netlify Forms backup failed after Supabase booking save.', error);
+    });
+
+    const token = await window.EastCordAccount.getAccessToken();
     const response = await fetch('/.netlify/functions/create-appointment-checkout-session', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...items[0], customer: profile }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+      body: JSON.stringify({ ...bookingItem, customer: profile }),
     });
     const data = await response.json().catch(() => ({}));
 
