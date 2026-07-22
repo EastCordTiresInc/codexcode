@@ -1,5 +1,10 @@
 const AUTH_CONFIG = window.EASTCORD_AUTH_CONFIG || {};
 const CART_KEY = 'eastcord_cart_v1';
+const ACCOUNT_SETUP_MESSAGE = 'Account system is being connected. Please check back soon.';
+
+function logDeveloperError(context, error) {
+  console.error(`[EastCord appointment automation] ${context}`, error);
+}
 
 function isAuthConfigured() {
   return Boolean(AUTH_CONFIG.supabaseUrl && AUTH_CONFIG.supabaseAnonKey && window.supabase);
@@ -17,6 +22,7 @@ function getCart() {
   try {
     return JSON.parse(localStorage.getItem(CART_KEY) || '[]');
   } catch (error) {
+    logDeveloperError('Cart storage could not be read.', error);
     return [];
   }
 }
@@ -51,14 +57,22 @@ function escapeHtml(value) {
 async function getCurrentUser() {
   const client = getSupabaseClient();
   if (!client) return null;
-  const { data } = await client.auth.getUser();
+  const { data, error } = await client.auth.getUser();
+  if (error) {
+    logDeveloperError('Supabase user lookup failed.', error);
+    return null;
+  }
   return data?.user || null;
 }
 
 async function getAccessToken() {
   const client = getSupabaseClient();
   if (!client) return '';
-  const { data } = await client.auth.getSession();
+  const { data, error } = await client.auth.getSession();
+  if (error) {
+    logDeveloperError('Supabase session lookup failed.', error);
+    return '';
+  }
   return data?.session?.access_token || '';
 }
 
@@ -85,7 +99,8 @@ function profileFromRow(row, fallbackUser) {
 
 async function upsertCustomerProfile(profile) {
   const client = getSupabaseClient();
-  if (!client || !profile?.customerId) return null;
+  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
+  if (!profile?.customerId) throw new Error('Please log in again before continuing.');
 
   const row = {
     id: profile.customerId,
@@ -101,7 +116,10 @@ async function upsertCustomerProfile(profile) {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    logDeveloperError('customer_profiles upsert failed.', error);
+    throw new Error('Customer profile could not be saved right now. Please try again shortly.');
+  }
   return data;
 }
 
@@ -116,7 +134,10 @@ async function getCurrentProfile() {
     .eq('id', user.id)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    logDeveloperError('customer_profiles read failed.', error);
+    return profileFromUser(user);
+  }
 
   if (!data) {
     const fallback = profileFromUser(user);
@@ -124,6 +145,7 @@ async function getCurrentProfile() {
       const inserted = await upsertCustomerProfile(fallback);
       return profileFromRow(inserted, user);
     } catch (profileError) {
+      logDeveloperError('customer_profiles fallback create failed.', profileError);
       return fallback;
     }
   }
@@ -165,7 +187,7 @@ function buildBookingRecord(item, profile) {
 
 async function saveAppointmentBooking(item, profile) {
   const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase is not connected yet. Add Supabase environment variables before saving bookings.');
+  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
   if (!profile?.customerId) throw new Error('Please sign up or log in before booking.');
 
   const { data, error } = await client
@@ -174,7 +196,10 @@ async function saveAppointmentBooking(item, profile) {
     .select('id')
     .single();
 
-  if (error) throw new Error(error.message || 'Booking could not be saved to Supabase.');
+  if (error) {
+    logDeveloperError('appointment_bookings insert failed.', error);
+    throw new Error('Booking details could not be saved right now. Please try again shortly.');
+  }
   return data.id;
 }
 
@@ -189,15 +214,16 @@ async function getCustomerBookings() {
     .eq('customer_id', profile.customerId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    logDeveloperError('appointment_bookings read failed.', error);
+    return [];
+  }
   return data || [];
 }
 
 async function signUpCustomer({ fullName, email, phone, password }) {
   const client = getSupabaseClient();
-  if (!client) {
-    throw new Error('Signup is not connected yet. Add Supabase URL and anon key in Netlify environment setup.');
-  }
+  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
 
   const { data, error } = await client.auth.signUp({
     email,
@@ -210,7 +236,10 @@ async function signUpCustomer({ fullName, email, phone, password }) {
     },
   });
 
-  if (error) throw error;
+  if (error) {
+    logDeveloperError('Supabase signup failed.', error);
+    throw new Error('Signup could not be completed right now. Please try again shortly.');
+  }
 
   if (data?.user) {
     try {
@@ -221,7 +250,7 @@ async function signUpCustomer({ fullName, email, phone, password }) {
         phone,
       });
     } catch (profileError) {
-      console.warn('Customer profile will be created after email confirmation or next login.', profileError);
+      logDeveloperError('Customer profile will be created after email confirmation or next login.', profileError);
     }
   }
 
@@ -230,12 +259,13 @@ async function signUpCustomer({ fullName, email, phone, password }) {
 
 async function signInCustomer({ email, password }) {
   const client = getSupabaseClient();
-  if (!client) {
-    throw new Error('Login is not connected yet. Add Supabase URL and anon key in Netlify environment setup.');
-  }
+  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
 
   const { data, error } = await client.auth.signInWithPassword({ email, password });
-  if (error) throw error;
+  if (error) {
+    logDeveloperError('Supabase login failed.', error);
+    throw new Error('Login could not be completed. Please check your email and password.');
+  }
 
   const profile = profileFromUser(data?.user);
   if (profile) await upsertCustomerProfile(profile);
@@ -260,6 +290,7 @@ async function updateAuthNavigation() {
   try {
     profile = await getCurrentProfile();
   } catch (error) {
+    logDeveloperError('Auth navigation profile lookup failed.', error);
     profile = null;
   }
 
@@ -280,8 +311,18 @@ function bindAuthForms() {
   const loginForm = document.querySelector('[data-login-form]');
   const authMessage = document.querySelector('[data-auth-message]');
 
+  if (!isAuthConfigured() && authMessage && (signupForm || loginForm)) {
+    authMessage.textContent = ACCOUNT_SETUP_MESSAGE;
+  }
+
   signupForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (!isAuthConfigured()) {
+      if (authMessage) authMessage.textContent = ACCOUNT_SETUP_MESSAGE;
+      logDeveloperError('Signup attempted before Supabase env vars were configured.', AUTH_CONFIG);
+      return;
+    }
+
     const formData = new FormData(signupForm);
     const password = formData.get('Password');
     const confirmPassword = formData.get('Confirm Password');
@@ -306,6 +347,12 @@ function bindAuthForms() {
 
   loginForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (!isAuthConfigured()) {
+      if (authMessage) authMessage.textContent = ACCOUNT_SETUP_MESSAGE;
+      logDeveloperError('Login attempted before Supabase env vars were configured.', AUTH_CONFIG);
+      return;
+    }
+
     const formData = new FormData(loginForm);
 
     try {
@@ -343,7 +390,7 @@ async function hydrateAccountPage() {
   if (!accountPanel) return;
 
   if (!isAuthConfigured()) {
-    accountPanel.innerHTML = '<p>Account login is prepared but not connected yet. Add Supabase environment variables before customer accounts can be used.</p>';
+    accountPanel.innerHTML = `<p>${ACCOUNT_SETUP_MESSAGE}</p>`;
     if (bookingPanel) bookingPanel.innerHTML = '';
     return;
   }
@@ -367,7 +414,8 @@ async function hydrateAccountPage() {
       bookingPanel.innerHTML = renderBookingHistory(bookings);
     }
   } catch (error) {
-    accountPanel.innerHTML = `<p>${escapeHtml(error.message || 'Account details could not be loaded.')}</p>`;
+    logDeveloperError('Account page hydration failed.', error);
+    accountPanel.innerHTML = '<p>Account details could not be loaded right now. Please try again shortly.</p>';
     if (bookingPanel) bookingPanel.innerHTML = '';
   }
 }
@@ -388,6 +436,7 @@ window.EastCordAccount = {
   clearCart,
   saveAppointmentBooking,
   money,
+  setupMessage: ACCOUNT_SETUP_MESSAGE,
 };
 
 document.addEventListener('DOMContentLoaded', () => {
