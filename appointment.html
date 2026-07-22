@@ -58,7 +58,7 @@
           </div>
           <div class="appointment-status-card" aria-label="Booking payment status">
             <span>Pending Confirmation</span>
-            <strong>20% deposit through Stripe Checkout</strong>
+            <strong>7 days a week, 8:00 AM to 8:00 PM</strong>
             <p>Card payment is handled securely by Stripe Checkout. EastCord Tires will confirm final service details before the appointment is finalized.</p>
           </div>
         </div>
@@ -81,6 +81,7 @@
             <input type="hidden" name="Booking Deposit" data-deposit-field value="8" />
             <input type="hidden" name="Remaining Balance" data-balance-field value="32" />
             <input type="hidden" name="Booking Status" value="Pending Confirmation" />
+            <input type="hidden" name="Service area status" data-service-area-status-field value="In service area" />
             <input type="hidden" name="stripe_session_id" value="" />
             <input type="hidden" name="payment_status" value="pending_checkout" />
             <p class="hidden-field">
@@ -144,9 +145,12 @@
                 <span>Preferred time window</span>
                 <select name="Preferred Time Window" required>
                   <option value="">Select a time window</option>
-                  <option value="Morning">Morning</option>
-                  <option value="Afternoon">Afternoon</option>
-                  <option value="Evening">Evening</option>
+                  <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
+                  <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
+                  <option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option>
+                  <option value="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</option>
+                  <option value="4:00 PM - 6:00 PM">4:00 PM - 6:00 PM</option>
+                  <option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option>
                 </select>
               </label>
               <label class="form-field">
@@ -184,13 +188,24 @@
               </label>
               <label class="form-field">
                 <span>City</span>
-                <input name="City" type="text" autocomplete="address-level2" required />
+                <select name="City" data-city-select autocomplete="address-level2" required>
+                  <option value="">Select city</option>
+                  <option value="Milton">Milton</option>
+                  <option value="Oakville">Oakville</option>
+                  <option value="Brampton">Brampton</option>
+                  <option value="Mississauga">Mississauga</option>
+                  <option value="Other">Other</option>
+                </select>
               </label>
               <label class="form-field">
                 <span>Postal code</span>
                 <input name="Postal Code" type="text" autocomplete="postal-code" required />
               </label>
             </div>
+
+            <p class="appointment-service-area-warning" data-service-area-warning hidden>
+              EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only. Please contact us if you need service outside these areas.
+            </p>
 
             <label class="form-field form-field-full">
               <span>Parking / driveway / access notes</span>
@@ -215,6 +230,7 @@
           <aside class="appointment-info-card" aria-label="Booking deposit details">
             <h2>How Payment Works</h2>
             <ul>
+              <li>Mobile tire service is available Monday to Sunday, 8:00 AM to 8:00 PM.</li>
               <li>20% booking deposit is collected online based on the selected starting price.</li>
               <li>Remaining balance is paid on-site after service.</li>
               <li>Final price may depend on vehicle, tire condition, location, additional services, and availability.</li>
@@ -279,6 +295,7 @@
       <input name="Booking Deposit" />
       <input name="Remaining Balance" />
       <input name="Booking Status" />
+      <input name="Service area status" />
       <input name="stripe_session_id" />
       <input name="payment_status" />
       <input name="Full Name" />
