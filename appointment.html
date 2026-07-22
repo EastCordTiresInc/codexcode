@@ -53,7 +53,7 @@
             <h1 id="appointment-title">Changeover / Swap Appointment</h1>
             <p>
               Select a tire service starting price, review the 20% booking deposit, and submit your booking details.
-              Appointments remain pending until EastCord confirms availability and service details.
+              Appointments remain Pending Confirmation until EastCord Tires confirms availability and service details.
             </p>
           </div>
           <div class="appointment-status-card" aria-label="Booking payment status">
@@ -76,7 +76,7 @@
             action="/"
           >
             <input type="hidden" name="form-name" value="eastcord-changeover-appointment" />
-            <input type="hidden" name="subject" value="New EastCord Tires changeover booking request" />
+            <input type="hidden" name="subject" value="New EastCord Tires changeover booking" />
             <input type="hidden" name="Starting Price" data-starting-price-field value="40" />
             <input type="hidden" name="Booking Deposit" data-deposit-field value="8" />
             <input type="hidden" name="Remaining Balance" data-balance-field value="32" />
@@ -120,7 +120,7 @@
             </div>
 
             <p class="appointment-payment-note">
-              Your 20% booking deposit helps reserve your appointment request. The remaining balance is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required. Appointments remain Pending Confirmation until EastCord Tires confirms availability and service details.
+              Your 20% booking deposit helps reserve your booking. The remaining balance is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required. Appointments remain Pending Confirmation until EastCord Tires confirms availability and service details.
             </p>
 
             <div class="appointment-field-grid">
@@ -150,12 +150,37 @@
                 </select>
               </label>
               <label class="form-field">
+                <span>Vehicle year</span>
+                <input name="Vehicle Year" type="number" inputmode="numeric" min="1980" max="2030" placeholder="Example: 2020" required />
+              </label>
+              <label class="form-field">
+                <span>Vehicle make</span>
+                <input name="Vehicle Make" type="text" placeholder="Example: Toyota" required />
+              </label>
+              <label class="form-field">
+                <span>Vehicle model</span>
+                <input name="Vehicle Model" type="text" placeholder="Example: Corolla" required />
+              </label>
+              <label class="form-field">
                 <span>Tire size</span>
                 <input name="Tire Size" type="text" placeholder="Example: 225/60R17" required />
               </label>
               <label class="form-field">
-                <span>Service location</span>
-                <input name="Service Location" type="text" placeholder="Home, workplace, or parking location" required />
+                <span>Are tires already on rims?</span>
+                <select name="Tires Already On Rims" required>
+                  <option value="">Select one</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                  <option value="Not sure">Not sure</option>
+                </select>
+              </label>
+              <label class="form-field">
+                <span>Number of tires</span>
+                <input name="Number of Tires" type="number" inputmode="numeric" min="1" max="4" placeholder="4" required />
+              </label>
+              <label class="form-field">
+                <span>Full service address</span>
+                <input name="Full Service Address" type="text" autocomplete="street-address" required />
               </label>
               <label class="form-field">
                 <span>City</span>
@@ -165,20 +190,21 @@
                 <span>Postal code</span>
                 <input name="Postal Code" type="text" autocomplete="postal-code" required />
               </label>
-              <label class="form-field">
-                <span>Vehicle details</span>
-                <input name="Vehicle Details" type="text" placeholder="Vehicle year, make, and model" required />
-              </label>
             </div>
 
             <label class="form-field form-field-full">
-              <span>Notes</span>
-              <textarea name="Notes" rows="5" placeholder="Tire quantity, tire condition, parking notes, or anything EastCord should know."></textarea>
+              <span>Parking / driveway / access notes</span>
+              <textarea name="Parking Driveway Access Notes" rows="4" placeholder="Tell us where the vehicle will be parked and any access instructions." required></textarea>
+            </label>
+
+            <label class="form-field form-field-full">
+              <span>Additional notes</span>
+              <textarea name="Additional Notes" rows="4" placeholder="Tire condition, special instructions, or anything else EastCord should know."></textarea>
             </label>
 
             <label class="appointment-consent">
               <input name="Privacy Consent" type="checkbox" value="Agreed" required />
-              <span>I agree that EastCord Tires may use my details to process this booking request, contact me about availability, and coordinate service details.</span>
+              <span>I agree that EastCord Tires may collect and use my information to process my appointment request, contact me about my booking, and keep service records.</span>
             </label>
 
             <p class="appointment-status-message" data-appointment-message aria-live="polite"></p>
@@ -195,7 +221,7 @@
               <li>EastCord Tires will confirm final service details before the appointment is finalized.</li>
             </ul>
             <p>
-              Appointments are treated as <strong>Pending Confirmation</strong> until EastCord confirms availability and service details.
+              Appointments are treated as <strong>Pending Confirmation</strong> until EastCord Tires confirms availability and service details.
             </p>
           </aside>
         </div>
@@ -260,12 +286,17 @@
       <input name="Phone" />
       <input name="Preferred Date" />
       <input name="Preferred Time Window" />
-      <input name="Vehicle Details" />
+      <input name="Vehicle Year" />
+      <input name="Vehicle Make" />
+      <input name="Vehicle Model" />
       <input name="Tire Size" />
-      <input name="Service Location" />
+      <input name="Tires Already On Rims" />
+      <input name="Number of Tires" />
+      <input name="Full Service Address" />
       <input name="City" />
       <input name="Postal Code" />
-      <textarea name="Notes"></textarea>
+      <textarea name="Parking Driveway Access Notes"></textarea>
+      <textarea name="Additional Notes"></textarea>
       <input name="Privacy Consent" />
     </form>
 
