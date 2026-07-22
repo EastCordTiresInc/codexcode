@@ -1,0 +1,11 @@
+{
+  "name": "eastcord-tires-website",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo \"Static EastCord Tires site\""
+  },
+  "dependencies": {
+    "stripe": "^16.12.0"
+  }
+}
