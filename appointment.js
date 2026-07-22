@@ -5,6 +5,8 @@ const balancePrice = document.querySelector('[data-balance-price]');
 const startingPriceField = document.querySelector('[data-starting-price-field]');
 const depositField = document.querySelector('[data-deposit-field]');
 const balanceField = document.querySelector('[data-balance-field]');
+const menuToggle = document.querySelector('.menu-toggle');
+const primaryNavigation = document.querySelector('#primary-navigation');
 
 const money = new Intl.NumberFormat('en-CA', {
   style: 'currency',
@@ -28,6 +30,23 @@ function updateDepositSummary() {
   if (depositField) depositField.value = deposit.toFixed(2);
   if (balanceField) balanceField.value = balance.toFixed(2);
 }
+
+function closeMobileMenu() {
+  if (!menuToggle || !primaryNavigation) return;
+
+  menuToggle.setAttribute('aria-expanded', 'false');
+  primaryNavigation.classList.remove('is-open');
+}
+
+menuToggle?.addEventListener('click', () => {
+  const isOpen = menuToggle.getAttribute('aria-expanded') === 'true';
+  menuToggle.setAttribute('aria-expanded', String(!isOpen));
+  primaryNavigation?.classList.toggle('is-open', !isOpen);
+});
+
+primaryNavigation?.querySelectorAll('a').forEach((link) => {
+  link.addEventListener('click', closeMobileMenu);
+});
 
 serviceSelect?.addEventListener('change', updateDepositSummary);
 updateDepositSummary();
