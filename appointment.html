@@ -84,147 +84,271 @@
             <input type="hidden" name="Service area status" data-service-area-status-field value="In service area" />
             <input type="hidden" name="stripe_session_id" value="" />
             <input type="hidden" name="payment_status" value="pending_checkout" />
-            <p class="hidden-field">
-              <label>Do not fill this out: <input name="bot-field" /></label>
-            </p>
+            <div class="hidden-field" hidden aria-hidden="true">
+              <label>Do not fill this out: <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
+            </div>
 
             <div class="appointment-form-heading">
               <h2 id="appointment-form-title">Book Your Appointment</h2>
-              <p>Enter your details, then continue to Stripe Checkout to pay the 20% booking deposit.</p>
+              <p>Complete each step, then continue to Stripe Checkout to pay the 20% booking deposit.</p>
             </div>
 
-            <label class="form-field">
-              <span>Service needed</span>
-              <select name="Service Needed" data-service-select required>
-                <option value="seasonal-changeover-rims" data-price="40">Seasonal Changeover - All 4 Tires Pre-Mounted on Rims - Starting price $40</option>
-                <option value="seasonal-swap-not-mounted" data-price="80">Seasonal Tire Swap - All 4 Tires Not Mounted on Rims - Starting price $80</option>
-                <option value="mount-balance-1" data-price="25">Mount & Balance - 1 Tire - Starting price $25</option>
-                <option value="mount-balance-2" data-price="50">Mount & Balance - 2 Tires - Starting price $50</option>
-                <option value="mount-balance-3" data-price="75">Mount & Balance - 3 Tires - Starting price $75</option>
-                <option value="mount-balance-4" data-price="100">Mount & Balance - 4 Tires - Starting price $100</option>
-              </select>
-            </label>
+            <ol class="appointment-progress" aria-label="Booking progress">
+              <li class="is-active" data-progress-step>Service</li>
+              <li data-progress-step>Vehicle</li>
+              <li data-progress-step>Location</li>
+              <li data-progress-step>Date &amp; Time</li>
+              <li data-progress-step>Customer</li>
+              <li data-progress-step>Review</li>
+            </ol>
 
-            <div class="appointment-price-summary" aria-live="polite">
-              <div>
-                <span>Starting price</span>
-                <strong data-starting-price>$40</strong>
+            <section class="appointment-step is-active" data-booking-step="0" aria-label="Step 1: Select Service">
+              <div class="appointment-step-heading">
+                <span>Step 1 of 6</span>
+                <h3>Select Service</h3>
+                <p>Choose the service you need. Pricing is a starting price and may change after EastCord confirms the final details.</p>
               </div>
-              <div>
-                <span>Due today</span>
-                <strong><small>20% booking deposit - </small><span data-deposit-price>$8</span></strong>
-              </div>
-              <div>
-                <span>Remaining balance</span>
-                <strong><span data-balance-price>$32</span> <small>due on-site after service</small></strong>
-              </div>
-            </div>
 
-            <p class="appointment-payment-note">
-              Your 20% booking deposit helps reserve your booking. The remaining balance is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required. Appointments remain Pending Confirmation until EastCord Tires confirms availability and service details.
-            </p>
-
-            <div class="appointment-field-grid">
               <label class="form-field">
-                <span>Full name</span>
-                <input name="Full Name" type="text" autocomplete="name" required />
-              </label>
-              <label class="form-field">
-                <span>Email</span>
-                <input name="Email" type="email" autocomplete="email" required />
-              </label>
-              <label class="form-field">
-                <span>Phone</span>
-                <input name="Phone" type="tel" autocomplete="tel" required />
-              </label>
-              <label class="form-field">
-                <span>Preferred date</span>
-                <input name="Preferred Date" type="date" data-preferred-date required />
-              </label>
-              <label class="form-field">
-                <span>Preferred time window</span>
-                <select name="Preferred Time Window" required>
-                  <option value="">Select a time window</option>
-                  <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
-                  <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
-                  <option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option>
-                  <option value="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</option>
-                  <option value="4:00 PM - 6:00 PM">4:00 PM - 6:00 PM</option>
-                  <option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option>
+                <span>Service needed</span>
+                <select name="Service Needed" data-service-select required>
+                  <option value="seasonal-changeover-rims" data-price="40">Seasonal Changeover - All 4 Tires Pre-Mounted on Rims - Starting price $40</option>
+                  <option value="seasonal-swap-not-mounted" data-price="80">Seasonal Tire Swap - All 4 Tires Not Mounted on Rims - Starting price $80</option>
+                  <option value="mount-balance-1" data-price="25">Mount &amp; Balance - 1 Tire - Starting price $25</option>
+                  <option value="mount-balance-2" data-price="50">Mount &amp; Balance - 2 Tires - Starting price $50</option>
+                  <option value="mount-balance-3" data-price="75">Mount &amp; Balance - 3 Tires - Starting price $75</option>
+                  <option value="mount-balance-4" data-price="100">Mount &amp; Balance - 4 Tires - Starting price $100</option>
                 </select>
               </label>
-              <label class="form-field">
-                <span>Vehicle year</span>
-                <input name="Vehicle Year" type="number" inputmode="numeric" min="1980" max="2030" placeholder="Example: 2020" required />
-              </label>
-              <label class="form-field">
-                <span>Vehicle make</span>
-                <input name="Vehicle Make" type="text" placeholder="Example: Toyota" required />
-              </label>
-              <label class="form-field">
-                <span>Vehicle model</span>
-                <input name="Vehicle Model" type="text" placeholder="Example: Corolla" required />
-              </label>
-              <label class="form-field">
-                <span>Tire size</span>
-                <input name="Tire Size" type="text" placeholder="Example: 225/60R17" required />
-              </label>
-              <label class="form-field">
-                <span>Are tires already on rims?</span>
-                <select name="Tires Already On Rims" required>
-                  <option value="">Select one</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                  <option value="Not sure">Not sure</option>
-                </select>
-              </label>
-              <label class="form-field">
-                <span>Number of tires</span>
-                <input name="Number of Tires" type="number" inputmode="numeric" min="1" max="4" placeholder="4" required />
-              </label>
-              <label class="form-field">
-                <span>Full service address</span>
-                <input name="Full Service Address" type="text" autocomplete="street-address" required />
-              </label>
-              <label class="form-field">
-                <span>City</span>
-                <select name="City" data-city-select autocomplete="address-level2" required>
-                  <option value="">Select city</option>
-                  <option value="Milton">Milton</option>
-                  <option value="Oakville">Oakville</option>
-                  <option value="Brampton">Brampton</option>
-                  <option value="Mississauga">Mississauga</option>
-                  <option value="Other">Other</option>
-                </select>
-              </label>
-              <label class="form-field">
-                <span>Postal code</span>
-                <input name="Postal Code" type="text" autocomplete="postal-code" required />
-              </label>
-            </div>
 
-            <p class="appointment-service-area-warning" data-service-area-warning hidden>
-              EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only. Please contact us if you need service outside these areas.
-            </p>
+              <div class="appointment-price-summary" aria-live="polite">
+                <div>
+                  <span>Starting price</span>
+                  <strong data-starting-price>$40</strong>
+                </div>
+                <div>
+                  <span>Due today</span>
+                  <strong><small>20% booking deposit - </small><span data-deposit-price>$8</span></strong>
+                </div>
+                <div>
+                  <span>Remaining balance</span>
+                  <strong><span data-balance-price>$32</span> <small>due on-site after service</small></strong>
+                </div>
+              </div>
 
-            <label class="form-field form-field-full">
-              <span>Parking / driveway / access notes</span>
-              <textarea name="Parking Driveway Access Notes" rows="4" placeholder="Tell us where the vehicle will be parked and any access instructions." required></textarea>
-            </label>
+              <p class="appointment-payment-note">
+                Your 20% booking deposit helps reserve your booking. The remaining balance is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required. Appointments remain Pending Confirmation until EastCord Tires confirms availability and service details.
+              </p>
 
-            <label class="form-field form-field-full">
-              <span>Additional notes</span>
-              <textarea name="Additional Notes" rows="4" placeholder="Tire condition, special instructions, or anything else EastCord should know."></textarea>
-            </label>
+              <div class="appointment-step-actions">
+                <button class="button button-primary" type="button" data-next-step>Next</button>
+              </div>
+            </section>
 
-            <label class="appointment-consent">
-              <input name="Privacy Consent" type="checkbox" value="Agreed" required />
-              <span>I agree that EastCord Tires may collect and use my information to process my appointment request, contact me about my booking, and keep service records.</span>
-            </label>
+            <section class="appointment-step" data-booking-step="1" aria-label="Step 2: Vehicle and Tire Details" hidden>
+              <div class="appointment-step-heading">
+                <span>Step 2 of 6</span>
+                <h3>Vehicle &amp; Tire Details</h3>
+                <p>Tell us about the passenger vehicle and tire setup so EastCord can prepare for the service.</p>
+              </div>
 
-            <p class="appointment-status-message" data-appointment-message aria-live="polite"></p>
+              <div class="appointment-field-grid">
+                <label class="form-field">
+                  <span>Vehicle year</span>
+                  <input name="Vehicle Year" type="number" inputmode="numeric" min="1980" max="2030" placeholder="Example: 2020" required />
+                </label>
+                <label class="form-field">
+                  <span>Vehicle make</span>
+                  <input name="Vehicle Make" type="text" placeholder="Example: Toyota" required />
+                </label>
+                <label class="form-field">
+                  <span>Vehicle model</span>
+                  <input name="Vehicle Model" type="text" placeholder="Example: Corolla" required />
+                </label>
+                <label class="form-field">
+                  <span>Tire size</span>
+                  <input name="Tire Size" type="text" placeholder="Example: 225/60R17" required />
+                </label>
+                <label class="form-field">
+                  <span>Are tires already on rims?</span>
+                  <select name="Tires Already On Rims" required>
+                    <option value="">Select one</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                    <option value="Not sure">Not sure</option>
+                  </select>
+                </label>
+                <label class="form-field">
+                  <span>Number of tires</span>
+                  <input name="Number of Tires" type="number" inputmode="numeric" min="1" max="4" placeholder="4" required />
+                </label>
+              </div>
 
-            <button class="button button-primary appointment-submit" type="submit">Submit Booking &amp; Pay 20% Deposit</button>
+              <label class="form-field form-field-full">
+                <span>Additional notes</span>
+                <textarea name="Additional Notes" rows="4" placeholder="Tire condition, special instructions, or anything else EastCord should know."></textarea>
+              </label>
+
+              <div class="appointment-step-actions">
+                <button class="button button-secondary" type="button" data-back-step>Back</button>
+                <button class="button button-primary" type="button" data-next-step>Next</button>
+              </div>
+            </section>
+
+            <section class="appointment-step" data-booking-step="2" aria-label="Step 3: Service Location" hidden>
+              <div class="appointment-step-heading">
+                <span>Step 3 of 6</span>
+                <h3>Service Location</h3>
+                <p>EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga.</p>
+              </div>
+
+              <div class="appointment-field-grid">
+                <label class="form-field form-field-full">
+                  <span>Full service address</span>
+                  <input name="Full Service Address" type="text" autocomplete="street-address" required />
+                </label>
+                <label class="form-field">
+                  <span>City</span>
+                  <select name="City" data-city-select autocomplete="address-level2" required>
+                    <option value="">Select city</option>
+                    <option value="Milton">Milton</option>
+                    <option value="Oakville">Oakville</option>
+                    <option value="Brampton">Brampton</option>
+                    <option value="Mississauga">Mississauga</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </label>
+                <label class="form-field">
+                  <span>Postal code</span>
+                  <input name="Postal Code" type="text" autocomplete="postal-code" required />
+                </label>
+              </div>
+
+              <p class="appointment-service-area-warning" data-service-area-warning hidden>
+                EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only. Please contact us if you need service outside these areas.
+              </p>
+
+              <label class="form-field form-field-full">
+                <span>Parking / driveway / access notes</span>
+                <textarea name="Parking Driveway Access Notes" rows="4" placeholder="Tell us where the vehicle will be parked and any access instructions." required></textarea>
+              </label>
+
+              <div class="appointment-step-actions">
+                <button class="button button-secondary" type="button" data-back-step>Back</button>
+                <button class="button button-primary" type="button" data-next-step>Next</button>
+              </div>
+            </section>
+
+            <section class="appointment-step" data-booking-step="3" aria-label="Step 4: Date and Time" hidden>
+              <div class="appointment-step-heading">
+                <span>Step 4 of 6</span>
+                <h3>Date &amp; Time</h3>
+                <p>Choose a preferred appointment date and a two-hour window. EastCord operates 7 days a week from 8:00 AM to 8:00 PM.</p>
+              </div>
+
+              <div class="appointment-field-grid">
+                <label class="form-field">
+                  <span>Preferred date</span>
+                  <input name="Preferred Date" type="date" data-preferred-date required />
+                </label>
+                <label class="form-field">
+                  <span>Preferred time window</span>
+                  <select name="Preferred Time Window" required>
+                    <option value="">Select a time window</option>
+                    <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
+                    <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
+                    <option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option>
+                    <option value="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</option>
+                    <option value="4:00 PM - 6:00 PM">4:00 PM - 6:00 PM</option>
+                    <option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="appointment-step-actions">
+                <button class="button button-secondary" type="button" data-back-step>Back</button>
+                <button class="button button-primary" type="button" data-next-step>Next</button>
+              </div>
+            </section>
+
+            <section class="appointment-step" data-booking-step="4" aria-label="Step 5: Customer Details" hidden>
+              <div class="appointment-step-heading">
+                <span>Step 5 of 6</span>
+                <h3>Customer Details</h3>
+                <p>Provide your contact information so EastCord Tires can confirm availability and final service details.</p>
+              </div>
+
+              <div class="appointment-field-grid">
+                <label class="form-field">
+                  <span>Full name</span>
+                  <input name="Full Name" type="text" autocomplete="name" required />
+                </label>
+                <label class="form-field">
+                  <span>Email</span>
+                  <input name="Email" type="email" autocomplete="email" required />
+                </label>
+                <label class="form-field">
+                  <span>Phone</span>
+                  <input name="Phone" type="tel" autocomplete="tel" required />
+                </label>
+              </div>
+
+              <label class="appointment-consent">
+                <input name="Privacy Consent" type="checkbox" value="Agreed" required />
+                <span>I agree that EastCord Tires may collect and use my information to process my appointment request, contact me about my booking, and keep service records.</span>
+              </label>
+
+              <div class="appointment-step-actions">
+                <button class="button button-secondary" type="button" data-back-step>Back</button>
+                <button class="button button-primary" type="button" data-next-step>Review Booking</button>
+              </div>
+            </section>
+
+            <section class="appointment-step" data-booking-step="5" aria-label="Step 6: Review and Pay Deposit" hidden>
+              <div class="appointment-step-heading">
+                <span>Step 6 of 6</span>
+                <h3>Review &amp; Pay Deposit</h3>
+                <p>Review your booking details before continuing to secure Stripe Checkout for the 20% deposit.</p>
+              </div>
+
+              <div class="appointment-review-grid" aria-live="polite">
+                <div class="appointment-review-card">
+                  <span>Service</span>
+                  <strong data-review-service>Seasonal Changeover - All 4 Tires Pre-Mounted on Rims</strong>
+                </div>
+                <div class="appointment-review-card">
+                  <span>Vehicle</span>
+                  <strong data-review-vehicle>Not entered yet</strong>
+                </div>
+                <div class="appointment-review-card">
+                  <span>Location</span>
+                  <strong data-review-location>Not entered yet</strong>
+                </div>
+                <div class="appointment-review-card">
+                  <span>Date &amp; Time</span>
+                  <strong data-review-date>Not entered yet</strong>
+                </div>
+                <div class="appointment-review-card">
+                  <span>Customer</span>
+                  <strong data-review-customer>Not entered yet</strong>
+                </div>
+                <div class="appointment-review-card">
+                  <span>Deposit</span>
+                  <strong data-review-price>$8 due today, $32 on-site</strong>
+                </div>
+              </div>
+
+              <p class="appointment-payment-note">
+                Appointments remain Pending Confirmation until EastCord Tires confirms availability and service details. You will not enter card details on this website; payment continues through Stripe Checkout.
+              </p>
+
+              <p class="appointment-status-message" data-appointment-message aria-live="polite"></p>
+
+              <div class="appointment-step-actions">
+                <button class="button button-secondary" type="button" data-back-step>Back</button>
+                <button class="button button-primary appointment-submit" type="submit">Submit Booking &amp; Pay 20% Deposit</button>
+              </div>
+            </section>
           </form>
 
           <aside class="appointment-info-card" aria-label="Booking deposit details">
