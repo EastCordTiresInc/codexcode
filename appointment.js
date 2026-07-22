@@ -38,6 +38,18 @@ function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
 }
 
+function showLoginRequiredBlock() {
+  if (!loginRequiredBlock) return;
+  loginRequiredBlock.hidden = false;
+  loginRequiredBlock.classList.add('is-visible');
+}
+
+function hideLoginRequiredBlock() {
+  if (!loginRequiredBlock) return;
+  loginRequiredBlock.hidden = true;
+  loginRequiredBlock.classList.remove('is-visible');
+}
+
 function updateDepositSummary() {
   if (!serviceSelect) return;
   const selectedOption = serviceSelect.selectedOptions[0];
@@ -232,6 +244,8 @@ function buildAppointmentItem(profile) {
 
 async function handleAppointmentSubmit(event) {
   event.preventDefault();
+  hideLoginRequiredBlock();
+
   if (!validateAllSteps()) {
     showAppointmentMessage('Please complete all required appointment fields before adding to cart.');
     return;
@@ -250,7 +264,7 @@ async function handleAppointmentSubmit(event) {
 
   const profile = await window.EastCordAccount?.getCurrentProfile?.();
   if (!profile) {
-    if (loginRequiredBlock) loginRequiredBlock.classList.add('is-visible');
+    showLoginRequiredBlock();
     showAppointmentMessage('Please sign up or log in before adding this appointment to cart.');
     return;
   }
@@ -301,6 +315,7 @@ citySelect?.addEventListener('change', validateServiceArea);
 preferredDate?.addEventListener('input', validatePreferredDate);
 appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
 
+hideLoginRequiredBlock();
 setMinimumDate();
 updateDepositSummary();
 validatePreferredDate();
