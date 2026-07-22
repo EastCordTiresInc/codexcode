@@ -386,6 +386,122 @@
   line-height: 1.6;
 }
 
+.tire-width-guide {
+  margin-top: 22px;
+  padding: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 22px;
+  background: linear-gradient(180deg, #ffffff, #fbfbfc);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+}
+
+.tire-width-guide h3 {
+  margin: 0 0 10px;
+  color: #111317;
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  line-height: 1.12;
+}
+
+.tire-width-guide-intro,
+.tire-width-guide-note,
+.tire-width-guide-disclaimer {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.tire-width-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.tire-width-card {
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+}
+
+.tire-width-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  color: #111317;
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.tire-width-card h4::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #df1f2d;
+  box-shadow: 0 0 0 5px rgba(223, 31, 45, 0.12);
+}
+
+.tire-width-card strong {
+  display: block;
+  margin: 14px 0 8px;
+  color: #111317;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tire-width-card strong:first-of-type {
+  margin-top: 0;
+}
+
+.tire-width-card ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #4f5663;
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.tire-width-card li {
+  position: relative;
+  padding-left: 20px;
+}
+
+.tire-width-card li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #df1f2d;
+  font-weight: 900;
+}
+
+.tire-width-card p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.tire-width-guide-note {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(223, 31, 45, 0.06);
+  font-weight: 700;
+}
+
+.tire-width-guide-disclaimer {
+  margin-top: 12px;
+  font-weight: 800;
+}
+
 .calculator-disclaimer {
   margin: 22px 0 0;
   color: #626a76;
@@ -434,6 +550,12 @@
   }
 
   .calculator-results {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .tire-width-guide-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -489,5 +611,10 @@
   .alternative-size-table th,
   .alternative-size-table td {
     padding: 13px 14px;
+  }
+
+  .tire-width-guide {
+    padding: 18px;
+    border-radius: 18px;
   }
 }
