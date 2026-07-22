@@ -27,6 +27,8 @@ const SERVICES = {
   },
 };
 
+const SERVICE_AREA_CITIES = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
+
 function json(statusCode, payload) {
   return {
     statusCode,
@@ -101,16 +103,19 @@ exports.handler = async (event) => {
     return json(400, { message: 'Please complete all required booking fields.' });
   }
 
+  if (!SERVICE_AREA_CITIES.has(booking.city)) {
+    return json(400, {
+      message:
+        'EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.',
+    });
+  }
+
   const selectedDate = new Date(`${booking.preferredDate}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   if (Number.isNaN(selectedDate.getTime()) || selectedDate < today) {
     return json(400, { message: 'Please choose today or a future appointment date.' });
-  }
-
-  if (selectedDate.getDay() === 0) {
-    return json(400, { message: 'Sundays are not available for online appointment requests.' });
   }
 
   const startingPrice = service.startingPrice;
@@ -143,6 +148,7 @@ exports.handler = async (event) => {
       metadata: {
         form_name: 'eastcord-changeover-appointment',
         booking_status: 'Pending Confirmation',
+        service_area_status: 'In service area',
         service_id: booking.serviceId,
         service_name: service.name,
         starting_price: startingPrice.toFixed(2),
