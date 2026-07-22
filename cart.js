@@ -7,6 +7,10 @@ const checkoutButton = document.querySelector('[data-checkout-button]');
 const clearCartButton = document.querySelector('[data-clear-cart]');
 const authBlock = document.querySelector('[data-checkout-auth-block]');
 
+function logDeveloperError(context, error) {
+  console.error(`[EastCord appointment automation] ${context}`, error);
+}
+
 function showCartMessage(message, type = 'error') {
   if (!cartMessage) return;
   cartMessage.textContent = message;
@@ -50,6 +54,10 @@ async function renderCart() {
   if (cartDeposit) cartDeposit.textContent = window.EastCordAccount.money(depositTotal);
   if (cartBalance) cartBalance.textContent = `${window.EastCordAccount.money(balanceTotal)} due on-site after service`;
   if (authBlock) authBlock.classList.toggle('is-visible', !profile);
+
+  if (!window.EastCordAccount.isAuthConfigured()) {
+    showCartMessage(window.EastCordAccount.setupMessage || 'Account system is being connected. Please check back soon.', 'info');
+  }
 }
 
 function buildNetlifyFormData(item, profile) {
@@ -106,6 +114,13 @@ async function ensureSupabaseBooking(item, profile) {
 
 async function startCheckout() {
   const items = getAppointmentItems();
+
+  if (!window.EastCordAccount.isAuthConfigured()) {
+    showCartMessage(window.EastCordAccount.setupMessage || 'Account system is being connected. Please check back soon.');
+    logDeveloperError('Checkout attempted before Supabase env vars were configured.', window.EASTCORD_AUTH_CONFIG || {});
+    return;
+  }
+
   const profile = await window.EastCordAccount.getCurrentProfile();
 
   if (!items.length) {
@@ -127,7 +142,7 @@ async function startCheckout() {
     const bookingItem = await ensureSupabaseBooking(items[0], profile);
 
     submitNetlifyFormBackup(buildNetlifyFormData(bookingItem, profile)).catch((error) => {
-      console.warn('Netlify Forms backup failed after Supabase booking save.', error);
+      logDeveloperError('Netlify Forms backup failed after Supabase booking save.', error);
     });
 
     const token = await window.EastCordAccount.getAccessToken();
@@ -142,12 +157,13 @@ async function startCheckout() {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok || !data.url) {
-      throw new Error(data.message || 'Stripe Checkout is not available yet.');
+      throw new Error(data.message || 'Online checkout is being connected. Please check back soon.');
     }
 
     window.location.href = data.url;
   } catch (error) {
-    showCartMessage(error.message || 'Checkout could not be started.');
+    logDeveloperError('Checkout could not be started.', error);
+    showCartMessage(error.message || 'Online checkout is being connected. Please check back soon.');
     checkoutButton.disabled = false;
     checkoutButton.textContent = 'Checkout with Stripe';
   }
