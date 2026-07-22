@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Request an EastCord Tires changeover or swap appointment with starting price deposit details."
+    />
+    <title>Changeover Appointment | EASTCORD TIRES</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="heading-balance.css" />
+    <link rel="stylesheet" href="footer-section.css?v=3" />
+    <link rel="stylesheet" href="appointment.css" />
+    <link rel="stylesheet" href="chat.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="nav-shell">
+        <a class="brand brand-logo" href="/" aria-label="Eastcord Tires home">
+          <img src="assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+        </a>
+
+        <button
+          class="menu-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primary-navigation"
+          aria-label="Open navigation menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="main-nav" id="primary-navigation" aria-label="Main navigation">
+          <a href="/">Home</a>
+          <a href="/#used-tires">Used Tires</a>
+          <a href="/#new-tires">New Tires</a>
+          <a href="/appointment.html">Appointment</a>
+          <a href="/#warranty">Warranty</a>
+          <a href="/#contact">Contact</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content" class="appointment-page">
+      <section class="appointment-hero section" aria-labelledby="appointment-title">
+        <div class="shell appointment-hero-grid">
+          <div>
+            <h1 id="appointment-title">Changeover / Swap Appointment</h1>
+            <p>
+              Choose a tire service starting price, review the 20% booking deposit, and send your appointment request.
+              Appointments remain pending until EastCord confirms availability and service details.
+            </p>
+          </div>
+          <div class="appointment-status-card" aria-label="Booking payment status">
+            <span>Pending Confirmation</span>
+            <strong>20% deposit setup</strong>
+            <p>Online booking deposit payment will be enabled soon. No card information is collected on this website.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="appointment-section section" aria-labelledby="appointment-form-title">
+        <div class="shell appointment-layout">
+          <form
+            class="appointment-form-card"
+            id="changeover-appointment-form"
+            name="eastcord-changeover-appointment"
+            method="POST"
+            data-netlify="true"
+            netlify-honeypot="bot-field"
+            action="/thank-you.html"
+          >
+            <input type="hidden" name="form-name" value="eastcord-changeover-appointment" />
+            <input type="hidden" name="subject" value="New EastCord Tires changeover appointment request" />
+            <input type="hidden" name="Starting Price" data-starting-price-field value="40" />
+            <input type="hidden" name="Booking Deposit" data-deposit-field value="8" />
+            <input type="hidden" name="Remaining Balance" data-balance-field value="32" />
+            <p class="hidden-field">
+              <label>Do not fill this out: <input name="bot-field" /></label>
+            </p>
+
+            <div class="appointment-form-heading">
+              <h2 id="appointment-form-title">Request Your Appointment</h2>
+              <p>EastCord will confirm the final service details before the appointment is finalized.</p>
+            </div>
+
+            <label class="form-field">
+              <span>Service needed</span>
+              <select name="Service Needed" data-service-select required>
+                <option value="seasonal-changeover-rims" data-price="40">Seasonal Changeover - All 4 Tires Pre-Mounted on Rims - Starting price $40</option>
+                <option value="seasonal-swap-not-mounted" data-price="80">Seasonal Tire Swap - All 4 Tires Not Mounted on Rims - Starting price $80</option>
+                <option value="mount-balance-1" data-price="25">Mount & Balance - 1 Tire - Starting price $25</option>
+                <option value="mount-balance-2" data-price="50">Mount & Balance - 2 Tires - Starting price $50</option>
+                <option value="mount-balance-3" data-price="75">Mount & Balance - 3 Tires - Starting price $75</option>
+                <option value="mount-balance-4" data-price="100">Mount & Balance - 4 Tires - Starting price $100</option>
+              </select>
+            </label>
+
+            <div class="appointment-price-summary" aria-live="polite">
+              <div>
+                <span>Starting price</span>
+                <strong data-starting-price>$40</strong>
+              </div>
+              <div>
+                <span>Due today</span>
+                <strong><small>20% booking deposit - </small><span data-deposit-price>$8</span></strong>
+              </div>
+              <div>
+                <span>Remaining balance</span>
+                <strong><span data-balance-price>$32</span> <small>due on-site after service</small></strong>
+              </div>
+            </div>
+
+            <p class="appointment-payment-note">
+              Your booking deposit helps reserve the appointment request. The remaining balance is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required.
+            </p>
+
+            <div class="appointment-field-grid">
+              <label class="form-field">
+                <span>Full name</span>
+                <input name="Full Name" type="text" autocomplete="name" required />
+              </label>
+              <label class="form-field">
+                <span>Email</span>
+                <input name="Email" type="email" autocomplete="email" required />
+              </label>
+              <label class="form-field">
+                <span>Phone</span>
+                <input name="Phone" type="tel" autocomplete="tel" required />
+              </label>
+              <label class="form-field">
+                <span>Preferred date</span>
+                <input name="Preferred Date" type="date" required />
+              </label>
+            </div>
+
+            <label class="form-field">
+              <span>Vehicle / tire details</span>
+              <textarea name="Vehicle and Tire Details" rows="5" placeholder="Vehicle year/make/model, tire size, quantity, and any notes." required></textarea>
+            </label>
+
+            <div class="appointment-placeholder-payment">
+              <strong>Stripe deposit payment placeholder</strong>
+              <p>Online 20% booking deposit payment will be enabled soon. For now, EastCord Tires will confirm payment details after receiving your appointment request.</p>
+            </div>
+
+            <button class="button button-primary appointment-submit" type="submit">Send Appointment Request</button>
+          </form>
+
+          <aside class="appointment-info-card" aria-label="Booking deposit details">
+            <h2>How Payment Works</h2>
+            <ul>
+              <li>20% booking deposit is collected online based on the selected starting price.</li>
+              <li>Remaining balance is paid on-site after service.</li>
+              <li>Final price may depend on vehicle, tire condition, location, additional services, and availability.</li>
+              <li>EastCord Tires will confirm final service details before the appointment is finalized.</li>
+            </ul>
+            <p>
+              Appointments are treated as <strong>Pending Confirmation</strong> until EastCord confirms availability and service details.
+            </p>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <div>
+          <img src="assets/eastcord-logo-red-white.png" alt="EastCord Tires" class="footer-logo" />
+          <p>Used tires, new tires, and changeover services.</p>
+        </div>
+        <div class="footer-social">
+          <h3>Follow Us</h3>
+          <div class="footer-social-links" aria-label="EastCord Tires social media links">
+            <a href="https://www.youtube.com/@EastCordTires" target="_blank" rel="noopener noreferrer">YouTube</a>
+            <a href="https://www.instagram.com/eastcordtires" target="_blank" rel="noopener noreferrer">Instagram</a>
+            <a href="https://www.facebook.com/share/14cUJxJDSWD/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer">Facebook</a>
+            <a href="https://www.tiktok.com/@eastcordtires?_r=1&_t=ZS-985mxkvGCzE" target="_blank" rel="noopener noreferrer">TikTok</a>
+          </div>
+        </div>
+        <div class="footer-info">
+          <h3>Tire Information</h3>
+          <div class="footer-info-links" aria-label="EastCord Tires tire information links">
+            <a href="/#used-tires">Used Tires</a>
+            <a href="/#new-tires">New Tires</a>
+            <a href="/tire-size-guide">Tire Size Guide</a>
+            <a href="/tire-season-guide">Tire Season Guide</a>
+            <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
+            <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
+            <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
+            <a href="https://hosted.miocommerce.com/io/eastcord-tires/booking/b95731f5-cadb-4849-877c-6238425fd25c" target="_blank" rel="noopener noreferrer">Changeover / Swap Service</a>
+            <a href="/#contact">Contact EastCord</a>
+          </div>
+        </div>
+        <div>
+          <h3>Quick Links</h3>
+          <a href="/#used-tires">Used Tires</a>
+          <a href="/#new-tires">New Tires</a>
+          <a href="/appointment.html">Appointment</a>
+          <a href="/#warranty">Warranty</a>
+          <a href="/#contact">Contact</a>
+        </div>
+      </div>
+      <div class="shell footer-bottom">
+        <span>© 2026 EastCord Tires.</span>
+      </div>
+    </footer>
+
+    <div class="chat-widget" data-chat-widget>
+      <section class="chat-panel" id="chat-panel" aria-labelledby="chat-title" aria-hidden="true">
+        <div class="chat-panel-header">
+          <div>
+            <p>Auto Help</p>
+            <h2 id="chat-title">EastCord Tire Help</h2>
+          </div>
+          <button class="chat-close" type="button" aria-label="Close chat" data-chat-close>X</button>
+        </div>
+        <div class="chat-body">
+          <div class="chat-thread" data-chat-thread aria-live="polite"></div>
+          <div class="chat-options" aria-label="EastCord Tires chat options" data-chat-options></div>
+        </div>
+      </section>
+      <button class="chat-toggle" type="button" aria-controls="chat-panel" aria-expanded="false" data-chat-toggle>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5.5A3.5 3.5 0 0 1 7.5 2h9A3.5 3.5 0 0 1 20 5.5v6A3.5 3.5 0 0 1 16.5 15H11l-5 4v-4.3A3.5 3.5 0 0 1 4 11.5v-6Z"></path>
+          <path d="M8 7h8M8 10h5"></path>
+        </svg>
+        <span>Chat with us</span>
+      </button>
+    </div>
+
+    <script src="appointment.js" defer></script>
+    <script src="chat.js?v=2" defer></script>
+  </body>
+</html>
