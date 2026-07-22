@@ -34,6 +34,10 @@ const money = new Intl.NumberFormat('en-CA', {
   maximumFractionDigits: 0,
 });
 
+function logDeveloperError(context, error) {
+  console.error(`[EastCord appointment automation] ${context}`, error);
+}
+
 function updateDepositSummary() {
   if (!serviceSelect) return;
   const selectedOption = serviceSelect.selectedOptions[0];
@@ -238,6 +242,12 @@ async function handleAppointmentSubmit(event) {
     return;
   }
 
+  if (!window.EastCordAccount?.isAuthConfigured?.()) {
+    showAppointmentMessage(window.EastCordAccount?.setupMessage || 'Account system is being connected. Please check back soon.');
+    logDeveloperError('Add Appointment attempted before Supabase env vars were configured.', window.EASTCORD_AUTH_CONFIG || {});
+    return;
+  }
+
   const profile = await window.EastCordAccount?.getCurrentProfile?.();
   if (!profile) {
     if (loginRequiredBlock) loginRequiredBlock.classList.add('is-visible');
@@ -260,6 +270,7 @@ async function handleAppointmentSubmit(event) {
     window.EastCordAccount.saveCart(cart);
     window.location.href = '/cart';
   } catch (error) {
+    logDeveloperError('Appointment booking save failed.', error);
     showAppointmentMessage(error.message || 'Booking could not be saved. Please try again.');
     if (submitButton) {
       submitButton.disabled = false;
