@@ -35,12 +35,19 @@ function updateDepositSummary() {
   if (balanceField) balanceField.value = balance.toFixed(2);
 }
 
+function formatDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function setMinimumDate() {
   if (!preferredDate) return;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  preferredDate.min = today.toISOString().split('T')[0];
+  preferredDate.min = formatDateInputValue(today);
 }
 
 function validatePreferredDate() {
