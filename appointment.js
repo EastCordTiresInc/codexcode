@@ -12,10 +12,21 @@ const balanceField = document.querySelector('[data-balance-field]');
 const preferredDate = document.querySelector('[data-preferred-date]');
 const appointmentMessage = document.querySelector('[data-appointment-message]');
 const submitButton = document.querySelector('.appointment-submit');
+const stepPanels = Array.from(document.querySelectorAll('[data-booking-step]'));
+const progressSteps = Array.from(document.querySelectorAll('[data-progress-step]'));
+const nextButtons = Array.from(document.querySelectorAll('[data-next-step]'));
+const backButtons = Array.from(document.querySelectorAll('[data-back-step]'));
+const reviewService = document.querySelector('[data-review-service]');
+const reviewVehicle = document.querySelector('[data-review-vehicle]');
+const reviewLocation = document.querySelector('[data-review-location]');
+const reviewDate = document.querySelector('[data-review-date]');
+const reviewCustomer = document.querySelector('[data-review-customer]');
+const reviewPrice = document.querySelector('[data-review-price]');
 const menuToggle = document.querySelector('.menu-toggle');
 const primaryNavigation = document.querySelector('#primary-navigation');
 
 const serviceAreaCities = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
+let currentStep = 0;
 
 const money = new Intl.NumberFormat('en-CA', {
   style: 'currency',
@@ -38,6 +49,8 @@ function updateDepositSummary() {
   if (startingPriceField) startingPriceField.value = price.toFixed(2);
   if (depositField) depositField.value = deposit.toFixed(2);
   if (balanceField) balanceField.value = balance.toFixed(2);
+
+  updateReviewSummary();
 }
 
 function formatDateInputValue(date) {
@@ -96,6 +109,115 @@ function showAppointmentMessage(message, type = 'error') {
 
   appointmentMessage.textContent = message;
   appointmentMessage.dataset.messageType = type;
+}
+
+function getFieldValue(name) {
+  const field = appointmentForm?.elements.namedItem(name);
+  return field?.value?.trim() || '';
+}
+
+function getStepControls(stepIndex) {
+  const step = stepPanels[stepIndex];
+  if (!step) return [];
+
+  return Array.from(step.querySelectorAll('input, select, textarea')).filter((control) => {
+    return control.type !== 'hidden' && control.name !== 'bot-field' && !control.disabled;
+  });
+}
+
+function validateStep(stepIndex) {
+  updateDepositSummary();
+  validatePreferredDate();
+  validateServiceArea();
+
+  const controls = getStepControls(stepIndex);
+  const firstInvalid = controls.find((control) => !control.checkValidity());
+
+  if (firstInvalid) {
+    firstInvalid.reportValidity();
+    return false;
+  }
+
+  if (stepIndex === 2 && !validateServiceArea()) {
+    citySelect?.reportValidity();
+    return false;
+  }
+
+  return true;
+}
+
+function updateProgress() {
+  progressSteps.forEach((step, index) => {
+    step.classList.toggle('is-active', index === currentStep);
+    step.classList.toggle('is-complete', index < currentStep);
+  });
+}
+
+function showStep(index, shouldFocus = true) {
+  if (!stepPanels.length) return;
+
+  currentStep = Math.max(0, Math.min(index, stepPanels.length - 1));
+
+  stepPanels.forEach((step, stepIndex) => {
+    const isActive = stepIndex === currentStep;
+    step.hidden = !isActive;
+    step.classList.toggle('is-active', isActive);
+  });
+
+  updateProgress();
+  updateReviewSummary();
+  showAppointmentMessage('', 'info');
+
+  if (shouldFocus) {
+    const activeHeading = stepPanels[currentStep]?.querySelector('h3');
+    activeHeading?.setAttribute('tabindex', '-1');
+    activeHeading?.focus({ preventScroll: true });
+    appointmentForm?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function updateReviewSummary() {
+  if (!appointmentForm) return;
+
+  const selectedOption = serviceSelect?.selectedOptions[0];
+  const serviceName = selectedOption?.textContent?.replace(/\s+/g, ' ').trim() || 'Not selected yet';
+  const vehicleParts = [getFieldValue('Vehicle Year'), getFieldValue('Vehicle Make'), getFieldValue('Vehicle Model')].filter(Boolean);
+  const tireSize = getFieldValue('Tire Size');
+  const tireCount = getFieldValue('Number of Tires');
+  const address = getFieldValue('Full Service Address');
+  const city = getFieldValue('City');
+  const postalCode = getFieldValue('Postal Code');
+  const date = getFieldValue('Preferred Date');
+  const time = getFieldValue('Preferred Time Window');
+  const name = getFieldValue('Full Name');
+  const email = getFieldValue('Email');
+  const phone = getFieldValue('Phone');
+
+  if (reviewService) reviewService.textContent = serviceName;
+  if (reviewVehicle) {
+    reviewVehicle.textContent = vehicleParts.length || tireSize || tireCount
+      ? `${vehicleParts.join(' ') || 'Vehicle details'}${tireSize ? `, ${tireSize}` : ''}${tireCount ? `, ${tireCount} tire(s)` : ''}`
+      : 'Not entered yet';
+  }
+  if (reviewLocation) {
+    reviewLocation.textContent = address || city || postalCode ? [address, city, postalCode].filter(Boolean).join(', ') : 'Not entered yet';
+  }
+  if (reviewDate) reviewDate.textContent = date || time ? [date, time].filter(Boolean).join(' at ') : 'Not entered yet';
+  if (reviewCustomer) reviewCustomer.textContent = name || email || phone ? [name, email, phone].filter(Boolean).join(', ') : 'Not entered yet';
+  if (reviewPrice) {
+    reviewPrice.textContent = `${money.format(Number(depositField?.value || 0))} due today, ${money.format(Number(balanceField?.value || 0))} on-site`;
+  }
+}
+
+function validateAllSteps() {
+  for (let index = 0; index < stepPanels.length; index += 1) {
+    if (!validateStep(index)) {
+      showStep(index);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function getBookingPayload(formData) {
@@ -166,16 +288,9 @@ function setSubmitState(isSubmitting) {
 async function handleAppointmentSubmit(event) {
   event.preventDefault();
   updateDepositSummary();
-  validatePreferredDate();
-  const isInServiceArea = validateServiceArea();
 
-  if (!appointmentForm?.checkValidity() || !isInServiceArea) {
-    appointmentForm?.reportValidity();
-    showAppointmentMessage(
-      isInServiceArea
-        ? 'Please complete all required fields before continuing to Stripe Checkout.'
-        : 'EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.',
-    );
+  if (!validateAllSteps()) {
+    showAppointmentMessage('Please complete all required fields before continuing to Stripe Checkout.');
     return;
   }
 
@@ -219,6 +334,21 @@ primaryNavigation?.querySelectorAll('a').forEach((link) => {
   link.addEventListener('click', closeMobileMenu);
 });
 
+nextButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    if (!validateStep(currentStep)) return;
+    showStep(currentStep + 1);
+  });
+});
+
+backButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    showStep(currentStep - 1);
+  });
+});
+
+appointmentForm?.addEventListener('input', updateReviewSummary);
+appointmentForm?.addEventListener('change', updateReviewSummary);
 serviceSelect?.addEventListener('change', updateDepositSummary);
 citySelect?.addEventListener('change', validateServiceArea);
 preferredDate?.addEventListener('input', validatePreferredDate);
@@ -228,3 +358,4 @@ setMinimumDate();
 updateDepositSummary();
 validatePreferredDate();
 validateServiceArea();
+showStep(0, false);
