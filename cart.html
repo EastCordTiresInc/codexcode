@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cart | EastCord Tires</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="appointment.css?v=4" />
+    <link rel="stylesheet" href="account.css" />
+  </head>
+  <body class="account-page">
+    <header class="site-header">
+      <div class="nav-shell">
+        <a class="brand brand-logo" href="/" aria-label="EastCord Tires home">
+          <img src="assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+        </a>
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="/">Home</a>
+          <a href="/appointment.html">Appointment</a>
+          <span class="auth-nav-group" data-auth-logged-out>
+            <a href="/signup">Sign Up</a>
+            <a href="/login">Log In</a>
+            <a href="/cart">Cart<span data-cart-count></span></a>
+          </span>
+          <span class="auth-nav-group" data-auth-logged-in hidden>
+            <a href="/account">My Account</a>
+            <a href="/cart">Cart<span data-cart-count></span></a>
+            <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
+          </span>
+        </nav>
+      </div>
+    </header>
+
+    <main class="section">
+      <div class="shell cart-layout">
+        <section class="account-card" aria-labelledby="cart-title">
+          <h1 id="cart-title">Cart</h1>
+          <p>Review appointment services before checkout. Checkout requires a customer account and uses Stripe Checkout for the amount due today.</p>
+          <div class="cart-items" data-cart-items></div>
+          <div class="account-actions">
+            <a class="button button-secondary" href="/appointment.html">Add Appointment</a>
+            <button class="button button-secondary" type="button" data-clear-cart>Clear Cart</button>
+          </div>
+        </section>
+
+        <aside class="account-card cart-summary" aria-label="Cart summary">
+          <h2>Checkout Summary</h2>
+          <div class="cart-summary-card">
+            <span>Customer profile</span>
+            <strong data-cart-customer>Please sign up or log in before checkout.</strong>
+          </div>
+          <div class="cart-summary-card">
+            <span>Due today</span>
+            <strong data-cart-deposit>$0</strong>
+          </div>
+          <div class="cart-summary-card">
+            <span>Remaining balance</span>
+            <strong data-cart-balance>$0 due on-site after service</strong>
+          </div>
+          <div class="checkout-block" data-checkout-auth-block>
+            <strong>Please sign up or log in before checkout.</strong>
+            <div class="account-actions">
+              <a class="button button-primary" href="/login?redirect=/cart">Log In</a>
+              <a class="button button-secondary" href="/signup">Create Account</a>
+            </div>
+          </div>
+          <p class="account-message" data-cart-message></p>
+          <button class="button button-primary" type="button" data-checkout-button>Checkout with Stripe</button>
+        </aside>
+      </div>
+    </main>
+
+    <form name="eastcord-changeover-appointment" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="hidden" name="form-name" value="eastcord-changeover-appointment" />
+      <input name="bot-field" />
+      <input name="Customer ID" />
+      <input name="Customer Name" />
+      <input name="Customer Email" />
+      <input name="Customer Phone" />
+      <input name="Service Needed" />
+      <input name="Starting Price" />
+      <input name="Booking Deposit" />
+      <input name="Remaining Balance" />
+      <input name="Booking Status" />
+      <input name="Service area status" />
+      <input name="stripe_session_id" />
+      <input name="payment_status" />
+      <input name="Preferred Date" />
+      <input name="Preferred Time Window" />
+      <input name="Vehicle Year" />
+      <input name="Vehicle Make" />
+      <input name="Vehicle Model" />
+      <input name="Tire Size" />
+      <input name="Tires Already On Rims" />
+      <input name="Number of Tires" />
+      <input name="Full Service Address" />
+      <input name="City" />
+      <input name="Postal Code" />
+      <textarea name="Parking Driveway Access Notes"></textarea>
+      <textarea name="Additional Notes"></textarea>
+    </form>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js"></script>
+    <script src="account.js"></script>
+    <script src="cart.js"></script>
+  </body>
+</html>
