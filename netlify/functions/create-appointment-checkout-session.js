@@ -1,6 +1,8 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 
+const CHECKOUT_SETUP_MESSAGE = 'Online checkout is being connected. Please check back soon.';
+
 const SERVICES = {
   'seasonal-changeover-rims': { name: 'Seasonal Changeover - All 4 Tires Pre-Mounted on Rims', startingPrice: 40 },
   'seasonal-swap-not-mounted': { name: 'Seasonal Tire Swap - All 4 Tires Not Mounted on Rims', startingPrice: 80 },
@@ -11,6 +13,10 @@ const SERVICES = {
 };
 
 const SERVICE_AREA_CITIES = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
+
+function logDeveloperError(context, details) {
+  console.error(`[EastCord appointment automation] ${context}`, details);
+}
 
 function json(statusCode, payload) {
   return {
@@ -48,22 +54,24 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
 
   if (!process.env.STRIPE_SECRET_KEY) {
-    return json(503, {
-      message: 'Stripe Checkout is not configured yet. Add STRIPE_SECRET_KEY in Netlify environment variables before accepting online booking deposits.',
-    });
+    logDeveloperError('STRIPE_SECRET_KEY is missing in Netlify environment variables.', { hasStripeSecret: false });
+    return json(503, { message: CHECKOUT_SETUP_MESSAGE });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
-    return json(503, {
-      message: 'Supabase booking backend is not configured yet. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Netlify environment variables.',
+    logDeveloperError('Supabase server variables are missing in Netlify environment variables.', {
+      hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
+      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
     });
+    return json(503, { message: CHECKOUT_SETUP_MESSAGE });
   }
 
   let booking;
   try {
     booking = JSON.parse(event.body || '{}');
   } catch (error) {
+    logDeveloperError('Invalid checkout request body.', error);
     return json(400, { message: 'Invalid booking request.' });
   }
 
@@ -71,7 +79,10 @@ exports.handler = async (event) => {
   if (!token) return json(401, { message: 'Please log in before checkout.' });
 
   const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !authData?.user) return json(401, { message: 'Your login session could not be verified. Please log in again.' });
+  if (authError || !authData?.user) {
+    logDeveloperError('Supabase token verification failed.', authError);
+    return json(401, { message: 'Your login session could not be verified. Please log in again.' });
+  }
 
   const customer = booking.customer || {};
   if (customer.customerId !== authData.user.id) return json(403, { message: 'This booking does not match the logged-in customer.' });
@@ -119,7 +130,8 @@ exports.handler = async (event) => {
     .maybeSingle();
 
   if (bookingError || !bookingRow) {
-    return json(400, { message: 'Saved booking could not be found for this customer. Please add the appointment to cart again.' });
+    logDeveloperError('Saved booking row could not be found before checkout.', bookingError || { bookingId: booking.bookingId });
+    return json(400, { message: 'Saved booking could not be found. Please add the appointment to cart again.' });
   }
 
   const startingPrice = service.startingPrice;
@@ -186,12 +198,14 @@ exports.handler = async (event) => {
       .eq('customer_id', authData.user.id);
 
     if (updateError) {
-      return json(500, { message: 'Stripe Checkout was created, but the booking record could not be updated. Please contact EastCord Tires for help.' });
+      logDeveloperError('Booking row could not be updated with Stripe session ID.', updateError);
+      return json(500, { message: 'Checkout was created, but the booking record could not be updated. Please contact EastCord Tires for help.' });
     }
 
     // TODO: Add a Stripe webhook to update appointment_bookings.payment_status to paid_deposit after checkout.session.completed.
     return json(200, { id: session.id, url: session.url, payment_status: session.payment_status });
   } catch (error) {
-    return json(500, { message: 'Stripe Checkout could not be started. Please try again or contact EastCord Tires for help.' });
+    logDeveloperError('Stripe Checkout session creation failed.', error);
+    return json(500, { message: CHECKOUT_SETUP_MESSAGE });
   }
 };
