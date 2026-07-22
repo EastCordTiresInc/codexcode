@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "echo \"Static EastCord Tires site\""
+    "build": "node scripts/generate-auth-config.js && echo \"Static EastCord Tires site\""
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
     "stripe": "^16.12.0"
   }
 }
