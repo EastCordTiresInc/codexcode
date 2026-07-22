@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/appointment-success"
+  to = "/appointment-success.html"
+  status = 200
+
+[[redirects]]
+  from = "/appointment-cancelled"
+  to = "/appointment-cancelled.html"
+  status = 200
