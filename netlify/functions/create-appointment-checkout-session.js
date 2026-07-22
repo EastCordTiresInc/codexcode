@@ -1,4 +1,5 @@
 const Stripe = require('stripe');
+const { createClient } = require('@supabase/supabase-js');
 
 const SERVICES = {
   'seasonal-changeover-rims': { name: 'Seasonal Changeover - All 4 Tires Pre-Mounted on Rims', startingPrice: 40 },
@@ -31,15 +32,31 @@ function required(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function getBearerToken(event) {
+  const header = event.headers.authorization || event.headers.Authorization || '';
+  return header.startsWith('Bearer ') ? header.slice(7) : '';
+}
+
+function getSupabaseAdmin() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
 
-  // TODO: Add STRIPE_SECRET_KEY in Netlify environment variables before enabling live deposit payment.
-  // TODO: Configure Supabase auth values on the frontend before enabling customer account checkout.
-  // TODO: In production, verify the authenticated customer server-side before creating checkout sessions.
   if (!process.env.STRIPE_SECRET_KEY) {
     return json(503, {
       message: 'Stripe Checkout is not configured yet. Add STRIPE_SECRET_KEY in Netlify environment variables before accepting online booking deposits.',
+    });
+  }
+
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return json(503, {
+      message: 'Supabase booking backend is not configured yet. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Netlify environment variables.',
     });
   }
 
@@ -50,10 +67,19 @@ exports.handler = async (event) => {
     return json(400, { message: 'Invalid booking request.' });
   }
 
-  const service = SERVICES[booking.serviceId];
-  if (!service) return json(400, { message: 'Please choose a valid tire service.' });
+  const token = getBearerToken(event);
+  if (!token) return json(401, { message: 'Please log in before checkout.' });
+
+  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !authData?.user) return json(401, { message: 'Your login session could not be verified. Please log in again.' });
 
   const customer = booking.customer || {};
+  if (customer.customerId !== authData.user.id) return json(403, { message: 'This booking does not match the logged-in customer.' });
+
+  const service = SERVICES[booking.serviceId];
+  if (!service) return json(400, { message: 'Please choose a valid tire service.' });
+  if (!required(booking.bookingId)) return json(400, { message: 'Booking details must be saved before checkout can start.' });
+
   const requiredFields = [
     customer.customerId,
     customer.email,
@@ -85,6 +111,17 @@ exports.handler = async (event) => {
     return json(400, { message: 'Please choose today or a future appointment date.' });
   }
 
+  const { data: bookingRow, error: bookingError } = await supabaseAdmin
+    .from('appointment_bookings')
+    .select('id, customer_id, payment_status')
+    .eq('id', booking.bookingId)
+    .eq('customer_id', authData.user.id)
+    .maybeSingle();
+
+  if (bookingError || !bookingRow) {
+    return json(400, { message: 'Saved booking could not be found for this customer. Please add the appointment to cart again.' });
+  }
+
   const startingPrice = service.startingPrice;
   const depositAmount = startingPrice * 0.2;
   const remainingBalance = startingPrice - depositAmount;
@@ -112,7 +149,7 @@ exports.handler = async (event) => {
       success_url: `${siteUrl}/appointment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/appointment-cancelled`,
       metadata: {
-        form_name: 'eastcord-changeover-appointment',
+        supabase_booking_id: booking.bookingId,
         customer_id: String(customer.customerId).slice(0, 500),
         customer_name: String(customer.name || '').slice(0, 500),
         customer_email: String(customer.email).slice(0, 500),
@@ -138,6 +175,21 @@ exports.handler = async (event) => {
       },
     });
 
+    const { error: updateError } = await supabaseAdmin
+      .from('appointment_bookings')
+      .update({
+        stripe_session_id: session.id,
+        payment_status: 'pending_checkout',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', booking.bookingId)
+      .eq('customer_id', authData.user.id);
+
+    if (updateError) {
+      return json(500, { message: 'Stripe Checkout was created, but the booking record could not be updated. Please contact EastCord Tires for help.' });
+    }
+
+    // TODO: Add a Stripe webhook to update appointment_bookings.payment_status to paid_deposit after checkout.session.completed.
     return json(200, { id: session.id, url: session.url, payment_status: session.payment_status });
   } catch (error) {
     return json(500, { message: 'Stripe Checkout could not be started. Please try again or contact EastCord Tires for help.' });
