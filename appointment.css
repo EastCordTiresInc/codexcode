@@ -90,6 +90,15 @@
   padding: clamp(22px, 3vw, 34px);
 }
 
+.appointment-form-card > label:first-child,
+.appointment-form-card > label:first-of-type,
+.appointment-form-card > p:first-child,
+.appointment-form-card > div:first-child:has(input[name="bot-field"]),
+.appointment-form-card > div:first-child:has(input[name="bot-field"]),
+.appointment-form-card > input[name="bot-field"] {
+  display: none !important;
+}
+
 .appointment-form-heading h2,
 .appointment-info-card h2 {
   margin: 0 0 10px;
