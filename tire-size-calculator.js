@@ -26,6 +26,40 @@
   const ALTERNATIVE_GUIDANCE = 'These are possible size references based on overall diameter. Always confirm vehicle fitment, rim width, load rating, speed rating, and clearance before purchase or installation.';
   const DIAMETER_FITMENT_NOTE = 'Closest diameter does not guarantee fitment. Rim width, load rating, speed rating, brake clearance, suspension clearance, and vehicle manufacturer recommendations must be confirmed.';
   const ALTERNATIVE_DISCLAIMER = 'These sizes are for general guidance only. Tire fitment also depends on rim width, load rating, speed rating, brake clearance, suspension clearance, and vehicle manufacturer recommendations.';
+  const TIRE_WIDTH_GUIDE_HTML = `
+    <section class="tire-width-guide" aria-labelledby="tire-width-guide-title">
+      <h3 id="tire-width-guide-title">Wide vs Narrow Tires: What Should You Choose?</h3>
+      <p class="tire-width-guide-intro">Tire width can affect handling, comfort, winter performance, fuel economy, and fitment. Use this guide as general information before choosing a different tire size.</p>
+      <div class="tire-width-guide-grid">
+        <article class="tire-width-card">
+          <h4>Wider Tires</h4>
+          <strong>Best for:</strong>
+          <ul>
+            <li>More road contact</li>
+            <li>Sportier appearance</li>
+            <li>Better dry-road grip</li>
+            <li>Better cornering feel</li>
+          </ul>
+          <strong>Keep in mind:</strong>
+          <p>Wider tires may reduce fuel economy, may not perform as well in snow or slush, and may require a wider rim.</p>
+        </article>
+        <article class="tire-width-card">
+          <h4>Narrower Tires</h4>
+          <strong>Best for:</strong>
+          <ul>
+            <li>Winter driving</li>
+            <li>Cutting through snow and slush</li>
+            <li>Comfortable ride</li>
+            <li>Often better fuel economy</li>
+          </ul>
+          <strong>Keep in mind:</strong>
+          <p>Narrower tires may have less dry-road grip and may not give the same sporty appearance.</p>
+        </article>
+      </div>
+      <p class="tire-width-guide-note">For winter driving, a slightly narrower tire can sometimes perform better because it can cut through snow and slush more easily. For dry-road performance, a wider tire may offer more grip, but fitment must always be confirmed.</p>
+      <p class="tire-width-guide-disclaimer">Always confirm rim width, load rating, speed rating, brake clearance, suspension clearance, and vehicle manufacturer recommendations before changing tire size.</p>
+    </section>
+  `;
 
   const formatMmValue = (value) => {
     const rounded = Math.round(value * 10) / 10;
@@ -145,6 +179,16 @@
     setText(calculator, '[data-alternative-form] h3', ALTERNATIVE_HEADING);
     setText(calculator, '.alternative-intro', ALTERNATIVE_GUIDANCE);
     setText(calculator, '.alternative-safety-note', ALTERNATIVE_DISCLAIMER);
+  };
+
+  const addTireWidthGuide = (calculator) => {
+    const safetyNote = calculator.querySelector('.alternative-safety-note');
+
+    if (!safetyNote || calculator.querySelector('.tire-width-guide')) {
+      return;
+    }
+
+    safetyNote.insertAdjacentHTML('afterend', TIRE_WIDTH_GUIDE_HTML);
   };
 
   const formatDiameter = (result) => `${formatInches(result.diameterInches)} in / ${formatMmValue(result.diameterMm)} mm`;
@@ -449,6 +493,7 @@
     const panels = calculator.querySelectorAll('[data-calculator-panel]');
 
     setAlternativeCopy(calculator);
+    addTireWidthGuide(calculator);
 
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => {
