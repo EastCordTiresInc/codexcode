@@ -221,7 +221,7 @@ function buildAppointmentItem(profile) {
     additionalNotes: getFieldValue('Additional Notes'),
     serviceAreaStatus: serviceAreaStatusField?.value || 'In service area',
     bookingStatus: 'Pending Confirmation',
-    paymentStatus: 'not_started',
+    paymentStatus: 'pending_checkout',
     stripeSessionId: '',
   };
 }
@@ -245,10 +245,27 @@ async function handleAppointmentSubmit(event) {
     return;
   }
 
-  const cart = window.EastCordAccount.getCart().filter((item) => item.type !== 'appointment');
-  cart.push(buildAppointmentItem(profile));
-  window.EastCordAccount.saveCart(cart);
-  window.location.href = '/cart';
+  try {
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = 'Saving Booking...';
+    }
+    showAppointmentMessage('Saving your booking details...', 'info');
+
+    const appointmentItem = buildAppointmentItem(profile);
+    appointmentItem.bookingId = await window.EastCordAccount.saveAppointmentBooking(appointmentItem, profile);
+
+    const cart = window.EastCordAccount.getCart().filter((item) => item.type !== 'appointment');
+    cart.push(appointmentItem);
+    window.EastCordAccount.saveCart(cart);
+    window.location.href = '/cart';
+  } catch (error) {
+    showAppointmentMessage(error.message || 'Booking could not be saved. Please try again.');
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Add Appointment to Cart';
+    }
+  }
 }
 
 function closeMobileMenu() {
