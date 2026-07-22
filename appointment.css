@@ -207,7 +207,8 @@
   line-height: 1.35;
 }
 
-.appointment-payment-note {
+.appointment-payment-note,
+.appointment-service-area-warning {
   margin: 0;
   padding: 16px 18px;
   border-left: 4px solid #df1f2d;
@@ -216,6 +217,11 @@
   color: #4f5663;
   font-size: 0.95rem;
   line-height: 1.6;
+}
+
+.appointment-service-area-warning {
+  color: #991b1b;
+  font-weight: 850;
 }
 
 .appointment-consent {
