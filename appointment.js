@@ -108,7 +108,7 @@ async function submitNetlifyForm(formData) {
 }
 
 async function createCheckoutSession(booking) {
-  const response = await fetch('/.netlify/functions/create-checkout-session', {
+  const response = await fetch('/.netlify/functions/create-appointment-checkout-session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(booking),
