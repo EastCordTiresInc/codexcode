@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Request an EastCord Tires changeover or swap appointment with starting price deposit details."
+      content="Book an EastCord Tires changeover or swap appointment with 20% booking deposit details."
     />
     <title>Changeover Appointment | EASTCORD TIRES</title>
     <link rel="stylesheet" href="styles.css" />
@@ -52,14 +52,14 @@
           <div>
             <h1 id="appointment-title">Changeover / Swap Appointment</h1>
             <p>
-              Choose a tire service starting price, review the 20% booking deposit, and send your appointment request.
+              Select a tire service starting price, review the 20% booking deposit, and submit your booking details.
               Appointments remain pending until EastCord confirms availability and service details.
             </p>
           </div>
           <div class="appointment-status-card" aria-label="Booking payment status">
             <span>Pending Confirmation</span>
-            <strong>20% deposit setup</strong>
-            <p>Online booking deposit payment will be enabled soon. No card information is collected on this website.</p>
+            <strong>20% deposit through Stripe Checkout</strong>
+            <p>Card payment is handled securely by Stripe Checkout. EastCord Tires will confirm final service details before the appointment is finalized.</p>
           </div>
         </div>
       </section>
@@ -73,20 +73,23 @@
             method="POST"
             data-netlify="true"
             netlify-honeypot="bot-field"
-            action="/thank-you.html"
+            action="/"
           >
             <input type="hidden" name="form-name" value="eastcord-changeover-appointment" />
-            <input type="hidden" name="subject" value="New EastCord Tires changeover appointment request" />
+            <input type="hidden" name="subject" value="New EastCord Tires changeover booking request" />
             <input type="hidden" name="Starting Price" data-starting-price-field value="40" />
             <input type="hidden" name="Booking Deposit" data-deposit-field value="8" />
             <input type="hidden" name="Remaining Balance" data-balance-field value="32" />
+            <input type="hidden" name="Booking Status" value="Pending Confirmation" />
+            <input type="hidden" name="stripe_session_id" value="" />
+            <input type="hidden" name="payment_status" value="pending_checkout" />
             <p class="hidden-field">
               <label>Do not fill this out: <input name="bot-field" /></label>
             </p>
 
             <div class="appointment-form-heading">
-              <h2 id="appointment-form-title">Request Your Appointment</h2>
-              <p>EastCord will confirm the final service details before the appointment is finalized.</p>
+              <h2 id="appointment-form-title">Book Your Appointment</h2>
+              <p>Enter your details, then continue to Stripe Checkout to pay the 20% booking deposit.</p>
             </div>
 
             <label class="form-field">
@@ -117,7 +120,7 @@
             </div>
 
             <p class="appointment-payment-note">
-              Your booking deposit helps reserve the appointment request. The remaining balance is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required.
+              Your 20% booking deposit helps reserve your appointment request. The remaining balance is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required. Appointments remain Pending Confirmation until EastCord Tires confirms availability and service details.
             </p>
 
             <div class="appointment-field-grid">
@@ -135,21 +138,52 @@
               </label>
               <label class="form-field">
                 <span>Preferred date</span>
-                <input name="Preferred Date" type="date" required />
+                <input name="Preferred Date" type="date" data-preferred-date required />
+              </label>
+              <label class="form-field">
+                <span>Preferred time window</span>
+                <select name="Preferred Time Window" required>
+                  <option value="">Select a time window</option>
+                  <option value="Morning">Morning</option>
+                  <option value="Afternoon">Afternoon</option>
+                  <option value="Evening">Evening</option>
+                </select>
+              </label>
+              <label class="form-field">
+                <span>Tire size</span>
+                <input name="Tire Size" type="text" placeholder="Example: 225/60R17" required />
+              </label>
+              <label class="form-field">
+                <span>Service location</span>
+                <input name="Service Location" type="text" placeholder="Home, workplace, or parking location" required />
+              </label>
+              <label class="form-field">
+                <span>City</span>
+                <input name="City" type="text" autocomplete="address-level2" required />
+              </label>
+              <label class="form-field">
+                <span>Postal code</span>
+                <input name="Postal Code" type="text" autocomplete="postal-code" required />
+              </label>
+              <label class="form-field">
+                <span>Vehicle details</span>
+                <input name="Vehicle Details" type="text" placeholder="Vehicle year, make, and model" required />
               </label>
             </div>
 
-            <label class="form-field">
-              <span>Vehicle / tire details</span>
-              <textarea name="Vehicle and Tire Details" rows="5" placeholder="Vehicle year/make/model, tire size, quantity, and any notes." required></textarea>
+            <label class="form-field form-field-full">
+              <span>Notes</span>
+              <textarea name="Notes" rows="5" placeholder="Tire quantity, tire condition, parking notes, or anything EastCord should know."></textarea>
             </label>
 
-            <div class="appointment-placeholder-payment">
-              <strong>Stripe deposit payment placeholder</strong>
-              <p>Online 20% booking deposit payment will be enabled soon. For now, EastCord Tires will confirm payment details after receiving your appointment request.</p>
-            </div>
+            <label class="appointment-consent">
+              <input name="Privacy Consent" type="checkbox" value="Agreed" required />
+              <span>I agree that EastCord Tires may use my details to process this booking request, contact me about availability, and coordinate service details.</span>
+            </label>
 
-            <button class="button button-primary appointment-submit" type="submit">Send Appointment Request</button>
+            <p class="appointment-status-message" data-appointment-message aria-live="polite"></p>
+
+            <button class="button button-primary appointment-submit" type="submit">Submit Booking &amp; Pay 20% Deposit</button>
           </form>
 
           <aside class="appointment-info-card" aria-label="Booking deposit details">
@@ -210,6 +244,30 @@
         <span>© 2026 EastCord Tires.</span>
       </div>
     </footer>
+
+    <form name="eastcord-changeover-appointment" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="hidden" name="form-name" value="eastcord-changeover-appointment" />
+      <input name="bot-field" />
+      <input name="Service Needed" />
+      <input name="Starting Price" />
+      <input name="Booking Deposit" />
+      <input name="Remaining Balance" />
+      <input name="Booking Status" />
+      <input name="stripe_session_id" />
+      <input name="payment_status" />
+      <input name="Full Name" />
+      <input name="Email" />
+      <input name="Phone" />
+      <input name="Preferred Date" />
+      <input name="Preferred Time Window" />
+      <input name="Vehicle Details" />
+      <input name="Tire Size" />
+      <input name="Service Location" />
+      <input name="City" />
+      <input name="Postal Code" />
+      <textarea name="Notes"></textarea>
+      <input name="Privacy Consent" />
+    </form>
 
     <div class="chat-widget" data-chat-widget>
       <section class="chat-panel" id="chat-panel" aria-labelledby="chat-title" aria-hidden="true">
