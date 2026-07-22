@@ -1,5 +1,8 @@
 const appointmentForm = document.querySelector('#changeover-appointment-form');
 const serviceSelect = document.querySelector('[data-service-select]');
+const citySelect = document.querySelector('[data-city-select]');
+const serviceAreaStatusField = document.querySelector('[data-service-area-status-field]');
+const serviceAreaWarning = document.querySelector('[data-service-area-warning]');
 const startingPrice = document.querySelector('[data-starting-price]');
 const depositPrice = document.querySelector('[data-deposit-price]');
 const balancePrice = document.querySelector('[data-balance-price]');
@@ -11,6 +14,8 @@ const appointmentMessage = document.querySelector('[data-appointment-message]');
 const submitButton = document.querySelector('.appointment-submit');
 const menuToggle = document.querySelector('.menu-toggle');
 const primaryNavigation = document.querySelector('#primary-navigation');
+
+const serviceAreaCities = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
 
 const money = new Intl.NumberFormat('en-CA', {
   style: 'currency',
@@ -62,12 +67,27 @@ function validatePreferredDate() {
     return false;
   }
 
-  if (selectedDate.getDay() === 0) {
-    preferredDate.setCustomValidity('Sundays are not available for online appointment requests. Please choose another day.');
+  preferredDate.setCustomValidity('');
+  return true;
+}
+
+function validateServiceArea() {
+  if (!citySelect) return true;
+
+  const city = citySelect.value;
+  const isOther = city === 'Other';
+  const inServiceArea = serviceAreaCities.has(city);
+  const status = inServiceArea ? 'In service area' : isOther ? 'Outside service area' : '';
+
+  if (serviceAreaStatusField) serviceAreaStatusField.value = status;
+  if (serviceAreaWarning) serviceAreaWarning.hidden = !isOther;
+
+  if (isOther) {
+    citySelect.setCustomValidity('EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.');
     return false;
   }
 
-  preferredDate.setCustomValidity('');
+  citySelect.setCustomValidity('');
   return true;
 }
 
@@ -100,6 +120,7 @@ function getBookingPayload(formData) {
     numberOfTires: formData.get('Number of Tires') || '',
     fullServiceAddress: formData.get('Full Service Address') || '',
     city: formData.get('City') || '',
+    serviceAreaStatus: formData.get('Service area status') || '',
     postalCode: formData.get('Postal Code') || '',
     parkingAccessNotes: formData.get('Parking Driveway Access Notes') || '',
     additionalNotes: formData.get('Additional Notes') || '',
@@ -146,10 +167,15 @@ async function handleAppointmentSubmit(event) {
   event.preventDefault();
   updateDepositSummary();
   validatePreferredDate();
+  const isInServiceArea = validateServiceArea();
 
-  if (!appointmentForm?.checkValidity()) {
+  if (!appointmentForm?.checkValidity() || !isInServiceArea) {
     appointmentForm?.reportValidity();
-    showAppointmentMessage('Please complete all required fields before continuing to Stripe Checkout.');
+    showAppointmentMessage(
+      isInServiceArea
+        ? 'Please complete all required fields before continuing to Stripe Checkout.'
+        : 'EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.',
+    );
     return;
   }
 
@@ -157,6 +183,7 @@ async function handleAppointmentSubmit(event) {
   formData.set('payment_status', 'pending_checkout');
   formData.set('stripe_session_id', '');
   formData.set('Booking Status', 'Pending Confirmation');
+  formData.set('Service area status', serviceAreaStatusField?.value || 'In service area');
   formData.set('Starting Price', startingPriceField?.value || '0');
   formData.set('Booking Deposit', depositField?.value || '0');
   formData.set('Remaining Balance', balanceField?.value || '0');
@@ -193,9 +220,11 @@ primaryNavigation?.querySelectorAll('a').forEach((link) => {
 });
 
 serviceSelect?.addEventListener('change', updateDepositSummary);
+citySelect?.addEventListener('change', validateServiceArea);
 preferredDate?.addEventListener('input', validatePreferredDate);
 appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
 
 setMinimumDate();
 updateDepositSummary();
 validatePreferredDate();
+validateServiceArea();
