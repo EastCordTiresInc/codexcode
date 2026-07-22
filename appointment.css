@@ -116,11 +116,16 @@
   gap: 16px;
 }
 
-.form-field {
+.form-field,
+.appointment-consent {
   display: grid;
   gap: 8px;
   color: #111317;
   font-weight: 850;
+}
+
+.form-field-full {
+  grid-column: 1 / -1;
 }
 
 .form-field span {
@@ -202,8 +207,7 @@
   line-height: 1.35;
 }
 
-.appointment-payment-note,
-.appointment-placeholder-payment {
+.appointment-payment-note {
   margin: 0;
   padding: 16px 18px;
   border-left: 4px solid #df1f2d;
@@ -214,26 +218,48 @@
   line-height: 1.6;
 }
 
-.appointment-placeholder-payment {
-  border-color: rgba(15, 23, 42, 0.1);
-  border-left-color: #111317;
+.appointment-consent {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
   background: #fbfbfc;
+  color: #4f5663;
+  font-size: 0.94rem;
+  line-height: 1.55;
 }
 
-.appointment-placeholder-payment strong {
-  display: block;
-  margin-bottom: 6px;
-  color: #111317;
+.appointment-consent input {
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  accent-color: #df1f2d;
 }
 
-.appointment-placeholder-payment p {
+.appointment-status-message {
+  min-height: 1.5em;
   margin: 0;
+  color: #b91c1c;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.appointment-status-message[data-message-type="info"] {
+  color: #111317;
 }
 
 .appointment-submit {
   justify-self: start;
   border: 0;
   cursor: pointer;
+}
+
+.appointment-submit:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .appointment-info-card {
