@@ -107,7 +107,7 @@
                 <div><span>Remaining balance</span><strong><span data-balance-price>$32</span> <small>due on-site after service</small></strong></div>
               </div>
               <p class="appointment-payment-note">Your 20% booking deposit helps reserve your booking. The remaining balance is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required.</p>
-              <div class="appointment-step-actions"><button class="button button-primary" type="button" data-next-step>Next</button></div>
+              <div class="appointment-step-actions"><button class="button button-primary" type="button" data-next-step>Next: Vehicle Details</button></div>
             </section>
 
             <section class="appointment-step" data-booking-step="1" aria-label="Step 2: Vehicle and Tire Details" hidden>
@@ -121,7 +121,7 @@
                 <label class="form-field"><span>Number of tires</span><input name="Number of Tires" type="number" inputmode="numeric" min="1" max="4" placeholder="4" required /></label>
               </div>
               <label class="form-field form-field-full"><span>Additional notes</span><textarea name="Additional Notes" rows="4" placeholder="Tire condition, special instructions, or anything else EastCord should know."></textarea></label>
-              <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next</button></div>
+              <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next: Location</button></div>
             </section>
 
             <section class="appointment-step" data-booking-step="2" aria-label="Step 3: Service Location" hidden>
@@ -133,7 +133,7 @@
               </div>
               <p class="appointment-service-area-warning" data-service-area-warning hidden>EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only. Please contact us if you need service outside these areas.</p>
               <label class="form-field form-field-full"><span>Parking / driveway / access notes</span><textarea name="Parking Driveway Access Notes" rows="4" placeholder="Tell us where the vehicle will be parked and any access instructions." required></textarea></label>
-              <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next</button></div>
+              <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next: Date &amp; Time</button></div>
             </section>
 
             <section class="appointment-step" data-booking-step="3" aria-label="Step 4: Date and Time" hidden>
@@ -142,7 +142,7 @@
                 <label class="form-field"><span>Preferred date</span><input name="Preferred Date" type="date" data-preferred-date required /></label>
                 <label class="form-field"><span>Preferred time window</span><select name="Preferred Time Window" required><option value="">Select a time window</option><option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option><option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option><option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option><option value="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</option><option value="4:00 PM - 6:00 PM">4:00 PM - 6:00 PM</option><option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option></select></label>
               </div>
-              <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Review Appointment</button></div>
+              <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next: Review</button></div>
             </section>
 
             <section class="appointment-step" data-booking-step="4" aria-label="Step 5: Review and Add to Cart" hidden>
@@ -178,6 +178,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
     <script src="account.js?v=4"></script>
-    <script src="appointment.js?v=8" defer></script>
+    <script src="appointment.js?v=9" defer></script>
   </body>
 </html>
