@@ -89,15 +89,6 @@ function updateServiceDebug(service) {
   }));
 }
 
-function updateServiceCards(service) {
-  document.querySelectorAll('.service-card').forEach((card) => {
-    const input = card.querySelector('input[name="serviceId"]');
-    const isSelected = Boolean(input?.checked && input.value === service?.id);
-    card.classList.toggle('selected', isSelected);
-    card.classList.toggle('is-selected', isSelected);
-  });
-}
-
 function updateServicePricing(service = getCurrentService()) {
   if (!service) return;
   currentService = service;
@@ -112,7 +103,6 @@ function updateServicePricing(service = getCurrentService()) {
   setValue(depositField, service.deposit.toFixed(2));
   setValue(balanceField, service.remaining.toFixed(2));
 
-  updateServiceCards(service);
   updateServiceDebug(service);
   updateReviewSummary(service);
 }
@@ -122,13 +112,6 @@ function updateFromCheckedService() {
   console.log('Service radio changed:', service);
   updateServicePricing(service);
   showAppointmentMessage('', 'info');
-}
-
-function selectServiceFromCard(card) {
-  const radio = card?.querySelector('input[name="serviceId"]');
-  if (!radio) return;
-  if (!radio.checked) radio.checked = true;
-  updateFromCheckedService();
 }
 
 function showLoginRequiredBlock() {
@@ -393,12 +376,8 @@ function initializeAppointmentPage() {
   if (appointmentPageInitialized) return;
   appointmentPageInitialized = true;
 
-  document.querySelectorAll('input[name="serviceId"]').forEach((input) => {
-    input.addEventListener('change', updateFromCheckedService);
-  });
-
-  document.querySelectorAll('.service-card').forEach((card) => {
-    card.addEventListener('click', () => selectServiceFromCard(card));
+  document.querySelectorAll('input[name="serviceId"]').forEach((radio) => {
+    radio.addEventListener('change', updateFromCheckedService);
   });
 
   menuToggle?.addEventListener('click', () => {
@@ -412,7 +391,10 @@ function initializeAppointmentPage() {
   backButtons.forEach((button) => button.addEventListener('click', () => showStep(currentStep - 1)));
   appointmentForm?.addEventListener('input', () => updateReviewSummary(currentService || getCurrentService()));
   appointmentForm?.addEventListener('change', (event) => {
-    if (event.target?.matches?.('input[name="serviceId"]')) return;
+    if (event.target?.matches?.('input[name="serviceId"]')) {
+      updateFromCheckedService();
+      return;
+    }
     updateReviewSummary(currentService || getCurrentService());
   });
   citySelect?.addEventListener('change', validateServiceArea);
@@ -429,15 +411,6 @@ function initializeAppointmentPage() {
   validateServiceArea();
   showStep(0, false);
 }
-
-document.addEventListener('change', (event) => {
-  if (event.target?.matches?.('input[name="serviceId"]')) updateFromCheckedService();
-}, true);
-
-document.addEventListener('click', (event) => {
-  const card = event.target?.closest?.('.service-card');
-  if (card) window.setTimeout(() => selectServiceFromCard(card), 0);
-}, true);
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeAppointmentPage);
