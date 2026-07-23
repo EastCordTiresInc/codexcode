@@ -1,5 +1,4 @@
 const appointmentForm = document.querySelector('[data-appointment-form]');
-const serviceCards = Array.from(document.querySelectorAll('[data-service-card]'));
 const citySelect = document.querySelector('[data-city-select]');
 const serviceAreaStatusField = document.querySelector('[data-service-area-status]');
 const serviceAreaWarning = document.querySelector('[data-service-area-warning]');
@@ -56,25 +55,6 @@ function setValue(element, value) {
   if (element) element.value = value;
 }
 
-function calculateServicePrice(price) {
-  const numericPrice = Number(price || 0);
-  const deposit = Math.round(numericPrice * 0.2 * 100) / 100;
-  const remaining = Math.round((numericPrice - deposit) * 100) / 100;
-  return { price: numericPrice, deposit, remaining };
-}
-
-function serviceFromCard(card) {
-  if (!card) return null;
-  const values = calculateServicePrice(card.dataset.price);
-  return {
-    id: card.dataset.serviceId || '',
-    name: card.dataset.serviceName || card.textContent.replace(/\s+/g, ' ').trim(),
-    price: values.price,
-    deposit: values.deposit,
-    remaining: values.remaining,
-  };
-}
-
 function getCurrentService() {
   return currentService;
 }
@@ -94,10 +74,12 @@ function updateServiceDebug(service) {
 }
 
 function updateServiceCards(service) {
-  serviceCards.forEach((card) => {
-    const isSelected = card.dataset.serviceId === service?.id;
-    card.classList.toggle('is-selected', isSelected);
-    card.setAttribute('aria-checked', String(isSelected));
+  document.querySelectorAll('.service-card').forEach((item) => {
+    const isSelected = item.dataset.serviceId === service?.id;
+    item.classList.toggle('selected', isSelected);
+    item.classList.toggle('is-selected', isSelected);
+    item.setAttribute('aria-pressed', String(isSelected));
+    item.setAttribute('aria-checked', String(isSelected));
   });
 }
 
@@ -120,15 +102,35 @@ function updateServicePricing(service = currentService) {
   updateReviewSummary(service);
 }
 
-function selectServiceCard(card) {
-  const service = serviceFromCard(card);
-  if (!service || !service.id || !service.price) {
-    showAppointmentMessage('Please choose a service before continuing.');
-    return;
-  }
+function setCurrentServiceFromCard(card) {
+  if (!card || card.disabled) return;
 
-  console.log('Service card selected:', service);
-  updateServicePricing(service);
+  const price = Number(card.dataset.price || 0);
+  const deposit = Math.round(price * 0.20 * 100) / 100;
+  const remaining = Math.round((price - deposit) * 100) / 100;
+
+  currentService = {
+    id: card.dataset.serviceId,
+    name: card.dataset.serviceName,
+    price,
+    deposit,
+    remaining,
+  };
+
+  document.querySelectorAll('.service-card').forEach((item) => {
+    item.classList.remove('selected');
+    item.classList.remove('is-selected');
+    item.setAttribute('aria-pressed', 'false');
+    item.setAttribute('aria-checked', 'false');
+  });
+
+  card.classList.add('selected');
+  card.classList.add('is-selected');
+  card.setAttribute('aria-pressed', 'true');
+  card.setAttribute('aria-checked', 'true');
+
+  console.log('Service card selected:', currentService);
+  updateServicePricing(currentService);
   showAppointmentMessage('', 'info');
 }
 
@@ -390,15 +392,16 @@ function closeMobileMenu() {
 }
 
 function initializeAppointmentPage() {
-  const defaultCard = serviceCards.find((card) => card.dataset.serviceId === currentService.id) || serviceCards[0];
-  if (defaultCard) currentService = serviceFromCard(defaultCard);
+  const defaultCard = document.querySelector('.service-card[data-service-id="seasonal-changeover-rims"]') || document.querySelector('.service-card');
+  if (defaultCard) setCurrentServiceFromCard(defaultCard);
 
-  serviceCards.forEach((card) => {
-    card.addEventListener('click', () => selectServiceCard(card));
+  document.querySelectorAll('.service-card').forEach((card) => {
+    card.disabled = false;
+    card.addEventListener('click', () => setCurrentServiceFromCard(card));
     card.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        selectServiceCard(card);
+        setCurrentServiceFromCard(card);
       }
     });
   });
@@ -420,6 +423,7 @@ function initializeAppointmentPage() {
 
   window.updateEastCordServicePrice = () => updateServicePricing(currentService);
   window.getCurrentEastCordService = getCurrentService;
+  window.setCurrentServiceFromCard = setCurrentServiceFromCard;
 
   hideLoginRequiredBlock();
   setMinimumDate();
@@ -428,5 +432,12 @@ function initializeAppointmentPage() {
   validateServiceArea();
   showStep(0, false);
 }
+
+document.addEventListener('click', (event) => {
+  const card = event.target.closest?.('.service-card');
+  if (!card) return;
+  event.preventDefault();
+  setCurrentServiceFromCard(card);
+}, true);
 
 document.addEventListener('DOMContentLoaded', initializeAppointmentPage);
