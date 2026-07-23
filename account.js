@@ -7,6 +7,15 @@ function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
 }
 
+function logSupabaseError(context, error) {
+  console.error(`[EastCord appointment automation] ${context}`, {
+    message: error?.message || '',
+    code: error?.code || '',
+    details: error?.details || '',
+    hint: error?.hint || '',
+  });
+}
+
 function logAuthDiagnostic(message, value) {
   console.info(`[EastCord appointment automation] ${message}: ${value ? 'yes' : 'no'}`);
 }
@@ -87,7 +96,7 @@ async function getCurrentUser() {
   if (!client) return null;
   const { data, error } = await client.auth.getUser();
   if (error) {
-    logDeveloperError('Supabase user lookup failed.', error);
+    logSupabaseError('Supabase user lookup failed.', error);
     return null;
   }
   return data?.user || null;
@@ -98,7 +107,7 @@ async function getAccessToken() {
   if (!client) return '';
   const { data, error } = await client.auth.getSession();
   if (error) {
-    logDeveloperError('Supabase session lookup failed.', error);
+    logSupabaseError('Supabase session lookup failed.', error);
     return '';
   }
   return data?.session?.access_token || '';
@@ -125,30 +134,98 @@ function profileFromRow(row, fallbackUser) {
   };
 }
 
-async function upsertCustomerProfile(profile) {
-  const client = getSupabaseClient();
-  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
-  if (!profile?.customerId) throw new Error('Please log in again before continuing.');
-
-  const row = {
+function buildCustomerProfileRow(profile) {
+  return {
     id: profile.customerId,
     full_name: profile.name || '',
     phone: profile.phone || '',
     email: profile.email || '',
     updated_at: new Date().toISOString(),
   };
+}
 
-  const { data, error } = await client
-    .from('customer_profiles')
-    .upsert(row, { onConflict: 'id' })
-    .select()
-    .single();
+function isDuplicateKeyError(error) {
+  return error?.code === '23505' || String(error?.message || '').toLowerCase().includes('duplicate key');
+}
 
-  if (error) {
-    logDeveloperError('customer_profiles upsert failed.', error);
-    throw new Error('Customer profile could not be saved right now. Please try again shortly.');
+function isMissingColumnError(error, columnName) {
+  const message = String(error?.message || '').toLowerCase();
+  return error?.code === '42703' && message.includes(columnName.toLowerCase());
+}
+
+function profileSaveErrorMessage(error) {
+  const message = String(error?.message || '').toLowerCase();
+  if (message.includes('row-level security') || error?.code === '42501') {
+    return 'Customer profile could not be saved because Supabase row security blocked the profile write. Please check the customer_profiles RLS insert/update/select policies.';
   }
-  return data;
+  if (isMissingColumnError(error, 'updated_at')) {
+    return 'Customer profile could not be saved because the customer_profiles table is missing the updated_at column used by the website.';
+  }
+  return 'Customer profile could not be saved right now. Please try again shortly.';
+}
+
+async function insertCustomerProfile(client, row) {
+  return client
+    .from('customer_profiles')
+    .insert(row)
+    .select('id, full_name, phone, email')
+    .single();
+}
+
+async function updateCustomerProfile(client, row) {
+  return client
+    .from('customer_profiles')
+    .update(row)
+    .eq('id', row.id)
+    .select('id, full_name, phone, email')
+    .single();
+}
+
+async function upsertCustomerProfile(profile) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
+  if (!profile?.customerId) throw new Error('Please log in again before continuing.');
+
+  const row = buildCustomerProfileRow(profile);
+  console.info('[EastCord appointment automation] customer_profiles save started', {
+    idMatchesAuthUser: Boolean(row.id),
+    columns: Object.keys(row),
+  });
+
+  let insertResult = await insertCustomerProfile(client, row);
+
+  if (isMissingColumnError(insertResult.error, 'updated_at')) {
+    delete row.updated_at;
+    console.info('[EastCord appointment automation] customer_profiles updated_at column missing; retrying without updated_at.');
+    insertResult = await insertCustomerProfile(client, row);
+  }
+
+  if (!insertResult.error) {
+    console.info('[EastCord appointment automation] customer_profiles insert success');
+    return insertResult.data;
+  }
+
+  if (!isDuplicateKeyError(insertResult.error)) {
+    logSupabaseError('customer_profiles insert failed.', insertResult.error);
+    throw new Error(profileSaveErrorMessage(insertResult.error));
+  }
+
+  console.info('[EastCord appointment automation] customer_profiles already exists; trying update.');
+  let updateResult = await updateCustomerProfile(client, row);
+
+  if (isMissingColumnError(updateResult.error, 'updated_at')) {
+    delete row.updated_at;
+    console.info('[EastCord appointment automation] customer_profiles updated_at column missing on update; retrying without updated_at.');
+    updateResult = await updateCustomerProfile(client, row);
+  }
+
+  if (updateResult.error) {
+    logSupabaseError('customer_profiles update failed.', updateResult.error);
+    throw new Error(profileSaveErrorMessage(updateResult.error));
+  }
+
+  console.info('[EastCord appointment automation] customer_profiles update success');
+  return updateResult.data;
 }
 
 async function getCurrentProfile() {
@@ -163,7 +240,7 @@ async function getCurrentProfile() {
     .maybeSingle();
 
   if (error) {
-    logDeveloperError('customer_profiles read failed.', error);
+    logSupabaseError('customer_profiles read failed.', error);
     return profileFromUser(user);
   }
 
@@ -225,7 +302,7 @@ async function saveAppointmentBooking(item, profile) {
     .single();
 
   if (error) {
-    logDeveloperError('appointment_bookings insert failed.', error);
+    logSupabaseError('appointment_bookings insert failed.', error);
     throw new Error('Booking details could not be saved right now. Please try again shortly.');
   }
   return data.id;
@@ -243,7 +320,7 @@ async function getCustomerBookings() {
     .order('created_at', { ascending: false });
 
   if (error) {
-    logDeveloperError('appointment_bookings read failed.', error);
+    logSupabaseError('appointment_bookings read failed.', error);
     return [];
   }
   return data || [];
@@ -269,7 +346,7 @@ async function signUpCustomer({ fullName, email, phone, password }) {
 
   if (error) {
     console.info('[EastCord appointment automation] signup error');
-    logDeveloperError('Supabase signup failed.', error);
+    logSupabaseError('Supabase signup failed.', error);
     throw new Error(getFriendlySupabaseError(error));
   }
 
@@ -304,7 +381,7 @@ async function signInCustomer({ email, password }) {
 
   const { data, error } = await client.auth.signInWithPassword({ email, password });
   if (error) {
-    logDeveloperError('Supabase login failed.', error);
+    logSupabaseError('Supabase login failed.', error);
     throw new Error(getFriendlySupabaseError(error, 'Login could not be completed. Please check your email and password.'));
   }
 
