@@ -1,9 +1,20 @@
 const AUTH_CONFIG = window.EASTCORD_AUTH_CONFIG || {};
 const CART_KEY = 'eastcord_cart_v1';
 const ACCOUNT_SETUP_MESSAGE = 'Account signup is being connected. Please contact EastCord Tires or check back soon.';
+const EMAIL_CONFIRMATION_MESSAGE = 'Account created. Please check your email to confirm your account, then log in.';
 
 function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
+}
+
+function logAuthDiagnostic(message, value) {
+  console.info(`[EastCord appointment automation] ${message}: ${value ? 'yes' : 'no'}`);
+}
+
+function logAuthConfigStatus() {
+  logAuthDiagnostic('Supabase URL exists', Boolean(AUTH_CONFIG.supabaseUrl));
+  logAuthDiagnostic('Supabase anon key exists', Boolean(AUTH_CONFIG.supabaseAnonKey));
+  logAuthDiagnostic('Supabase browser library exists', Boolean(window.supabase));
 }
 
 function isAuthConfigured() {
@@ -16,6 +27,23 @@ function getSupabaseClient() {
     window.eastcordSupabaseClient = window.supabase.createClient(AUTH_CONFIG.supabaseUrl, AUTH_CONFIG.supabaseAnonKey);
   }
   return window.eastcordSupabaseClient;
+}
+
+function getFriendlySupabaseError(error, fallback = 'Signup could not be completed right now. Please try again shortly.') {
+  const message = String(error?.message || '').trim();
+  const lowerMessage = message.toLowerCase();
+
+  if (!message) return fallback;
+  if (lowerMessage.includes('already registered') || lowerMessage.includes('already exists')) {
+    return 'An account may already exist for this email. Please log in or use password recovery if needed.';
+  }
+  if (lowerMessage.includes('invalid email')) return 'Please enter a valid email address.';
+  if (lowerMessage.includes('password')) return message;
+  if (lowerMessage.includes('email rate limit')) return 'Too many signup emails were requested. Please wait a few minutes and try again.';
+  if (lowerMessage.includes('signup') && lowerMessage.includes('disabled')) return 'Online signup is not enabled yet. Please contact EastCord Tires.';
+  if (lowerMessage.includes('fetch') || lowerMessage.includes('network')) return 'Signup could not connect right now. Please check your connection and try again.';
+
+  return message;
 }
 
 function getCart() {
@@ -50,7 +78,7 @@ function escapeHtml(value) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+    .replace(/\"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
 
@@ -225,10 +253,13 @@ async function signUpCustomer({ fullName, email, phone, password }) {
   const client = getSupabaseClient();
   if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
 
+  console.info('[EastCord appointment automation] signup request started');
+
   const { data, error } = await client.auth.signUp({
     email,
     password,
     options: {
+      emailRedirectTo: `${window.location.origin}/account.html`,
       data: {
         full_name: fullName,
         phone,
@@ -237,11 +268,18 @@ async function signUpCustomer({ fullName, email, phone, password }) {
   });
 
   if (error) {
+    console.info('[EastCord appointment automation] signup error');
     logDeveloperError('Supabase signup failed.', error);
-    throw new Error('Signup could not be completed right now. Please try again shortly.');
+    throw new Error(getFriendlySupabaseError(error));
   }
 
-  if (data?.user) {
+  console.info('[EastCord appointment automation] signup success', {
+    userCreated: Boolean(data?.user),
+    sessionCreated: Boolean(data?.session),
+    emailConfirmationLikelyRequired: Boolean(data?.user && !data?.session),
+  });
+
+  if (data?.user && data?.session) {
     try {
       await upsertCustomerProfile({
         customerId: data.user.id,
@@ -250,8 +288,11 @@ async function signUpCustomer({ fullName, email, phone, password }) {
         phone,
       });
     } catch (profileError) {
-      logDeveloperError('Customer profile will be created after email confirmation or next login.', profileError);
+      logDeveloperError('Customer profile create after signup failed.', profileError);
+      throw profileError;
     }
+  } else if (data?.user && !data?.session) {
+    console.info('[EastCord appointment automation] Email confirmation appears required before login.');
   }
 
   return data;
@@ -264,7 +305,7 @@ async function signInCustomer({ email, password }) {
   const { data, error } = await client.auth.signInWithPassword({ email, password });
   if (error) {
     logDeveloperError('Supabase login failed.', error);
-    throw new Error('Login could not be completed. Please check your email and password.');
+    throw new Error(getFriendlySupabaseError(error, 'Login could not be completed. Please check your email and password.'));
   }
 
   const profile = profileFromUser(data?.user);
@@ -306,22 +347,34 @@ async function updateAuthNavigation() {
   updateCartCount();
 }
 
+function setAuthMessage(message, type = '') {
+  const authMessage = document.querySelector('[data-auth-message]');
+  if (!authMessage) return;
+  authMessage.textContent = message;
+  authMessage.className = `account-message ${type}`.trim();
+}
+
 function bindAuthForms() {
   const signupForm = document.querySelector('[data-signup-form]');
   const loginForm = document.querySelector('[data-login-form]');
-  const authMessage = document.querySelector('[data-auth-message]');
 
-  if (!isAuthConfigured() && authMessage && (signupForm || loginForm)) {
-    authMessage.textContent = ACCOUNT_SETUP_MESSAGE;
-  } else if (authMessage) {
-    authMessage.textContent = '';
+  if (!isAuthConfigured() && (signupForm || loginForm)) {
+    setAuthMessage(ACCOUNT_SETUP_MESSAGE, 'error');
+  } else {
+    setAuthMessage('');
   }
 
   signupForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    logAuthConfigStatus();
+
     if (!isAuthConfigured()) {
-      if (authMessage) authMessage.textContent = ACCOUNT_SETUP_MESSAGE;
-      logDeveloperError('Signup attempted before Supabase env vars were configured.', AUTH_CONFIG);
+      setAuthMessage(ACCOUNT_SETUP_MESSAGE, 'error');
+      logDeveloperError('Signup attempted before Supabase env vars were configured.', {
+        supabaseUrlExists: Boolean(AUTH_CONFIG.supabaseUrl),
+        supabaseAnonKeyExists: Boolean(AUTH_CONFIG.supabaseAnonKey),
+        supabaseLibraryExists: Boolean(window.supabase),
+      });
       return;
     }
 
@@ -330,32 +383,50 @@ function bindAuthForms() {
     const confirmPassword = formData.get('Confirm Password');
 
     if (password !== confirmPassword) {
-      if (authMessage) authMessage.textContent = 'Passwords do not match.';
+      setAuthMessage('Passwords do not match.', 'error');
       return;
     }
 
+    setAuthMessage('Creating your account...', 'success');
+
     try {
-      await signUpCustomer({
+      const signupResult = await signUpCustomer({
         fullName: formData.get('Full Name'),
         email: formData.get('Email'),
         phone: formData.get('Phone'),
         password,
       });
-      window.location.href = '/account.html';
+
+      if (signupResult?.session) {
+        setAuthMessage('Account created. Redirecting to your account...', 'success');
+        window.setTimeout(() => {
+          window.location.href = '/account.html';
+        }, 800);
+        return;
+      }
+
+      setAuthMessage(EMAIL_CONFIRMATION_MESSAGE, 'success');
     } catch (error) {
-      if (authMessage) authMessage.textContent = error.message || 'Signup could not be completed.';
+      setAuthMessage(error.message || 'Signup could not be completed.', 'error');
     }
   });
 
   loginForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    logAuthConfigStatus();
+
     if (!isAuthConfigured()) {
-      if (authMessage) authMessage.textContent = ACCOUNT_SETUP_MESSAGE;
-      logDeveloperError('Login attempted before Supabase env vars were configured.', AUTH_CONFIG);
+      setAuthMessage(ACCOUNT_SETUP_MESSAGE, 'error');
+      logDeveloperError('Login attempted before Supabase env vars were configured.', {
+        supabaseUrlExists: Boolean(AUTH_CONFIG.supabaseUrl),
+        supabaseAnonKeyExists: Boolean(AUTH_CONFIG.supabaseAnonKey),
+        supabaseLibraryExists: Boolean(window.supabase),
+      });
       return;
     }
 
     const formData = new FormData(loginForm);
+    setAuthMessage('Logging you in...', 'success');
 
     try {
       await signInCustomer({
@@ -365,7 +436,7 @@ function bindAuthForms() {
       const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/account.html';
       window.location.href = redirectTo;
     } catch (error) {
-      if (authMessage) authMessage.textContent = error.message || 'Login could not be completed.';
+      setAuthMessage(error.message || 'Login could not be completed.', 'error');
     }
   });
 }
@@ -442,6 +513,7 @@ window.EastCordAccount = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  logAuthConfigStatus();
   bindAuthForms();
   bindLogoutButtons();
   hydrateAccountPage();
