@@ -391,10 +391,7 @@ function initializeAppointmentPage() {
   backButtons.forEach((button) => button.addEventListener('click', () => showStep(currentStep - 1)));
   appointmentForm?.addEventListener('input', () => updateReviewSummary(currentService || getCurrentService()));
   appointmentForm?.addEventListener('change', (event) => {
-    if (event.target?.matches?.('input[name="serviceId"]')) {
-      updateFromCheckedService();
-      return;
-    }
+    if (event.target?.matches?.('input[name="serviceId"]')) return;
     updateReviewSummary(currentService || getCurrentService());
   });
   citySelect?.addEventListener('change', validateServiceArea);
