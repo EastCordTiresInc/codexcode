@@ -11,26 +11,6 @@
     <link rel="stylesheet" href="appointment.css?v=10" />
     <link rel="stylesheet" href="account.css?v=2" />
     <link rel="stylesheet" href="chat.css" />
-    <style>
-      .appointment-form-card [name="bot-field"],
-      .appointment-form-card [data-netlify-honeypot],
-      .appointment-form-card .netlify-honeypot,
-      .appointment-form-card .hidden-field,
-      .appointment-form-card p:has([name="bot-field"]),
-      .appointment-form-card div:has([name="bot-field"]),
-      .appointment-form-card label:has([name="bot-field"]) {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        position: absolute !important;
-        width: 0 !important;
-        height: 0 !important;
-        max-width: 0 !important;
-        max-height: 0 !important;
-        overflow: hidden !important;
-        pointer-events: none !important;
-      }
-    </style>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -88,9 +68,6 @@
       <section id="appointment-booking" class="appointment-section section" aria-labelledby="booking-title">
         <div class="shell appointment-layout">
           <form class="appointment-form-card" name="eastcord-changeover-appointment" method="POST" data-netlify="true" data-appointment-form>
-            <div class="hidden-field" aria-hidden="true" style="display:none !important; visibility:hidden !important; opacity:0 !important; position:absolute !important; width:0 !important; height:0 !important; overflow:hidden !important;">
-              <input name="bot-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
-            </div>
             <input type="hidden" name="form-name" value="eastcord-changeover-appointment" />
             <input type="hidden" name="Booking Status" value="Pending Confirmation" />
             <input type="hidden" name="Service area status" data-service-area-status value="In service area" />
@@ -198,38 +175,6 @@
       </section>
     </main>
 
-    <script>
-      (() => {
-        const promptText = ['Do not fill', 'this out:'].join(' ');
-        const hideElement = (element) => {
-          if (!element) return;
-          element.hidden = true;
-          element.setAttribute('aria-hidden', 'true');
-          element.style.setProperty('display', 'none', 'important');
-          element.style.setProperty('visibility', 'hidden', 'important');
-          element.style.setProperty('opacity', '0', 'important');
-          element.style.setProperty('position', 'absolute', 'important');
-          element.style.setProperty('width', '0', 'important');
-          element.style.setProperty('height', '0', 'important');
-          element.style.setProperty('overflow', 'hidden', 'important');
-        };
-        const hideInjectedHoneypot = () => {
-          document.querySelectorAll('[name="bot-field"], [data-netlify-honeypot]').forEach((field) => {
-            hideElement(field.closest('label, p, div, fieldset') || field);
-          });
-          document.querySelectorAll('label, p, div, span').forEach((element) => {
-            if (element.textContent && element.textContent.trim().startsWith(promptText)) {
-              hideElement(element);
-            }
-          });
-        };
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', hideInjectedHoneypot);
-        } else {
-          hideInjectedHoneypot();
-        }
-      })();
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
     <script src="account.js?v=4"></script>
