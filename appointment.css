@@ -213,13 +213,21 @@ label:has(input[name="bot-field"]) {
   box-shadow: 0 14px 32px rgba(15, 23, 42, 0.07);
   cursor: pointer;
   pointer-events: auto;
-  appearance: none;
-  -webkit-appearance: none;
   transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease, background 180ms ease;
 }
 
+.service-card input[type="radio"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .service-card:hover,
-.service-card:focus-visible {
+.service-card:focus-within {
   border-color: rgba(223, 31, 45, 0.5);
   box-shadow: 0 18px 38px rgba(223, 31, 45, 0.14);
   outline: none;
@@ -227,7 +235,8 @@ label:has(input[name="bot-field"]) {
 }
 
 .service-card.is-selected,
-.service-card.selected {
+.service-card.selected,
+.service-card:has(input[type="radio"]:checked) {
   border-color: #df1f2d;
   background: linear-gradient(180deg, rgba(223, 31, 45, 0.1), #ffffff 58%);
   box-shadow: 0 20px 42px rgba(223, 31, 45, 0.2);
@@ -249,7 +258,8 @@ label:has(input[name="bot-field"]) {
 }
 
 .service-card.is-selected .service-card-check,
-.service-card.selected .service-card-check {
+.service-card.selected .service-card-check,
+.service-card:has(input[type="radio"]:checked) .service-card-check {
   background: #df1f2d;
   color: #ffffff;
 }
