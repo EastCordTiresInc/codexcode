@@ -1,6 +1,6 @@
 const AUTH_CONFIG = window.EASTCORD_AUTH_CONFIG || {};
 const CART_KEY = 'eastcord_cart_v1';
-const ACCOUNT_SETUP_MESSAGE = 'Account system is being connected. Please check back soon.';
+const ACCOUNT_SETUP_MESSAGE = 'Account signup is being connected. Please contact EastCord Tires or check back soon.';
 
 function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
@@ -275,7 +275,7 @@ async function signInCustomer({ email, password }) {
 async function signOutCustomer() {
   const client = getSupabaseClient();
   if (client) await client.auth.signOut();
-  window.location.href = '/login';
+  window.location.href = '/login.html';
 }
 
 function updateCartCount() {
@@ -313,6 +313,8 @@ function bindAuthForms() {
 
   if (!isAuthConfigured() && authMessage && (signupForm || loginForm)) {
     authMessage.textContent = ACCOUNT_SETUP_MESSAGE;
+  } else if (authMessage) {
+    authMessage.textContent = '';
   }
 
   signupForm?.addEventListener('submit', async (event) => {
@@ -339,7 +341,7 @@ function bindAuthForms() {
         phone: formData.get('Phone'),
         password,
       });
-      window.location.href = '/account';
+      window.location.href = '/account.html';
     } catch (error) {
       if (authMessage) authMessage.textContent = error.message || 'Signup could not be completed.';
     }
@@ -360,7 +362,7 @@ function bindAuthForms() {
         email: formData.get('Email'),
         password: formData.get('Password'),
       });
-      const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/account';
+      const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/account.html';
       window.location.href = redirectTo;
     } catch (error) {
       if (authMessage) authMessage.textContent = error.message || 'Login could not be completed.';
@@ -398,7 +400,7 @@ async function hydrateAccountPage() {
   try {
     const profile = await getCurrentProfile();
     if (!profile) {
-      accountPanel.innerHTML = '<p>Please log in to view your account.</p><p><a class="button button-primary" href="/login?redirect=/account">Log In</a></p>';
+      accountPanel.innerHTML = '<p>Please log in to view your account.</p><p><a class="button button-primary" href="/login.html?redirect=/account.html">Log In</a></p>';
       if (bookingPanel) bookingPanel.innerHTML = '';
       return;
     }
