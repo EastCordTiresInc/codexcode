@@ -1,11 +1,11 @@
 const appointmentForm = document.querySelector('[data-appointment-form]');
-const serviceSelect = document.querySelector('[data-service-select]');
 const citySelect = document.querySelector('[data-city-select]');
 const serviceAreaStatusField = document.querySelector('[data-service-area-status]');
 const serviceAreaWarning = document.querySelector('[data-service-area-warning]');
 const startingPrice = document.querySelector('[data-starting-price]');
 const depositPrice = document.querySelector('[data-deposit-price]');
 const balancePrice = document.querySelector('[data-balance-price]');
+const serviceNameField = document.querySelector('[data-hidden-service-name]');
 const startingPriceField = document.querySelector('[data-hidden-starting-price]');
 const depositField = document.querySelector('[data-hidden-deposit-price]');
 const balanceField = document.querySelector('[data-hidden-balance-price]');
@@ -26,23 +26,7 @@ const menuToggle = document.querySelector('.menu-toggle');
 const primaryNavigation = document.querySelector('#primary-navigation');
 
 const serviceAreaCities = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
-const servicePrices = {
-  'seasonal-changeover-rims': 40,
-  'seasonal-swap-not-mounted': 80,
-  'mount-balance-1': 25,
-  'mount-balance-2': 50,
-  'mount-balance-3': 75,
-  'mount-balance-4': 100,
-};
 let currentStep = 0;
-let selectedServiceState = {
-  id: 'seasonal-changeover-rims',
-  name: 'Seasonal Changeover - All 4 Tires Pre-Mounted on Rims - Starting price $40',
-  startingPrice: 40,
-  depositAmount: 8,
-  remainingBalance: 32,
-};
-let serviceDebugPanel = document.querySelector('[data-service-debug]');
 
 const money = new Intl.NumberFormat('en-CA', {
   style: 'currency',
@@ -52,6 +36,79 @@ const money = new Intl.NumberFormat('en-CA', {
 
 function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
+}
+
+function getCurrentService() {
+  const select = document.getElementById('service-select');
+
+  if (!select) {
+    console.error('service-select not found');
+    return null;
+  }
+
+  const option = select.options[select.selectedIndex];
+
+  if (!option) {
+    console.error('No selected service option found');
+    return null;
+  }
+
+  const price = Number(option.dataset.price || 0);
+  const deposit = Math.round(price * 0.20 * 100) / 100;
+  const remaining = Math.round((price - deposit) * 100) / 100;
+
+  return {
+    id: option.value,
+    name: option.dataset.name || option.textContent.trim(),
+    price,
+    deposit,
+    remaining,
+    selectedIndex: select.selectedIndex,
+    rawValue: select.value,
+    rawDataPrice: option.dataset.price,
+  };
+}
+
+function setText(selector, value) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = value;
+}
+
+function setValue(element, value) {
+  if (element) element.value = value;
+}
+
+function updateServiceDebug(current) {
+  if (!current) return;
+
+  setText('[data-debug-raw-value]', current.rawValue || '');
+  setText('[data-debug-selected-index]', String(current.selectedIndex));
+  setText('[data-debug-data-price]', current.rawDataPrice || '');
+  setText('[data-debug-service-id]', current.id || '');
+  setText('[data-debug-service-price]', money.format(current.price));
+  setText('[data-debug-deposit]', money.format(current.deposit));
+  setText('[data-debug-remaining]', money.format(current.remaining));
+  setText('[data-debug-last-update]', new Date().toLocaleTimeString('en-CA', {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+  }));
+}
+
+function updateServicePricing(current) {
+  if (!current) return;
+
+  if (startingPrice) startingPrice.textContent = money.format(current.price);
+  if (depositPrice) depositPrice.textContent = money.format(current.deposit);
+  if (balancePrice) balancePrice.textContent = money.format(current.remaining);
+
+  setValue(serviceNameField, current.name);
+  setValue(startingPriceField, current.price.toFixed(2));
+  setValue(depositField, current.deposit.toFixed(2));
+  setValue(balanceField, current.remaining.toFixed(2));
+
+  updateServiceDebug(current);
+  updateReviewSummary(current);
 }
 
 function showLoginRequiredBlock() {
@@ -64,71 +121,6 @@ function hideLoginRequiredBlock() {
   if (!loginRequiredBlock) return;
   loginRequiredBlock.hidden = true;
   loginRequiredBlock.classList.remove('is-visible');
-}
-
-function ensureServiceDebugPanel() {
-  serviceDebugPanel = serviceDebugPanel || document.querySelector('[data-service-debug]');
-  if (serviceDebugPanel || !serviceSelect?.parentElement) return serviceDebugPanel;
-
-  serviceDebugPanel = document.createElement('div');
-  serviceDebugPanel.setAttribute('data-service-debug', '');
-  serviceDebugPanel.style.marginTop = '12px';
-  serviceDebugPanel.style.padding = '12px 14px';
-  serviceDebugPanel.style.border = '1px dashed #dc2626';
-  serviceDebugPanel.style.borderRadius = '12px';
-  serviceDebugPanel.style.background = '#fff5f5';
-  serviceDebugPanel.style.color = '#111827';
-  serviceDebugPanel.style.fontSize = '0.9rem';
-  serviceDebugPanel.style.lineHeight = '1.6';
-  serviceSelect.parentElement.insertAdjacentElement('afterend', serviceDebugPanel);
-
-  return serviceDebugPanel;
-}
-
-function updateServiceDebugPanel() {
-  const panel = ensureServiceDebugPanel();
-  if (!panel) return;
-
-  panel.innerHTML = `
-    <strong>Temporary pricing debug</strong><br>
-    Selected service id: ${selectedServiceState.id || 'none'}<br>
-    Selected service price: ${money.format(selectedServiceState.startingPrice)}<br>
-    Calculated deposit: ${money.format(selectedServiceState.depositAmount)}<br>
-    Calculated remaining: ${money.format(selectedServiceState.remainingBalance)}
-  `;
-}
-
-function getSelectedServiceDetails(selectElement = serviceSelect) {
-  const activeSelect = selectElement?.matches?.('[data-service-select]') ? selectElement : serviceSelect;
-  const selectedOption = activeSelect?.selectedOptions?.[0] || activeSelect?.options?.[activeSelect.selectedIndex];
-  const serviceId = activeSelect?.value || selectedOption?.value || 'seasonal-changeover-rims';
-  const mappedPrice = servicePrices[serviceId];
-  const optionPrice = Number(selectedOption?.dataset.price || 0);
-  const price = Number.isFinite(mappedPrice) ? mappedPrice : optionPrice;
-  const deposit = price * 0.2;
-  const balance = price - deposit;
-
-  return {
-    id: serviceId,
-    name: selectedOption?.textContent?.replace(/\s+/g, ' ').trim() || '',
-    startingPrice: price,
-    depositAmount: deposit,
-    remainingBalance: balance,
-  };
-}
-
-function updateDepositSummary(selectElement = serviceSelect) {
-  if (!selectElement && !serviceSelect) return;
-  selectedServiceState = getSelectedServiceDetails(selectElement);
-
-  if (startingPrice) startingPrice.textContent = money.format(selectedServiceState.startingPrice);
-  if (depositPrice) depositPrice.textContent = money.format(selectedServiceState.depositAmount);
-  if (balancePrice) balancePrice.textContent = money.format(selectedServiceState.remainingBalance);
-  if (startingPriceField) startingPriceField.value = selectedServiceState.startingPrice.toFixed(2);
-  if (depositField) depositField.value = selectedServiceState.depositAmount.toFixed(2);
-  if (balanceField) balanceField.value = selectedServiceState.remainingBalance.toFixed(2);
-  updateServiceDebugPanel();
-  updateReviewSummary();
 }
 
 function formatDateInputValue(date) {
@@ -201,7 +193,7 @@ function getStepControls(stepIndex) {
 }
 
 function validateStep(stepIndex) {
-  updateDepositSummary();
+  updateServicePricing(getCurrentService());
   validatePreferredDate();
   validateServiceArea();
 
@@ -236,14 +228,14 @@ function showStep(index, shouldFocus = true) {
     step.classList.toggle('is-active', isActive);
   });
   updateProgress();
-  updateDepositSummary();
+  updateServicePricing(getCurrentService());
   showAppointmentMessage('', 'info');
   if (shouldFocus) appointmentForm?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function updateReviewSummary() {
+function updateReviewSummary(current = getCurrentService()) {
   if (!appointmentForm) return;
-  const serviceName = selectedServiceState.name || serviceSelect?.selectedOptions?.[0]?.textContent?.replace(/\s+/g, ' ').trim() || 'Not selected yet';
+  const serviceName = current?.name || 'Not selected yet';
   const vehicleParts = [getFieldValue('Vehicle Year'), getFieldValue('Vehicle Make'), getFieldValue('Vehicle Model')].filter(Boolean);
   const tireSize = getFieldValue('Tire Size');
   const tireCount = getFieldValue('Number of Tires');
@@ -261,7 +253,7 @@ function updateReviewSummary() {
   }
   if (reviewLocation) reviewLocation.textContent = address || city || postalCode ? [address, city, postalCode].filter(Boolean).join(', ') : 'Not entered yet';
   if (reviewDate) reviewDate.textContent = date || time ? [date, time].filter(Boolean).join(' at ') : 'Not entered yet';
-  if (reviewPrice) reviewPrice.textContent = `${money.format(selectedServiceState.depositAmount)} due today, ${money.format(selectedServiceState.remainingBalance)} on-site`;
+  if (reviewPrice && current) reviewPrice.textContent = `${money.format(current.deposit)} due today, ${money.format(current.remaining)} on-site`;
 }
 
 function validateAllSteps() {
@@ -275,7 +267,12 @@ function validateAllSteps() {
 }
 
 function buildAppointmentItem(profile) {
-  updateDepositSummary();
+  const current = getCurrentService();
+  updateServicePricing(current);
+
+  if (!current) {
+    throw new Error('Please choose a service.');
+  }
 
   return {
     id: `appointment-${Date.now()}`,
@@ -284,11 +281,11 @@ function buildAppointmentItem(profile) {
     customerName: profile.name,
     customerEmail: profile.email,
     customerPhone: profile.phone,
-    serviceId: selectedServiceState.id,
-    serviceName: selectedServiceState.name,
-    startingPrice: selectedServiceState.startingPrice,
-    depositAmount: selectedServiceState.depositAmount,
-    remainingBalance: selectedServiceState.remainingBalance,
+    serviceId: current.id,
+    serviceName: current.name,
+    startingPrice: current.price,
+    depositAmount: current.deposit,
+    remainingBalance: current.remaining,
     preferredDate: getFieldValue('Preferred Date'),
     preferredTimeWindow: getFieldValue('Preferred Time Window'),
     vehicleYear: getFieldValue('Vehicle Year'),
@@ -312,7 +309,7 @@ function buildAppointmentItem(profile) {
 async function handleAppointmentSubmit(event) {
   event.preventDefault();
   hideLoginRequiredBlock();
-  updateDepositSummary();
+  updateServicePricing(getCurrentService());
 
   if (!validateAllSteps()) {
     showAppointmentMessage('Please complete all required appointment fields before adding to cart.');
@@ -367,41 +364,57 @@ function closeMobileMenu() {
   primaryNavigation.classList.remove('is-open');
 }
 
-menuToggle?.addEventListener('click', () => {
-  const isOpen = menuToggle.getAttribute('aria-expanded') === 'true';
-  menuToggle.setAttribute('aria-expanded', String(!isOpen));
-  primaryNavigation?.classList.toggle('is-open', !isOpen);
-});
+function initializeAppointmentPage() {
+  const select = document.getElementById('service-select');
 
-primaryNavigation?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMobileMenu));
-nextButtons.forEach((button) => button.addEventListener('click', () => validateStep(currentStep) && showStep(currentStep + 1)));
-backButtons.forEach((button) => button.addEventListener('click', () => showStep(currentStep - 1)));
-appointmentForm?.addEventListener('input', updateReviewSummary);
-appointmentForm?.addEventListener('change', (event) => {
-  if (event.target?.matches?.('[data-service-select]')) {
-    updateDepositSummary(event.target);
+  if (!select) {
+    console.error('service-select missing on DOMContentLoaded');
     return;
   }
 
-  updateReviewSummary();
-});
-document.addEventListener('change', (event) => {
-  if (event.target?.matches?.('[data-service-select]')) {
-    updateDepositSummary(event.target);
-  }
-}, true);
-serviceSelect?.addEventListener('input', (event) => updateDepositSummary(event.target));
-serviceSelect?.addEventListener('change', (event) => updateDepositSummary(event.target));
-citySelect?.addEventListener('change', validateServiceArea);
-preferredDate?.addEventListener('input', validatePreferredDate);
-appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
-window.updateEastCordServicePrice = updateDepositSummary;
-window.updateEastCordServicePriceFromSelect = updateDepositSummary;
+  select.addEventListener('change', () => {
+    const current = getCurrentService();
+    console.log('Service changed:', current);
+    updateServicePricing(current);
+  });
 
-hideLoginRequiredBlock();
-setMinimumDate();
-ensureServiceDebugPanel();
-updateDepositSummary(serviceSelect);
-validatePreferredDate();
-validateServiceArea();
-showStep(0, false);
+  select.addEventListener('input', () => {
+    const current = getCurrentService();
+    console.log('Service input:', current);
+    updateServicePricing(current);
+  });
+
+  document.querySelector('[data-force-price-recalculate]')?.addEventListener('click', () => {
+    const current = getCurrentService();
+    console.log('Service force recalculated:', current);
+    updateServicePricing(current);
+  });
+
+  menuToggle?.addEventListener('click', () => {
+    const isOpen = menuToggle.getAttribute('aria-expanded') === 'true';
+    menuToggle.setAttribute('aria-expanded', String(!isOpen));
+    primaryNavigation?.classList.toggle('is-open', !isOpen);
+  });
+
+  primaryNavigation?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMobileMenu));
+  nextButtons.forEach((button) => button.addEventListener('click', () => validateStep(currentStep) && showStep(currentStep + 1)));
+  backButtons.forEach((button) => button.addEventListener('click', () => showStep(currentStep - 1)));
+  appointmentForm?.addEventListener('input', () => updateReviewSummary(getCurrentService()));
+  appointmentForm?.addEventListener('change', () => updateReviewSummary(getCurrentService()));
+  citySelect?.addEventListener('change', validateServiceArea);
+  preferredDate?.addEventListener('input', validatePreferredDate);
+  appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
+
+  window.updateEastCordServicePrice = () => updateServicePricing(getCurrentService());
+  window.updateEastCordServicePriceFromSelect = () => updateServicePricing(getCurrentService());
+  window.getCurrentEastCordService = getCurrentService;
+
+  hideLoginRequiredBlock();
+  setMinimumDate();
+  updateServicePricing(getCurrentService());
+  validatePreferredDate();
+  validateServiceArea();
+  showStep(0, false);
+}
+
+document.addEventListener('DOMContentLoaded', initializeAppointmentPage);
