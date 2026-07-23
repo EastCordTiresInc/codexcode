@@ -201,8 +201,7 @@ label:has(input[name="bot-field"]) {
 .service-card {
   position: relative;
   z-index: 3;
-  display: grid;
-  gap: 8px;
+  display: block;
   min-height: 150px;
   padding: 18px;
   border: 1px solid rgba(15, 23, 42, 0.12);
@@ -223,6 +222,12 @@ label:has(input[name="bot-field"]) {
   margin: 0;
   opacity: 0;
   overflow: hidden;
+}
+
+.service-card-content {
+  display: grid;
+  gap: 8px;
+  min-height: 114px;
   pointer-events: none;
 }
 
@@ -234,8 +239,6 @@ label:has(input[name="bot-field"]) {
   transform: translateY(-1px);
 }
 
-.service-card.is-selected,
-.service-card.selected,
 .service-card:has(input[type="radio"]:checked) {
   border-color: #df1f2d;
   background: linear-gradient(180deg, rgba(223, 31, 45, 0.1), #ffffff 58%);
@@ -257,17 +260,9 @@ label:has(input[name="bot-field"]) {
   pointer-events: none;
 }
 
-.service-card.is-selected .service-card-check,
-.service-card.selected .service-card-check,
 .service-card:has(input[type="radio"]:checked) .service-card-check {
   background: #df1f2d;
   color: #ffffff;
-}
-
-.service-card-title,
-.service-card-description,
-.service-card strong {
-  pointer-events: none;
 }
 
 .service-card-title {
