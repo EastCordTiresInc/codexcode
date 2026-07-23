@@ -56,6 +56,14 @@
   font-weight: 800;
 }
 
+.account-message.success {
+  color: #15803d;
+}
+
+.account-message.error {
+  color: #b91c1c;
+}
+
 .account-actions {
   display: flex;
   flex-wrap: wrap;
