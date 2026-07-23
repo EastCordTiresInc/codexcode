@@ -1,19 +1,19 @@
-const appointmentForm = document.querySelector('#changeover-appointment-form');
+const appointmentForm = document.querySelector('[data-appointment-form]');
 const serviceSelect = document.querySelector('[data-service-select]');
 const citySelect = document.querySelector('[data-city-select]');
-const serviceAreaStatusField = document.querySelector('[data-service-area-status-field]');
+const serviceAreaStatusField = document.querySelector('[data-service-area-status]');
 const serviceAreaWarning = document.querySelector('[data-service-area-warning]');
 const startingPrice = document.querySelector('[data-starting-price]');
 const depositPrice = document.querySelector('[data-deposit-price]');
 const balancePrice = document.querySelector('[data-balance-price]');
-const startingPriceField = document.querySelector('[data-starting-price-field]');
-const depositField = document.querySelector('[data-deposit-field]');
-const balanceField = document.querySelector('[data-balance-field]');
+const startingPriceField = document.querySelector('[data-hidden-starting-price]');
+const depositField = document.querySelector('[data-hidden-deposit-price]');
+const balanceField = document.querySelector('[data-hidden-balance-price]');
 const preferredDate = document.querySelector('[data-preferred-date]');
 const appointmentMessage = document.querySelector('[data-appointment-message]');
 const submitButton = document.querySelector('.appointment-submit');
 const stepPanels = Array.from(document.querySelectorAll('[data-booking-step]'));
-const progressSteps = Array.from(document.querySelectorAll('[data-progress-step]'));
+const progressSteps = Array.from(document.querySelectorAll('[data-appointment-progress] li'));
 const nextButtons = Array.from(document.querySelectorAll('[data-next-step]'));
 const backButtons = Array.from(document.querySelectorAll('[data-back-step]'));
 const reviewService = document.querySelector('[data-review-service]');
@@ -117,6 +117,8 @@ function validateServiceArea() {
 function showAppointmentMessage(message, type = 'error') {
   if (!appointmentMessage) return;
   appointmentMessage.textContent = message;
+  appointmentMessage.classList.toggle('error', type === 'error');
+  appointmentMessage.classList.toggle('success', type === 'success');
   appointmentMessage.dataset.messageType = type;
 }
 
@@ -265,7 +267,7 @@ async function handleAppointmentSubmit(event) {
   const profile = await window.EastCordAccount?.getCurrentProfile?.();
   if (!profile) {
     showLoginRequiredBlock();
-    showAppointmentMessage('Please sign up or log in before adding this appointment to cart.');
+    showAppointmentMessage('Please log in or create an account to add an appointment to your cart.');
     return;
   }
 
