@@ -18,13 +18,13 @@
           <a href="/">Home</a>
           <a href="/appointment.html">Appointment</a>
           <span class="auth-nav-group" data-auth-logged-out>
-            <a href="/signup">Sign Up</a>
-            <a href="/login">Log In</a>
-            <a href="/cart">Cart<span data-cart-count></span></a>
+            <a href="/signup.html">Sign Up</a>
+            <a href="/login.html">Log In</a>
+            <a href="/cart.html">Cart<span data-cart-count></span></a>
           </span>
           <span class="auth-nav-group" data-auth-logged-in hidden>
-            <a href="/account">My Account</a>
-            <a href="/cart">Cart<span data-cart-count></span></a>
+            <a href="/account.html">My Account</a>
+            <a href="/cart.html">Cart<span data-cart-count></span></a>
             <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
           </span>
         </nav>
@@ -60,8 +60,8 @@
           <div class="checkout-block" data-checkout-auth-block>
             <strong>Please sign up or log in before checkout.</strong>
             <div class="account-actions">
-              <a class="button button-primary" href="/login?redirect=/cart">Log In</a>
-              <a class="button button-secondary" href="/signup">Create Account</a>
+              <a class="button button-primary" href="/login.html?redirect=/cart.html">Log In</a>
+              <a class="button button-secondary" href="/signup.html">Create Account</a>
             </div>
           </div>
           <p class="account-message" data-cart-message></p>
@@ -102,7 +102,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js"></script>
+    <script src="account.js?v=3"></script>
     <script src="cart.js"></script>
   </body>
 </html>
