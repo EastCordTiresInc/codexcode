@@ -26,7 +26,16 @@ const menuToggle = document.querySelector('.menu-toggle');
 const primaryNavigation = document.querySelector('#primary-navigation');
 
 const serviceAreaCities = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
+const serviceOptionIds = new Set([
+  'seasonal-changeover-rims',
+  'seasonal-swap-not-mounted',
+  'mount-balance-1',
+  'mount-balance-2',
+  'mount-balance-3',
+  'mount-balance-4',
+]);
 let currentStep = 0;
+let visibleServiceSelect = null;
 
 const money = new Intl.NumberFormat('en-CA', {
   style: 'currency',
@@ -38,8 +47,102 @@ function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
 }
 
+function setText(selector, value) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = value;
+}
+
+function setValue(element, value) {
+  if (element) element.value = value;
+}
+
+function getSelectedOptionText(select) {
+  const option = select?.options?.[select.selectedIndex];
+  return option?.textContent?.replace(/\s+/g, ' ').trim() || '';
+}
+
+function isElementVisible(element) {
+  if (!element) return false;
+  if (element.hidden || element.closest('[hidden]')) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
+  return element.getClientRects().length > 0;
+}
+
+function isServiceSelect(select) {
+  if (!select) return false;
+  if (select.id === 'service-select' || select.name === 'serviceId') return true;
+  return Array.from(select.options || []).some((option) => serviceOptionIds.has(option.value));
+}
+
+function getSelectDiagnostics() {
+  return Array.from(document.querySelectorAll('select')).map((select, index) => {
+    const option = select.options?.[select.selectedIndex];
+    const parent = select.parentElement;
+    return {
+      index: index + 1,
+      id: select.id || '(none)',
+      name: select.name || '(none)',
+      value: select.value || '(empty)',
+      selectedIndex: select.selectedIndex,
+      selectedText: option?.textContent?.replace(/\s+/g, ' ').trim() || '(none)',
+      visible: isElementVisible(select) ? 'visible' : 'hidden',
+      parent: parent ? `${parent.tagName.toLowerCase()}${parent.className ? `.${String(parent.className).replace(/\s+/g, '.')}` : ''}` : '(none)',
+      isServiceSelect: isServiceSelect(select),
+    };
+  });
+}
+
+function updateSelectDiagnosticsDebug() {
+  const diagnostics = getSelectDiagnostics();
+  console.table?.(diagnostics);
+  setText('[data-debug-select-total]', String(diagnostics.length));
+
+  [0, 1].forEach((offset) => {
+    const item = diagnostics[offset];
+    const slot = offset + 1;
+    setText(`[data-debug-select-${slot}-id]`, item ? `${item.id} / ${item.name} / ${item.visible}` : '(none)');
+    setText(`[data-debug-select-${slot}-value]`, item ? `${item.value} / index ${item.selectedIndex}` : '(none)');
+    setText(`[data-debug-select-${slot}-text]`, item ? item.selectedText : '(none)');
+  });
+
+  console.log('EastCord appointment select diagnostics:', diagnostics);
+  return diagnostics;
+}
+
+function resolveVisibleServiceSelect() {
+  const allSelects = Array.from(document.querySelectorAll('select'));
+  const serviceSelects = allSelects.filter(isServiceSelect);
+  const visibleServiceSelects = serviceSelects.filter(isElementVisible);
+  const preferred = visibleServiceSelects[0] || serviceSelects.find((select) => select.id === 'service-select') || serviceSelects[0] || null;
+
+  if (!preferred) {
+    console.error('No service select found');
+    visibleServiceSelect = null;
+    return null;
+  }
+
+  serviceSelects.forEach((select) => {
+    if (select === preferred) return;
+    select.removeAttribute('id');
+    select.setAttribute('data-duplicate-service-select', 'removed-from-pricing');
+    select.disabled = true;
+    select.hidden = true;
+    select.style.display = 'none';
+    console.warn('Duplicate service select hidden and removed from pricing:', select);
+  });
+
+  preferred.id = 'service-select';
+  preferred.name = 'serviceId';
+  visibleServiceSelect = preferred;
+  updateSelectDiagnosticsDebug();
+  return preferred;
+}
+
 function getCurrentService() {
-  const select = document.getElementById('service-select');
+  const select = visibleServiceSelect && document.body.contains(visibleServiceSelect)
+    ? visibleServiceSelect
+    : resolveVisibleServiceSelect();
 
   if (!select) {
     console.error('service-select not found');
@@ -69,16 +172,8 @@ function getCurrentService() {
   };
 }
 
-function setText(selector, value) {
-  const element = document.querySelector(selector);
-  if (element) element.textContent = value;
-}
-
-function setValue(element, value) {
-  if (element) element.value = value;
-}
-
 function updateServiceDebug(current) {
+  updateSelectDiagnosticsDebug();
   if (!current) return;
 
   setText('[data-debug-raw-value]', current.rawValue || '');
@@ -365,7 +460,7 @@ function closeMobileMenu() {
 }
 
 function initializeAppointmentPage() {
-  const select = document.getElementById('service-select');
+  const select = resolveVisibleServiceSelect();
 
   if (!select) {
     console.error('service-select missing on DOMContentLoaded');
@@ -373,18 +468,32 @@ function initializeAppointmentPage() {
   }
 
   select.addEventListener('change', () => {
+    visibleServiceSelect = select;
     const current = getCurrentService();
     console.log('Service changed:', current);
     updateServicePricing(current);
   });
 
   select.addEventListener('input', () => {
+    visibleServiceSelect = select;
     const current = getCurrentService();
     console.log('Service input:', current);
     updateServicePricing(current);
   });
 
+  document.addEventListener('change', (event) => {
+    if (event.target instanceof HTMLSelectElement) {
+      updateSelectDiagnosticsDebug();
+    }
+    if (event.target === visibleServiceSelect) {
+      const current = getCurrentService();
+      console.log('Service changed from document listener:', current);
+      updateServicePricing(current);
+    }
+  }, true);
+
   document.querySelector('[data-force-price-recalculate]')?.addEventListener('click', () => {
+    visibleServiceSelect = resolveVisibleServiceSelect();
     const current = getCurrentService();
     console.log('Service force recalculated:', current);
     updateServicePricing(current);
@@ -408,6 +517,7 @@ function initializeAppointmentPage() {
   window.updateEastCordServicePrice = () => updateServicePricing(getCurrentService());
   window.updateEastCordServicePriceFromSelect = () => updateServicePricing(getCurrentService());
   window.getCurrentEastCordService = getCurrentService;
+  window.getEastCordSelectDiagnostics = getSelectDiagnostics;
 
   hideLoginRequiredBlock();
   setMinimumDate();
