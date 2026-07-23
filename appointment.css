@@ -7,8 +7,8 @@
   background-size: auto, 72px 72px, 72px 72px, auto;
 }
 
-.appointment-hero {
-  padding-bottom: clamp(24px, 3vw, 34px);
+.appointment-page .appointment-hero.section {
+  padding: clamp(28px, 4vw, 48px) 0 14px;
 }
 
 .appointment-hero-grid {
@@ -44,12 +44,12 @@
 }
 
 .appointment-status-card {
-  padding: 26px;
+  padding: 22px;
 }
 
 .appointment-status-card span {
   display: inline-flex;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   padding: 8px 12px;
   border-radius: 999px;
   color: #ffffff;
@@ -62,7 +62,7 @@
 
 .appointment-status-card strong {
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: #111317;
   font-size: 1.35rem;
   line-height: 1.12;
@@ -73,8 +73,8 @@
   line-height: 1.6;
 }
 
-.appointment-section {
-  padding-top: 12px;
+.appointment-page .appointment-section.section {
+  padding: 0 0 76px;
 }
 
 .appointment-layout {
@@ -312,12 +312,14 @@ label:has(input[name="bot-field"]) {
 .appointment-info-card strong { color: #111317; }
 
 @media (max-width: 900px) {
+  .appointment-page .appointment-hero.section { padding-top: 24px; }
   .appointment-hero-grid,
   .appointment-layout { grid-template-columns: 1fr; }
   .appointment-info-card { position: static; }
 }
 
 @media (max-width: 680px) {
+  .appointment-page .appointment-hero.section { padding-bottom: 10px; }
   .appointment-field-grid,
   .appointment-price-summary,
   .appointment-review-grid { grid-template-columns: 1fr; }
