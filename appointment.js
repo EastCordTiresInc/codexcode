@@ -26,7 +26,22 @@ const menuToggle = document.querySelector('.menu-toggle');
 const primaryNavigation = document.querySelector('#primary-navigation');
 
 const serviceAreaCities = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
+const servicePrices = {
+  'seasonal-changeover-rims': 40,
+  'seasonal-swap-not-mounted': 80,
+  'mount-balance-1': 25,
+  'mount-balance-2': 50,
+  'mount-balance-3': 75,
+  'mount-balance-4': 100,
+};
 let currentStep = 0;
+let selectedServiceState = {
+  id: 'seasonal-changeover-rims',
+  name: 'Seasonal Changeover - All 4 Tires Pre-Mounted on Rims - Starting price $40',
+  startingPrice: 40,
+  depositAmount: 8,
+  remainingBalance: 32,
+};
 
 const money = new Intl.NumberFormat('en-CA', {
   style: 'currency',
@@ -50,19 +65,34 @@ function hideLoginRequiredBlock() {
   loginRequiredBlock.classList.remove('is-visible');
 }
 
-function updateDepositSummary() {
-  if (!serviceSelect) return;
-  const selectedOption = serviceSelect.selectedOptions[0];
-  const price = Number(selectedOption?.dataset.price || 0);
+function getSelectedServiceDetails() {
+  const selectedOption = serviceSelect?.selectedOptions?.[0];
+  const serviceId = serviceSelect?.value || selectedOption?.value || 'seasonal-changeover-rims';
+  const mappedPrice = servicePrices[serviceId];
+  const optionPrice = Number(selectedOption?.dataset.price || 0);
+  const price = Number.isFinite(mappedPrice) ? mappedPrice : optionPrice;
   const deposit = price * 0.2;
   const balance = price - deposit;
 
-  if (startingPrice) startingPrice.textContent = money.format(price);
-  if (depositPrice) depositPrice.textContent = money.format(deposit);
-  if (balancePrice) balancePrice.textContent = money.format(balance);
-  if (startingPriceField) startingPriceField.value = price.toFixed(2);
-  if (depositField) depositField.value = deposit.toFixed(2);
-  if (balanceField) balanceField.value = balance.toFixed(2);
+  return {
+    id: serviceId,
+    name: selectedOption?.textContent?.replace(/\s+/g, ' ').trim() || '',
+    startingPrice: price,
+    depositAmount: deposit,
+    remainingBalance: balance,
+  };
+}
+
+function updateDepositSummary() {
+  if (!serviceSelect) return;
+  selectedServiceState = getSelectedServiceDetails();
+
+  if (startingPrice) startingPrice.textContent = money.format(selectedServiceState.startingPrice);
+  if (depositPrice) depositPrice.textContent = money.format(selectedServiceState.depositAmount);
+  if (balancePrice) balancePrice.textContent = money.format(selectedServiceState.remainingBalance);
+  if (startingPriceField) startingPriceField.value = selectedServiceState.startingPrice.toFixed(2);
+  if (depositField) depositField.value = selectedServiceState.depositAmount.toFixed(2);
+  if (balanceField) balanceField.value = selectedServiceState.remainingBalance.toFixed(2);
   updateReviewSummary();
 }
 
@@ -171,15 +201,14 @@ function showStep(index, shouldFocus = true) {
     step.classList.toggle('is-active', isActive);
   });
   updateProgress();
-  updateReviewSummary();
+  updateDepositSummary();
   showAppointmentMessage('', 'info');
   if (shouldFocus) appointmentForm?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function updateReviewSummary() {
   if (!appointmentForm) return;
-  const selectedOption = serviceSelect?.selectedOptions[0];
-  const serviceName = selectedOption?.textContent?.replace(/\s+/g, ' ').trim() || 'Not selected yet';
+  const serviceName = selectedServiceState.name || serviceSelect?.selectedOptions?.[0]?.textContent?.replace(/\s+/g, ' ').trim() || 'Not selected yet';
   const vehicleParts = [getFieldValue('Vehicle Year'), getFieldValue('Vehicle Make'), getFieldValue('Vehicle Model')].filter(Boolean);
   const tireSize = getFieldValue('Tire Size');
   const tireCount = getFieldValue('Number of Tires');
@@ -197,7 +226,7 @@ function updateReviewSummary() {
   }
   if (reviewLocation) reviewLocation.textContent = address || city || postalCode ? [address, city, postalCode].filter(Boolean).join(', ') : 'Not entered yet';
   if (reviewDate) reviewDate.textContent = date || time ? [date, time].filter(Boolean).join(' at ') : 'Not entered yet';
-  if (reviewPrice) reviewPrice.textContent = `${money.format(Number(depositField?.value || 0))} due today, ${money.format(Number(balanceField?.value || 0))} on-site`;
+  if (reviewPrice) reviewPrice.textContent = `${money.format(selectedServiceState.depositAmount)} due today, ${money.format(selectedServiceState.remainingBalance)} on-site`;
 }
 
 function validateAllSteps() {
@@ -211,7 +240,8 @@ function validateAllSteps() {
 }
 
 function buildAppointmentItem(profile) {
-  const selectedOption = serviceSelect?.selectedOptions[0];
+  updateDepositSummary();
+
   return {
     id: `appointment-${Date.now()}`,
     type: 'appointment',
@@ -219,11 +249,11 @@ function buildAppointmentItem(profile) {
     customerName: profile.name,
     customerEmail: profile.email,
     customerPhone: profile.phone,
-    serviceId: selectedOption?.value || '',
-    serviceName: selectedOption?.textContent?.trim() || '',
-    startingPrice: Number(startingPriceField?.value || 0),
-    depositAmount: Number(depositField?.value || 0),
-    remainingBalance: Number(balanceField?.value || 0),
+    serviceId: selectedServiceState.id,
+    serviceName: selectedServiceState.name,
+    startingPrice: selectedServiceState.startingPrice,
+    depositAmount: selectedServiceState.depositAmount,
+    remainingBalance: selectedServiceState.remainingBalance,
     preferredDate: getFieldValue('Preferred Date'),
     preferredTimeWindow: getFieldValue('Preferred Time Window'),
     vehicleYear: getFieldValue('Vehicle Year'),
@@ -247,6 +277,7 @@ function buildAppointmentItem(profile) {
 async function handleAppointmentSubmit(event) {
   event.preventDefault();
   hideLoginRequiredBlock();
+  updateDepositSummary();
 
   if (!validateAllSteps()) {
     showAppointmentMessage('Please complete all required appointment fields before adding to cart.');
@@ -311,7 +342,15 @@ primaryNavigation?.querySelectorAll('a').forEach((link) => link.addEventListener
 nextButtons.forEach((button) => button.addEventListener('click', () => validateStep(currentStep) && showStep(currentStep + 1)));
 backButtons.forEach((button) => button.addEventListener('click', () => showStep(currentStep - 1)));
 appointmentForm?.addEventListener('input', updateReviewSummary);
-appointmentForm?.addEventListener('change', updateReviewSummary);
+appointmentForm?.addEventListener('change', (event) => {
+  if (event.target?.matches?.('[data-service-select]')) {
+    updateDepositSummary();
+    return;
+  }
+
+  updateReviewSummary();
+});
+serviceSelect?.addEventListener('input', updateDepositSummary);
 serviceSelect?.addEventListener('change', updateDepositSummary);
 citySelect?.addEventListener('change', validateServiceArea);
 preferredDate?.addEventListener('input', validatePreferredDate);
