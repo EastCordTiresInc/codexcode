@@ -1,0 +1,6 @@
+/signup    /signup.html    200
+/login     /login.html     200
+/account   /account.html   200
+/cart      /cart.html      200
+/appointment-success     /appointment-success.html     200
+/appointment-cancelled   /appointment-cancelled.html   200
