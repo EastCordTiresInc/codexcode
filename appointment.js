@@ -29,6 +29,7 @@ const primaryNavigation = document.querySelector('#primary-navigation');
 const serviceAreaCities = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
 let currentStep = 0;
 let currentService = null;
+let appointmentPageInitialized = false;
 
 const money = new Intl.NumberFormat('en-CA', {
   style: 'currency',
@@ -126,11 +127,7 @@ function updateFromCheckedService() {
 function selectServiceFromCard(card) {
   const radio = card?.querySelector('input[name="serviceId"]');
   if (!radio) return;
-  if (!radio.checked) {
-    radio.checked = true;
-    radio.dispatchEvent(new Event('change', { bubbles: true }));
-    return;
-  }
+  if (!radio.checked) radio.checked = true;
   updateFromCheckedService();
 }
 
@@ -393,6 +390,9 @@ function closeMobileMenu() {
 }
 
 function initializeAppointmentPage() {
+  if (appointmentPageInitialized) return;
+  appointmentPageInitialized = true;
+
   document.querySelectorAll('input[name="serviceId"]').forEach((input) => {
     input.addEventListener('change', updateFromCheckedService);
   });
@@ -430,4 +430,17 @@ function initializeAppointmentPage() {
   showStep(0, false);
 }
 
-document.addEventListener('DOMContentLoaded', initializeAppointmentPage);
+document.addEventListener('change', (event) => {
+  if (event.target?.matches?.('input[name="serviceId"]')) updateFromCheckedService();
+}, true);
+
+document.addEventListener('click', (event) => {
+  const card = event.target?.closest?.('.service-card');
+  if (card) window.setTimeout(() => selectServiceFromCard(card), 0);
+}, true);
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeAppointmentPage);
+} else {
+  initializeAppointmentPage();
+}
