@@ -51,13 +51,13 @@
           <a href="/#warranty">Warranty</a>
           <a href="/#contact">Contact</a>
           <span class="auth-nav-group" data-auth-logged-out>
-            <a href="/signup">Sign Up</a>
-            <a href="/login">Log In</a>
-            <a href="/cart">Cart<span data-cart-count></span></a>
+            <a href="/signup.html">Sign Up</a>
+            <a href="/login.html">Log In</a>
+            <a href="/cart.html">Cart<span data-cart-count></span></a>
           </span>
           <span class="auth-nav-group" data-auth-logged-in hidden>
-            <a href="/account">My Account</a>
-            <a href="/cart">Cart<span data-cart-count></span></a>
+            <a href="/account.html">My Account</a>
+            <a href="/cart.html">Cart<span data-cart-count></span></a>
             <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
           </span>
         </nav>
@@ -175,7 +175,7 @@
                 <div class="appointment-review-card"><span>Date &amp; Time</span><strong data-review-date>Not entered yet</strong></div>
                 <div class="appointment-review-card"><span>Deposit</span><strong data-review-price>$8 due today, $32 on-site</strong></div>
               </div>
-              <div class="checkout-block" data-login-required-block hidden><strong>Please sign up or log in before adding this appointment to cart.</strong><div class="account-actions"><a class="button button-primary" href="/login?redirect=/appointment.html">Log In</a><a class="button button-secondary" href="/signup">Create Account</a></div></div>
+              <div class="checkout-block" data-login-required-block hidden><strong>Please sign up or log in before adding this appointment to cart.</strong><div class="account-actions"><a class="button button-primary" href="/login.html?redirect=/appointment.html">Log In</a><a class="button button-secondary" href="/signup.html">Create Account</a></div></div>
               <p class="appointment-status-message" data-appointment-message aria-live="polite"></p>
               <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary appointment-submit" type="submit">Add Appointment to Cart</button></div>
             </section>
@@ -230,7 +230,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=2"></script>
+    <script src="account.js?v=3"></script>
     <script src="appointment.js?v=6" defer></script>
   </body>
 </html>
