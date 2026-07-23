@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=3" />
-    <link rel="stylesheet" href="appointment.css?v=11" />
+    <link rel="stylesheet" href="appointment.css?v=12" />
     <link rel="stylesheet" href="account.css?v=2" />
     <link rel="stylesheet" href="chat.css" />
   </head>
@@ -93,37 +93,37 @@
             <section class="appointment-step" data-booking-step="0" aria-label="Step 1: Select Service">
               <div class="appointment-step-heading"><span>Step 1 of 5</span><h3>Select Service</h3><p>Choose the mobile tire service you want to add to cart.</p></div>
               <div class="service-card-grid" role="radiogroup" aria-label="Service needed" data-service-card-group>
-                <button type="button" class="service-card is-selected" role="radio" aria-checked="true" data-service-card data-service-id="seasonal-changeover-rims" data-service-name="Seasonal Changeover - All 4 Tires Pre-Mounted on Rims" data-price="40">
+                <button type="button" class="service-card selected is-selected" role="radio" aria-checked="true" aria-pressed="true" data-service-card data-service-id="seasonal-changeover-rims" data-service-name="Seasonal Changeover - All 4 Tires Pre-Mounted on Rims" data-price="40">
                   <span class="service-card-check" aria-hidden="true">✓</span>
                   <span class="service-card-title">Seasonal Changeover</span>
                   <span class="service-card-description">All 4 tires pre-mounted on rims</span>
                   <strong>Starting price $40</strong>
                 </button>
-                <button type="button" class="service-card" role="radio" aria-checked="false" data-service-card data-service-id="seasonal-swap-not-mounted" data-service-name="Seasonal Tire Swap - All 4 Tires Not Mounted on Rims" data-price="80">
+                <button type="button" class="service-card" role="radio" aria-checked="false" aria-pressed="false" data-service-card data-service-id="seasonal-swap-not-mounted" data-service-name="Seasonal Tire Swap - All 4 Tires Not Mounted on Rims" data-price="80">
                   <span class="service-card-check" aria-hidden="true">✓</span>
                   <span class="service-card-title">Seasonal Tire Swap</span>
                   <span class="service-card-description">All 4 tires not mounted on rims</span>
                   <strong>Starting price $80</strong>
                 </button>
-                <button type="button" class="service-card" role="radio" aria-checked="false" data-service-card data-service-id="mount-balance-1" data-service-name="Mount &amp; Balance - 1 Tire" data-price="25">
+                <button type="button" class="service-card" role="radio" aria-checked="false" aria-pressed="false" data-service-card data-service-id="mount-balance-1" data-service-name="Mount &amp; Balance - 1 Tire" data-price="25">
                   <span class="service-card-check" aria-hidden="true">✓</span>
                   <span class="service-card-title">Mount &amp; Balance - 1 Tire</span>
                   <span class="service-card-description">Single tire mount and balance service</span>
                   <strong>Starting price $25</strong>
                 </button>
-                <button type="button" class="service-card" role="radio" aria-checked="false" data-service-card data-service-id="mount-balance-2" data-service-name="Mount &amp; Balance - 2 Tires" data-price="50">
+                <button type="button" class="service-card" role="radio" aria-checked="false" aria-pressed="false" data-service-card data-service-id="mount-balance-2" data-service-name="Mount &amp; Balance - 2 Tires" data-price="50">
                   <span class="service-card-check" aria-hidden="true">✓</span>
                   <span class="service-card-title">Mount &amp; Balance - 2 Tires</span>
                   <span class="service-card-description">Two tire mount and balance service</span>
                   <strong>Starting price $50</strong>
                 </button>
-                <button type="button" class="service-card" role="radio" aria-checked="false" data-service-card data-service-id="mount-balance-3" data-service-name="Mount &amp; Balance - 3 Tires" data-price="75">
+                <button type="button" class="service-card" role="radio" aria-checked="false" aria-pressed="false" data-service-card data-service-id="mount-balance-3" data-service-name="Mount &amp; Balance - 3 Tires" data-price="75">
                   <span class="service-card-check" aria-hidden="true">✓</span>
                   <span class="service-card-title">Mount &amp; Balance - 3 Tires</span>
                   <span class="service-card-description">Three tire mount and balance service</span>
                   <strong>Starting price $75</strong>
                 </button>
-                <button type="button" class="service-card" role="radio" aria-checked="false" data-service-card data-service-id="mount-balance-4" data-service-name="Mount &amp; Balance - 4 Tires" data-price="100">
+                <button type="button" class="service-card" role="radio" aria-checked="false" aria-pressed="false" data-service-card data-service-id="mount-balance-4" data-service-name="Mount &amp; Balance - 4 Tires" data-price="100">
                   <span class="service-card-check" aria-hidden="true">✓</span>
                   <span class="service-card-title">Mount &amp; Balance - 4 Tires</span>
                   <span class="service-card-description">Four tire mount and balance service</span>
@@ -216,6 +216,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
     <script src="account.js?v=4"></script>
-    <script src="appointment.js?v=16" defer></script>
+    <script src="appointment.js?v=17" defer></script>
   </body>
 </html>
