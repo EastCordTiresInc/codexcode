@@ -18,13 +18,13 @@
           <a href="/">Home</a>
           <a href="/appointment.html">Appointment</a>
           <span class="auth-nav-group" data-auth-logged-out>
-            <a href="/signup">Sign Up</a>
-            <a href="/login">Log In</a>
-            <a href="/cart">Cart<span data-cart-count></span></a>
+            <a href="/signup.html">Sign Up</a>
+            <a href="/login.html">Log In</a>
+            <a href="/cart.html">Cart<span data-cart-count></span></a>
           </span>
           <span class="auth-nav-group" data-auth-logged-in hidden>
-            <a href="/account">My Account</a>
-            <a href="/cart">Cart<span data-cart-count></span></a>
+            <a href="/account.html">My Account</a>
+            <a href="/cart.html">Cart<span data-cart-count></span></a>
             <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
           </span>
         </nav>
@@ -48,7 +48,7 @@
             <p class="account-message" data-auth-message></p>
             <div class="account-actions">
               <button class="button button-primary" type="submit">Log In</button>
-              <a href="/signup">Don’t have an account? Sign up</a>
+              <a href="/signup.html">Don’t have an account? Sign up</a>
             </div>
           </form>
         </section>
@@ -57,6 +57,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js"></script>
+    <script src="account.js?v=3"></script>
   </body>
 </html>
