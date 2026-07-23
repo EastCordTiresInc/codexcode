@@ -116,11 +116,22 @@ function updateServicePricing(service = getCurrentService()) {
   updateReviewSummary(service);
 }
 
-function handleServiceRadioChange() {
+function updateFromCheckedService() {
   const service = getCurrentService();
   console.log('Service radio changed:', service);
   updateServicePricing(service);
   showAppointmentMessage('', 'info');
+}
+
+function selectServiceFromCard(card) {
+  const radio = card?.querySelector('input[name="serviceId"]');
+  if (!radio) return;
+  if (!radio.checked) {
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  updateFromCheckedService();
 }
 
 function showLoginRequiredBlock() {
@@ -383,7 +394,11 @@ function closeMobileMenu() {
 
 function initializeAppointmentPage() {
   document.querySelectorAll('input[name="serviceId"]').forEach((input) => {
-    input.addEventListener('change', handleServiceRadioChange);
+    input.addEventListener('change', updateFromCheckedService);
+  });
+
+  document.querySelectorAll('.service-card').forEach((card) => {
+    card.addEventListener('click', () => selectServiceFromCard(card));
   });
 
   menuToggle?.addEventListener('click', () => {
@@ -396,7 +411,10 @@ function initializeAppointmentPage() {
   nextButtons.forEach((button) => button.addEventListener('click', () => validateStep(currentStep) && showStep(currentStep + 1)));
   backButtons.forEach((button) => button.addEventListener('click', () => showStep(currentStep - 1)));
   appointmentForm?.addEventListener('input', () => updateReviewSummary(currentService || getCurrentService()));
-  appointmentForm?.addEventListener('change', () => updateReviewSummary(currentService || getCurrentService()));
+  appointmentForm?.addEventListener('change', (event) => {
+    if (event.target?.matches?.('input[name="serviceId"]')) return;
+    updateReviewSummary(currentService || getCurrentService());
+  });
   citySelect?.addEventListener('change', validateServiceArea);
   preferredDate?.addEventListener('input', validatePreferredDate);
   appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
