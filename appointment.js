@@ -98,9 +98,10 @@ function updateServiceDebugPanel() {
   `;
 }
 
-function getSelectedServiceDetails() {
-  const selectedOption = serviceSelect?.selectedOptions?.[0];
-  const serviceId = serviceSelect?.value || selectedOption?.value || 'seasonal-changeover-rims';
+function getSelectedServiceDetails(selectElement = serviceSelect) {
+  const activeSelect = selectElement?.matches?.('[data-service-select]') ? selectElement : serviceSelect;
+  const selectedOption = activeSelect?.selectedOptions?.[0] || activeSelect?.options?.[activeSelect.selectedIndex];
+  const serviceId = activeSelect?.value || selectedOption?.value || 'seasonal-changeover-rims';
   const mappedPrice = servicePrices[serviceId];
   const optionPrice = Number(selectedOption?.dataset.price || 0);
   const price = Number.isFinite(mappedPrice) ? mappedPrice : optionPrice;
@@ -116,9 +117,9 @@ function getSelectedServiceDetails() {
   };
 }
 
-function updateDepositSummary() {
-  if (!serviceSelect) return;
-  selectedServiceState = getSelectedServiceDetails();
+function updateDepositSummary(selectElement = serviceSelect) {
+  if (!selectElement && !serviceSelect) return;
+  selectedServiceState = getSelectedServiceDetails(selectElement);
 
   if (startingPrice) startingPrice.textContent = money.format(selectedServiceState.startingPrice);
   if (depositPrice) depositPrice.textContent = money.format(selectedServiceState.depositAmount);
@@ -378,7 +379,7 @@ backButtons.forEach((button) => button.addEventListener('click', () => showStep(
 appointmentForm?.addEventListener('input', updateReviewSummary);
 appointmentForm?.addEventListener('change', (event) => {
   if (event.target?.matches?.('[data-service-select]')) {
-    updateDepositSummary();
+    updateDepositSummary(event.target);
     return;
   }
 
@@ -386,20 +387,21 @@ appointmentForm?.addEventListener('change', (event) => {
 });
 document.addEventListener('change', (event) => {
   if (event.target?.matches?.('[data-service-select]')) {
-    updateDepositSummary();
+    updateDepositSummary(event.target);
   }
 }, true);
-serviceSelect?.addEventListener('input', updateDepositSummary);
-serviceSelect?.addEventListener('change', updateDepositSummary);
+serviceSelect?.addEventListener('input', (event) => updateDepositSummary(event.target));
+serviceSelect?.addEventListener('change', (event) => updateDepositSummary(event.target));
 citySelect?.addEventListener('change', validateServiceArea);
 preferredDate?.addEventListener('input', validatePreferredDate);
 appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
 window.updateEastCordServicePrice = updateDepositSummary;
+window.updateEastCordServicePriceFromSelect = updateDepositSummary;
 
 hideLoginRequiredBlock();
 setMinimumDate();
 ensureServiceDebugPanel();
-updateDepositSummary();
+updateDepositSummary(serviceSelect);
 validatePreferredDate();
 validateServiceArea();
 showStep(0, false);
