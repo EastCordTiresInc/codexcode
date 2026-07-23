@@ -78,40 +78,39 @@
             <span>Pending Confirmation</span>
             <strong>Available 7 Days a Week</strong>
             <p style="color: #4b5563; font-weight: 500;">8:00 AM to 8:00 PM</p>
-            <p>Customer profile details come from the signed-in account. Deposit payment happens from the cart through Stripe Checkout.</p>
           </div>
         </div>
       </section>
 
-      <section class="appointment-section section" aria-labelledby="appointment-form-title">
+      <section class="appointment-section section" aria-labelledby="booking-title">
         <div class="shell appointment-layout">
-          <form class="appointment-form-card" id="changeover-appointment-form">
-            <input type="hidden" name="Starting Price" data-starting-price-field value="40" />
-            <input type="hidden" name="Booking Deposit" data-deposit-field value="8" />
-            <input type="hidden" name="Remaining Balance" data-balance-field value="32" />
+          <form class="appointment-form-card" name="eastcord-changeover-appointment" method="POST" data-netlify="true" netlify-honeypot="bot-field" data-appointment-form>
+            <div class="hidden-field" aria-hidden="true" style="display:none !important; visibility:hidden !important; opacity:0 !important; position:absolute !important; width:0 !important; height:0 !important; overflow:hidden !important;">
+              <label>Do not fill this out: <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
+            </div>
+            <input type="hidden" name="form-name" value="eastcord-changeover-appointment" />
             <input type="hidden" name="Booking Status" value="Pending Confirmation" />
-            <input type="hidden" name="Service area status" data-service-area-status-field value="In service area" />
+            <input type="hidden" name="Service area status" data-service-area-status value="In service area" />
+            <input type="hidden" name="Starting Price" data-hidden-starting-price value="40" />
+            <input type="hidden" name="Booking Deposit" data-hidden-deposit-price value="8" />
+            <input type="hidden" name="Remaining Balance" data-hidden-balance-price value="32" />
 
             <div class="appointment-form-heading">
-              <h2 id="appointment-form-title">Add Appointment to Cart</h2>
-              <p>Enter only the service, vehicle, location, and preferred time details. Name, email, and phone come from your account profile.</p>
+              <h2 id="booking-title">Build Your Appointment</h2>
+              <p>Add your preferred service details to cart. Customer name, email, and phone come from your EastCord account at checkout.</p>
             </div>
 
-            <ol class="appointment-progress" aria-label="Booking progress">
-              <li class="is-active" data-progress-step>Service</li>
-              <li data-progress-step>Vehicle</li>
-              <li data-progress-step>Location</li>
-              <li data-progress-step>Date &amp; Time</li>
-              <li data-progress-step>Review</li>
+            <ol class="appointment-progress" aria-label="Booking progress" data-appointment-progress>
+              <li class="is-active">Service</li>
+              <li>Vehicle</li>
+              <li>Location</li>
+              <li>Date &amp; Time</li>
+              <li>Review</li>
             </ol>
 
-            <section class="appointment-step is-active" data-booking-step="0" aria-label="Step 1: Select Service">
-              <div class="appointment-step-heading">
-                <span>Step 1 of 5</span>
-                <h3>Select Service</h3>
-                <p>Choose the service you need. Pricing is a starting price and may change after EastCord confirms the final details.</p>
-              </div>
-              <label class="form-field">
+            <section class="appointment-step" data-booking-step="0" aria-label="Step 1: Select Service">
+              <div class="appointment-step-heading"><span>Step 1 of 5</span><h3>Select Service</h3><p>Choose the mobile tire service you want to add to cart.</p></div>
+              <label class="form-field form-field-full">
                 <span>Service needed</span>
                 <select name="Service Needed" data-service-select required>
                   <option value="seasonal-changeover-rims" data-price="40">Seasonal Changeover - All 4 Tires Pre-Mounted on Rims - Starting price $40</option>
@@ -230,7 +229,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=3"></script>
+    <script src="account.js?v=4"></script>
     <script src="appointment.js?v=7" defer></script>
   </body>
 </html>
