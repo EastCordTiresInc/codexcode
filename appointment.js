@@ -42,6 +42,7 @@ let selectedServiceState = {
   depositAmount: 8,
   remainingBalance: 32,
 };
+let serviceDebugPanel;
 
 const money = new Intl.NumberFormat('en-CA', {
   style: 'currency',
@@ -63,6 +64,37 @@ function hideLoginRequiredBlock() {
   if (!loginRequiredBlock) return;
   loginRequiredBlock.hidden = true;
   loginRequiredBlock.classList.remove('is-visible');
+}
+
+function ensureServiceDebugPanel() {
+  if (serviceDebugPanel || !serviceSelect?.parentElement) return serviceDebugPanel;
+
+  serviceDebugPanel = document.createElement('div');
+  serviceDebugPanel.setAttribute('data-service-debug', '');
+  serviceDebugPanel.style.marginTop = '12px';
+  serviceDebugPanel.style.padding = '12px 14px';
+  serviceDebugPanel.style.border = '1px dashed #dc2626';
+  serviceDebugPanel.style.borderRadius = '12px';
+  serviceDebugPanel.style.background = '#fff5f5';
+  serviceDebugPanel.style.color = '#111827';
+  serviceDebugPanel.style.fontSize = '0.9rem';
+  serviceDebugPanel.style.lineHeight = '1.6';
+  serviceSelect.parentElement.insertAdjacentElement('afterend', serviceDebugPanel);
+
+  return serviceDebugPanel;
+}
+
+function updateServiceDebugPanel() {
+  const panel = ensureServiceDebugPanel();
+  if (!panel) return;
+
+  panel.innerHTML = `
+    <strong>Temporary pricing debug</strong><br>
+    Selected service id: ${selectedServiceState.id || 'none'}<br>
+    Selected service price: ${money.format(selectedServiceState.startingPrice)}<br>
+    Calculated deposit: ${money.format(selectedServiceState.depositAmount)}<br>
+    Calculated remaining: ${money.format(selectedServiceState.remainingBalance)}
+  `;
 }
 
 function getSelectedServiceDetails() {
@@ -93,6 +125,7 @@ function updateDepositSummary() {
   if (startingPriceField) startingPriceField.value = selectedServiceState.startingPrice.toFixed(2);
   if (depositField) depositField.value = selectedServiceState.depositAmount.toFixed(2);
   if (balanceField) balanceField.value = selectedServiceState.remainingBalance.toFixed(2);
+  updateServiceDebugPanel();
   updateReviewSummary();
 }
 
@@ -350,14 +383,21 @@ appointmentForm?.addEventListener('change', (event) => {
 
   updateReviewSummary();
 });
+document.addEventListener('change', (event) => {
+  if (event.target?.matches?.('[data-service-select]')) {
+    updateDepositSummary();
+  }
+}, true);
 serviceSelect?.addEventListener('input', updateDepositSummary);
 serviceSelect?.addEventListener('change', updateDepositSummary);
 citySelect?.addEventListener('change', validateServiceArea);
 preferredDate?.addEventListener('input', validatePreferredDate);
 appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
+window.updateEastCordServicePrice = updateDepositSummary;
 
 hideLoginRequiredBlock();
 setMinimumDate();
+ensureServiceDebugPanel();
 updateDepositSummary();
 validatePreferredDate();
 validateServiceArea();
