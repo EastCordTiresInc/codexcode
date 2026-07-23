@@ -257,7 +257,7 @@ async function handleAppointmentSubmit(event) {
   }
 
   if (!window.EastCordAccount?.isAuthConfigured?.()) {
-    showAppointmentMessage(window.EastCordAccount?.setupMessage || 'Account system is being connected. Please check back soon.');
+    showAppointmentMessage(window.EastCordAccount?.setupMessage || 'Account signup is being connected. Please contact EastCord Tires or check back soon.');
     logDeveloperError('Add Appointment attempted before Supabase env vars were configured.', window.EASTCORD_AUTH_CONFIG || {});
     return;
   }
@@ -282,7 +282,7 @@ async function handleAppointmentSubmit(event) {
     const cart = window.EastCordAccount.getCart().filter((item) => item.type !== 'appointment');
     cart.push(appointmentItem);
     window.EastCordAccount.saveCart(cart);
-    window.location.href = '/cart';
+    window.location.href = '/cart.html';
   } catch (error) {
     logDeveloperError('Appointment booking save failed.', error);
     showAppointmentMessage(error.message || 'Booking could not be saved. Please try again.');
