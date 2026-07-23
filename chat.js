@@ -435,6 +435,22 @@ function renderFooterLegalLinks() {
   `;
 }
 
+function ensureHomepageAccountLinks() {
+  const nav = document.querySelector('.main-nav');
+  if (!nav || nav.querySelector('[data-homepage-account-links]')) return;
+
+  const links = document.createElement('span');
+  links.className = 'auth-nav-group';
+  links.dataset.homepageAccountLinks = 'true';
+  links.innerHTML = `
+    <a href="/signup.html">Sign Up</a>
+    <a href="/login.html">Log In</a>
+    <a href="/cart.html">Cart</a>
+  `;
+
+  nav.appendChild(links);
+}
+
 chatOptions?.addEventListener('click', (event) => {
   const actionButton = event.target.closest('[data-chat-action]');
   if (!actionButton) return;
@@ -455,4 +471,5 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') setChatOpen(false);
 });
 
+ensureHomepageAccountLinks();
 renderFooterLegalLinks();
