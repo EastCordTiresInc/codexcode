@@ -42,7 +42,7 @@ let selectedServiceState = {
   depositAmount: 8,
   remainingBalance: 32,
 };
-let serviceDebugPanel;
+let serviceDebugPanel = document.querySelector('[data-service-debug]');
 
 const money = new Intl.NumberFormat('en-CA', {
   style: 'currency',
@@ -67,6 +67,7 @@ function hideLoginRequiredBlock() {
 }
 
 function ensureServiceDebugPanel() {
+  serviceDebugPanel = serviceDebugPanel || document.querySelector('[data-service-debug]');
   if (serviceDebugPanel || !serviceSelect?.parentElement) return serviceDebugPanel;
 
   serviceDebugPanel = document.createElement('div');
