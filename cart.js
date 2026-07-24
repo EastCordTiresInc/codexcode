@@ -6,6 +6,11 @@ const cartMessage = document.querySelector('[data-cart-message]');
 const checkoutButton = document.querySelector('[data-checkout-button]');
 const clearCartButton = document.querySelector('[data-clear-cart]');
 const authBlock = document.querySelector('[data-checkout-auth-block]');
+const agreementCheckbox = document.querySelector('[data-agreement-checkbox]');
+const agreementOpenButton = document.querySelector('[data-agreement-open]');
+const agreementModal = document.querySelector('[data-agreement-modal]');
+const agreementCloseButtons = Array.from(document.querySelectorAll('[data-agreement-close]'));
+const agreementPanel = agreementModal?.querySelector('.agreement-modal-panel');
 
 function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
@@ -15,6 +20,29 @@ function showCartMessage(message, type = 'error') {
   if (!cartMessage) return;
   cartMessage.textContent = message;
   cartMessage.dataset.messageType = type;
+}
+
+function isAgreementAccepted() {
+  return Boolean(agreementCheckbox?.checked);
+}
+
+function updateCheckoutButtonState() {
+  if (!checkoutButton) return;
+  checkoutButton.disabled = !isAgreementAccepted();
+}
+
+function openAgreementModal() {
+  if (!agreementModal) return;
+  agreementModal.hidden = false;
+  document.body.classList.add('agreement-modal-open');
+  window.setTimeout(() => agreementPanel?.focus(), 0);
+}
+
+function closeAgreementModal() {
+  if (!agreementModal) return;
+  agreementModal.hidden = true;
+  document.body.classList.remove('agreement-modal-open');
+  agreementOpenButton?.focus();
 }
 
 function getAppointmentItems() {
@@ -112,6 +140,8 @@ async function renderCart() {
   if (!window.EastCordAccount.isAuthConfigured()) {
     showCartMessage(window.EastCordAccount.setupMessage || 'Account system is being connected. Please check back soon.', 'info');
   }
+
+  updateCheckoutButtonState();
 }
 
 function buildNetlifyFormData(item, profile) {
@@ -177,6 +207,11 @@ async function ensureAllSupabaseBookings(items, profile) {
 async function startCheckout() {
   const items = getAppointmentItems();
 
+  if (!isAgreementAccepted()) {
+    showCartMessage('Please review and accept the Mobile Service Agreement before checkout.');
+    return;
+  }
+
   if (!window.EastCordAccount.isAuthConfigured()) {
     showCartMessage(window.EastCordAccount.setupMessage || 'Account system is being connected. Please check back soon.');
     logDeveloperError('Checkout attempted before Supabase env vars were configured.', window.EASTCORD_AUTH_CONFIG || {});
@@ -238,15 +273,22 @@ async function startCheckout() {
   } catch (error) {
     logDeveloperError('Checkout could not be started.', error);
     showCartMessage(error.message || 'Online checkout is being connected. Please check back soon.');
-    checkoutButton.disabled = false;
     checkoutButton.textContent = 'Checkout with Stripe';
+    updateCheckoutButtonState();
   }
 }
 
+agreementCheckbox?.addEventListener('change', updateCheckoutButtonState);
+agreementOpenButton?.addEventListener('click', openAgreementModal);
+agreementCloseButtons.forEach((button) => button.addEventListener('click', closeAgreementModal));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && agreementModal && !agreementModal.hidden) closeAgreementModal();
+});
 checkoutButton?.addEventListener('click', startCheckout);
 clearCartButton?.addEventListener('click', () => {
   window.EastCordAccount.clearCart();
   renderCart();
 });
 
+updateCheckoutButtonState();
 renderCart();
