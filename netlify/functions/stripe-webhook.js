@@ -78,7 +78,7 @@ function buildUpdatePayload(row, session) {
   if (columns.has('payment_status')) payload.payment_status = 'paid_deposit';
   if (columns.has('stripe_session_id')) payload.stripe_session_id = session.id;
   if (columns.has('updated_at')) payload.updated_at = new Date().toISOString();
-  if (columns.has('booking_status')) payload.booking_status = 'Pending Confirmation';
+  if (columns.has('booking_status')) payload.booking_status = 'Confirmed';
 
   return payload;
 }
@@ -185,6 +185,7 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
     ok: true,
     bookingId: updatedRow.id,
     paymentStatus: updatedRow.payment_status ?? null,
+    bookingStatus: updatedRow.booking_status ?? null,
     updatedColumns: Object.keys(updatePayload),
   };
 }
@@ -275,5 +276,6 @@ exports.handler = async (event) => {
     bookingIds: results.map((result) => result.bookingId),
     updatedCount: results.length,
     paymentStatus: 'paid_deposit',
+    bookingStatus: 'Confirmed',
   });
 };
