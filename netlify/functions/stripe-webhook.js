@@ -27,6 +27,27 @@ function getSupabaseAdmin() {
   });
 }
 
+function getSessionBookingIds(session) {
+  const ids = [];
+  const rawIds = session.metadata?.supabase_booking_ids;
+
+  if (rawIds) {
+    try {
+      const parsed = JSON.parse(rawIds);
+      if (Array.isArray(parsed)) ids.push(...parsed.filter(Boolean));
+    } catch (error) {
+      console.error('[EastCord appointment automation] Could not parse metadata.supabase_booking_ids.', {
+        sessionId: session.id,
+        rawIds,
+        message: error.message,
+      });
+    }
+  }
+
+  if (session.metadata?.supabase_booking_id) ids.push(session.metadata.supabase_booking_id);
+  return Array.from(new Set(ids.map((id) => String(id).trim()).filter(Boolean)));
+}
+
 function supabaseErrorPayload(error) {
   return {
     code: error?.code || '',
@@ -60,6 +81,112 @@ function buildUpdatePayload(row, session) {
   if (columns.has('booking_status')) payload.booking_status = 'Pending Confirmation';
 
   return payload;
+}
+
+async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session }) {
+  const { data: existingRow, error: readError } = await supabaseAdmin
+    .from('appointment_bookings')
+    .select('*')
+    .eq('id', bookingId)
+    .maybeSingle();
+
+  if (readError) {
+    const diagnostics = buildDiagnostics({
+      bookingId,
+      sessionId: session.id,
+      row: null,
+      rowFound: false,
+      error: readError,
+      updatePayload: null,
+    });
+    console.error('[EastCord appointment automation] Supabase booking row read failed before webhook update.', diagnostics);
+    return { ok: false, statusCode: 500, diagnostics };
+  }
+
+  if (!existingRow) {
+    const diagnostics = buildDiagnostics({
+      bookingId,
+      sessionId: session.id,
+      row: null,
+      rowFound: false,
+      error: null,
+      updatePayload: null,
+    });
+    console.error('[EastCord appointment automation] Supabase booking row was not found before webhook update.', diagnostics);
+    return { ok: false, statusCode: 404, diagnostics };
+  }
+
+  console.log('[EastCord appointment automation] Supabase booking row found before webhook update.', {
+    bookingId,
+    sessionId: session.id,
+    currentPaymentStatus: existingRow.payment_status ?? null,
+    currentBookingStatus: existingRow.booking_status ?? null,
+    currentStripeSessionId: existingRow.stripe_session_id ?? null,
+    availableColumns: Object.keys(existingRow),
+  });
+
+  const updatePayload = buildUpdatePayload(existingRow, session);
+
+  if (!Object.keys(updatePayload).length) {
+    const diagnostics = buildDiagnostics({
+      bookingId,
+      sessionId: session.id,
+      row: existingRow,
+      rowFound: true,
+      error: null,
+      updatePayload,
+    });
+    console.error('[EastCord appointment automation] No supported payment columns exist on appointment_bookings.', diagnostics);
+    return { ok: false, statusCode: 500, diagnostics };
+  }
+
+  const { data: updatedRow, error: updateError } = await supabaseAdmin
+    .from('appointment_bookings')
+    .update(updatePayload)
+    .eq('id', bookingId)
+    .select(Object.keys(updatePayload).concat('id').join(','))
+    .maybeSingle();
+
+  if (updateError) {
+    const diagnostics = buildDiagnostics({
+      bookingId,
+      sessionId: session.id,
+      row: existingRow,
+      rowFound: true,
+      error: updateError,
+      updatePayload,
+    });
+    console.error('[EastCord appointment automation] Supabase payment status update failed.', diagnostics);
+    return { ok: false, statusCode: 500, diagnostics };
+  }
+
+  if (!updatedRow) {
+    const diagnostics = buildDiagnostics({
+      bookingId,
+      sessionId: session.id,
+      row: existingRow,
+      rowFound: true,
+      error: null,
+      updatePayload,
+    });
+    console.error('[EastCord appointment automation] Supabase payment status update returned no row.', diagnostics);
+    return { ok: false, statusCode: 404, diagnostics };
+  }
+
+  console.log('[EastCord appointment automation] Supabase payment status update success.', {
+    bookingId: updatedRow.id,
+    paymentStatus: updatedRow.payment_status ?? null,
+    bookingStatus: updatedRow.booking_status ?? null,
+    stripeSessionId: updatedRow.stripe_session_id ?? null,
+    updatedColumns: Object.keys(updatePayload),
+  });
+
+  return {
+    ok: true,
+    bookingId: updatedRow.id,
+    paymentStatus: updatedRow.payment_status ?? null,
+    updatedColumns: Object.keys(updatePayload),
+  };
 }
 
 exports.handler = async (event) => {
@@ -114,123 +241,39 @@ exports.handler = async (event) => {
   }
 
   const session = stripeEvent.data.object;
-  const bookingId = session.metadata?.supabase_booking_id;
+  const bookingIds = getSessionBookingIds(session);
 
   console.log('[EastCord appointment automation] Stripe checkout.session.completed received.', {
     sessionId: session.id,
-    bookingIdFound: Boolean(bookingId),
+    bookingIdsFound: bookingIds.length,
     paymentStatus: session.payment_status,
   });
 
-  if (!bookingId) {
-    console.error('[EastCord appointment automation] Missing metadata.supabase_booking_id on Stripe session.', {
+  if (!bookingIds.length) {
+    console.error('[EastCord appointment automation] Missing Supabase booking id metadata on Stripe session.', {
       sessionId: session.id,
     });
     return json(400, { message: 'Missing Supabase booking id in Stripe metadata.' });
   }
 
-  const { data: existingRow, error: readError } = await supabaseAdmin
-    .from('appointment_bookings')
-    .select('*')
-    .eq('id', bookingId)
-    .maybeSingle();
-
-  if (readError) {
-    const diagnostics = buildDiagnostics({
-      bookingId,
-      sessionId: session.id,
-      row: null,
-      rowFound: false,
-      error: readError,
-      updatePayload: null,
-    });
-    console.error('[EastCord appointment automation] Supabase booking row read failed before webhook update.', diagnostics);
-    return json(500, { message: 'Booking payment status could not be updated.', diagnostics });
+  const results = [];
+  for (const bookingId of bookingIds) {
+    results.push(await updateBookingPaymentStatus({ supabaseAdmin, bookingId, session }));
   }
 
-  if (!existingRow) {
-    const diagnostics = buildDiagnostics({
-      bookingId,
-      sessionId: session.id,
-      row: null,
-      rowFound: false,
-      error: null,
-      updatePayload: null,
+  const failed = results.filter((result) => !result.ok);
+  if (failed.length) {
+    return json(failed[0].statusCode || 500, {
+      message: 'Booking payment status could not be updated.',
+      results,
     });
-    console.error('[EastCord appointment automation] Supabase booking row was not found before webhook update.', diagnostics);
-    return json(404, { message: 'Booking row was not found for Stripe session.', diagnostics });
   }
-
-  console.log('[EastCord appointment automation] Supabase booking row found before webhook update.', {
-    bookingId,
-    sessionId: session.id,
-    currentPaymentStatus: existingRow.payment_status ?? null,
-    currentBookingStatus: existingRow.booking_status ?? null,
-    currentStripeSessionId: existingRow.stripe_session_id ?? null,
-    availableColumns: Object.keys(existingRow),
-  });
-
-  const updatePayload = buildUpdatePayload(existingRow, session);
-
-  if (!Object.keys(updatePayload).length) {
-    const diagnostics = buildDiagnostics({
-      bookingId,
-      sessionId: session.id,
-      row: existingRow,
-      rowFound: true,
-      error: null,
-      updatePayload,
-    });
-    console.error('[EastCord appointment automation] No supported payment columns exist on appointment_bookings.', diagnostics);
-    return json(500, { message: 'No supported appointment booking payment columns exist.', diagnostics });
-  }
-
-  const { data: updatedRow, error: updateError } = await supabaseAdmin
-    .from('appointment_bookings')
-    .update(updatePayload)
-    .eq('id', bookingId)
-    .select(Object.keys(updatePayload).concat('id').join(','))
-    .maybeSingle();
-
-  if (updateError) {
-    const diagnostics = buildDiagnostics({
-      bookingId,
-      sessionId: session.id,
-      row: existingRow,
-      rowFound: true,
-      error: updateError,
-      updatePayload,
-    });
-    console.error('[EastCord appointment automation] Supabase payment status update failed.', diagnostics);
-    return json(500, { message: 'Booking payment status could not be updated.', diagnostics });
-  }
-
-  if (!updatedRow) {
-    const diagnostics = buildDiagnostics({
-      bookingId,
-      sessionId: session.id,
-      row: existingRow,
-      rowFound: true,
-      error: null,
-      updatePayload,
-    });
-    console.error('[EastCord appointment automation] Supabase payment status update returned no row.', diagnostics);
-    return json(404, { message: 'Booking row was not returned after update.', diagnostics });
-  }
-
-  console.log('[EastCord appointment automation] Supabase payment status update success.', {
-    bookingId: updatedRow.id,
-    paymentStatus: updatedRow.payment_status ?? null,
-    bookingStatus: updatedRow.booking_status ?? null,
-    stripeSessionId: updatedRow.stripe_session_id ?? null,
-    updatedColumns: Object.keys(updatePayload),
-  });
 
   return json(200, {
     received: true,
     eventType: stripeEvent.type,
-    bookingId: updatedRow.id,
-    paymentStatus: updatedRow.payment_status ?? null,
-    updatedColumns: Object.keys(updatePayload),
+    bookingIds: results.map((result) => result.bookingId),
+    updatedCount: results.length,
+    paymentStatus: 'paid_deposit',
   });
 };
