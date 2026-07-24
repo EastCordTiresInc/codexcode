@@ -21,10 +21,10 @@ function getAppointmentItems() {
   return window.EastCordAccount.getCart().filter((item) => item.type === 'appointment');
 }
 
-function renderCartItem(item) {
+function renderCartItem(item, index) {
   return `
     <article class="cart-line">
-      <span>Appointment service</span>
+      <span>Vehicle ${index + 1} appointment</span>
       <strong>${item.serviceName}</strong>
       <p>${item.vehicleYear} ${item.vehicleMake} ${item.vehicleModel} - ${item.tireSize}</p>
       <p>${item.city}, ${item.postalCode} - ${item.preferredDate} at ${item.preferredTimeWindow}</p>
@@ -112,6 +112,14 @@ async function ensureSupabaseBooking(item, profile) {
   return updatedItem;
 }
 
+async function ensureAllSupabaseBookings(items, profile) {
+  const savedItems = [];
+  for (const item of items) {
+    savedItems.push(await ensureSupabaseBooking(item, profile));
+  }
+  return savedItems;
+}
+
 async function startCheckout() {
   const items = getAppointmentItems();
 
@@ -139,10 +147,12 @@ async function startCheckout() {
     checkoutButton.textContent = 'Preparing Stripe Checkout...';
     showCartMessage('Saving booking details and preparing Stripe Checkout...', 'info');
 
-    const bookingItem = await ensureSupabaseBooking(items[0], profile);
+    const bookingItems = await ensureAllSupabaseBookings(items, profile);
 
-    submitNetlifyFormBackup(buildNetlifyFormData(bookingItem, profile)).catch((error) => {
-      logDeveloperError('Netlify Forms backup failed after Supabase booking save.', error);
+    bookingItems.forEach((bookingItem) => {
+      submitNetlifyFormBackup(buildNetlifyFormData(bookingItem, profile)).catch((error) => {
+        logDeveloperError('Netlify Forms backup failed after Supabase booking save.', error);
+      });
     });
 
     const token = await window.EastCordAccount.getAccessToken();
@@ -152,7 +162,7 @@ async function startCheckout() {
         'Content-Type': 'application/json',
         Authorization: token ? `Bearer ${token}` : '',
       },
-      body: JSON.stringify({ ...bookingItem, customer: profile }),
+      body: JSON.stringify({ items: bookingItems, customer: profile }),
     });
     const data = await response.json().catch(() => ({}));
 
