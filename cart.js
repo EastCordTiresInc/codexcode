@@ -26,6 +26,11 @@ function isAgreementAccepted() {
   return Boolean(agreementCheckbox?.checked);
 }
 
+function resetAgreement() {
+  if (agreementCheckbox) agreementCheckbox.checked = false;
+  updateCheckoutButtonState();
+}
+
 function updateCheckoutButtonState() {
   if (!checkoutButton) return;
   checkoutButton.disabled = !isAgreementAccepted();
@@ -112,6 +117,9 @@ function renderCartItem(item, index) {
       <p>${item.city}, ${item.postalCode} - ${item.preferredDate} at ${item.preferredTimeWindow}</p>
       <p>Starting price: ${window.EastCordAccount.money(item.startingPrice)} | Deposit due today: ${window.EastCordAccount.money(item.depositAmount)} | Remaining on-site: ${window.EastCordAccount.money(item.remainingBalance)}</p>
       <p>Your appointment will be confirmed automatically after successful deposit payment.</p>
+      <div class="account-actions cart-line-actions">
+        <button class="button button-secondary" type="button" data-remove-cart-item="${item.id}">Remove this appointment</button>
+      </div>
     </article>
   `;
 }
@@ -142,6 +150,21 @@ async function renderCart() {
   }
 
   updateCheckoutButtonState();
+}
+
+function removeCartItem(itemId) {
+  const currentCart = window.EastCordAccount.getCart();
+  const nextCart = currentCart.filter((item) => item.id !== itemId);
+
+  if (nextCart.length === currentCart.length) {
+    showCartMessage('This appointment could not be found in your cart. Please refresh and try again.');
+    return;
+  }
+
+  window.EastCordAccount.saveCart(nextCart);
+  resetAgreement();
+  showCartMessage('Appointment removed from cart.', 'success');
+  renderCart();
 }
 
 function buildNetlifyFormData(item, profile) {
@@ -278,6 +301,11 @@ async function startCheckout() {
   }
 }
 
+cartItems?.addEventListener('click', (event) => {
+  const removeButton = event.target.closest('[data-remove-cart-item]');
+  if (!removeButton) return;
+  removeCartItem(removeButton.dataset.removeCartItem);
+});
 agreementCheckbox?.addEventListener('change', updateCheckoutButtonState);
 agreementOpenButton?.addEventListener('click', openAgreementModal);
 agreementCloseButtons.forEach((button) => button.addEventListener('click', closeAgreementModal));
@@ -287,6 +315,8 @@ document.addEventListener('keydown', (event) => {
 checkoutButton?.addEventListener('click', startCheckout);
 clearCartButton?.addEventListener('click', () => {
   window.EastCordAccount.clearCart();
+  resetAgreement();
+  showCartMessage('Cart cleared.', 'success');
   renderCart();
 });
 
