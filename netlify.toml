@@ -6,29 +6,71 @@
 [[redirects]]
   from = "/signup"
   to = "/signup.html"
-  status = 200
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/signup/"
+  to = "/signup.html"
+  status = 301
+  force = true
 
 [[redirects]]
   from = "/login"
   to = "/login.html"
-  status = 200
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/login/"
+  to = "/login.html"
+  status = 301
+  force = true
 
 [[redirects]]
   from = "/account"
   to = "/account.html"
-  status = 200
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/account/"
+  to = "/account.html"
+  status = 301
+  force = true
 
 [[redirects]]
   from = "/cart"
   to = "/cart.html"
-  status = 200
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/cart/"
+  to = "/cart.html"
+  status = 301
+  force = true
 
 [[redirects]]
   from = "/appointment-success"
   to = "/appointment-success.html"
-  status = 200
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/appointment-success/"
+  to = "/appointment-success.html"
+  status = 301
+  force = true
 
 [[redirects]]
   from = "/appointment-cancelled"
   to = "/appointment-cancelled.html"
-  status = 200
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/appointment-cancelled/"
+  to = "/appointment-cancelled.html"
+  status = 301
+  force = true
