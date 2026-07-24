@@ -49,6 +49,19 @@ function goToRedirectTarget(defaultTarget = '/account.html') {
   window.location.href = redirectTo;
 }
 
+function preserveAuthSwitchLinks() {
+  const redirectTarget = getRedirectTarget('');
+  if (!redirectTarget) return;
+
+  document.querySelectorAll('a[href="/signup.html"], a[href="signup.html"]').forEach((link) => {
+    link.href = `/signup.html?redirect=${encodeURIComponent(redirectTarget)}`;
+  });
+
+  document.querySelectorAll('a[href="/login.html"], a[href="login.html"]').forEach((link) => {
+    link.href = `/login.html?redirect=${encodeURIComponent(redirectTarget)}`;
+  });
+}
+
 function getFriendlySupabaseError(error, fallback = 'Signup could not be completed right now. Please try again shortly.') {
   const message = String(error?.message || '').trim();
   const lowerMessage = message.toLowerCase();
@@ -607,6 +620,7 @@ window.EastCordAccount = {
 
 document.addEventListener('DOMContentLoaded', () => {
   logAuthConfigStatus();
+  preserveAuthSwitchLinks();
   bindAuthForms();
   bindLogoutButtons();
   hydrateAccountPage();
