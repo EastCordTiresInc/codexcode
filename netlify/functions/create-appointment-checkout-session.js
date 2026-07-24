@@ -3,6 +3,8 @@ const { createClient } = require('@supabase/supabase-js');
 
 const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
+const MIN_ADVANCE_MINUTES = 120;
+const SERVICE_TIME_ZONE = 'America/Toronto';
 
 const SERVICES = {
   'seasonal-changeover-rims': { name: 'Seasonal Changeover - All 4 Tires Pre-Mounted on Rims', startingPrice: 40 },
@@ -76,13 +78,6 @@ function normalizeBookingItems(payload) {
   return [payload];
 }
 
-function formatDateInputValue(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 function getTimeWindowStartMinutes(value) {
   const startText = String(value || '').split('-')[0].trim();
   const match = startText.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -98,18 +93,51 @@ function getTimeWindowStartMinutes(value) {
   return (hours * 60) + minutes;
 }
 
-function isPastAppointmentSlot(booking) {
-  if (!booking.preferredDate || !booking.preferredTimeWindow) return true;
-  const selectedDate = new Date(`${booking.preferredDate}T00:00:00`);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (Number.isNaN(selectedDate.getTime()) || selectedDate < today) return true;
-  if (booking.preferredDate !== formatDateInputValue(new Date())) return false;
+function getTimeZoneOffsetMs(date, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date).reduce((values, part) => {
+    if (part.type !== 'literal') values[part.type] = Number(part.value);
+    return values;
+  }, {});
 
+  const zonedAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  return zonedAsUtc - date.getTime();
+}
+
+function zonedTimeToDate(dateValue, startMinutes) {
+  const [year, month, day] = String(dateValue || '').split('-').map(Number);
+  if (!year || !month || !day || startMinutes === null) return null;
+
+  const hours = Math.floor(startMinutes / 60);
+  const minutes = startMinutes % 60;
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+  const offset = getTimeZoneOffsetMs(utcGuess, SERVICE_TIME_ZONE);
+  return new Date(utcGuess.getTime() - offset);
+}
+
+function getAppointmentStartDate(booking) {
   const startMinutes = getTimeWindowStartMinutes(booking.preferredTimeWindow);
-  const now = new Date();
-  const nowMinutes = (now.getHours() * 60) + now.getMinutes();
-  return startMinutes !== null && startMinutes <= nowMinutes;
+  return zonedTimeToDate(booking.preferredDate, startMinutes);
+}
+
+function isPastAppointmentSlot(booking) {
+  const startDate = getAppointmentStartDate(booking);
+  if (!startDate || Number.isNaN(startDate.getTime())) return true;
+  return startDate.getTime() <= Date.now();
+}
+
+function isLessThanMinimumAdvance(booking) {
+  const startDate = getAppointmentStartDate(booking);
+  if (!startDate || Number.isNaN(startDate.getTime())) return true;
+  return startDate.getTime() - Date.now() < MIN_ADVANCE_MINUTES * 60 * 1000;
 }
 
 function getSlotKey(date, timeWindow) {
@@ -122,6 +150,10 @@ function validateCartSlotAvailability(bookings) {
   for (const booking of bookings) {
     if (isPastAppointmentSlot(booking)) {
       return { valid: false, reason: 'past_time', message: SLOT_UNAVAILABLE_MESSAGE };
+    }
+
+    if (isLessThanMinimumAdvance(booking)) {
+      return { valid: false, reason: 'minimum_advance_time', message: SLOT_UNAVAILABLE_MESSAGE };
     }
 
     const slotKey = getSlotKey(booking.preferredDate, booking.preferredTimeWindow);
@@ -316,7 +348,7 @@ function validateBookingFields(booking, customer) {
     return 'EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.';
   }
 
-  if (isPastAppointmentSlot(booking)) {
+  if (isPastAppointmentSlot(booking) || isLessThanMinimumAdvance(booking)) {
     return 'Please choose a valid future appointment date and time window.';
   }
 
