@@ -2,6 +2,7 @@ const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 
 const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
+const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
 
 const SERVICES = {
   'seasonal-changeover-rims': { name: 'Seasonal Changeover - All 4 Tires Pre-Mounted on Rims', startingPrice: 40 },
@@ -73,6 +74,103 @@ function moneyAmount(value) {
 function normalizeBookingItems(payload) {
   if (Array.isArray(payload.items) && payload.items.length) return payload.items;
   return [payload];
+}
+
+function formatDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getTimeWindowStartMinutes(value) {
+  const startText = String(value || '').split('-')[0].trim();
+  const match = startText.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const period = match[3].toUpperCase();
+
+  if (period === 'AM' && hours === 12) hours = 0;
+  if (period === 'PM' && hours !== 12) hours += 12;
+
+  return (hours * 60) + minutes;
+}
+
+function isPastAppointmentSlot(booking) {
+  if (!booking.preferredDate || !booking.preferredTimeWindow) return true;
+  const selectedDate = new Date(`${booking.preferredDate}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (Number.isNaN(selectedDate.getTime()) || selectedDate < today) return true;
+  if (booking.preferredDate !== formatDateInputValue(new Date())) return false;
+
+  const startMinutes = getTimeWindowStartMinutes(booking.preferredTimeWindow);
+  const now = new Date();
+  const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+  return startMinutes !== null && startMinutes <= nowMinutes;
+}
+
+function getSlotKey(date, timeWindow) {
+  return `${date || ''}__${timeWindow || ''}`;
+}
+
+function validateCartSlotAvailability(bookings) {
+  const seenSlots = new Set();
+
+  for (const booking of bookings) {
+    if (isPastAppointmentSlot(booking)) {
+      return { valid: false, reason: 'past_time', message: SLOT_UNAVAILABLE_MESSAGE };
+    }
+
+    const slotKey = getSlotKey(booking.preferredDate, booking.preferredTimeWindow);
+    if (seenSlots.has(slotKey)) {
+      return { valid: false, reason: 'duplicate_cart_time', message: SLOT_UNAVAILABLE_MESSAGE };
+    }
+    seenSlots.add(slotKey);
+  }
+
+  return { valid: true };
+}
+
+async function findPaidSlotConflicts(supabaseAdmin, preparedItems) {
+  if (!supabaseAdmin) return [];
+
+  const dates = Array.from(new Set(preparedItems.map((item) => item.booking.preferredDate).filter(Boolean)));
+  const activeBookingIds = new Set(preparedItems.map((item) => item.effectiveBookingId).filter(Boolean));
+  const requestedSlots = new Set(preparedItems.map((item) => getSlotKey(item.booking.preferredDate, item.booking.preferredTimeWindow)));
+  const conflicts = [];
+
+  for (const date of dates) {
+    const { data, error } = await supabaseAdmin
+      .from('appointment_bookings')
+      .select('id, preferred_date, preferred_time_window, payment_status')
+      .eq('preferred_date', date)
+      .eq('payment_status', 'paid_deposit');
+
+    if (error) {
+      logDeveloperError('Paid appointment slot lookup failed before Stripe checkout.', {
+        date,
+        error,
+      });
+      return [{ reason: 'supabase_slot_lookup_failed', date }];
+    }
+
+    (data || []).forEach((row) => {
+      const slotKey = getSlotKey(row.preferred_date, row.preferred_time_window);
+      if (requestedSlots.has(slotKey) && !activeBookingIds.has(row.id)) {
+        conflicts.push({
+          reason: 'paid_slot_conflict',
+          bookingId: row.id,
+          date: row.preferred_date,
+          timeWindow: row.preferred_time_window,
+        });
+      }
+    });
+  }
+
+  return conflicts;
 }
 
 function buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError, rowFound, reason }) {
@@ -217,11 +315,8 @@ function validateBookingFields(booking, customer) {
     return 'EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.';
   }
 
-  const selectedDate = new Date(`${booking.preferredDate}T00:00:00`);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (Number.isNaN(selectedDate.getTime()) || selectedDate < today) {
-    return 'Please choose today or a future appointment date.';
+  if (isPastAppointmentSlot(booking)) {
+    return 'Please choose a valid future appointment date and time window.';
   }
 
   return '';
@@ -263,6 +358,12 @@ exports.handler = async (event) => {
     return json(401, { message: 'Please log in before checkout.' });
   }
 
+  const cartSlotValidation = validateCartSlotAvailability(bookingItems);
+  if (!cartSlotValidation.valid) {
+    logDeveloperError('Checkout stopped because cart slot validation failed.', cartSlotValidation);
+    return json(409, { message: SLOT_UNAVAILABLE_MESSAGE, reason: cartSlotValidation.reason });
+  }
+
   const supabaseAdmin = getSupabaseAdmin();
   const verifiedUser = await getVerifiedUser(event, supabaseAdmin);
 
@@ -299,6 +400,12 @@ exports.handler = async (event) => {
       effectiveBookingId: lookupResult?.effectiveBookingId || booking.bookingId,
       lookupDiagnostics: lookupResult?.diagnostics || null,
     });
+  }
+
+  const paidSlotConflicts = await findPaidSlotConflicts(supabaseAdmin, preparedItems);
+  if (paidSlotConflicts.length) {
+    logDeveloperError('Checkout stopped because one or more slots are already paid/booked.', paidSlotConflicts);
+    return json(409, { message: SLOT_UNAVAILABLE_MESSAGE, conflicts: paidSlotConflicts });
   }
 
   const siteUrl = getSiteUrl(event);
