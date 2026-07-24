@@ -37,6 +37,8 @@
     els.depositField = document.querySelector('[data-hidden-deposit-price]');
     els.balanceField = document.querySelector('[data-hidden-balance-price]');
     els.preferredDate = document.querySelector('[data-preferred-date]');
+    els.preferredTimeWindow = els.appointmentForm?.elements.namedItem('Preferred Time Window');
+    els.todayTimeWarning = document.querySelector('[data-today-time-warning]');
     els.appointmentMessage = document.querySelector('[data-appointment-message]');
     els.submitButton = document.querySelector('.appointment-submit');
     els.stepPanels = Array.from(document.querySelectorAll('[data-booking-step]'));
@@ -131,18 +133,132 @@
     els.preferredDate.min = formatDateInputValue(today);
   }
 
+  function isSameInputDate(dateValue, date) {
+    return dateValue === formatDateInputValue(date);
+  }
+
+  function getTimeWindowStartMinutes(value) {
+    const startText = String(value || '').split('-')[0].trim();
+    const match = startText.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return null;
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const period = match[3].toUpperCase();
+
+    if (period === 'AM' && hours === 12) hours = 0;
+    if (period === 'PM' && hours !== 12) hours += 12;
+
+    return (hours * 60) + minutes;
+  }
+
+  function ensureTodayTimeWarning() {
+    if (els.todayTimeWarning || !els.preferredTimeWindow) return els.todayTimeWarning;
+
+    const warning = document.createElement('p');
+    warning.className = 'appointment-service-area-warning';
+    warning.dataset.todayTimeWarning = '';
+    warning.hidden = true;
+    warning.textContent = 'No appointment times are available for today. Please choose the next available date.';
+
+    const fieldGrid = els.preferredTimeWindow.closest('.appointment-field-grid');
+    if (fieldGrid) fieldGrid.insertAdjacentElement('afterend', warning);
+    els.todayTimeWarning = warning;
+    return warning;
+  }
+
+  function updateAvailableTimeWindows() {
+    if (!els.preferredDate || !els.preferredTimeWindow) return true;
+
+    const selectedDate = els.preferredDate.value;
+    const warning = ensureTodayTimeWarning();
+    const options = Array.from(els.preferredTimeWindow.options).filter((option) => option.value);
+
+    options.forEach((option) => {
+      option.disabled = false;
+      option.hidden = false;
+    });
+    els.preferredTimeWindow.setCustomValidity('');
+    if (warning) warning.hidden = true;
+
+    if (!selectedDate) {
+      updateReviewSummary(state.currentService || getCurrentService());
+      return true;
+    }
+
+    const now = new Date();
+    const isToday = isSameInputDate(selectedDate, now);
+
+    if (!isToday) {
+      updateReviewSummary(state.currentService || getCurrentService());
+      return true;
+    }
+
+    const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+    let availableCount = 0;
+
+    options.forEach((option) => {
+      const startMinutes = getTimeWindowStartMinutes(option.value);
+      const isAvailable = startMinutes !== null && startMinutes > nowMinutes;
+      option.disabled = !isAvailable;
+      option.hidden = !isAvailable;
+      if (isAvailable) availableCount += 1;
+    });
+
+    const selectedOption = els.preferredTimeWindow.options[els.preferredTimeWindow.selectedIndex];
+    if (selectedOption?.disabled) els.preferredTimeWindow.value = '';
+
+    if (!availableCount) {
+      els.preferredTimeWindow.value = '';
+      els.preferredTimeWindow.setCustomValidity('No appointment times are available for today. Please choose the next available date.');
+      if (warning) warning.hidden = false;
+      updateReviewSummary(state.currentService || getCurrentService());
+      return false;
+    }
+
+    updateReviewSummary(state.currentService || getCurrentService());
+    return true;
+  }
+
   function validatePreferredDate() {
-    if (!els.preferredDate || !els.preferredDate.value) return true;
+    if (!els.preferredDate || !els.preferredDate.value) {
+      updateAvailableTimeWindows();
+      return true;
+    }
+
     const selectedDate = new Date(`${els.preferredDate.value}T00:00:00`);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     if (selectedDate < today) {
       els.preferredDate.setCustomValidity('Please choose today or a future date.');
+      updateAvailableTimeWindows();
       return false;
     }
 
     els.preferredDate.setCustomValidity('');
+    return updateAvailableTimeWindows();
+  }
+
+  function validatePreferredTimeWindow() {
+    if (!els.preferredDate || !els.preferredTimeWindow) return true;
+    updateAvailableTimeWindows();
+
+    if (!els.preferredDate.value || !els.preferredTimeWindow.value) return true;
+    const now = new Date();
+    if (!isSameInputDate(els.preferredDate.value, now)) return true;
+
+    const startMinutes = getTimeWindowStartMinutes(els.preferredTimeWindow.value);
+    const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+
+    if (startMinutes !== null && startMinutes <= nowMinutes) {
+      els.preferredTimeWindow.value = '';
+      els.preferredTimeWindow.setCustomValidity('Please choose a future time window.');
+      updateReviewSummary(state.currentService || getCurrentService());
+      return false;
+    }
+
+    els.preferredTimeWindow.setCustomValidity('');
     return true;
   }
 
@@ -188,7 +304,8 @@
 
   function validateStep(stepIndex) {
     updateServicePricing(getCurrentService());
-    validatePreferredDate();
+    const dateIsValid = validatePreferredDate();
+    const timeIsValid = validatePreferredTimeWindow();
     validateServiceArea();
 
     if (stepIndex === 0 && !state.currentService?.id) {
@@ -205,6 +322,11 @@
 
     if (stepIndex === 2 && !validateServiceArea()) {
       els.citySelect?.reportValidity();
+      return false;
+    }
+
+    if (stepIndex === 3 && (!dateIsValid || !timeIsValid)) {
+      (els.preferredTimeWindow || els.preferredDate)?.reportValidity();
       return false;
     }
 
@@ -228,6 +350,7 @@
     });
     updateProgress();
     updateServicePricing(getCurrentService());
+    validatePreferredDate();
     showAppointmentMessage('', 'info');
     if (shouldFocus) els.appointmentForm?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -271,6 +394,10 @@
 
     if (!selectedService?.id) {
       throw new Error('Please choose a service.');
+    }
+
+    if (!validatePreferredDate() || !validatePreferredTimeWindow()) {
+      throw new Error('Please choose a valid future appointment date and time window.');
     }
 
     return {
@@ -317,6 +444,11 @@
 
     if (!validateServiceArea()) {
       showAppointmentMessage('EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.');
+      return;
+    }
+
+    if (!validatePreferredDate() || !validatePreferredTimeWindow()) {
+      showAppointmentMessage('Please choose a valid future appointment date and time window.');
       return;
     }
 
@@ -389,6 +521,8 @@
     });
     els.citySelect?.addEventListener('change', validateServiceArea);
     els.preferredDate?.addEventListener('input', validatePreferredDate);
+    els.preferredDate?.addEventListener('change', validatePreferredDate);
+    els.preferredTimeWindow?.addEventListener('change', validatePreferredTimeWindow);
     els.appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
 
     window.updateEastCordServicePrice = () => updateServicePricing(getCurrentService());
