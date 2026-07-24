@@ -2,6 +2,8 @@
   const serviceAreaCities = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
   const PENDING_APPOINTMENT_KEY = 'eastcord_pending_appointment_v1';
   const APPOINTMENT_RESTORE_URL = '/appointment.html?restore=appointment#appointment-booking';
+  const MIN_ADVANCE_MINUTES = 120;
+  const MIN_ADVANCE_MESSAGE = 'Appointments must be booked at least 2 hours in advance to allow technician scheduling and travel time.';
   const money = new Intl.NumberFormat('en-CA', {
     style: 'currency',
     currency: 'CAD',
@@ -62,14 +64,12 @@
 
   function getCurrentService() {
     const select = els.serviceSelect || document.getElementById('service-select');
-
     if (!select) {
       console.error('[EastCord appointment automation] service-select not found.');
       return null;
     }
 
     const option = select.options[select.selectedIndex];
-
     if (!option) {
       console.error('[EastCord appointment automation] No selected service option found.');
       return null;
@@ -174,6 +174,29 @@
     return (hours * 60) + minutes;
   }
 
+  function getAppointmentStartDate(date, timeWindow) {
+    const startMinutes = getTimeWindowStartMinutes(timeWindow);
+    if (!date || startMinutes === null) return null;
+
+    const startDate = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(startDate.getTime())) return null;
+
+    startDate.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+    return startDate;
+  }
+
+  function isPastTimeSlot(date, timeWindow) {
+    const startDate = getAppointmentStartDate(date, timeWindow);
+    if (!startDate) return false;
+    return startDate.getTime() <= Date.now();
+  }
+
+  function isLessThanMinimumAdvance(date, timeWindow) {
+    const startDate = getAppointmentStartDate(date, timeWindow);
+    if (!startDate) return false;
+    return startDate.getTime() - Date.now() < MIN_ADVANCE_MINUTES * 60 * 1000;
+  }
+
   function getSlotKey(date, timeWindow) {
     return `${date || ''}__${timeWindow || ''}`;
   }
@@ -195,25 +218,12 @@
     );
   }
 
-  function isPastTimeSlot(date, timeWindow) {
-    if (!date || !timeWindow) return false;
-    const selectedDate = new Date(`${date}T00:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (Number.isNaN(selectedDate.getTime()) || selectedDate < today) return true;
-    if (!isSameInputDate(date, new Date())) return false;
-
-    const startMinutes = getTimeWindowStartMinutes(timeWindow);
-    const now = new Date();
-    const nowMinutes = (now.getHours() * 60) + now.getMinutes();
-    return startMinutes !== null && startMinutes <= nowMinutes;
-  }
-
   function getSlotUnavailableReason(date, timeWindow) {
     if (!date || !timeWindow) return '';
     const key = getSlotKey(date, timeWindow);
 
     if (isPastTimeSlot(date, timeWindow)) return 'Please choose a future time window.';
+    if (isLessThanMinimumAdvance(date, timeWindow)) return MIN_ADVANCE_MESSAGE;
     if (getCartBlockedSlots(date).has(key)) return 'This time is already in your cart. Please choose another time slot for this vehicle.';
     if (state.paidBookedSlotsDate === date && state.paidBookedSlots.has(key)) return 'This time is already booked. Please choose another time slot.';
     return '';
@@ -301,9 +311,11 @@
         ? 'Already in your cart'
         : unavailableMessage.includes('booked')
           ? 'Booked'
-          : unavailableMessage
-            ? 'Unavailable'
-            : '';
+          : unavailableMessage.includes('2 hours')
+            ? '2-hour notice required'
+            : unavailableMessage
+              ? 'Unavailable'
+              : '';
       setTimeOptionState(option, isAvailable, labelReason);
       if (isAvailable) availableCount += 1;
     });
