@@ -38,7 +38,7 @@
           <p>Review appointment services before checkout. Checkout requires a customer account and uses Stripe Checkout for the amount due today.</p>
           <div class="cart-items" data-cart-items></div>
           <div class="account-actions">
-            <a class="button button-secondary" href="/appointment.html">Add Appointment</a>
+            <a class="button button-secondary" href="/appointment.html">Add Another Appointment</a>
             <button class="button button-secondary" type="button" data-clear-cart>Clear Cart</button>
           </div>
         </section>
@@ -61,7 +61,7 @@
             <strong>Please sign up or log in before checkout.</strong>
             <div class="account-actions">
               <a class="button button-primary" href="/login.html?redirect=/cart.html">Log In</a>
-              <a class="button button-secondary" href="/signup.html">Create Account</a>
+              <a class="button button-secondary" href="/signup.html?redirect=/cart.html">Create Account</a>
             </div>
           </div>
           <p class="account-message" data-cart-message></p>
@@ -102,7 +102,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=4"></script>
-    <script src="cart.js"></script>
+    <script src="account.js?v=6"></script>
+    <script src="cart.js?v=2"></script>
   </body>
 </html>
