@@ -139,9 +139,9 @@ async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifi
     .maybeSingle();
 
   if (error) {
-    const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError: error, rowFound: false, reason: 'supabase_lookup_error' });
-    logDeveloperError('Booking lookup by id failed before checkout.', diagnostics);
-    return { errorResponse: json(400, { message: 'Saved booking lookup failed before checkout.', diagnostics }) };
+    const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError: error, rowFound: false, reason: 'supabase_lookup_error_checkout_allowed' });
+    logDeveloperError('Booking lookup by id was blocked before checkout; continuing because the authenticated user matches the checkout customer.', diagnostics);
+    return { row: null, effectiveBookingId: booking.bookingId, diagnostics };
   }
 
   if (row) {
@@ -170,9 +170,9 @@ async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifi
     .single();
 
   if (repairError || !repairedRow) {
-    const repairDiagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError: repairError, rowFound: false, reason: 'booking_repair_insert_failed' });
-    logDeveloperError('Booking repair insert failed before checkout.', repairDiagnostics);
-    return { errorResponse: json(400, { message: 'Saved booking could not be repaired before checkout.', diagnostics: repairDiagnostics }) };
+    const repairDiagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError: repairError, rowFound: false, reason: 'booking_repair_insert_failed_checkout_allowed' });
+    logDeveloperError('Booking repair insert failed before checkout; continuing because the authenticated user matches the checkout customer.', repairDiagnostics);
+    return { row: null, effectiveBookingId: booking.bookingId, diagnostics: repairDiagnostics };
   }
 
   console.log('[EastCord appointment automation] Booking repair row created before checkout.', {
@@ -348,6 +348,7 @@ exports.handler = async (event) => {
       hasUrl: Boolean(session.url),
       depositAmount,
       effectiveBookingId,
+      lookupDiagnostics: lookupResult?.diagnostics || null,
     });
 
     // TODO: Add a Stripe webhook to update appointment_bookings.payment_status to paid_deposit after checkout.session.completed.
