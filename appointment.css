@@ -190,93 +190,8 @@ label:has(input[name="bot-field"]) {
 .appointment-step-heading h3:focus { outline: none; }
 .appointment-step-heading p { max-width: 760px; margin: 0; color: #4f5663; line-height: 1.65; }
 
-.service-card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.service-card {
-  display: block;
-  cursor: pointer;
-}
-
-.service-card input[type="radio"] {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: 0;
-  opacity: 0;
-  overflow: hidden;
-}
-
-.service-card-content {
-  position: relative;
-  display: grid;
-  gap: 8px;
-  min-height: 150px;
-  padding: 18px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 18px;
-  background: #ffffff;
-  color: #111317;
-  text-align: left;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.07);
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease, background 180ms ease;
-}
-
-.service-card:hover .service-card-content,
-.service-card:focus-within .service-card-content {
-  border-color: rgba(223, 31, 45, 0.5);
-  box-shadow: 0 18px 38px rgba(223, 31, 45, 0.14);
-  transform: translateY(-1px);
-}
-
-input[name="serviceId"]:checked + .service-card-content {
-  border-color: #c92832;
-  background: #fff5f5;
-  box-shadow: 0 20px 42px rgba(223, 31, 45, 0.2);
-}
-
-.service-card-check {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.08);
-  color: transparent;
-  font-weight: 950;
-}
-
-input[name="serviceId"]:checked + .service-card-content .service-card-check {
-  background: #df1f2d;
-  color: #ffffff;
-}
-
-.service-card-title {
-  padding-right: 36px;
-  color: #111317;
-  font-size: 1rem;
-  font-weight: 950;
-  line-height: 1.2;
-}
-
-.service-card-description {
-  color: #626a76;
-  font-size: 0.9rem;
-  font-weight: 700;
-  line-height: 1.45;
-}
-
-.service-card strong {
-  align-self: end;
-  color: #df1f2d;
-  font-size: 0.9rem;
-  font-weight: 950;
+.service-select-field {
+  max-width: 760px;
 }
 
 .appointment-field-grid {
@@ -422,7 +337,6 @@ input[name="serviceId"]:checked + .service-card-content .service-card-check {
 @media (max-width: 680px) {
   .appointment-page .appointment-hero.section { padding-bottom: 8px; }
   .appointment-hero-actions { margin-top: 18px; }
-  .service-card-grid,
   .appointment-field-grid,
   .appointment-price-summary,
   .appointment-review-grid { grid-template-columns: 1fr; }
