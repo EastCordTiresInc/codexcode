@@ -12,6 +12,9 @@
     currentStep: 0,
     currentService: null,
     initialized: false,
+    paidBookedSlots: new Set(),
+    paidBookedSlotsDate: '',
+    paidBookedSlotsLoading: false,
   };
 
   const els = {};
@@ -171,6 +174,85 @@
     return (hours * 60) + minutes;
   }
 
+  function getSlotKey(date, timeWindow) {
+    return `${date || ''}__${timeWindow || ''}`;
+  }
+
+  function getCartAppointmentItems() {
+    try {
+      return window.EastCordAccount?.getCart?.().filter((item) => item.type === 'appointment') || [];
+    } catch (error) {
+      logDeveloperError('Cart could not be read for slot blocking.', error);
+      return [];
+    }
+  }
+
+  function getCartBlockedSlots(date) {
+    return new Set(
+      getCartAppointmentItems()
+        .filter((item) => item.preferredDate === date && item.preferredTimeWindow)
+        .map((item) => getSlotKey(item.preferredDate, item.preferredTimeWindow))
+    );
+  }
+
+  function isPastTimeSlot(date, timeWindow) {
+    if (!date || !timeWindow) return false;
+    const selectedDate = new Date(`${date}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (Number.isNaN(selectedDate.getTime()) || selectedDate < today) return true;
+    if (!isSameInputDate(date, new Date())) return false;
+
+    const startMinutes = getTimeWindowStartMinutes(timeWindow);
+    const now = new Date();
+    const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+    return startMinutes !== null && startMinutes <= nowMinutes;
+  }
+
+  function getSlotUnavailableReason(date, timeWindow) {
+    if (!date || !timeWindow) return '';
+    const key = getSlotKey(date, timeWindow);
+
+    if (isPastTimeSlot(date, timeWindow)) return 'Please choose a future time window.';
+    if (getCartBlockedSlots(date).has(key)) return 'This time is already in your cart. Please choose another time slot for this vehicle.';
+    if (state.paidBookedSlotsDate === date && state.paidBookedSlots.has(key)) return 'This time is already booked. Please choose another time slot.';
+    return '';
+  }
+
+  async function fetchPaidBookedSlots(date) {
+    const client = window.EastCordAccount?.getSupabaseClient?.();
+    if (!client || !date) return new Set();
+
+    const { data, error } = await client
+      .from('appointment_bookings')
+      .select('preferred_date, preferred_time_window, payment_status')
+      .eq('preferred_date', date)
+      .eq('payment_status', 'paid_deposit');
+
+    if (error) {
+      logDeveloperError('Paid appointment slots could not be loaded.', error);
+      return new Set();
+    }
+
+    return new Set((data || []).map((row) => getSlotKey(row.preferred_date, row.preferred_time_window)));
+  }
+
+  async function refreshPaidBookedSlotsForSelectedDate() {
+    if (!els.preferredDate?.value) {
+      state.paidBookedSlots = new Set();
+      state.paidBookedSlotsDate = '';
+      updateAvailableTimeWindows();
+      return;
+    }
+
+    const selectedDate = els.preferredDate.value;
+    state.paidBookedSlotsLoading = true;
+    state.paidBookedSlots = await fetchPaidBookedSlots(selectedDate);
+    state.paidBookedSlotsDate = selectedDate;
+    state.paidBookedSlotsLoading = false;
+    updateAvailableTimeWindows();
+  }
+
   function ensureTodayTimeWarning() {
     if (els.todayTimeWarning || !els.preferredTimeWindow) return els.todayTimeWarning;
 
@@ -186,6 +268,13 @@
     return warning;
   }
 
+  function setTimeOptionState(option, isAvailable, reason) {
+    option.dataset.originalLabel = option.dataset.originalLabel || option.textContent;
+    option.disabled = !isAvailable;
+    option.hidden = false;
+    option.textContent = reason ? `${option.dataset.originalLabel} (${reason})` : option.dataset.originalLabel;
+  }
+
   function updateAvailableTimeWindows() {
     if (!els.preferredDate || !els.preferredTimeWindow) return true;
 
@@ -193,10 +282,7 @@
     const warning = ensureTodayTimeWarning();
     const options = Array.from(els.preferredTimeWindow.options).filter((option) => option.value);
 
-    options.forEach((option) => {
-      option.disabled = false;
-      option.hidden = false;
-    });
+    options.forEach((option) => setTimeOptionState(option, true, ''));
     els.preferredTimeWindow.setCustomValidity('');
     if (warning) warning.hidden = true;
 
@@ -205,22 +291,19 @@
       return true;
     }
 
-    const now = new Date();
-    const isToday = isSameInputDate(selectedDate, now);
-
-    if (!isToday) {
-      updateReviewSummary(state.currentService || getCurrentService());
-      return true;
-    }
-
-    const nowMinutes = (now.getHours() * 60) + now.getMinutes();
     let availableCount = 0;
 
     options.forEach((option) => {
-      const startMinutes = getTimeWindowStartMinutes(option.value);
-      const isAvailable = startMinutes !== null && startMinutes > nowMinutes;
-      option.disabled = !isAvailable;
-      option.hidden = !isAvailable;
+      const unavailableMessage = getSlotUnavailableReason(selectedDate, option.value);
+      const isAvailable = !unavailableMessage;
+      const labelReason = unavailableMessage.includes('cart')
+        ? 'Already in your cart'
+        : unavailableMessage.includes('booked')
+          ? 'Booked'
+          : unavailableMessage
+            ? 'Unavailable'
+            : '';
+      setTimeOptionState(option, isAvailable, labelReason);
       if (isAvailable) availableCount += 1;
     });
 
@@ -229,8 +312,14 @@
 
     if (!availableCount) {
       els.preferredTimeWindow.value = '';
-      els.preferredTimeWindow.setCustomValidity('No appointment times are available for today. Please choose the next available date.');
-      if (warning) warning.hidden = false;
+      const noTimesMessage = isSameInputDate(selectedDate, new Date())
+        ? 'No appointment times are available for today. Please choose the next available date.'
+        : 'No appointment times are available for this date. Please choose another date.';
+      els.preferredTimeWindow.setCustomValidity(noTimesMessage);
+      if (warning) {
+        warning.textContent = noTimesMessage;
+        warning.hidden = false;
+      }
       updateReviewSummary(state.currentService || getCurrentService());
       return false;
     }
@@ -264,16 +353,27 @@
     updateAvailableTimeWindows();
 
     if (!els.preferredDate.value || !els.preferredTimeWindow.value) return true;
-    const now = new Date();
-    if (!isSameInputDate(els.preferredDate.value, now)) return true;
 
-    const startMinutes = getTimeWindowStartMinutes(els.preferredTimeWindow.value);
-    const nowMinutes = (now.getHours() * 60) + now.getMinutes();
-
-    if (startMinutes !== null && startMinutes <= nowMinutes) {
+    const unavailableMessage = getSlotUnavailableReason(els.preferredDate.value, els.preferredTimeWindow.value);
+    if (unavailableMessage) {
       els.preferredTimeWindow.value = '';
-      els.preferredTimeWindow.setCustomValidity('Please choose a future time window.');
+      els.preferredTimeWindow.setCustomValidity(unavailableMessage);
       updateReviewSummary(state.currentService || getCurrentService());
+      return false;
+    }
+
+    els.preferredTimeWindow.setCustomValidity('');
+    return true;
+  }
+
+  async function validateSelectedSlotAvailability() {
+    if (!els.preferredDate?.value || !els.preferredTimeWindow?.value) return false;
+    await refreshPaidBookedSlotsForSelectedDate();
+
+    const unavailableMessage = getSlotUnavailableReason(els.preferredDate.value, els.preferredTimeWindow.value);
+    if (unavailableMessage) {
+      els.preferredTimeWindow.setCustomValidity(unavailableMessage);
+      showAppointmentMessage(unavailableMessage);
       return false;
     }
 
@@ -462,6 +562,7 @@
     updateServicePricing(getCurrentService());
     validateServiceArea();
     validatePreferredDate();
+    refreshPaidBookedSlotsForSelectedDate();
     updateReviewSummary(state.currentService || getCurrentService());
     return true;
   }
@@ -527,6 +628,10 @@
 
     if (!validatePreferredDate() || !validatePreferredTimeWindow()) {
       showAppointmentMessage('Please choose a valid future appointment date and time window.');
+      return;
+    }
+
+    if (!(await validateSelectedSlotAvailability())) {
       return;
     }
 
@@ -602,8 +707,14 @@
       updateReviewSummary(state.currentService || getCurrentService());
     });
     els.citySelect?.addEventListener('change', validateServiceArea);
-    els.preferredDate?.addEventListener('input', validatePreferredDate);
-    els.preferredDate?.addEventListener('change', validatePreferredDate);
+    els.preferredDate?.addEventListener('input', () => {
+      validatePreferredDate();
+      refreshPaidBookedSlotsForSelectedDate();
+    });
+    els.preferredDate?.addEventListener('change', () => {
+      validatePreferredDate();
+      refreshPaidBookedSlotsForSelectedDate();
+    });
     els.preferredTimeWindow?.addEventListener('change', validatePreferredTimeWindow);
     els.appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
 
@@ -617,6 +728,7 @@
     updateServicePricing(getCurrentService());
     validatePreferredDate();
     validateServiceArea();
+    refreshPaidBookedSlotsForSelectedDate();
     const shouldRestoreToReview = restored && new URLSearchParams(window.location.search).get('restore') === 'appointment';
     showStep(shouldRestoreToReview ? 4 : 0, false);
     if (shouldRestoreToReview) showAppointmentMessage('Your saved appointment details have been restored. Please review and add this appointment to cart.', 'success');
