@@ -112,6 +112,29 @@ async function ensureSupabaseBooking(item, profile) {
   return updatedItem;
 }
 
+function buildCheckoutDiagnostics(item, profile) {
+  return {
+    cartLocalId: item?.id || '',
+    bookingId: item?.bookingId || '',
+    itemCustomerId: item?.customerId || '',
+    profileCustomerId: profile?.customerId || '',
+    serviceId: item?.serviceId || '',
+    depositAmount: item?.depositAmount || '',
+  };
+}
+
+function formatCheckoutDiagnosticMessage(details) {
+  if (!details) return '';
+  const compact = [
+    details.reason,
+    details.bookingIdReceived ? `bookingId: ${details.bookingIdReceived}` : '',
+    details.customerIdReceived ? `customerId: ${details.customerIdReceived}` : '',
+    details.verifiedUserId ? `verifiedUser: ${details.verifiedUserId}` : '',
+    details.supabaseErrorCode ? `Supabase code: ${details.supabaseErrorCode}` : '',
+  ].filter(Boolean).join(' | ');
+  return compact ? ` Diagnostic: ${compact}` : '';
+}
+
 async function startCheckout() {
   const items = getAppointmentItems();
 
@@ -140,6 +163,8 @@ async function startCheckout() {
     showCartMessage('Saving booking details and preparing Stripe Checkout...', 'info');
 
     const bookingItem = await ensureSupabaseBooking(items[0], profile);
+    const checkoutDiagnostics = buildCheckoutDiagnostics(bookingItem, profile);
+    console.info('[EastCord appointment automation] Checkout payload diagnostics', checkoutDiagnostics);
 
     submitNetlifyFormBackup(buildNetlifyFormData(bookingItem, profile)).catch((error) => {
       logDeveloperError('Netlify Forms backup failed after Supabase booking save.', error);
@@ -157,7 +182,12 @@ async function startCheckout() {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok || !data.url) {
-      throw new Error(data.message || 'Online checkout is being connected. Please check back soon.');
+      logDeveloperError('Checkout function returned an error.', {
+        status: response.status,
+        diagnostics: checkoutDiagnostics,
+        response: data,
+      });
+      throw new Error(`${data.message || 'Online checkout is being connected. Please check back soon.'}${formatCheckoutDiagnosticMessage(data.diagnostics)}`);
     }
 
     window.location.href = data.url;
