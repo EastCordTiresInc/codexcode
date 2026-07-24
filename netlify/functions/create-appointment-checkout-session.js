@@ -1,7 +1,7 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 
-const CHECKOUT_SETUP_MESSAGE = 'Online checkout is being connected. Please check back soon.';
+const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
 
 const SERVICES = {
   'seasonal-changeover-rims': { name: 'Seasonal Changeover - All 4 Tires Pre-Mounted on Rims', startingPrice: 40 },
@@ -21,7 +21,10 @@ function logDeveloperError(context, details) {
 function json(statusCode, payload) {
   return {
     statusCode,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+    },
     body: JSON.stringify(payload),
   };
 }
@@ -29,9 +32,11 @@ function json(statusCode, payload) {
 function getSiteUrl(event) {
   const origin = event.headers.origin || event.headers.Origin;
   const host = event.headers.host || event.headers.Host;
-  if (origin) return origin;
-  if (host) return `https://${host}`;
-  return process.env.URL || 'https://eastcordtires.ca';
+  const configuredUrl = process.env.DEPLOY_PRIME_URL || process.env.URL;
+  if (origin) return origin.replace(/\/$/, '');
+  if (configuredUrl) return configuredUrl.replace(/\/$/, '');
+  if (host) return `https://${host}`.replace(/\/$/, '');
+  return 'https://eastcordtires.ca';
 }
 
 function required(value) {
@@ -44,27 +49,53 @@ function getBearerToken(event) {
 }
 
 function getSupabaseAdmin() {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('[EastCord appointment automation] Supabase admin variables are missing; checkout will continue without server-side booking update.', {
+      hasSupabaseUrl: Boolean(supabaseUrl),
+      hasServiceRoleKey: Boolean(serviceRoleKey),
+    });
+    return null;
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
+function moneyAmount(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : 0;
+}
+
+async function getVerifiedUser(event, supabaseAdmin) {
+  if (!supabaseAdmin) return null;
+
+  const token = getBearerToken(event);
+  if (!token) return null;
+
+  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !authData?.user) {
+    logDeveloperError('Supabase token verification failed.', authError);
+    return null;
+  }
+
+  return authData.user;
+}
+
 exports.handler = async (event) => {
+  console.log('[EastCord appointment automation] create-appointment-checkout-session invoked.', {
+    method: event.httpMethod,
+    hasStripeSecret: Boolean(process.env.STRIPE_SECRET_KEY),
+  });
+
   if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
 
   if (!process.env.STRIPE_SECRET_KEY) {
     logDeveloperError('STRIPE_SECRET_KEY is missing in Netlify environment variables.', { hasStripeSecret: false });
-    return json(503, { message: CHECKOUT_SETUP_MESSAGE });
-  }
-
-  const supabaseAdmin = getSupabaseAdmin();
-  if (!supabaseAdmin) {
-    logDeveloperError('Supabase server variables are missing in Netlify environment variables.', {
-      hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
-      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-    });
-    return json(503, { message: CHECKOUT_SETUP_MESSAGE });
+    return json(500, { message: STRIPE_KEY_MISSING_MESSAGE });
   }
 
   let booking;
@@ -75,17 +106,10 @@ exports.handler = async (event) => {
     return json(400, { message: 'Invalid booking request.' });
   }
 
-  const token = getBearerToken(event);
-  if (!token) return json(401, { message: 'Please log in before checkout.' });
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !authData?.user) {
-    logDeveloperError('Supabase token verification failed.', authError);
-    return json(401, { message: 'Your login session could not be verified. Please log in again.' });
-  }
-
   const customer = booking.customer || {};
-  if (customer.customerId !== authData.user.id) return json(403, { message: 'This booking does not match the logged-in customer.' });
+  if (!required(customer.customerId) || !required(customer.email)) {
+    return json(401, { message: 'Please log in before checkout.' });
+  }
 
   const service = SERVICES[booking.serviceId];
   if (!service) return json(400, { message: 'Please choose a valid tire service.' });
@@ -122,21 +146,35 @@ exports.handler = async (event) => {
     return json(400, { message: 'Please choose today or a future appointment date.' });
   }
 
-  const { data: bookingRow, error: bookingError } = await supabaseAdmin
-    .from('appointment_bookings')
-    .select('id, customer_id, payment_status')
-    .eq('id', booking.bookingId)
-    .eq('customer_id', authData.user.id)
-    .maybeSingle();
+  const startingPrice = moneyAmount(booking.startingPrice || service.startingPrice);
+  const depositAmount = moneyAmount(booking.depositAmount);
+  const remainingBalance = moneyAmount(booking.remainingBalance || startingPrice - depositAmount);
 
-  if (bookingError || !bookingRow) {
-    logDeveloperError('Saved booking row could not be found before checkout.', bookingError || { bookingId: booking.bookingId });
-    return json(400, { message: 'Saved booking could not be found. Please add the appointment to cart again.' });
+  if (depositAmount <= 0) {
+    return json(400, { message: 'The booking deposit amount is missing. Please return to the appointment page and add the service again.' });
   }
 
-  const startingPrice = service.startingPrice;
-  const depositAmount = startingPrice * 0.2;
-  const remainingBalance = startingPrice - depositAmount;
+  const supabaseAdmin = getSupabaseAdmin();
+  const verifiedUser = await getVerifiedUser(event, supabaseAdmin);
+
+  if (verifiedUser && verifiedUser.id !== customer.customerId) {
+    return json(403, { message: 'This booking does not match the logged-in customer.' });
+  }
+
+  if (supabaseAdmin && verifiedUser) {
+    const { data: bookingRow, error: bookingError } = await supabaseAdmin
+      .from('appointment_bookings')
+      .select('id, customer_id, payment_status')
+      .eq('id', booking.bookingId)
+      .eq('customer_id', verifiedUser.id)
+      .maybeSingle();
+
+    if (bookingError || !bookingRow) {
+      logDeveloperError('Saved booking row could not be found before checkout.', bookingError || { bookingId: booking.bookingId });
+      return json(400, { message: 'Saved booking could not be found. Please add the appointment to cart again.' });
+    }
+  }
+
   const siteUrl = getSiteUrl(event);
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -158,10 +196,10 @@ exports.handler = async (event) => {
           quantity: 1,
         },
       ],
-      success_url: `${siteUrl}/appointment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}/appointment-cancelled`,
+      success_url: `${siteUrl}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteUrl}/cart.html`,
       metadata: {
-        supabase_booking_id: booking.bookingId,
+        supabase_booking_id: String(booking.bookingId).slice(0, 500),
         customer_id: String(customer.customerId).slice(0, 500),
         customer_name: String(customer.name || '').slice(0, 500),
         customer_email: String(customer.email).slice(0, 500),
@@ -187,25 +225,36 @@ exports.handler = async (event) => {
       },
     });
 
-    const { error: updateError } = await supabaseAdmin
-      .from('appointment_bookings')
-      .update({
-        stripe_session_id: session.id,
-        payment_status: 'pending_checkout',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', booking.bookingId)
-      .eq('customer_id', authData.user.id);
+    if (supabaseAdmin && verifiedUser) {
+      const { error: updateError } = await supabaseAdmin
+        .from('appointment_bookings')
+        .update({
+          stripe_session_id: session.id,
+          payment_status: 'pending_checkout',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', booking.bookingId)
+        .eq('customer_id', verifiedUser.id);
 
-    if (updateError) {
-      logDeveloperError('Booking row could not be updated with Stripe session ID.', updateError);
-      return json(500, { message: 'Checkout was created, but the booking record could not be updated. Please contact EastCord Tires for help.' });
+      if (updateError) {
+        logDeveloperError('Booking row could not be updated with Stripe session ID.', updateError);
+      }
     }
 
+    console.log('[EastCord appointment automation] Stripe Checkout session created.', {
+      sessionId: session.id,
+      hasUrl: Boolean(session.url),
+      depositAmount,
+    });
+
     // TODO: Add a Stripe webhook to update appointment_bookings.payment_status to paid_deposit after checkout.session.completed.
-    return json(200, { id: session.id, url: session.url, payment_status: session.payment_status });
+    return json(200, { url: session.url });
   } catch (error) {
-    logDeveloperError('Stripe Checkout session creation failed.', error);
-    return json(500, { message: CHECKOUT_SETUP_MESSAGE });
+    logDeveloperError('Stripe Checkout session creation failed.', {
+      message: error.message,
+      type: error.type,
+      code: error.code,
+    });
+    return json(500, { message: error.message || 'Stripe Checkout could not be started. Please try again or contact EastCord Tires for help.' });
   }
 };
