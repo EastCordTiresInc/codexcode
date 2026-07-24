@@ -21,6 +21,60 @@ function getAppointmentItems() {
   return window.EastCordAccount.getCart().filter((item) => item.type === 'appointment');
 }
 
+function getTimeWindowStartMinutes(value) {
+  const startText = String(value || '').split('-')[0].trim();
+  const match = startText.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const period = match[3].toUpperCase();
+
+  if (period === 'AM' && hours === 12) hours = 0;
+  if (period === 'PM' && hours !== 12) hours += 12;
+
+  return (hours * 60) + minutes;
+}
+
+function formatDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isPastAppointmentSlot(item) {
+  if (!item.preferredDate || !item.preferredTimeWindow) return true;
+  const selectedDate = new Date(`${item.preferredDate}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (Number.isNaN(selectedDate.getTime()) || selectedDate < today) return true;
+  if (item.preferredDate !== formatDateInputValue(new Date())) return false;
+
+  const startMinutes = getTimeWindowStartMinutes(item.preferredTimeWindow);
+  const now = new Date();
+  const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+  return startMinutes !== null && startMinutes <= nowMinutes;
+}
+
+function validateCartSlots(items) {
+  const seenSlots = new Set();
+
+  for (const item of items) {
+    if (isPastAppointmentSlot(item)) {
+      return 'One or more appointment times are no longer available. Please choose another time.';
+    }
+
+    const slotKey = `${item.preferredDate}__${item.preferredTimeWindow}`;
+    if (seenSlots.has(slotKey)) {
+      return 'One or more appointment times are no longer available. Please choose another time.';
+    }
+    seenSlots.add(slotKey);
+  }
+
+  return '';
+}
+
 function renderCartItem(item, index) {
   return `
     <article class="cart-line">
@@ -139,6 +193,12 @@ async function startCheckout() {
   if (!profile) {
     if (authBlock) authBlock.classList.add('is-visible');
     showCartMessage('Please sign up or log in before checkout.');
+    return;
+  }
+
+  const cartSlotMessage = validateCartSlots(items);
+  if (cartSlotMessage) {
+    showCartMessage(cartSlotMessage);
     return;
   }
 
