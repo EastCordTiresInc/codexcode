@@ -27,6 +27,41 @@ function getSupabaseAdmin() {
   });
 }
 
+function supabaseErrorPayload(error) {
+  return {
+    code: error?.code || '',
+    message: error?.message || '',
+    details: error?.details || '',
+    hint: error?.hint || '',
+  };
+}
+
+function buildDiagnostics({ bookingId, sessionId, row, rowFound, error, updatePayload }) {
+  return {
+    bookingId,
+    sessionId,
+    rowFound: Boolean(rowFound),
+    currentPaymentStatus: row?.payment_status ?? null,
+    currentBookingStatus: row?.booking_status ?? null,
+    currentStripeSessionId: row?.stripe_session_id ?? null,
+    availableColumns: row ? Object.keys(row) : [],
+    updatePayload,
+    supabaseError: supabaseErrorPayload(error),
+  };
+}
+
+function buildUpdatePayload(row, session) {
+  const columns = new Set(Object.keys(row || {}));
+  const payload = {};
+
+  if (columns.has('payment_status')) payload.payment_status = 'paid_deposit';
+  if (columns.has('stripe_session_id')) payload.stripe_session_id = session.id;
+  if (columns.has('updated_at')) payload.updated_at = new Date().toISOString();
+  if (columns.has('booking_status')) payload.booking_status = 'Pending Confirmation';
+
+  return payload;
+}
+
 exports.handler = async (event) => {
   console.log('[EastCord appointment automation] Stripe webhook received.', {
     method: event.httpMethod,
@@ -94,49 +129,108 @@ exports.handler = async (event) => {
     return json(400, { message: 'Missing Supabase booking id in Stripe metadata.' });
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data: existingRow, error: readError } = await supabaseAdmin
     .from('appointment_bookings')
-    .update({
-      payment_status: 'paid_deposit',
-      booking_status: 'Pending Confirmation',
-      stripe_session_id: session.id,
-      updated_at: new Date().toISOString(),
-    })
+    .select('*')
     .eq('id', bookingId)
-    .select('id, payment_status, booking_status, stripe_session_id')
     .maybeSingle();
 
-  if (error) {
-    console.error('[EastCord appointment automation] Supabase payment status update failed.', {
+  if (readError) {
+    const diagnostics = buildDiagnostics({
       bookingId,
       sessionId: session.id,
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
+      row: null,
+      rowFound: false,
+      error: readError,
+      updatePayload: null,
     });
-    return json(500, { message: 'Booking payment status could not be updated.' });
+    console.error('[EastCord appointment automation] Supabase booking row read failed before webhook update.', diagnostics);
+    return json(500, { message: 'Booking payment status could not be updated.', diagnostics });
   }
 
-  if (!data) {
-    console.error('[EastCord appointment automation] Supabase payment status update found no booking row.', {
+  if (!existingRow) {
+    const diagnostics = buildDiagnostics({
       bookingId,
       sessionId: session.id,
+      row: null,
+      rowFound: false,
+      error: null,
+      updatePayload: null,
     });
-    return json(404, { message: 'Booking row was not found for Stripe session.' });
+    console.error('[EastCord appointment automation] Supabase booking row was not found before webhook update.', diagnostics);
+    return json(404, { message: 'Booking row was not found for Stripe session.', diagnostics });
+  }
+
+  console.log('[EastCord appointment automation] Supabase booking row found before webhook update.', {
+    bookingId,
+    sessionId: session.id,
+    currentPaymentStatus: existingRow.payment_status ?? null,
+    currentBookingStatus: existingRow.booking_status ?? null,
+    currentStripeSessionId: existingRow.stripe_session_id ?? null,
+    availableColumns: Object.keys(existingRow),
+  });
+
+  const updatePayload = buildUpdatePayload(existingRow, session);
+
+  if (!Object.keys(updatePayload).length) {
+    const diagnostics = buildDiagnostics({
+      bookingId,
+      sessionId: session.id,
+      row: existingRow,
+      rowFound: true,
+      error: null,
+      updatePayload,
+    });
+    console.error('[EastCord appointment automation] No supported payment columns exist on appointment_bookings.', diagnostics);
+    return json(500, { message: 'No supported appointment booking payment columns exist.', diagnostics });
+  }
+
+  const { data: updatedRow, error: updateError } = await supabaseAdmin
+    .from('appointment_bookings')
+    .update(updatePayload)
+    .eq('id', bookingId)
+    .select(Object.keys(updatePayload).concat('id').join(','))
+    .maybeSingle();
+
+  if (updateError) {
+    const diagnostics = buildDiagnostics({
+      bookingId,
+      sessionId: session.id,
+      row: existingRow,
+      rowFound: true,
+      error: updateError,
+      updatePayload,
+    });
+    console.error('[EastCord appointment automation] Supabase payment status update failed.', diagnostics);
+    return json(500, { message: 'Booking payment status could not be updated.', diagnostics });
+  }
+
+  if (!updatedRow) {
+    const diagnostics = buildDiagnostics({
+      bookingId,
+      sessionId: session.id,
+      row: existingRow,
+      rowFound: true,
+      error: null,
+      updatePayload,
+    });
+    console.error('[EastCord appointment automation] Supabase payment status update returned no row.', diagnostics);
+    return json(404, { message: 'Booking row was not returned after update.', diagnostics });
   }
 
   console.log('[EastCord appointment automation] Supabase payment status update success.', {
-    bookingId: data.id,
-    paymentStatus: data.payment_status,
-    bookingStatus: data.booking_status,
-    stripeSessionId: data.stripe_session_id,
+    bookingId: updatedRow.id,
+    paymentStatus: updatedRow.payment_status ?? null,
+    bookingStatus: updatedRow.booking_status ?? null,
+    stripeSessionId: updatedRow.stripe_session_id ?? null,
+    updatedColumns: Object.keys(updatePayload),
   });
 
   return json(200, {
     received: true,
     eventType: stripeEvent.type,
-    bookingId: data.id,
-    paymentStatus: data.payment_status,
+    bookingId: updatedRow.id,
+    paymentStatus: updatedRow.payment_status ?? null,
+    updatedColumns: Object.keys(updatePayload),
   });
 };
