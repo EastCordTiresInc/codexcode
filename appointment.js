@@ -1,5 +1,7 @@
 (() => {
   const serviceAreaCities = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
+  const PENDING_APPOINTMENT_KEY = 'eastcord_pending_appointment_v1';
+  const APPOINTMENT_RESTORE_URL = '/appointment.html?restore=appointment#appointment-booking';
   const money = new Intl.NumberFormat('en-CA', {
     style: 'currency',
     currency: 'CAD',
@@ -107,8 +109,25 @@
     showAppointmentMessage('', 'info');
   }
 
+  function getLoginRedirectUrl() {
+    return `/login.html?redirect=${encodeURIComponent(APPOINTMENT_RESTORE_URL)}`;
+  }
+
+  function getSignupRedirectUrl() {
+    return `/signup.html?redirect=${encodeURIComponent(APPOINTMENT_RESTORE_URL)}`;
+  }
+
+  function updateAuthActionLinks() {
+    if (!els.loginRequiredBlock) return;
+    const loginLink = els.loginRequiredBlock.querySelector('a[href*="login.html"]');
+    const signupLink = els.loginRequiredBlock.querySelector('a[href*="signup.html"]');
+    if (loginLink) loginLink.href = getLoginRedirectUrl();
+    if (signupLink) signupLink.href = getSignupRedirectUrl();
+  }
+
   function showLoginRequiredBlock() {
     if (!els.loginRequiredBlock) return;
+    updateAuthActionLinks();
     els.loginRequiredBlock.hidden = false;
     els.loginRequiredBlock.classList.add('is-visible');
   }
@@ -388,6 +407,65 @@
     return true;
   }
 
+  function collectAppointmentDraft() {
+    const service = getCurrentService();
+    const fields = {};
+    if (els.appointmentForm) {
+      new FormData(els.appointmentForm).forEach((value, key) => {
+        if (!['form-name', 'Booking Status', 'Service area status', 'Service Name', 'Starting Price', 'Booking Deposit', 'Remaining Balance'].includes(key)) {
+          fields[key] = String(value || '');
+        }
+      });
+    }
+
+    return {
+      serviceId: service?.id || 'seasonal-changeover-rims',
+      fields,
+      currentStep: state.currentStep,
+      savedAt: new Date().toISOString(),
+    };
+  }
+
+  function savePendingAppointmentDraft() {
+    try {
+      localStorage.setItem(PENDING_APPOINTMENT_KEY, JSON.stringify(collectAppointmentDraft()));
+      localStorage.setItem('eastcord_auth_redirect', APPOINTMENT_RESTORE_URL);
+    } catch (error) {
+      logDeveloperError('Pending appointment draft could not be saved.', error);
+    }
+  }
+
+  function clearPendingAppointmentDraft() {
+    localStorage.removeItem(PENDING_APPOINTMENT_KEY);
+  }
+
+  function restorePendingAppointmentDraft() {
+    let draft = null;
+    try {
+      draft = JSON.parse(localStorage.getItem(PENDING_APPOINTMENT_KEY) || 'null');
+    } catch (error) {
+      logDeveloperError('Pending appointment draft could not be read.', error);
+    }
+
+    if (!draft || !els.appointmentForm) return false;
+
+    if (els.serviceSelect && draft.serviceId) {
+      els.serviceSelect.value = draft.serviceId;
+    }
+
+    Object.entries(draft.fields || {}).forEach(([name, value]) => {
+      const field = els.appointmentForm.elements.namedItem(name);
+      if (!field || field.type === 'hidden') return;
+      field.value = value;
+    });
+
+    updateServicePricing(getCurrentService());
+    validateServiceArea();
+    validatePreferredDate();
+    updateReviewSummary(state.currentService || getCurrentService());
+    return true;
+  }
+
   function buildAppointmentItem(profile) {
     const selectedService = getCurrentService();
     updateServicePricing(selectedService);
@@ -401,7 +479,7 @@
     }
 
     return {
-      id: `appointment-${Date.now()}`,
+      id: `appointment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       type: 'appointment',
       customerId: profile.customerId,
       customerName: profile.name,
@@ -453,6 +531,8 @@
     }
 
     if (!window.EastCordAccount?.isAuthConfigured?.()) {
+      savePendingAppointmentDraft();
+      showLoginRequiredBlock();
       showAppointmentMessage(window.EastCordAccount?.setupMessage || 'Account signup is being connected. Please contact EastCord Tires or check back soon.');
       logDeveloperError('Add Appointment attempted before Supabase env vars were configured.', window.EASTCORD_AUTH_CONFIG || {});
       return;
@@ -460,8 +540,9 @@
 
     const profile = await window.EastCordAccount?.getCurrentProfile?.();
     if (!profile) {
+      savePendingAppointmentDraft();
       showLoginRequiredBlock();
-      showAppointmentMessage('Please log in or create an account to add an appointment to your cart.');
+      showAppointmentMessage('Your appointment details are saved on this device. Please log in or create an account, then you will return to review this appointment.');
       return;
     }
 
@@ -475,9 +556,10 @@
       const appointmentItem = buildAppointmentItem(profile);
       appointmentItem.bookingId = await window.EastCordAccount.saveAppointmentBooking(appointmentItem, profile);
 
-      const cart = window.EastCordAccount.getCart().filter((item) => item.type !== 'appointment');
+      const cart = window.EastCordAccount.getCart();
       cart.push(appointmentItem);
       window.EastCordAccount.saveCart(cart);
+      clearPendingAppointmentDraft();
       window.location.href = '/cart.html';
     } catch (error) {
       logDeveloperError('Appointment booking save failed.', error);
@@ -529,11 +611,15 @@
     window.getCurrentEastCordService = getCurrentService;
 
     hideLoginRequiredBlock();
+    updateAuthActionLinks();
     setMinimumDate();
+    const restored = restorePendingAppointmentDraft();
     updateServicePricing(getCurrentService());
     validatePreferredDate();
     validateServiceArea();
-    showStep(0, false);
+    const shouldRestoreToReview = restored && new URLSearchParams(window.location.search).get('restore') === 'appointment';
+    showStep(shouldRestoreToReview ? 4 : 0, false);
+    if (shouldRestoreToReview) showAppointmentMessage('Your saved appointment details have been restored. Please review and add this appointment to cart.', 'success');
   }
 
   if (document.readyState === 'loading') {
