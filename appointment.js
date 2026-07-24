@@ -18,11 +18,6 @@
     console.error(`[EastCord appointment automation] ${context}`, error);
   }
 
-  function setText(selector, value) {
-    const element = document.querySelector(selector);
-    if (element) element.textContent = value;
-  }
-
   function setValue(element, value) {
     if (element) element.value = value;
   }
@@ -35,6 +30,7 @@
     els.startingPrice = document.querySelector('[data-starting-price]');
     els.depositPrice = document.querySelector('[data-deposit-price]');
     els.balancePrice = document.querySelector('[data-balance-price]');
+    els.serviceSelect = document.getElementById('service-select');
     els.serviceIdField = document.querySelector('[data-hidden-service-id]');
     els.serviceNameField = document.querySelector('[data-hidden-service-name]');
     els.startingPriceField = document.querySelector('[data-hidden-starting-price]');
@@ -55,72 +51,34 @@
     els.loginRequiredBlock = document.querySelector('[data-login-required-block]');
     els.menuToggle = document.querySelector('.menu-toggle');
     els.primaryNavigation = document.querySelector('#primary-navigation');
-    els.serviceRadios = Array.from(document.querySelectorAll('input[name="serviceId"]'));
-    els.serviceDebug = document.querySelector('[data-service-debug]');
-  }
-
-  function ensureRuntimeDebug() {
-    if (!els.serviceDebug || els.serviceDebug.querySelector('[data-debug-runtime-status]')) return;
-    const runtime = document.createElement('div');
-    runtime.style.marginTop = '8px';
-    runtime.innerHTML = [
-      'Script loaded: <span data-debug-script-loaded>yes</span><br />',
-      'initializeAppointmentPage ran: <span data-debug-init-ran>no</span><br />',
-      'Service radios found: <span data-debug-radio-count>0</span><br />',
-      'Radio listener attached: <span data-debug-listener-attached>no</span><br />',
-      'Last change event: <span data-debug-last-change>Not fired yet</span>',
-    ].join('');
-    runtime.setAttribute('data-debug-runtime-status', '');
-    els.serviceDebug.appendChild(runtime);
-  }
-
-  function updateRuntimeDebug({ initRan, radioCount, listenerAttached, lastChange } = {}) {
-    if (typeof initRan !== 'undefined') setText('[data-debug-init-ran]', initRan ? 'yes' : 'no');
-    if (typeof radioCount !== 'undefined') setText('[data-debug-radio-count]', String(radioCount));
-    if (typeof listenerAttached !== 'undefined') setText('[data-debug-listener-attached]', listenerAttached ? 'yes' : 'no');
-    if (lastChange) setText('[data-debug-last-change]', lastChange);
-  }
-
-  function getCheckedServiceRadio() {
-    return document.querySelector('input[name="serviceId"]:checked');
   }
 
   function getCurrentService() {
-    const selected = getCheckedServiceRadio();
+    const select = els.serviceSelect || document.getElementById('service-select');
 
-    if (!selected) {
-      console.error('[EastCord appointment automation] No checked serviceId radio found.');
+    if (!select) {
+      console.error('[EastCord appointment automation] service-select not found.');
       return null;
     }
 
-    const price = Number(selected.dataset.price || 0);
+    const option = select.options[select.selectedIndex];
+
+    if (!option) {
+      console.error('[EastCord appointment automation] No selected service option found.');
+      return null;
+    }
+
+    const price = Number(option.dataset.price || 0);
     const deposit = Math.round(price * 0.20 * 100) / 100;
     const remaining = Math.round((price - deposit) * 100) / 100;
 
     return {
-      id: selected.value,
-      name: selected.dataset.serviceName || selected.value,
+      id: option.value,
+      name: option.dataset.serviceName || option.textContent.trim(),
       price,
       deposit,
       remaining,
     };
-  }
-
-  function updateServiceDebug(service) {
-    if (!service) return;
-    const time = new Date().toLocaleTimeString('en-CA', {
-      hour: 'numeric',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-
-    setText('[data-debug-service-id]', service.id || '');
-    setText('[data-debug-service-name]', service.name || '');
-    setText('[data-debug-service-price]', money.format(service.price));
-    setText('[data-debug-deposit]', money.format(service.deposit));
-    setText('[data-debug-remaining]', money.format(service.remaining));
-    setText('[data-debug-last-selected]', time);
-    updateRuntimeDebug({ lastChange: time });
   }
 
   function updateServicePricing(service = getCurrentService()) {
@@ -137,13 +95,12 @@
     setValue(els.depositField, service.deposit.toFixed(2));
     setValue(els.balanceField, service.remaining.toFixed(2));
 
-    updateServiceDebug(service);
     updateReviewSummary(service);
   }
 
-  function updateFromCheckedService() {
+  function updateFromSelectedService() {
     const service = getCurrentService();
-    console.log('[EastCord appointment automation] Service radio changed:', service);
+    console.log('[EastCord appointment automation] Service changed:', service);
     updateServicePricing(service);
     showAppointmentMessage('', 'info');
   }
@@ -409,16 +366,12 @@
   function initializeAppointmentPage() {
     if (state.initialized) return;
     cacheElements();
-    ensureRuntimeDebug();
     state.initialized = true;
 
     console.log('[EastCord appointment automation] appointment.js loaded.');
-    console.log('[EastCord appointment automation] Service radios found:', els.serviceRadios.length);
-    updateRuntimeDebug({ initRan: true, radioCount: els.serviceRadios.length, listenerAttached: els.serviceRadios.length === 6 });
+    console.log('[EastCord appointment automation] Service select found:', Boolean(els.serviceSelect));
 
-    els.serviceRadios.forEach((radio) => {
-      radio.addEventListener('change', updateFromCheckedService);
-    });
+    els.serviceSelect?.addEventListener('change', updateFromSelectedService);
 
     els.menuToggle?.addEventListener('click', () => {
       const isOpen = els.menuToggle.getAttribute('aria-expanded') === 'true';
@@ -431,7 +384,7 @@
     els.backButtons.forEach((button) => button.addEventListener('click', () => showStep(state.currentStep - 1)));
     els.appointmentForm?.addEventListener('input', () => updateReviewSummary(state.currentService || getCurrentService()));
     els.appointmentForm?.addEventListener('change', (event) => {
-      if (event.target?.matches?.('input[name="serviceId"]')) return;
+      if (event.target?.matches?.('#service-select')) return;
       updateReviewSummary(state.currentService || getCurrentService());
     });
     els.citySelect?.addEventListener('change', validateServiceArea);
