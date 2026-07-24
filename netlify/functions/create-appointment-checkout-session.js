@@ -82,6 +82,38 @@ function buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError
   };
 }
 
+function buildBookingRecord({ booking, customer, service, startingPrice, depositAmount, remainingBalance, verifiedUser }) {
+  return {
+    customer_id: verifiedUser.id,
+    customer_name: customer.name || booking.customerName || '',
+    customer_email: customer.email || booking.customerEmail || '',
+    customer_phone: customer.phone || booking.customerPhone || '',
+    service_id: booking.serviceId || '',
+    service_name: service.name,
+    starting_price: startingPrice,
+    deposit_amount: depositAmount,
+    remaining_balance: remainingBalance,
+    preferred_date: booking.preferredDate || null,
+    preferred_time_window: booking.preferredTimeWindow || '',
+    vehicle_year: booking.vehicleYear || '',
+    vehicle_make: booking.vehicleMake || '',
+    vehicle_model: booking.vehicleModel || '',
+    tire_size: booking.tireSize || '',
+    tires_already_on_rims: booking.tiresAlreadyOnRims || '',
+    number_of_tires: Number(booking.numberOfTires || 0),
+    full_service_address: booking.fullServiceAddress || '',
+    city: booking.city || '',
+    postal_code: booking.postalCode || '',
+    parking_access_notes: booking.parkingAccessNotes || '',
+    additional_notes: booking.additionalNotes || '',
+    service_area_status: booking.serviceAreaStatus || 'In service area',
+    booking_status: 'Pending Confirmation',
+    payment_status: 'pending_checkout',
+    stripe_session_id: booking.stripeSessionId || '',
+    updated_at: new Date().toISOString(),
+  };
+}
+
 async function getVerifiedUser(event, supabaseAdmin) {
   if (!supabaseAdmin) return null;
 
@@ -97,8 +129,8 @@ async function getVerifiedUser(event, supabaseAdmin) {
   return authData.user;
 }
 
-async function findBookingRow({ supabaseAdmin, booking, customer, verifiedUser }) {
-  if (!supabaseAdmin || !verifiedUser) return null;
+async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifiedUser, service, startingPrice, depositAmount, remainingBalance }) {
+  if (!supabaseAdmin || !verifiedUser) return { row: null, effectiveBookingId: booking.bookingId };
 
   const { data: row, error } = await supabaseAdmin
     .from('appointment_bookings')
@@ -112,25 +144,44 @@ async function findBookingRow({ supabaseAdmin, booking, customer, verifiedUser }
     return { errorResponse: json(400, { message: 'Saved booking lookup failed before checkout.', diagnostics }) };
   }
 
-  if (!row) {
-    const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: false, reason: 'booking_id_not_found' });
-    logDeveloperError('Booking id was not found before checkout.', diagnostics);
-    return { errorResponse: json(400, { message: 'Saved booking could not be found. Please add the appointment to cart again.', diagnostics }) };
+  if (row) {
+    if (row.customer_id !== verifiedUser.id) {
+      const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: true, reason: 'customer_mismatch' });
+      logDeveloperError('Booking row customer mismatch before checkout.', { ...diagnostics, rowCustomerId: row.customer_id });
+      return { errorResponse: json(403, { message: 'This booking does not match the logged-in customer.', diagnostics: { ...diagnostics, rowCustomerId: row.customer_id } }) };
+    }
+
+    console.log('[EastCord appointment automation] Booking row found before checkout.', {
+      bookingId: row.id,
+      customerMatches: true,
+      paymentStatus: row.payment_status,
+    });
+
+    return { row, effectiveBookingId: row.id };
   }
 
-  if (row.customer_id !== verifiedUser.id) {
-    const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: true, reason: 'customer_mismatch' });
-    logDeveloperError('Booking row customer mismatch before checkout.', { ...diagnostics, rowCustomerId: row.customer_id });
-    return { errorResponse: json(403, { message: 'This booking does not match the logged-in customer.', diagnostics: { ...diagnostics, rowCustomerId: row.customer_id } }) };
+  const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: false, reason: 'booking_id_not_found_repairing' });
+  console.warn('[EastCord appointment automation] Booking id was not found; creating repair row before checkout.', diagnostics);
+
+  const { data: repairedRow, error: repairError } = await supabaseAdmin
+    .from('appointment_bookings')
+    .insert(buildBookingRecord({ booking, customer, service, startingPrice, depositAmount, remainingBalance, verifiedUser }))
+    .select('id, customer_id, payment_status')
+    .single();
+
+  if (repairError || !repairedRow) {
+    const repairDiagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError: repairError, rowFound: false, reason: 'booking_repair_insert_failed' });
+    logDeveloperError('Booking repair insert failed before checkout.', repairDiagnostics);
+    return { errorResponse: json(400, { message: 'Saved booking could not be repaired before checkout.', diagnostics: repairDiagnostics }) };
   }
 
-  console.log('[EastCord appointment automation] Booking row found before checkout.', {
-    bookingId: row.id,
-    customerMatches: true,
-    paymentStatus: row.payment_status,
+  console.log('[EastCord appointment automation] Booking repair row created before checkout.', {
+    oldBookingId: booking.bookingId,
+    repairedBookingId: repairedRow.id,
+    customerMatches: repairedRow.customer_id === verifiedUser.id,
   });
 
-  return { row };
+  return { row: repairedRow, effectiveBookingId: repairedRow.id };
 }
 
 exports.handler = async (event) => {
@@ -221,8 +272,9 @@ exports.handler = async (event) => {
     });
   }
 
-  const lookupResult = await findBookingRow({ supabaseAdmin, booking, customer, verifiedUser });
+  const lookupResult = await findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifiedUser, service, startingPrice, depositAmount, remainingBalance });
   if (lookupResult?.errorResponse) return lookupResult.errorResponse;
+  const effectiveBookingId = lookupResult?.effectiveBookingId || booking.bookingId;
 
   const siteUrl = getSiteUrl(event);
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -248,7 +300,8 @@ exports.handler = async (event) => {
       success_url: `${siteUrl}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/cart.html`,
       metadata: {
-        supabase_booking_id: String(booking.bookingId).slice(0, 500),
+        supabase_booking_id: String(effectiveBookingId).slice(0, 500),
+        original_cart_booking_id: String(booking.bookingId).slice(0, 500),
         customer_id: String(customer.customerId).slice(0, 500),
         customer_name: String(customer.name || '').slice(0, 500),
         customer_email: String(customer.email).slice(0, 500),
@@ -282,7 +335,7 @@ exports.handler = async (event) => {
           payment_status: 'pending_checkout',
           updated_at: new Date().toISOString(),
         })
-        .eq('id', booking.bookingId)
+        .eq('id', effectiveBookingId)
         .eq('customer_id', verifiedUser.id);
 
       if (updateError) {
@@ -294,6 +347,7 @@ exports.handler = async (event) => {
       sessionId: session.id,
       hasUrl: Boolean(session.url),
       depositAmount,
+      effectiveBookingId,
     });
 
     // TODO: Add a Stripe webhook to update appointment_bookings.payment_status to paid_deposit after checkout.session.completed.
