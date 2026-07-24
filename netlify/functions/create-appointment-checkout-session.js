@@ -70,6 +70,18 @@ function moneyAmount(value) {
   return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : 0;
 }
 
+function buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError, rowFound, reason }) {
+  return {
+    reason,
+    bookingIdReceived: booking?.bookingId || '',
+    customerIdReceived: customer?.customerId || '',
+    verifiedUserId: verifiedUser?.id || '',
+    supabaseErrorCode: supabaseError?.code || '',
+    supabaseErrorMessage: supabaseError?.message || '',
+    rowFound: Boolean(rowFound),
+  };
+}
+
 async function getVerifiedUser(event, supabaseAdmin) {
   if (!supabaseAdmin) return null;
 
@@ -83,6 +95,42 @@ async function getVerifiedUser(event, supabaseAdmin) {
   }
 
   return authData.user;
+}
+
+async function findBookingRow({ supabaseAdmin, booking, customer, verifiedUser }) {
+  if (!supabaseAdmin || !verifiedUser) return null;
+
+  const { data: row, error } = await supabaseAdmin
+    .from('appointment_bookings')
+    .select('id, customer_id, payment_status')
+    .eq('id', booking.bookingId)
+    .maybeSingle();
+
+  if (error) {
+    const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError: error, rowFound: false, reason: 'supabase_lookup_error' });
+    logDeveloperError('Booking lookup by id failed before checkout.', diagnostics);
+    return { errorResponse: json(400, { message: 'Saved booking lookup failed before checkout.', diagnostics }) };
+  }
+
+  if (!row) {
+    const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: false, reason: 'booking_id_not_found' });
+    logDeveloperError('Booking id was not found before checkout.', diagnostics);
+    return { errorResponse: json(400, { message: 'Saved booking could not be found. Please add the appointment to cart again.', diagnostics }) };
+  }
+
+  if (row.customer_id !== verifiedUser.id) {
+    const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: true, reason: 'customer_mismatch' });
+    logDeveloperError('Booking row customer mismatch before checkout.', { ...diagnostics, rowCustomerId: row.customer_id });
+    return { errorResponse: json(403, { message: 'This booking does not match the logged-in customer.', diagnostics: { ...diagnostics, rowCustomerId: row.customer_id } }) };
+  }
+
+  console.log('[EastCord appointment automation] Booking row found before checkout.', {
+    bookingId: row.id,
+    customerMatches: true,
+    paymentStatus: row.payment_status,
+  });
+
+  return { row };
 }
 
 exports.handler = async (event) => {
@@ -107,13 +155,22 @@ exports.handler = async (event) => {
   }
 
   const customer = booking.customer || {};
+  console.info('[EastCord appointment automation] Checkout request diagnostics', {
+    cartLocalId: booking.id || '',
+    bookingId: booking.bookingId || '',
+    bookingCustomerId: booking.customerId || '',
+    customerProfileId: customer.customerId || '',
+    serviceId: booking.serviceId || '',
+    depositAmount: booking.depositAmount || '',
+  });
+
   if (!required(customer.customerId) || !required(customer.email)) {
     return json(401, { message: 'Please log in before checkout.' });
   }
 
   const service = SERVICES[booking.serviceId];
   if (!service) return json(400, { message: 'Please choose a valid tire service.' });
-  if (!required(booking.bookingId)) return json(400, { message: 'Booking details must be saved before checkout can start.' });
+  if (!required(String(booking.bookingId || ''))) return json(400, { message: 'Booking details must be saved before checkout can start.' });
 
   const requiredFields = [
     customer.customerId,
@@ -158,22 +215,14 @@ exports.handler = async (event) => {
   const verifiedUser = await getVerifiedUser(event, supabaseAdmin);
 
   if (verifiedUser && verifiedUser.id !== customer.customerId) {
-    return json(403, { message: 'This booking does not match the logged-in customer.' });
+    return json(403, {
+      message: 'This booking does not match the logged-in customer.',
+      diagnostics: buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: false, reason: 'profile_customer_mismatch' }),
+    });
   }
 
-  if (supabaseAdmin && verifiedUser) {
-    const { data: bookingRow, error: bookingError } = await supabaseAdmin
-      .from('appointment_bookings')
-      .select('id, customer_id, payment_status')
-      .eq('id', booking.bookingId)
-      .eq('customer_id', verifiedUser.id)
-      .maybeSingle();
-
-    if (bookingError || !bookingRow) {
-      logDeveloperError('Saved booking row could not be found before checkout.', bookingError || { bookingId: booking.bookingId });
-      return json(400, { message: 'Saved booking could not be found. Please add the appointment to cart again.' });
-    }
-  }
+  const lookupResult = await findBookingRow({ supabaseAdmin, booking, customer, verifiedUser });
+  if (lookupResult?.errorResponse) return lookupResult.errorResponse;
 
   const siteUrl = getSiteUrl(event);
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
