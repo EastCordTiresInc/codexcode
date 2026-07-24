@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="EastCord Tires booking deposit received." />
-    <title>Booking Deposit Received | EastCord Tires</title>
+    <meta name="description" content="EastCord Tires appointment confirmed after deposit payment." />
+    <title>Appointment Confirmed | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=3" />
@@ -27,17 +27,61 @@
     <main id="main-content" class="appointment-page">
       <section class="section">
         <div class="shell">
-          <div class="appointment-form-card" style="max-width: 860px; margin: 0 auto; text-align: center;">
-            <div class="appointment-form-heading">
-              <h1>Booking Deposit Received</h1>
-              <p>
-                Thank you. Your booking deposit has been received and your appointment has been submitted. EastCord Tires will confirm availability, final service details, and appointment time.
-              </p>
+          <div class="appointment-form-card" style="max-width: 920px; margin: 0 auto;">
+            <div class="appointment-form-heading" style="text-align: center;">
+              <h1>Appointment Confirmed</h1>
+              <p>Your deposit has been received and your appointment is confirmed.</p>
             </div>
-            <a class="button button-primary appointment-submit" href="/">Back to Home</a>
+
+            <div class="appointment-review-grid" data-confirmation-details aria-live="polite"></div>
+
+            <p class="appointment-payment-note">
+              Please remember that wheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service.
+            </p>
+            <p class="appointment-payment-note">
+              Your appointment is subject to EastCord Tires' Mobile Service Agreement and Used Tire Warranty Policy, where applicable.
+            </p>
+
+            <div class="appointment-step-actions" style="justify-content: center;">
+              <a class="button button-primary appointment-submit" href="/">Back to Home</a>
+              <a class="button button-secondary" href="/account.html">View My Account</a>
+            </div>
           </div>
         </div>
       </section>
     </main>
+    <script>
+      (() => {
+        const cartKey = 'eastcord_cart_v1';
+        const money = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 });
+        const details = document.querySelector('[data-confirmation-details]');
+        if (!details) return;
+
+        let appointments = [];
+        try {
+          appointments = JSON.parse(localStorage.getItem(cartKey) || '[]').filter((item) => item.type === 'appointment');
+        } catch (error) {
+          console.error('[EastCord appointment automation] Confirmation details could not be read.', error);
+        }
+
+        if (!appointments.length) {
+          details.innerHTML = '<div class="appointment-review-card"><span>Confirmation</span><strong>Your payment was completed successfully.</strong></div>';
+          return;
+        }
+
+        details.innerHTML = appointments.map((item, index) => {
+          const vehicle = [item.vehicleYear, item.vehicleMake, item.vehicleModel].filter(Boolean).join(' ') || 'Vehicle details submitted';
+          const location = [item.fullServiceAddress, item.city, item.postalCode].filter(Boolean).join(', ') || 'Service location submitted';
+          return `
+            <div class="appointment-review-card"><span>Service ${index + 1}</span><strong>${item.serviceName || 'Appointment service'}</strong></div>
+            <div class="appointment-review-card"><span>Vehicle</span><strong>${vehicle}${item.tireSize ? ` - ${item.tireSize}` : ''}</strong></div>
+            <div class="appointment-review-card"><span>Date</span><strong>${item.preferredDate || 'Date submitted'}</strong></div>
+            <div class="appointment-review-card"><span>Time</span><strong>${item.preferredTimeWindow || 'Time submitted'}</strong></div>
+            <div class="appointment-review-card"><span>Service location</span><strong>${location}</strong></div>
+            <div class="appointment-review-card"><span>Payment</span><strong>${money.format(Number(item.depositAmount || 0))} deposit paid, ${money.format(Number(item.remainingBalance || 0))} due at service</strong></div>
+          `;
+        }).join('');
+      })();
+    </script>
   </body>
 </html>
