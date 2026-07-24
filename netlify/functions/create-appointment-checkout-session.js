@@ -145,12 +145,13 @@ async function findPaidSlotConflicts(supabaseAdmin, preparedItems) {
   for (const date of dates) {
     const { data, error } = await supabaseAdmin
       .from('appointment_bookings')
-      .select('id, preferred_date, preferred_time_window, payment_status')
+      .select('id, preferred_date, preferred_time_window, payment_status, booking_status')
       .eq('preferred_date', date)
-      .eq('payment_status', 'paid_deposit');
+      .eq('payment_status', 'paid_deposit')
+      .eq('booking_status', 'Confirmed');
 
     if (error) {
-      logDeveloperError('Paid appointment slot lookup failed before Stripe checkout.', {
+      logDeveloperError('Confirmed paid appointment slot lookup failed before Stripe checkout.', {
         date,
         error,
       });
@@ -161,7 +162,7 @@ async function findPaidSlotConflicts(supabaseAdmin, preparedItems) {
       const slotKey = getSlotKey(row.preferred_date, row.preferred_time_window);
       if (requestedSlots.has(slotKey) && !activeBookingIds.has(row.id)) {
         conflicts.push({
-          reason: 'paid_slot_conflict',
+          reason: 'confirmed_paid_slot_conflict',
           bookingId: row.id,
           date: row.preferred_date,
           timeWindow: row.preferred_time_window,
@@ -404,7 +405,7 @@ exports.handler = async (event) => {
 
   const paidSlotConflicts = await findPaidSlotConflicts(supabaseAdmin, preparedItems);
   if (paidSlotConflicts.length) {
-    logDeveloperError('Checkout stopped because one or more slots are already paid/booked.', paidSlotConflicts);
+    logDeveloperError('Checkout stopped because one or more slots are already confirmed and paid.', paidSlotConflicts);
     return json(409, { message: SLOT_UNAVAILABLE_MESSAGE, conflicts: paidSlotConflicts });
   }
 
@@ -439,7 +440,7 @@ exports.handler = async (event) => {
         customer_name: String(customer.name || '').slice(0, 500),
         customer_email: String(customer.email).slice(0, 500),
         customer_phone: String(customer.phone).slice(0, 500),
-        booking_status: 'Pending Confirmation',
+        booking_status: 'Confirmed After Payment',
         payment_status: 'pending_checkout',
         total_deposit_amount: totalDeposit.toFixed(2),
       },
