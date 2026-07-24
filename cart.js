@@ -111,7 +111,7 @@ function renderCartItem(item, index) {
       <p>${item.vehicleYear} ${item.vehicleMake} ${item.vehicleModel} - ${item.tireSize}</p>
       <p>${item.city}, ${item.postalCode} - ${item.preferredDate} at ${item.preferredTimeWindow}</p>
       <p>Starting price: ${window.EastCordAccount.money(item.startingPrice)} | Deposit due today: ${window.EastCordAccount.money(item.depositAmount)} | Remaining on-site: ${window.EastCordAccount.money(item.remainingBalance)}</p>
-      <p>Booking status: ${item.bookingStatus || 'Pending Confirmation'} | Payment status: ${item.paymentStatus || 'pending_checkout'}</p>
+      <p>Your appointment will be confirmed automatically after successful deposit payment.</p>
     </article>
   `;
 }
