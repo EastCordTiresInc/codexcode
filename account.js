@@ -38,6 +38,17 @@ function getSupabaseClient() {
   return window.eastcordSupabaseClient;
 }
 
+function getRedirectTarget(defaultTarget = '/account.html') {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('redirect') || localStorage.getItem('eastcord_auth_redirect') || defaultTarget;
+}
+
+function goToRedirectTarget(defaultTarget = '/account.html') {
+  const redirectTo = getRedirectTarget(defaultTarget);
+  localStorage.removeItem('eastcord_auth_redirect');
+  window.location.href = redirectTo;
+}
+
 function getFriendlySupabaseError(error, fallback = 'Signup could not be completed right now. Please try again shortly.') {
   const message = String(error?.message || '').trim();
   const lowerMessage = message.toLowerCase();
@@ -475,14 +486,20 @@ function bindAuthForms() {
       });
 
       if (signupResult?.session) {
-        setAuthMessage('Account created. Redirecting to your account...', 'success');
+        setAuthMessage('Account created. Redirecting you back...', 'success');
         window.setTimeout(() => {
-          window.location.href = '/account.html';
+          goToRedirectTarget('/account.html');
         }, 800);
         return;
       }
 
-      setAuthMessage(EMAIL_CONFIRMATION_MESSAGE, 'success');
+      const redirectTarget = getRedirectTarget('/appointment.html?restore=appointment#appointment-booking');
+      const loginUrl = `/login.html?redirect=${encodeURIComponent(redirectTarget)}`;
+      setAuthMessage(`${EMAIL_CONFIRMATION_MESSAGE} After confirming, log in to continue your saved appointment.`, 'success');
+      const messageElement = document.querySelector('[data-auth-message]');
+      if (messageElement) {
+        messageElement.insertAdjacentHTML('beforeend', ` <a href="${loginUrl}">Log in after confirming</a>`);
+      }
     } catch (error) {
       setAuthMessage(error.message || 'Signup could not be completed.', 'error');
     }
@@ -510,8 +527,7 @@ function bindAuthForms() {
         email: formData.get('Email'),
         password: formData.get('Password'),
       });
-      const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/account.html';
-      window.location.href = redirectTo;
+      goToRedirectTarget('/account.html');
     } catch (error) {
       setAuthMessage(error.message || 'Login could not be completed.', 'error');
     }
