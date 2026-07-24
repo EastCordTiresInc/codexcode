@@ -70,6 +70,11 @@ function moneyAmount(value) {
   return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : 0;
 }
 
+function normalizeBookingItems(payload) {
+  if (Array.isArray(payload.items) && payload.items.length) return payload.items;
+  return [payload];
+}
+
 function buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError, rowFound, reason }) {
   return {
     reason,
@@ -184,49 +189,12 @@ async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifi
   return { row: repairedRow, effectiveBookingId: repairedRow.id };
 }
 
-exports.handler = async (event) => {
-  console.log('[EastCord appointment automation] create-appointment-checkout-session invoked.', {
-    method: event.httpMethod,
-    hasStripeSecret: Boolean(process.env.STRIPE_SECRET_KEY),
-  });
-
-  if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
-
-  if (!process.env.STRIPE_SECRET_KEY) {
-    logDeveloperError('STRIPE_SECRET_KEY is missing in Netlify environment variables.', { hasStripeSecret: false });
-    return json(500, { message: STRIPE_KEY_MISSING_MESSAGE });
-  }
-
-  let booking;
-  try {
-    booking = JSON.parse(event.body || '{}');
-  } catch (error) {
-    logDeveloperError('Invalid checkout request body.', error);
-    return json(400, { message: 'Invalid booking request.' });
-  }
-
-  const customer = booking.customer || {};
-  console.info('[EastCord appointment automation] Checkout request diagnostics', {
-    cartLocalId: booking.id || '',
-    bookingId: booking.bookingId || '',
-    bookingCustomerId: booking.customerId || '',
-    customerProfileId: customer.customerId || '',
-    serviceId: booking.serviceId || '',
-    depositAmount: booking.depositAmount || '',
-  });
-
-  if (!required(customer.customerId) || !required(customer.email)) {
-    return json(401, { message: 'Please log in before checkout.' });
-  }
-
-  const service = SERVICES[booking.serviceId];
-  if (!service) return json(400, { message: 'Please choose a valid tire service.' });
-  if (!required(String(booking.bookingId || ''))) return json(400, { message: 'Booking details must be saved before checkout can start.' });
-
+function validateBookingFields(booking, customer) {
   const requiredFields = [
     customer.customerId,
     customer.email,
     customer.phone,
+    booking.bookingId,
     booking.preferredDate,
     booking.preferredTimeWindow,
     booking.vehicleYear,
@@ -241,117 +209,164 @@ exports.handler = async (event) => {
     booking.parkingAccessNotes,
   ];
 
-  if (!requiredFields.every(required)) return json(400, { message: 'Please complete all required booking and account fields.' });
+  if (!requiredFields.every((value) => required(String(value || '')))) {
+    return 'Please complete all required booking and account fields.';
+  }
 
   if (!SERVICE_AREA_CITIES.has(booking.city)) {
-    return json(400, { message: 'EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.' });
+    return 'EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.';
   }
 
   const selectedDate = new Date(`${booking.preferredDate}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (Number.isNaN(selectedDate.getTime()) || selectedDate < today) {
-    return json(400, { message: 'Please choose today or a future appointment date.' });
+    return 'Please choose today or a future appointment date.';
   }
 
-  const startingPrice = moneyAmount(booking.startingPrice || service.startingPrice);
-  const depositAmount = moneyAmount(booking.depositAmount);
-  const remainingBalance = moneyAmount(booking.remainingBalance || startingPrice - depositAmount);
+  return '';
+}
 
-  if (depositAmount <= 0) {
-    return json(400, { message: 'The booking deposit amount is missing. Please return to the appointment page and add the service again.' });
+exports.handler = async (event) => {
+  console.log('[EastCord appointment automation] create-appointment-checkout-session invoked.', {
+    method: event.httpMethod,
+    hasStripeSecret: Boolean(process.env.STRIPE_SECRET_KEY),
+  });
+
+  if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
+
+  if (!process.env.STRIPE_SECRET_KEY) {
+    logDeveloperError('STRIPE_SECRET_KEY is missing in Netlify environment variables.', { hasStripeSecret: false });
+    return json(500, { message: STRIPE_KEY_MISSING_MESSAGE });
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(event.body || '{}');
+  } catch (error) {
+    logDeveloperError('Invalid checkout request body.', error);
+    return json(400, { message: 'Invalid booking request.' });
+  }
+
+  const bookingItems = normalizeBookingItems(payload);
+  const customer = payload.customer || bookingItems[0]?.customer || {};
+
+  console.info('[EastCord appointment automation] Checkout request diagnostics', {
+    appointmentCount: bookingItems.length,
+    bookingIds: bookingItems.map((item) => item.bookingId || ''),
+    customerProfileId: customer.customerId || '',
+    depositAmounts: bookingItems.map((item) => item.depositAmount || ''),
+  });
+
+  if (!bookingItems.length) return json(400, { message: 'Add an appointment service before checkout.' });
+  if (!required(customer.customerId) || !required(customer.email)) {
+    return json(401, { message: 'Please log in before checkout.' });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
   const verifiedUser = await getVerifiedUser(event, supabaseAdmin);
 
   if (verifiedUser && verifiedUser.id !== customer.customerId) {
-    return json(403, {
-      message: 'This booking does not match the logged-in customer.',
-      diagnostics: buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: false, reason: 'profile_customer_mismatch' }),
+    return json(403, { message: 'This cart does not match the logged-in customer.' });
+  }
+
+  const preparedItems = [];
+
+  for (const booking of bookingItems) {
+    const service = SERVICES[booking.serviceId];
+    if (!service) return json(400, { message: 'Please choose a valid tire service.' });
+
+    const validationMessage = validateBookingFields(booking, customer);
+    if (validationMessage) return json(400, { message: validationMessage });
+
+    const startingPrice = moneyAmount(booking.startingPrice || service.startingPrice);
+    const depositAmount = moneyAmount(booking.depositAmount);
+    const remainingBalance = moneyAmount(booking.remainingBalance || startingPrice - depositAmount);
+
+    if (depositAmount <= 0) {
+      return json(400, { message: 'The booking deposit amount is missing. Please return to the appointment page and add the service again.' });
+    }
+
+    const lookupResult = await findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifiedUser, service, startingPrice, depositAmount, remainingBalance });
+    if (lookupResult?.errorResponse) return lookupResult.errorResponse;
+
+    preparedItems.push({
+      booking,
+      service,
+      startingPrice,
+      depositAmount,
+      remainingBalance,
+      effectiveBookingId: lookupResult?.effectiveBookingId || booking.bookingId,
+      lookupDiagnostics: lookupResult?.diagnostics || null,
     });
   }
 
-  const lookupResult = await findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifiedUser, service, startingPrice, depositAmount, remainingBalance });
-  if (lookupResult?.errorResponse) return lookupResult.errorResponse;
-  const effectiveBookingId = lookupResult?.effectiveBookingId || booking.bookingId;
-
   const siteUrl = getSiteUrl(event);
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const bookingIds = preparedItems.map((item) => item.effectiveBookingId).filter(Boolean);
+  const totalDeposit = preparedItems.reduce((sum, item) => sum + item.depositAmount, 0);
 
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
       customer_email: customer.email,
-      line_items: [
-        {
-          price_data: {
-            currency: 'cad',
-            product_data: {
-              name: `${service.name} - 20% Booking Deposit`,
-              description: '20% booking deposit based on the selected starting price. Remaining balance is paid on-site after service.',
-            },
-            unit_amount: Math.round(depositAmount * 100),
+      line_items: preparedItems.map((item, index) => ({
+        price_data: {
+          currency: 'cad',
+          product_data: {
+            name: `Vehicle ${index + 1}: ${item.service.name} - 20% Booking Deposit`,
+            description: '20% booking deposit based on the selected starting price. Remaining balance is paid on-site after service.',
           },
-          quantity: 1,
+          unit_amount: Math.round(item.depositAmount * 100),
         },
-      ],
+        quantity: 1,
+      })),
       success_url: `${siteUrl}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/cart.html`,
       metadata: {
-        supabase_booking_id: String(effectiveBookingId).slice(0, 500),
-        original_cart_booking_id: String(booking.bookingId).slice(0, 500),
+        supabase_booking_id: String(bookingIds[0] || '').slice(0, 500),
+        supabase_booking_ids: JSON.stringify(bookingIds).slice(0, 500),
+        appointment_count: String(preparedItems.length),
         customer_id: String(customer.customerId).slice(0, 500),
         customer_name: String(customer.name || '').slice(0, 500),
         customer_email: String(customer.email).slice(0, 500),
         customer_phone: String(customer.phone).slice(0, 500),
         booking_status: 'Pending Confirmation',
         payment_status: 'pending_checkout',
-        service_area_status: 'In service area',
-        service_id: booking.serviceId,
-        service_name: service.name,
-        starting_price: startingPrice.toFixed(2),
-        deposit_amount: depositAmount.toFixed(2),
-        remaining_balance: remainingBalance.toFixed(2),
-        preferred_date: String(booking.preferredDate).slice(0, 500),
-        preferred_time_window: String(booking.preferredTimeWindow).slice(0, 500),
-        vehicle_year: String(booking.vehicleYear).slice(0, 500),
-        vehicle_make: String(booking.vehicleMake).slice(0, 500),
-        vehicle_model: String(booking.vehicleModel).slice(0, 500),
-        tire_size: String(booking.tireSize).slice(0, 500),
-        tires_already_on_rims: String(booking.tiresAlreadyOnRims).slice(0, 500),
-        number_of_tires: String(booking.numberOfTires).slice(0, 500),
-        city: String(booking.city).slice(0, 500),
-        postal_code: String(booking.postalCode).slice(0, 500),
+        total_deposit_amount: totalDeposit.toFixed(2),
       },
     });
 
     if (supabaseAdmin && verifiedUser) {
-      const { error: updateError } = await supabaseAdmin
-        .from('appointment_bookings')
-        .update({
-          stripe_session_id: session.id,
-          payment_status: 'pending_checkout',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', effectiveBookingId)
-        .eq('customer_id', verifiedUser.id);
+      for (const item of preparedItems) {
+        const { error: updateError } = await supabaseAdmin
+          .from('appointment_bookings')
+          .update({
+            stripe_session_id: session.id,
+            payment_status: 'pending_checkout',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', item.effectiveBookingId)
+          .eq('customer_id', verifiedUser.id);
 
-      if (updateError) {
-        logDeveloperError('Booking row could not be updated with Stripe session ID.', updateError);
+        if (updateError) {
+          logDeveloperError('Booking row could not be updated with Stripe session ID.', {
+            bookingId: item.effectiveBookingId,
+            updateError,
+          });
+        }
       }
     }
 
     console.log('[EastCord appointment automation] Stripe Checkout session created.', {
       sessionId: session.id,
       hasUrl: Boolean(session.url),
-      depositAmount,
-      effectiveBookingId,
-      lookupDiagnostics: lookupResult?.diagnostics || null,
+      appointmentCount: preparedItems.length,
+      bookingIds,
+      totalDeposit,
     });
 
-    // TODO: Add a Stripe webhook to update appointment_bookings.payment_status to paid_deposit after checkout.session.completed.
     return json(200, { url: session.url });
   } catch (error) {
     logDeveloperError('Stripe Checkout session creation failed.', {
