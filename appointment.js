@@ -225,12 +225,13 @@
 
     const { data, error } = await client
       .from('appointment_bookings')
-      .select('preferred_date, preferred_time_window, payment_status')
+      .select('preferred_date, preferred_time_window, payment_status, booking_status')
       .eq('preferred_date', date)
-      .eq('payment_status', 'paid_deposit');
+      .eq('payment_status', 'paid_deposit')
+      .eq('booking_status', 'Confirmed');
 
     if (error) {
-      logDeveloperError('Paid appointment slots could not be loaded.', error);
+      logDeveloperError('Confirmed paid appointment slots could not be loaded.', error);
       return new Set();
     }
 
@@ -368,12 +369,16 @@
 
   async function validateSelectedSlotAvailability() {
     if (!els.preferredDate?.value || !els.preferredTimeWindow?.value) return false;
+    const selectedDate = els.preferredDate.value;
+    const selectedTimeWindow = els.preferredTimeWindow.value;
     await refreshPaidBookedSlotsForSelectedDate();
 
-    const unavailableMessage = getSlotUnavailableReason(els.preferredDate.value, els.preferredTimeWindow.value);
+    const unavailableMessage = getSlotUnavailableReason(selectedDate, selectedTimeWindow);
     if (unavailableMessage) {
+      els.preferredTimeWindow.value = '';
       els.preferredTimeWindow.setCustomValidity(unavailableMessage);
       showAppointmentMessage(unavailableMessage);
+      updateReviewSummary(state.currentService || getCurrentService());
       return false;
     }
 
