@@ -11,6 +11,8 @@ const agreementOpenButton = document.querySelector('[data-agreement-open]');
 const agreementModal = document.querySelector('[data-agreement-modal]');
 const agreementCloseButtons = Array.from(document.querySelectorAll('[data-agreement-close]'));
 const agreementPanel = agreementModal?.querySelector('.agreement-modal-panel');
+const MIN_ADVANCE_MINUTES = 120;
+const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
 
 function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
@@ -69,38 +71,40 @@ function getTimeWindowStartMinutes(value) {
   return (hours * 60) + minutes;
 }
 
-function formatDateInputValue(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function getAppointmentStartDate(item) {
+  const startMinutes = getTimeWindowStartMinutes(item.preferredTimeWindow);
+  if (!item.preferredDate || startMinutes === null) return null;
+
+  const startDate = new Date(`${item.preferredDate}T00:00:00`);
+  if (Number.isNaN(startDate.getTime())) return null;
+
+  startDate.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+  return startDate;
 }
 
 function isPastAppointmentSlot(item) {
-  if (!item.preferredDate || !item.preferredTimeWindow) return true;
-  const selectedDate = new Date(`${item.preferredDate}T00:00:00`);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (Number.isNaN(selectedDate.getTime()) || selectedDate < today) return true;
-  if (item.preferredDate !== formatDateInputValue(new Date())) return false;
+  const startDate = getAppointmentStartDate(item);
+  if (!startDate) return true;
+  return startDate.getTime() <= Date.now();
+}
 
-  const startMinutes = getTimeWindowStartMinutes(item.preferredTimeWindow);
-  const now = new Date();
-  const nowMinutes = (now.getHours() * 60) + now.getMinutes();
-  return startMinutes !== null && startMinutes <= nowMinutes;
+function isLessThanMinimumAdvance(item) {
+  const startDate = getAppointmentStartDate(item);
+  if (!startDate) return true;
+  return startDate.getTime() - Date.now() < MIN_ADVANCE_MINUTES * 60 * 1000;
 }
 
 function validateCartSlots(items) {
   const seenSlots = new Set();
 
   for (const item of items) {
-    if (isPastAppointmentSlot(item)) {
-      return 'One or more appointment times are no longer available. Please choose another time.';
+    if (isPastAppointmentSlot(item) || isLessThanMinimumAdvance(item)) {
+      return SLOT_UNAVAILABLE_MESSAGE;
     }
 
     const slotKey = `${item.preferredDate}__${item.preferredTimeWindow}`;
     if (seenSlots.has(slotKey)) {
-      return 'One or more appointment times are no longer available. Please choose another time.';
+      return SLOT_UNAVAILABLE_MESSAGE;
     }
     seenSlots.add(slotKey);
   }
