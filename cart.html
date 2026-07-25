@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cart | EastCord Tires</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="appointment.css?v=4" />
+    <link rel="stylesheet" href="account.css?v=3" />
+  </head>
+  <body class="account-page">
+    <header class="site-header">
+      <div class="nav-shell">
+        <a class="brand brand-logo" href="/" aria-label="EastCord Tires home">
+          <img src="assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+        </a>
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="/">Home</a>
+          <a href="/appointment.html">Appointment</a>
+          <span class="auth-nav-group" data-auth-logged-out>
+            <a href="/signup.html">Sign Up</a>
+            <a href="/login.html">Log In</a>
+            <a href="/cart.html">Cart<span data-cart-count></span></a>
+          </span>
+          <span class="auth-nav-group" data-auth-logged-in hidden>
+            <a href="/account.html">My Account</a>
+            <a href="/cart.html">Cart<span data-cart-count></span></a>
+            <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
+          </span>
+        </nav>
+      </div>
+    </header>
+
+    <main class="section">
+      <div class="shell cart-layout">
+        <section class="account-card" aria-labelledby="cart-title">
+          <h1 id="cart-title">Cart</h1>
+          <p>Review appointment services before checkout. Checkout requires a customer account and uses Stripe Checkout for the amount due today.</p>
+          <div class="cart-items" data-cart-items></div>
+          <div class="account-actions">
+            <a class="button button-secondary" href="/appointment.html">Add Another Appointment</a>
+            <button class="button button-secondary" type="button" data-clear-cart>Clear Cart</button>
+          </div>
+        </section>
+
+        <aside class="account-card cart-summary" aria-label="Cart summary">
+          <h2>Checkout Summary</h2>
+          <div class="cart-summary-card">
+            <span>Customer profile</span>
+            <strong data-cart-customer>Please sign up or log in before checkout.</strong>
+          </div>
+          <div class="cart-summary-card">
+            <span>Due today</span>
+            <strong data-cart-deposit>$0</strong>
+          </div>
+          <div class="cart-summary-card">
+            <span>Remaining balance</span>
+            <strong data-cart-balance>$0 due on-site after service</strong>
+          </div>
+          <div class="checkout-block" data-checkout-auth-block>
+            <strong>Please sign up or log in before checkout.</strong>
+            <div class="account-actions">
+              <a class="button button-primary" href="/login.html?redirect=/cart.html">Log In</a>
+              <a class="button button-secondary" href="/signup.html?redirect=/cart.html">Create Account</a>
+            </div>
+          </div>
+          <div class="checkout-agreement" data-checkout-agreement>
+            <p>Please review and accept the Mobile Service Agreement before checkout.</p>
+            <label class="agreement-checkbox">
+              <input type="checkbox" data-agreement-checkbox />
+              <span>I have read, understood, and agree to EastCord Tires' Mobile Service Agreement, including the 100 km wheel re-torque requirement, service location requirements, deposit terms, limitation of liability, and Used Tire Warranty Policy.</span>
+            </label>
+            <button class="agreement-link" type="button" data-agreement-open>View Mobile Service Agreement</button>
+          </div>
+          <p class="appointment-payment-note">Your appointment will be confirmed automatically after successful deposit payment.</p>
+          <p class="account-message" data-cart-message></p>
+          <button class="button button-primary" type="button" data-checkout-button disabled>Checkout with Stripe</button>
+        </aside>
+      </div>
+    </main>
+
+    <div class="agreement-modal" data-agreement-modal hidden>
+      <div class="agreement-modal-backdrop" data-agreement-close></div>
+      <section class="agreement-modal-panel" role="dialog" aria-modal="true" aria-labelledby="agreement-title" tabindex="-1">
+        <button class="agreement-modal-close" type="button" aria-label="Close Mobile Service Agreement" data-agreement-close>X</button>
+        <div class="agreement-content">
+          <h2 id="agreement-title">EastCord Tires Mobile Service Agreement</h2>
+          <p><strong>Effective Date:</strong> July 24, 2026</p>
+          <p><strong>Business Name:</strong> EastCord Tires</p>
+          <p><strong>Website:</strong> eastcordtires.ca</p>
+          <p><strong>Email:</strong> <a href="mailto:info@eastcordtires.ca">info@eastcordtires.ca</a></p>
+          <p><strong>Phone:</strong> <a href="tel:3658225553">365-822-5553</a></p>
+          <p>By booking a mobile tire service appointment and continuing to checkout, the customer confirms that they have read, understood, and agreed to the following terms before service is scheduled.</p>
+
+          <h3>1. Appointment &amp; Deposit</h3>
+          <p>A deposit is required to reserve an appointment time with EastCord Tires.</p>
+          <p>The deposit is applied toward the total service amount. Any remaining balance must be paid as required by EastCord Tires.</p>
+          <p>An appointment request is subject to final availability, service location, technician availability, weather conditions, safety conditions, and service suitability.</p>
+          <p>EastCord Tires reserves the right to refuse, cancel, delay, or reschedule any appointment if the service cannot be completed safely, properly, or reasonably.</p>
+
+          <h3>2. Mobile Service Location Requirements</h3>
+          <p>The customer is responsible for providing a safe, legal, and suitable location for mobile tire service.</p>
+          <p>The vehicle must be parked on a flat, stable, and safe surface with enough space for the technician to work.</p>
+          <p>EastCord Tires may refuse or reschedule service if the vehicle is parked:</p>
+          <ul>
+            <li>On a steep slope</li>
+            <li>On soft or unstable ground</li>
+            <li>In an unsafe traffic area</li>
+            <li>In a restricted or illegal parking area</li>
+            <li>In a location without enough working space</li>
+            <li>In any area the technician considers unsafe or unsuitable</li>
+          </ul>
+          <p>EastCord Tires is not responsible for delays, cancellations, or incomplete service caused by an unsafe or unsuitable service location.</p>
+
+          <h3>3. Customer Responsibility Before Service</h3>
+          <p>The customer must make sure that:</p>
+          <ul>
+            <li>The vehicle is available at the scheduled appointment time</li>
+            <li>The correct vehicle information is provided</li>
+            <li>The correct service is selected</li>
+            <li>Tires and wheels are accessible</li>
+            <li>The wheel lock key is available, if required</li>
+            <li>The vehicle is parked safely</li>
+            <li>Someone is available to provide access if required</li>
+          </ul>
+          <p>EastCord Tires is not responsible for delays, extra charges, or incomplete service caused by incorrect information, missing wheel lock keys, inaccessible tires or wheels, unsafe parking, or customer unavailability.</p>
+
+          <h3>4. One-Hour Service Time</h3>
+          <p>Each vehicle appointment is scheduled for approximately one hour.</p>
+          <p>The customer understands that each vehicle requires its own separate appointment time slot.</p>
+          <p>If the customer is booking service for more than one vehicle, each vehicle must be added separately and assigned a separate available time slot.</p>
+          <p>EastCord Tires may adjust, reschedule, or refuse bookings that do not allow enough time to complete the service safely and properly.</p>
+
+          <h3>5. Wheel Re-Torque Requirement</h3>
+          <p>The customer understands and agrees that wheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service.</p>
+          <p>This re-torque is an important safety requirement.</p>
+          <p>It is the customer's responsibility to arrange and complete the re-torque after service.</p>
+          <p>Failure to complete a re-torque may result in wheel loosening, vibration, vehicle damage, accident, injury, or loss.</p>
+          <p>EastCord Tires is not responsible for any damage, loss, injury, accident, wheel loosening, or related issue caused by the customer's failure to complete the required 100 km re-torque.</p>
+
+          <h3>6. Tire, Wheel &amp; Vehicle Condition</h3>
+          <p>EastCord Tires performs service based on the visible condition of the tires, wheels, and vehicle at the time of service.</p>
+          <p>EastCord Tires is not responsible for:</p>
+          <ul>
+            <li>Pre-existing damage</li>
+            <li>Hidden defects</li>
+            <li>Worn or damaged vehicle parts</li>
+            <li>Seized or damaged hardware</li>
+            <li>Damaged studs</li>
+            <li>Damaged lug nuts or bolts</li>
+            <li>Cracked, bent, or damaged rims</li>
+            <li>Tire defects</li>
+            <li>TPMS issues</li>
+            <li>Corrosion</li>
+            <li>Alignment issues</li>
+            <li>Suspension issues</li>
+            <li>Any condition that existed before service</li>
+          </ul>
+          <p>If EastCord Tires discovers an unsafe tire, rim, wheel, or vehicle condition, the technician may refuse to install or service the item.</p>
+
+          <h3>7. Used Tire Warranty Policy Reminder</h3>
+          <p>If the customer purchases used tires from EastCord Tires, the purchase is subject to EastCord Tires' <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty Policy</a>.</p>
+          <p>The customer understands that used tires are pre-owned products and may show normal signs of use.</p>
+          <p>Used tire warranty coverage is limited to the terms stated in the official EastCord Tires Used Tire Warranty Policy.</p>
+          <p>Warranty requests may require the original receipt, inspection by EastCord Tires, and approval based on the condition of the tire.</p>
+          <p>EastCord Tires may refuse warranty coverage if the issue is caused by:</p>
+          <ul>
+            <li>Misuse</li>
+            <li>Road hazard</li>
+            <li>Puncture</li>
+            <li>Impact damage</li>
+            <li>Accident</li>
+            <li>Improper inflation</li>
+            <li>Improper installation by another party</li>
+            <li>Alignment issues</li>
+            <li>Suspension issues</li>
+            <li>Vandalism</li>
+            <li>Customer negligence</li>
+            <li>Any condition outside EastCord Tires' warranty terms</li>
+          </ul>
+          <p>The customer is responsible for reading and understanding the Used Tire Warranty Policy before completing checkout.</p>
+
+          <h3>8. No Guarantee Based on Incorrect Information</h3>
+          <p>The customer is responsible for providing accurate vehicle, tire, wheel, location, and service information.</p>
+          <p>EastCord Tires is not responsible for issues caused by incorrect or incomplete information provided by the customer.</p>
+          <p>If the selected service, tire, rim, or vehicle information is incorrect or unsuitable, EastCord Tires may refuse, adjust, cancel, or reschedule the appointment.</p>
+          <p>Additional charges may apply if extra work is required.</p>
+
+          <h3>9. Weather, Safety &amp; Delays</h3>
+          <p>Mobile tire service may be affected by weather, road conditions, technician availability, traffic, safety concerns, equipment issues, or other circumstances beyond EastCord Tires' control.</p>
+          <p>EastCord Tires reserves the right to delay, reschedule, or cancel service for safety or operational reasons.</p>
+          <p>EastCord Tires is not responsible for loss, inconvenience, missed appointments, vehicle downtime, or other damages caused by delay, rescheduling, or cancellation.</p>
+
+          <h3>10. Payment &amp; Remaining Balance</h3>
+          <p>The deposit paid online is applied toward the total service amount.</p>
+          <p>Any remaining balance must be paid as required by EastCord Tires.</p>
+          <p>EastCord Tires may refuse to begin, complete, or release service if payment is not completed.</p>
+          <p>Prices, deposits, and remaining balances may be adjusted if incorrect information was provided, the wrong service was selected, or extra work is required.</p>
+
+          <h3>11. Limitation of Liability</h3>
+          <p>To the fullest extent permitted, EastCord Tires is not responsible for indirect, incidental, special, or consequential damages.</p>
+          <p>This includes, but is not limited to:</p>
+          <ul>
+            <li>Loss of use</li>
+            <li>Lost income</li>
+            <li>Towing costs</li>
+            <li>Missed appointments</li>
+            <li>Vehicle downtime</li>
+            <li>Travel costs</li>
+            <li>Business interruption</li>
+            <li>Any related or unexpected losses</li>
+          </ul>
+          <p>EastCord Tires' responsibility is limited to the service paid for by the customer, subject to inspection, review, and approval by EastCord Tires.</p>
+
+          <h3>12. Customer Acknowledgement</h3>
+          <p>By booking service and continuing to checkout, the customer confirms that they have read, understood, and accepted this Mobile Service Agreement.</p>
+          <p>The customer agrees that EastCord Tires may rely on this agreement when accepting the booking, performing service, collecting payment, handling warranty requests, or reviewing any service-related concern.</p>
+        </div>
+      </section>
+    </div>
+
+    <form name="eastcord-changeover-appointment" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="hidden" name="form-name" value="eastcord-changeover-appointment" />
+      <input name="bot-field" />
+      <input name="Customer ID" />
+      <input name="Customer Name" />
+      <input name="Customer Email" />
+      <input name="Customer Phone" />
+      <input name="Service Needed" />
+      <input name="Starting Price" />
+      <input name="Booking Deposit" />
+      <input name="Remaining Balance" />
+      <input name="Booking Status" />
+      <input name="Service area status" />
+      <input name="stripe_session_id" />
+      <input name="payment_status" />
+      <input name="Preferred Date" />
+      <input name="Preferred Time Window" />
+      <input name="Vehicle Year" />
+      <input name="Vehicle Make" />
+      <input name="Vehicle Model" />
+      <input name="Tire Size" />
+      <input name="Tires Already On Rims" />
+      <input name="Number of Tires" />
+      <input name="Full Service Address" />
+      <input name="City" />
+      <input name="Postal Code" />
+      <textarea name="Parking Driveway Access Notes"></textarea>
+      <textarea name="Additional Notes"></textarea>
+    </form>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js"></script>
+    <script src="account.js?v=7"></script>
+    <script src="cart.js?v=7"></script>
+  </body>
+</html>

@@ -1,0 +1,347 @@
+.appointment-page {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(223, 31, 45, 0.08), transparent 34%),
+    linear-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.06) 1px, transparent 1px),
+    #ffffff;
+  background-size: auto, 72px 72px, 72px 72px, auto;
+}
+
+.appointment-page .appointment-hero.section {
+  padding: clamp(22px, 3vw, 36px) 0 8px;
+}
+
+.appointment-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+  gap: clamp(18px, 3vw, 40px);
+  align-items: center;
+}
+
+.appointment-hero h1 {
+  margin: 0 0 14px;
+  color: #111317;
+  font-size: clamp(2.25rem, 4.8vw, 4rem);
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+
+.appointment-hero p {
+  max-width: 760px;
+  margin: 0;
+  color: #4f5663;
+  font-size: 1.08rem;
+  line-height: 1.65;
+}
+
+.appointment-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.appointment-start-button {
+  box-shadow: 0 16px 34px rgba(223, 31, 45, 0.28);
+}
+
+.appointment-status-card,
+.appointment-info-card,
+.appointment-form-card {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.12);
+}
+
+.appointment-status-card {
+  padding: 22px;
+}
+
+.appointment-status-card span {
+  display: inline-flex;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #df1f2d;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.appointment-status-card strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #111317;
+  font-size: 1.35rem;
+  line-height: 1.12;
+}
+
+.appointment-status-card p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.appointment-page .appointment-section.section {
+  padding: 4px 0 76px;
+  scroll-margin-top: 88px;
+}
+
+.appointment-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.38fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.appointment-form-card {
+  display: grid;
+  gap: 22px;
+  padding: clamp(22px, 3vw, 34px);
+}
+
+.appointment-form-card > label:first-child,
+.appointment-form-card > label:first-of-type,
+.appointment-form-card > p:first-child,
+.appointment-form-card > div:first-child:has(input[name="bot-field"]),
+.appointment-form-card > div:first-child:has(input[name="bot-field"]),
+.appointment-form-card > input[name="bot-field"] {
+  display: none !important;
+}
+
+.appointment-form-heading h2,
+.appointment-info-card h2 {
+  margin: 0 0 10px;
+  color: #111317;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.08;
+}
+
+.appointment-form-heading p,
+.appointment-info-card p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.hidden-field,
+.hidden-field[hidden],
+[netlify-honeypot],
+input[name="bot-field"],
+label:has(input[name="bot-field"]) {
+  display: none !important;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+.appointment-progress {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+  margin: 4px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.appointment-progress li {
+  position: relative;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 999px;
+  background: #f4f5f7;
+  color: #626a76;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.appointment-progress li.is-active {
+  border-color: #df1f2d;
+  background: #df1f2d;
+  color: #ffffff;
+  box-shadow: 0 12px 26px rgba(223, 31, 45, 0.22);
+}
+
+.appointment-progress li.is-complete {
+  border-color: rgba(223, 31, 45, 0.24);
+  background: rgba(223, 31, 45, 0.09);
+  color: #991b1b;
+}
+
+.appointment-step { display: grid; gap: 22px; }
+.appointment-step[hidden] { display: none !important; }
+.appointment-step-heading { display: grid; gap: 8px; }
+.appointment-step-heading span { color: #df1f2d; font-size: 0.76rem; font-weight: 950; letter-spacing: 0.08em; text-transform: uppercase; }
+.appointment-step-heading h3 { margin: 0; color: #111317; font-size: clamp(1.5rem, 2.6vw, 2rem); line-height: 1.08; }
+.appointment-step-heading h3:focus { outline: none; }
+.appointment-step-heading p { max-width: 760px; margin: 0; color: #4f5663; line-height: 1.65; }
+
+.service-select-field {
+  max-width: 760px;
+}
+
+.appointment-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.form-field {
+  display: grid;
+  gap: 8px;
+  color: #34363a;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.form-field-full { grid-column: 1 / -1; }
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 14px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 14px;
+  background: #ffffff;
+  color: #111317;
+  font: inherit;
+  outline: none;
+}
+
+.form-field textarea { min-height: 112px; padding-top: 13px; resize: vertical; }
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  border-color: #df1f2d;
+  box-shadow: 0 0 0 4px rgba(223, 31, 45, 0.1);
+}
+
+.appointment-price-summary,
+.appointment-review-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.appointment-price-summary div,
+.appointment-review-card {
+  display: grid;
+  gap: 7px;
+  min-height: 96px;
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 18px;
+  background: #f8f8f8;
+}
+
+.appointment-price-summary span,
+.appointment-review-card span {
+  color: #626a76;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.appointment-price-summary strong,
+.appointment-review-card strong {
+  color: #111317;
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+
+.appointment-price-summary small {
+  color: #626a76;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.appointment-payment-note,
+.appointment-status-message,
+.appointment-service-area-warning {
+  margin: 0;
+  color: #4f5663;
+  line-height: 1.65;
+}
+
+.appointment-service-area-warning,
+.appointment-status-message.error {
+  padding: 14px 16px;
+  border-left: 4px solid #df1f2d;
+  border-radius: 14px;
+  background: rgba(223, 31, 45, 0.08);
+  color: #991b1b;
+  font-weight: 800;
+}
+
+.appointment-status-message.success { color: #15803d; font-weight: 800; }
+
+.appointment-step-actions,
+.appointment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.button-secondary {
+  color: #111317;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+}
+
+.button-secondary:hover { border-color: #df1f2d; color: #df1f2d; }
+
+.appointment-info-card {
+  position: sticky;
+  top: 96px;
+  display: grid;
+  gap: 18px;
+  padding: 26px;
+}
+
+.appointment-info-card ul {
+  display: grid;
+  gap: 11px;
+  margin: 0;
+  padding-left: 20px;
+  color: #4f5663;
+  line-height: 1.55;
+}
+
+.appointment-info-card strong { color: #111317; }
+
+@media (max-width: 900px) {
+  .appointment-page .appointment-hero.section { padding-top: 22px; }
+  .appointment-hero-grid,
+  .appointment-layout { grid-template-columns: 1fr; }
+  .appointment-info-card { position: static; }
+}
+
+@media (max-width: 680px) {
+  .appointment-page .appointment-hero.section { padding-bottom: 8px; }
+  .appointment-hero-actions { margin-top: 18px; }
+  .appointment-field-grid,
+  .appointment-price-summary,
+  .appointment-review-grid { grid-template-columns: 1fr; }
+  .appointment-status-card,
+  .appointment-info-card,
+  .appointment-form-card { border-radius: 22px; }
+  .appointment-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Log In | EastCord Tires</title>
+    <title>My Account | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="appointment.css?v=4" />
     <link rel="stylesheet" href="account.css?v=2" />
@@ -33,30 +33,25 @@
 
     <main class="section">
       <div class="shell">
-        <section class="account-card" aria-labelledby="login-title">
-          <h1 id="login-title">Log In</h1>
-          <p>Log in before checkout so your appointment and payment record can connect to your customer profile.</p>
-          <form class="account-form" data-login-form>
-            <label class="form-field">
-              <span>Email</span>
-              <input name="Email" type="email" autocomplete="email" required />
-            </label>
-            <label class="form-field">
-              <span>Password</span>
-              <input name="Password" type="password" autocomplete="current-password" required />
-            </label>
-            <p class="account-message" data-auth-message></p>
-            <div class="account-actions">
-              <button class="button button-primary" type="submit">Log In</button>
-              <a href="/signup.html">Don’t have an account? Sign up</a>
-            </div>
-          </form>
+        <section class="account-card" aria-labelledby="account-title">
+          <h1 id="account-title">My Account</h1>
+          <p>Your customer profile is used during checkout so appointment records can be connected to the correct customer.</p>
+          <div class="cart-items" data-account-panel></div>
+          <div class="account-history">
+            <h2>Appointment History</h2>
+            <p>Bookings shown here are saved in Supabase and stay connected to your customer account.</p>
+            <div class="cart-items" data-booking-history></div>
+          </div>
+          <div class="account-actions">
+            <a class="button button-primary" href="/cart.html">View Cart</a>
+            <a class="button button-secondary" href="/appointment.html">Book Appointment</a>
+          </div>
         </section>
       </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=7"></script>
+    <script src="account.js?v=5"></script>
   </body>
 </html>

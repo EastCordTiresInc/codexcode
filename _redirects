@@ -1,0 +1,12 @@
+/signup    /signup.html    301!
+/signup/   /signup.html    301!
+/login     /login.html     301!
+/login/    /login.html     301!
+/account   /account.html   301!
+/account/  /account.html   301!
+/cart      /cart.html      301!
+/cart/     /cart.html      301!
+/appointment-success     /appointment-success.html     301!
+/appointment-success/    /appointment-success.html     301!
+/appointment-cancelled   /appointment-cancelled.html   301!
+/appointment-cancelled/  /appointment-cancelled.html   301!
