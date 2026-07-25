@@ -12,16 +12,26 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_public_key
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 STRIPE_SECRET_KEY=sk_test_or_live_key
+STRIPE_WEBHOOK_SECRET=whsec_test_or_live_secret
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_or_live_key
+EMAIL_PROVIDER=resend
+EMAIL_FROM=EastCord Tires <info@eastcordtires.ca>
+EMAIL_REPLY_TO=info@eastcordtires.ca
+EMAIL_TO_EASTCORD=info@eastcordtires.ca
+RESEND_API_KEY=re_your_resend_api_key
 ```
 
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are written into `auth-config.js` during the Netlify build so the browser can connect to Supabase Auth.
 
-`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are used by the Netlify checkout function to verify the logged-in customer and update the saved Supabase booking row with the Stripe Checkout session ID.
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are used by the Netlify checkout and webhook functions to verify the logged-in customer, read appointment bookings, and update payment or email notification fields.
 
-`STRIPE_SECRET_KEY` is used by `netlify/functions/create-appointment-checkout-session.js`.
+`STRIPE_SECRET_KEY` is used by `netlify/functions/create-appointment-checkout-session.js` and `netlify/functions/stripe-webhook.js`.
+
+`STRIPE_WEBHOOK_SECRET` is used by `netlify/functions/stripe-webhook.js` to verify Stripe webhook signatures.
 
 `VITE_STRIPE_PUBLISHABLE_KEY` is reserved for future Stripe client-side UI. The current flow redirects to Stripe Checkout through the Netlify function and does not collect card details manually.
+
+`RESEND_API_KEY` is used by `netlify/functions/stripe-webhook.js` to send appointment confirmation emails after payment is confirmed. The sender in `EMAIL_FROM` must be verified in Resend.
 
 ## Supabase setup
 
@@ -35,6 +45,16 @@ Tables used:
 
 - `public.customer_profiles`
 - `public.appointment_bookings`
+
+For stronger duplicate-email protection on Stripe webhook retries, also run:
+
+```sql
+alter table public.appointment_bookings
+  add column if not exists customer_confirmation_sent_at timestamptz,
+  add column if not exists eastcord_notification_sent_at timestamptz;
+```
+
+The webhook checks these fields before sending emails. If the columns are not present, the webhook still confirms paid bookings and uses current booking status to avoid duplicate emails on normal retries, but the columns are recommended.
 
 Enable Supabase Email Auth. For preview testing, either disable email confirmation or make sure confirmation redirect URLs include:
 
@@ -82,14 +102,39 @@ Cancel page:
 /appointment-cancelled
 ```
 
-## Stripe webhook TODO
-
-A Stripe webhook is still needed to update:
+Webhook function:
 
 ```text
-public.appointment_bookings.payment_status = paid_deposit
+netlify/functions/stripe-webhook.js
 ```
 
-after `checkout.session.completed`.
+Webhook endpoint:
 
-Until the webhook is added, the booking row is saved before checkout and the Stripe session ID is stored, but automatic post-payment status update is still a TODO.
+```text
+https://deploy-preview-48--updatedeastcord.netlify.app/.netlify/functions/stripe-webhook
+```
+
+Listen for this Stripe event:
+
+```text
+checkout.session.completed
+```
+
+After Stripe confirms payment, the webhook updates all Supabase booking rows listed in the Stripe session metadata:
+
+```text
+payment_status = paid_deposit
+booking_status = Confirmed
+stripe_session_id = checkout session id
+```
+
+## Email notifications
+
+After the webhook successfully updates the booking rows to confirmed, it sends:
+
+- One customer confirmation email listing all appointments in the checkout.
+- One internal EastCord notification email listing all appointments in the checkout.
+
+If email sending fails after booking confirmation succeeds, the webhook logs the email error but still returns success to Stripe so Stripe does not retry a completed payment only because email delivery failed.
+
+If the Supabase booking update fails, the webhook returns an error and does not send confirmation emails.
