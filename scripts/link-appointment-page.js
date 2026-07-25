@@ -4,6 +4,7 @@ const path = require('path');
 const root = process.cwd();
 const APPOINTMENT_PAGE = '/appointment.html';
 const MIO_BOOKING_URL = 'https://hosted.miocommerce.com/io/eastcord-tires/booking/b95731f5-cadb-4849-877c-6238425fd25c';
+const MOBILE_MENU_SCRIPT = '<script src="mobile-menu.js?v=1" defer></script>';
 const extensions = new Set(['.html', '.js']);
 const skipDirs = new Set(['.git', 'node_modules', '.netlify']);
 
@@ -40,6 +41,11 @@ function walk(directory) {
   }
 }
 
+function ensureMobileMenuScript(filePath, content) {
+  if (path.extname(filePath) !== '.html' || content.includes('mobile-menu.js')) return content;
+  return content.replace(/\n\s*<\/body>/, `\n    ${MOBILE_MENU_SCRIPT}\n  </body>`);
+}
+
 function updateFile(filePath) {
   const original = fs.readFileSync(filePath, 'utf8');
   let next = original;
@@ -47,6 +53,8 @@ function updateFile(filePath) {
   for (const [pattern, replacement] of replacements) {
     next = next.replace(pattern, replacement);
   }
+
+  next = ensureMobileMenuScript(filePath, next);
 
   if (next !== original) {
     fs.writeFileSync(filePath, next);
