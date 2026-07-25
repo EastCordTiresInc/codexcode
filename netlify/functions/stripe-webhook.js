@@ -1,9 +1,12 @@
+const https = require('https');
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 
 const CONTACT_EMAIL = 'info@eastcordtires.ca';
 const CONTACT_PHONE = '365-822-5553';
 const SITE_URL = 'eastcordtires.ca';
+const CUSTOMER_EMAIL_COLUMN = 'customer_confirmation_sent_at';
+const EASTCORD_EMAIL_COLUMN = 'eastcord_notification_sent_at';
 
 function json(statusCode, payload) {
   return {
@@ -99,27 +102,13 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
     .maybeSingle();
 
   if (readError) {
-    const diagnostics = buildDiagnostics({
-      bookingId,
-      sessionId: session.id,
-      row: null,
-      rowFound: false,
-      error: readError,
-      updatePayload: null,
-    });
+    const diagnostics = buildDiagnostics({ bookingId, sessionId: session.id, row: null, rowFound: false, error: readError, updatePayload: null });
     console.error('[EastCord appointment automation] Supabase booking row read failed before webhook update.', diagnostics);
     return { ok: false, statusCode: 500, diagnostics };
   }
 
   if (!existingRow) {
-    const diagnostics = buildDiagnostics({
-      bookingId,
-      sessionId: session.id,
-      row: null,
-      rowFound: false,
-      error: null,
-      updatePayload: null,
-    });
+    const diagnostics = buildDiagnostics({ bookingId, sessionId: session.id, row: null, rowFound: false, error: null, updatePayload: null });
     console.error('[EastCord appointment automation] Supabase booking row was not found before webhook update.', diagnostics);
     return { ok: false, statusCode: 404, diagnostics };
   }
@@ -131,20 +120,15 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
     currentBookingStatus: existingRow.booking_status ?? null,
     currentStripeSessionId: existingRow.stripe_session_id ?? null,
     alreadyConfirmed: wasAlreadyConfirmed(existingRow),
+    customerEmailSentAt: existingRow[CUSTOMER_EMAIL_COLUMN] ?? null,
+    eastcordEmailSentAt: existingRow[EASTCORD_EMAIL_COLUMN] ?? null,
     availableColumns: Object.keys(existingRow),
   });
 
   const updatePayload = buildUpdatePayload(existingRow, session);
 
   if (!Object.keys(updatePayload).length) {
-    const diagnostics = buildDiagnostics({
-      bookingId,
-      sessionId: session.id,
-      row: existingRow,
-      rowFound: true,
-      error: null,
-      updatePayload,
-    });
+    const diagnostics = buildDiagnostics({ bookingId, sessionId: session.id, row: existingRow, rowFound: true, error: null, updatePayload });
     console.error('[EastCord appointment automation] No supported payment columns exist on appointment_bookings.', diagnostics);
     return { ok: false, statusCode: 500, diagnostics };
   }
@@ -157,27 +141,13 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
     .maybeSingle();
 
   if (updateError) {
-    const diagnostics = buildDiagnostics({
-      bookingId,
-      sessionId: session.id,
-      row: existingRow,
-      rowFound: true,
-      error: updateError,
-      updatePayload,
-    });
+    const diagnostics = buildDiagnostics({ bookingId, sessionId: session.id, row: existingRow, rowFound: true, error: updateError, updatePayload });
     console.error('[EastCord appointment automation] Supabase payment status update failed.', diagnostics);
     return { ok: false, statusCode: 500, diagnostics };
   }
 
   if (!updatedRow) {
-    const diagnostics = buildDiagnostics({
-      bookingId,
-      sessionId: session.id,
-      row: existingRow,
-      rowFound: true,
-      error: null,
-      updatePayload,
-    });
+    const diagnostics = buildDiagnostics({ bookingId, sessionId: session.id, row: existingRow, rowFound: true, error: null, updatePayload });
     console.error('[EastCord appointment automation] Supabase payment status update returned no row.', diagnostics);
     return { ok: false, statusCode: 404, diagnostics };
   }
@@ -187,6 +157,8 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
     paymentStatus: updatedRow.payment_status ?? null,
     bookingStatus: updatedRow.booking_status ?? null,
     stripeSessionId: updatedRow.stripe_session_id ?? null,
+    customerEmailSentAt: updatedRow[CUSTOMER_EMAIL_COLUMN] ?? null,
+    eastcordEmailSentAt: updatedRow[EASTCORD_EMAIL_COLUMN] ?? null,
     updatedColumns: Object.keys(updatePayload),
   });
 
@@ -280,57 +252,28 @@ function buildCustomerEmail({ rows, session }) {
   const totalDeposit = rows.reduce((sum, row) => sum + Number(row.deposit_amount || 0), 0);
   const totalRemaining = rows.reduce((sum, row) => sum + Number(row.remaining_balance || 0), 0);
 
-  const text = `Hello ${customerName},
-
-Your EastCord Tires appointment is confirmed.
-
-We have received your deposit and your appointment has been booked successfully.
-
-Appointment Details:
-${appointmentText}
-
-Payment Details:
-Total Deposit Paid: ${formatMoney(totalDeposit)}
-Total Remaining Balance Due at Service: ${formatMoney(totalRemaining)}
-Booking Status: Confirmed
-Payment Status: Deposit Paid
-
-Important Safety Reminder:
-Wheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.
-
-Your appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the Used Tire Warranty Policy also applies.
-
-If you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.
-
-EastCord Tires
-${CONTACT_EMAIL}
-${CONTACT_PHONE}
-${SITE_URL}`;
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;color:#111317;line-height:1.6;max-width:720px;margin:0 auto;">
-      <h2 style="color:#111317;">Your EastCord Tires appointment is confirmed.</h2>
-      <p>Hello ${escapeHtml(customerName)},</p>
-      <p>We have received your deposit and your appointment has been booked successfully.</p>
-      ${appointmentHtml}
-      <h3>Payment Details</h3>
-      <p><strong>Total Deposit Paid:</strong> ${escapeHtml(formatMoney(totalDeposit))}<br />
-      <strong>Total Remaining Balance Due at Service:</strong> ${escapeHtml(formatMoney(totalRemaining))}<br />
-      <strong>Booking Status:</strong> Confirmed<br />
-      <strong>Payment Status:</strong> Deposit Paid</p>
-      <h3>Important Safety Reminder</h3>
-      <p>Wheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.</p>
-      <p>Your appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the Used Tire Warranty Policy also applies.</p>
-      <p>If you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.</p>
-      <p><strong>EastCord Tires</strong><br />${CONTACT_EMAIL}<br />${CONTACT_PHONE}<br />${SITE_URL}</p>
-    </div>
-  `;
-
   return {
     to: getCustomerEmail(rows, session),
     subject: 'Your EastCord Tires Appointment Is Confirmed',
-    text,
-    html,
+    text: `Hello ${customerName},\n\nYour EastCord Tires appointment is confirmed.\n\nWe have received your deposit and your appointment has been booked successfully.\n\nAppointment Details:\n${appointmentText}\n\nPayment Details:\nTotal Deposit Paid: ${formatMoney(totalDeposit)}\nTotal Remaining Balance Due at Service: ${formatMoney(totalRemaining)}\nBooking Status: Confirmed\nPayment Status: Deposit Paid\n\nImportant Safety Reminder:\nWheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.\n\nYour appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the Used Tire Warranty Policy also applies.\n\nIf you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.\n\nEastCord Tires\n${CONTACT_EMAIL}\n${CONTACT_PHONE}\n${SITE_URL}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;color:#111317;line-height:1.6;max-width:720px;margin:0 auto;">
+        <h2 style="color:#111317;">Your EastCord Tires appointment is confirmed.</h2>
+        <p>Hello ${escapeHtml(customerName)},</p>
+        <p>We have received your deposit and your appointment has been booked successfully.</p>
+        ${appointmentHtml}
+        <h3>Payment Details</h3>
+        <p><strong>Total Deposit Paid:</strong> ${escapeHtml(formatMoney(totalDeposit))}<br />
+        <strong>Total Remaining Balance Due at Service:</strong> ${escapeHtml(formatMoney(totalRemaining))}<br />
+        <strong>Booking Status:</strong> Confirmed<br />
+        <strong>Payment Status:</strong> Deposit Paid</p>
+        <h3>Important Safety Reminder</h3>
+        <p>Wheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.</p>
+        <p>Your appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the Used Tire Warranty Policy also applies.</p>
+        <p>If you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.</p>
+        <p><strong>EastCord Tires</strong><br />${CONTACT_EMAIL}<br />${CONTACT_PHONE}<br />${SITE_URL}</p>
+      </div>
+    `,
   };
 }
 
@@ -340,61 +283,38 @@ function buildInternalEmail({ rows, session }) {
   const customerPhone = getCustomerPhone(rows, session);
   const totalDeposit = rows.reduce((sum, row) => sum + Number(row.deposit_amount || 0), 0);
   const totalRemaining = rows.reduce((sum, row) => sum + Number(row.remaining_balance || 0), 0);
-
   const appointmentBlocks = rows.map((row, index) => [
     buildAppointmentText(row, index),
     `Booking ID: ${row.id}`,
     `Customer Notes: ${valueOrFallback(row.additional_notes, 'None')}`,
     `Parking/Access Notes: ${valueOrFallback(row.parking_access_notes, 'None')}`,
   ].join('\n')).join('\n\n');
-
-  const text = `New confirmed appointment received.
-
-Customer Details:
-Name: ${customerName}
-Phone: ${customerPhone}
-Email: ${customerEmail}
-
-Appointment Details:
-${appointmentBlocks}
-
-Payment Details:
-Total Deposit Paid: ${formatMoney(totalDeposit)}
-Total Remaining Balance Due at Service: ${formatMoney(totalRemaining)}
-Payment Status: Deposit Paid
-Booking Status: Confirmed
-
-System Details:
-Stripe Session ID: ${session.id}`;
-
   const appointmentHtml = rows.map((row, index) => `${buildAppointmentHtml(row, index)}
     <p><strong>Booking ID:</strong> ${escapeHtml(row.id)}<br />
     <strong>Customer Notes:</strong> ${escapeHtml(valueOrFallback(row.additional_notes, 'None'))}<br />
     <strong>Parking/Access Notes:</strong> ${escapeHtml(valueOrFallback(row.parking_access_notes, 'None'))}</p>`).join('');
 
-  const html = `
-    <div style="font-family:Arial,sans-serif;color:#111317;line-height:1.6;max-width:760px;margin:0 auto;">
-      <h2>New confirmed appointment received.</h2>
-      <h3>Customer Details</h3>
-      <p><strong>Name:</strong> ${escapeHtml(customerName)}<br />
-      <strong>Phone:</strong> ${escapeHtml(customerPhone)}<br />
-      <strong>Email:</strong> ${escapeHtml(customerEmail)}</p>
-      ${appointmentHtml}
-      <h3>Payment Details</h3>
-      <p><strong>Total Deposit Paid:</strong> ${escapeHtml(formatMoney(totalDeposit))}<br />
-      <strong>Total Remaining Balance Due at Service:</strong> ${escapeHtml(formatMoney(totalRemaining))}<br />
-      <strong>Payment Status:</strong> Deposit Paid<br />
-      <strong>Booking Status:</strong> Confirmed</p>
-      <h3>System Details</h3>
-      <p><strong>Stripe Session ID:</strong> ${escapeHtml(session.id)}</p>
-    </div>
-  `;
-
   return {
     to: process.env.EMAIL_TO_EASTCORD || CONTACT_EMAIL,
     subject: 'New Confirmed Appointment - EastCord Tires',
-    text,
-    html,
+    text: `New confirmed appointment received.\n\nCustomer Details:\nName: ${customerName}\nPhone: ${customerPhone}\nEmail: ${customerEmail}\n\nAppointment Details:\n${appointmentBlocks}\n\nPayment Details:\nTotal Deposit Paid: ${formatMoney(totalDeposit)}\nTotal Remaining Balance Due at Service: ${formatMoney(totalRemaining)}\nPayment Status: Deposit Paid\nBooking Status: Confirmed\n\nSystem Details:\nStripe Session ID: ${session.id}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;color:#111317;line-height:1.6;max-width:760px;margin:0 auto;">
+        <h2>New confirmed appointment received.</h2>
+        <h3>Customer Details</h3>
+        <p><strong>Name:</strong> ${escapeHtml(customerName)}<br />
+        <strong>Phone:</strong> ${escapeHtml(customerPhone)}<br />
+        <strong>Email:</strong> ${escapeHtml(customerEmail)}</p>
+        ${appointmentHtml}
+        <h3>Payment Details</h3>
+        <p><strong>Total Deposit Paid:</strong> ${escapeHtml(formatMoney(totalDeposit))}<br />
+        <strong>Total Remaining Balance Due at Service:</strong> ${escapeHtml(formatMoney(totalRemaining))}<br />
+        <strong>Payment Status:</strong> Deposit Paid<br />
+        <strong>Booking Status:</strong> Confirmed</p>
+        <h3>System Details</h3>
+        <p><strong>Stripe Session ID:</strong> ${escapeHtml(session.id)}</p>
+      </div>
+    `,
   };
 }
 
@@ -408,65 +328,113 @@ function getEmailConfig() {
   };
 }
 
+function postJsonWithHttps({ hostname, path, headers, body }) {
+  return new Promise((resolve, reject) => {
+    const requestBody = JSON.stringify(body);
+    const request = https.request({
+      hostname,
+      path,
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(requestBody),
+      },
+    }, (response) => {
+      let responseBody = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => {
+        responseBody += chunk;
+      });
+      response.on('end', () => {
+        let parsed = {};
+        try {
+          parsed = responseBody ? JSON.parse(responseBody) : {};
+        } catch (error) {
+          parsed = { raw: responseBody, parseError: error.message };
+        }
+        resolve({ statusCode: response.statusCode || 0, body: parsed });
+      });
+    });
+
+    request.on('error', reject);
+    request.write(requestBody);
+    request.end();
+  });
+}
+
 async function sendEmail(email) {
   const config = getEmailConfig();
+  const provider = String(config.provider || '').toLowerCase();
 
-  if (config.provider.toLowerCase() !== 'resend') {
-    console.warn('[EastCord appointment automation] Email provider is not supported by this function.', {
-      provider: config.provider,
-    });
+  console.log('[EastCord appointment automation] Email send requested.', {
+    provider,
+    hasResendApiKey: Boolean(config.apiKey),
+    emailFrom: config.from,
+    emailReplyTo: config.replyTo,
+    emailToEastcord: config.eastcordTo,
+    to: email.to || '',
+    subject: email.subject,
+  });
+
+  if (provider !== 'resend') {
+    console.warn('[EastCord appointment automation] Email sending skipped: unsupported email provider.', { provider });
     return { ok: false, skipped: true, reason: 'unsupported_email_provider' };
   }
 
   if (!config.apiKey) {
-    console.warn('[EastCord appointment automation] RESEND_API_KEY is missing; email was not sent.', {
-      to: email.to,
+    console.warn('[EastCord appointment automation] Email sending skipped: RESEND_API_KEY is missing.', {
+      to: email.to || '',
       subject: email.subject,
     });
     return { ok: false, skipped: true, reason: 'missing_resend_api_key' };
   }
 
   if (!email.to) {
-    console.warn('[EastCord appointment automation] Email recipient is missing; email was not sent.', {
+    console.warn('[EastCord appointment automation] Email sending skipped: recipient is missing.', {
       subject: email.subject,
     });
     return { ok: false, skipped: true, reason: 'missing_recipient' };
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+  const response = await postJsonWithHttps({
+    hostname: 'api.resend.com',
+    path: '/emails',
+    headers: { Authorization: `Bearer ${config.apiKey}` },
+    body: {
       from: config.from,
       to: email.to,
       reply_to: config.replyTo,
       subject: email.subject,
       html: email.html,
       text: email.text,
-    }),
+    },
   });
 
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
+  console.log('[EastCord appointment automation] Resend API response received.', {
+    to: email.to,
+    subject: email.subject,
+    status: response.statusCode,
+    resendId: response.body?.id || '',
+  });
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
     console.error('[EastCord appointment automation] Email send failed.', {
       to: email.to,
       subject: email.subject,
-      status: response.status,
-      response: body,
+      status: response.statusCode,
+      response: response.body,
     });
-    return { ok: false, skipped: false, reason: 'send_failed', status: response.status, response: body };
+    return { ok: false, skipped: false, reason: 'send_failed', status: response.statusCode, response: response.body };
   }
 
-  console.log('[EastCord appointment automation] Email sent.', {
+  console.log('[EastCord appointment automation] Email sent successfully.', {
     to: email.to,
     subject: email.subject,
-    resendId: body.id || '',
+    resendId: response.body?.id || '',
   });
 
-  return { ok: true, id: body.id || '' };
+  return { ok: true, id: response.body?.id || '' };
 }
 
 function hasColumn(rows, columnName) {
@@ -474,31 +442,42 @@ function hasColumn(rows, columnName) {
 }
 
 function shouldSendCustomerEmail(rows, allRowsAlreadyConfirmed) {
-  if (hasColumn(rows, 'customer_confirmation_sent_at')) {
-    return rows.some((row) => !row.customer_confirmation_sent_at);
+  if (!rows.length) return { shouldSend: false, reason: 'no_booking_rows' };
+  if (hasColumn(rows, CUSTOMER_EMAIL_COLUMN)) {
+    const unsent = rows.filter((row) => !row[CUSTOMER_EMAIL_COLUMN]);
+    return unsent.length
+      ? { shouldSend: true, reason: 'sent_at_missing', count: 1, bookingIds: unsent.map((row) => row.id) }
+      : { shouldSend: false, reason: 'sent_at_already_exists' };
   }
-  return !allRowsAlreadyConfirmed;
+  return allRowsAlreadyConfirmed
+    ? { shouldSend: false, reason: 'webhook_retry_detected_without_sent_at_columns' }
+    : { shouldSend: true, reason: 'first_confirmation_without_sent_at_columns', count: 1, bookingIds: rows.map((row) => row.id) };
 }
 
 function shouldSendEastcordEmail(rows, allRowsAlreadyConfirmed) {
-  if (hasColumn(rows, 'eastcord_notification_sent_at')) {
-    return rows.some((row) => !row.eastcord_notification_sent_at);
+  if (!rows.length) return { shouldSend: false, reason: 'no_booking_rows' };
+  if (hasColumn(rows, EASTCORD_EMAIL_COLUMN)) {
+    const unsent = rows.filter((row) => !row[EASTCORD_EMAIL_COLUMN]);
+    return unsent.length
+      ? { shouldSend: true, reason: 'sent_at_missing', count: 1, bookingIds: unsent.map((row) => row.id) }
+      : { shouldSend: false, reason: 'sent_at_already_exists' };
   }
-  return !allRowsAlreadyConfirmed;
+  return allRowsAlreadyConfirmed
+    ? { shouldSend: false, reason: 'webhook_retry_detected_without_sent_at_columns' }
+    : { shouldSend: true, reason: 'first_confirmation_without_sent_at_columns', count: 1, bookingIds: rows.map((row) => row.id) };
 }
 
 async function markEmailSent({ supabaseAdmin, rows, columnName }) {
   if (!hasColumn(rows, columnName)) {
-    console.warn('[EastCord appointment automation] Email sent marker column is missing. Add the recommended SQL columns to improve duplicate email protection.', {
-      columnName,
-    });
+    console.warn('[EastCord appointment automation] Email sent marker column is missing. Add the recommended SQL columns to improve duplicate email protection.', { columnName });
     return { ok: false, skipped: true, reason: 'missing_sent_marker_column' };
   }
 
   const bookingIds = rows.map((row) => row.id).filter(Boolean);
+  const timestamp = new Date().toISOString();
   const { error } = await supabaseAdmin
     .from('appointment_bookings')
-    .update({ [columnName]: new Date().toISOString() })
+    .update({ [columnName]: timestamp })
     .in('id', bookingIds);
 
   if (error) {
@@ -510,40 +489,76 @@ async function markEmailSent({ supabaseAdmin, rows, columnName }) {
     return { ok: false, error: supabaseErrorPayload(error) };
   }
 
-  return { ok: true };
+  console.log('[EastCord appointment automation] Email sent marker updated.', {
+    columnName,
+    bookingIds,
+    timestamp,
+  });
+
+  return { ok: true, timestamp };
 }
 
 async function sendAppointmentEmails({ supabaseAdmin, rows, session, allRowsAlreadyConfirmed }) {
+  const config = getEmailConfig();
+  const customerEmail = getCustomerEmail(rows, session);
+  const customerDecision = shouldSendCustomerEmail(rows, allRowsAlreadyConfirmed);
+  const eastcordDecision = shouldSendEastcordEmail(rows, allRowsAlreadyConfirmed);
   const emailResults = {
-    customer: { skipped: true, reason: 'not_needed' },
-    eastcord: { skipped: true, reason: 'not_needed' },
+    customer: { skipped: true, reason: customerDecision.reason },
+    eastcord: { skipped: true, reason: eastcordDecision.reason },
   };
 
-  const customerShouldSend = shouldSendCustomerEmail(rows, allRowsAlreadyConfirmed);
-  const eastcordShouldSend = shouldSendEastcordEmail(rows, allRowsAlreadyConfirmed);
+  console.log('[EastCord appointment automation] Email notification flow started.', {
+    sessionId: session.id,
+    provider: config.provider || 'resend',
+    hasResendApiKey: Boolean(config.apiKey),
+    emailFrom: config.from,
+    emailToEastcord: config.eastcordTo,
+    bookingIds: rows.map((row) => row.id),
+    bookingCount: rows.length,
+    allRowsAlreadyConfirmed,
+    customerRecipientPresent: Boolean(customerEmail),
+    customerSentAtValues: rows.map((row) => row[CUSTOMER_EMAIL_COLUMN] ?? null),
+    eastcordSentAtValues: rows.map((row) => row[EASTCORD_EMAIL_COLUMN] ?? null),
+    customerEmailsToSend: customerDecision.shouldSend && customerEmail ? 1 : 0,
+    eastcordEmailsToSend: eastcordDecision.shouldSend ? 1 : 0,
+    customerSkipReason: customerDecision.shouldSend ? '' : customerDecision.reason,
+    eastcordSkipReason: eastcordDecision.shouldSend ? '' : eastcordDecision.reason,
+  });
 
-  if (!customerShouldSend && !eastcordShouldSend) {
-    console.log('[EastCord appointment automation] Confirmation emails already sent or webhook retry detected; skipping duplicate emails.', {
-      bookingIds: rows.map((row) => row.id),
-      allRowsAlreadyConfirmed,
-    });
-    return emailResults;
-  }
-
-  if (customerShouldSend) {
-    emailResults.customer = await sendEmail(buildCustomerEmail({ rows, session }));
-    if (emailResults.customer.ok) {
-      emailResults.customerMarker = await markEmailSent({ supabaseAdmin, rows, columnName: 'customer_confirmation_sent_at' });
+  if (customerDecision.shouldSend) {
+    if (!customerEmail) {
+      console.warn('[EastCord appointment automation] Customer email skipped: no customer email found on booking, Stripe session, or metadata.', {
+        sessionId: session.id,
+        bookingIds: rows.map((row) => row.id),
+      });
+      emailResults.customer = { ok: false, skipped: true, reason: 'missing_customer_email' };
+    } else {
+      emailResults.customer = await sendEmail(buildCustomerEmail({ rows, session }));
+      if (emailResults.customer.ok) {
+        emailResults.customerMarker = await markEmailSent({ supabaseAdmin, rows, columnName: CUSTOMER_EMAIL_COLUMN });
+      }
     }
+  } else {
+    console.log('[EastCord appointment automation] Customer email skipped.', {
+      reason: customerDecision.reason,
+      bookingIds: rows.map((row) => row.id),
+    });
   }
 
-  if (eastcordShouldSend) {
+  if (eastcordDecision.shouldSend) {
     emailResults.eastcord = await sendEmail(buildInternalEmail({ rows, session }));
     if (emailResults.eastcord.ok) {
-      emailResults.eastcordMarker = await markEmailSent({ supabaseAdmin, rows, columnName: 'eastcord_notification_sent_at' });
+      emailResults.eastcordMarker = await markEmailSent({ supabaseAdmin, rows, columnName: EASTCORD_EMAIL_COLUMN });
     }
+  } else {
+    console.log('[EastCord appointment automation] EastCord internal email skipped.', {
+      reason: eastcordDecision.reason,
+      bookingIds: rows.map((row) => row.id),
+    });
   }
 
+  console.log('[EastCord appointment automation] Email notification flow completed.', emailResults);
   return emailResults;
 }
 
@@ -555,27 +570,17 @@ exports.handler = async (event) => {
     hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
     hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
     hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
+    emailProvider: process.env.EMAIL_PROVIDER || 'resend',
+    emailFrom: process.env.EMAIL_FROM || `EastCord Tires <${CONTACT_EMAIL}>`,
+    emailToEastcord: process.env.EMAIL_TO_EASTCORD || CONTACT_EMAIL,
   });
 
-  if (event.httpMethod !== 'POST') {
-    return json(405, { message: 'Method not allowed.' });
-  }
-
-  if (!process.env.STRIPE_SECRET_KEY) {
-    console.error('[EastCord appointment automation] STRIPE_SECRET_KEY is missing for Stripe webhook.');
-    return json(500, { message: 'Stripe secret key is missing.' });
-  }
-
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    console.error('[EastCord appointment automation] STRIPE_WEBHOOK_SECRET is missing for Stripe webhook signature verification.');
-    return json(500, { message: 'Stripe webhook secret is missing.' });
-  }
+  if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
+  if (!process.env.STRIPE_SECRET_KEY) return json(500, { message: 'Stripe secret key is missing.' });
+  if (!process.env.STRIPE_WEBHOOK_SECRET) return json(500, { message: 'Stripe webhook secret is missing.' });
 
   const supabaseAdmin = getSupabaseAdmin();
-  if (!supabaseAdmin) {
-    console.error('[EastCord appointment automation] Supabase admin variables are missing for Stripe webhook update.');
-    return json(500, { message: 'Supabase admin configuration is missing.' });
-  }
+  if (!supabaseAdmin) return json(500, { message: 'Supabase admin configuration is missing.' });
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
   const signature = event.headers['stripe-signature'] || event.headers['Stripe-Signature'];
@@ -585,16 +590,11 @@ exports.handler = async (event) => {
   try {
     stripeEvent = stripe.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (error) {
-    console.error('[EastCord appointment automation] Stripe webhook signature verification failed.', {
-      message: error.message,
-    });
+    console.error('[EastCord appointment automation] Stripe webhook signature verification failed.', { message: error.message });
     return json(400, { message: 'Invalid Stripe webhook signature.' });
   }
 
-  console.log('[EastCord appointment automation] Stripe webhook event type.', {
-    eventType: stripeEvent.type,
-  });
-
+  console.log('[EastCord appointment automation] Stripe webhook event type.', { eventType: stripeEvent.type });
   if (stripeEvent.type !== 'checkout.session.completed') {
     return json(200, { received: true, ignored: true, eventType: stripeEvent.type });
   }
@@ -605,6 +605,7 @@ exports.handler = async (event) => {
   console.log('[EastCord appointment automation] Stripe checkout.session.completed received.', {
     sessionId: session.id,
     bookingIdsFound: bookingIds.length,
+    bookingIds,
     paymentStatus: session.payment_status,
   });
 
@@ -617,9 +618,7 @@ exports.handler = async (event) => {
   }
 
   if (!bookingIds.length) {
-    console.error('[EastCord appointment automation] Missing Supabase booking id metadata on Stripe session.', {
-      sessionId: session.id,
-    });
+    console.error('[EastCord appointment automation] Missing Supabase booking id metadata on Stripe session.', { sessionId: session.id });
     return json(400, { message: 'Missing Supabase booking id in Stripe metadata.' });
   }
 
@@ -638,18 +637,23 @@ exports.handler = async (event) => {
 
   const confirmedRows = results.map((result) => result.row).filter(Boolean);
   const allRowsAlreadyConfirmed = results.every((result) => result.wasAlreadyConfirmed);
-  const emailResults = await sendAppointmentEmails({
-    supabaseAdmin,
-    rows: confirmedRows,
-    session,
-    allRowsAlreadyConfirmed,
-  }).catch((error) => {
-    console.error('[EastCord appointment automation] Appointment email notification step failed after successful booking update.', {
-      message: error.message,
-      stack: error.stack,
-    });
-    return { error: error.message || 'email_step_failed' };
+
+  console.log('[EastCord appointment automation] Booking update complete; starting email notification step.', {
+    sessionId: session.id,
+    bookingIds: results.map((result) => result.bookingId),
+    confirmedRowCount: confirmedRows.length,
+    paymentStatuses: confirmedRows.map((row) => row.payment_status),
+    bookingStatuses: confirmedRows.map((row) => row.booking_status),
   });
+
+  const emailResults = await sendAppointmentEmails({ supabaseAdmin, rows: confirmedRows, session, allRowsAlreadyConfirmed })
+    .catch((error) => {
+      console.error('[EastCord appointment automation] Appointment email notification step failed after successful booking update.', {
+        message: error.message,
+        stack: error.stack,
+      });
+      return { error: error.message || 'email_step_failed' };
+    });
 
   return json(200, {
     received: true,
