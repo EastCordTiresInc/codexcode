@@ -23,6 +23,8 @@ const replacements = [
   [/TireConnect, MioCommerce, payment processors/g, 'TireConnect, payment processors'],
   [/TireConnect, MioCommerce, payment providers, social media/g, 'TireConnect, payment providers, social media'],
   [/TireConnect, MioCommerce, payment providers, social media links/g, 'TireConnect, payment providers, social media links'],
+  [/\.main-nav\.open \{/g, '.main-nav.open,\n  .main-nav.is-open {'],
+  [/\n    els\.menuToggle\?\.addEventListener\('click', \(\) => \{\n      const isOpen = els\.menuToggle\.getAttribute\('aria-expanded'\) === 'true';\n      els\.menuToggle\.setAttribute\('aria-expanded', String\(!isOpen\)\);\n      els\.primaryNavigation\?\.classList\.toggle\('is-open', !isOpen\);\n    \}\);\n\n    els\.primaryNavigation\?\.querySelectorAll\('a'\)\.forEach\(\(link\) => link\.addEventListener\('click', closeMobileMenu\)\);/g, ''],
 ];
 
 function walk(directory) {
