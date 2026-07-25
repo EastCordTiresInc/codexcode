@@ -12,6 +12,8 @@ const replacements = [
   [/href="#appointment"/g, 'href="/appointment.html"'],
   [/href="\/#appointment"/g, 'href="/appointment.html"'],
   [/href="index\.html#appointment"/g, 'href="/appointment.html"'],
+  [/class="service-card changeover-card" id="appointment" href="#contact"/g, 'class="service-card changeover-card" id="appointment" href="/appointment.html"'],
+  [/class="service-card changeover-card" id="appointment" href="\/#contact"/g, 'class="service-card changeover-card" id="appointment" href="/appointment.html"'],
   [/href="\/appointment\.html"\s+target="_blank"\s+rel="noopener noreferrer"/g, 'href="/appointment.html"'],
   [/href="\/appointment\.html"\s*\n\s*target="_blank"\s*\n\s*rel="noopener noreferrer"/g, 'href="/appointment.html"'],
   [/\{ label: 'Book Appointment', href: appointmentLink, external: true \}/g, "{ label: 'Book Appointment', href: appointmentLink }"],
