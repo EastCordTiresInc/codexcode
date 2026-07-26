@@ -4,6 +4,10 @@
     linear-gradient(180deg, #ffffff 0%, #f8f9fb 100%);
 }
 
+.inspection-preview .eyebrow > span {
+  display: none;
+}
+
 .inspection-card {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
