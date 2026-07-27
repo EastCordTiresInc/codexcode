@@ -220,6 +220,8 @@ function buildAppointmentText(row, index) {
     `Appointment ${index + 1}:`,
     `Service: ${valueOrFallback(row.service_name)}`,
     `Vehicle: ${getVehicle(row)}`,
+    `Plate Number: ${valueOrFallback(row.vehicle_plate_number, 'Not provided')}`,
+    `Vehicle Colour: ${valueOrFallback(row.vehicle_colour, 'Not provided')}`,
     `Tire Size: ${valueOrFallback(row.tire_size, 'Not provided')}`,
     `Date: ${valueOrFallback(row.preferred_date)}`,
     `Time: ${valueOrFallback(row.preferred_time_window)}`,
@@ -235,6 +237,8 @@ function buildAppointmentHtml(row, index) {
     <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 18px;">
       <tr><td style="padding:6px 0;font-weight:700;">Service:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.service_name))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Vehicle:</td><td style="padding:6px 0;">${escapeHtml(getVehicle(row))}</td></tr>
+      <tr><td style="padding:6px 0;font-weight:700;">Plate Number:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.vehicle_plate_number, 'Not provided'))}</td></tr>
+      <tr><td style="padding:6px 0;font-weight:700;">Vehicle Colour:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.vehicle_colour, 'Not provided'))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Tire Size:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.tire_size, 'Not provided'))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Date:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.preferred_date))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Time:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.preferred_time_window))}</td></tr>

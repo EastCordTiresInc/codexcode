@@ -75,6 +75,8 @@
           return `
             <div class="appointment-review-card"><span>Service ${index + 1}</span><strong>${item.serviceName || 'Appointment service'}</strong></div>
             <div class="appointment-review-card"><span>Vehicle</span><strong>${vehicle}${item.tireSize ? ` - ${item.tireSize}` : ''}</strong></div>
+            <div class="appointment-review-card"><span>Plate Number</span><strong>${item.vehiclePlateNumber || 'Plate submitted'}</strong></div>
+            <div class="appointment-review-card"><span>Vehicle Colour</span><strong>${item.vehicleColour || 'Colour submitted'}</strong></div>
             <div class="appointment-review-card"><span>Date</span><strong>${item.preferredDate || 'Date submitted'}</strong></div>
             <div class="appointment-review-card"><span>Time</span><strong>${item.preferredTimeWindow || 'Time submitted'}</strong></div>
             <div class="appointment-review-card"><span>Service location</span><strong>${location}</strong></div>
