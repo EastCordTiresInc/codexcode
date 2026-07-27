@@ -6,7 +6,7 @@
     <title>Sign Up | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="appointment.css?v=4" />
-    <link rel="stylesheet" href="account.css?v=2" />
+    <link rel="stylesheet" href="account.css?v=3" />
   </head>
   <body class="account-page">
     <header class="site-header">
@@ -52,11 +52,39 @@
               </label>
               <label class="form-field">
                 <span>Password</span>
-                <input name="Password" type="password" autocomplete="new-password" minlength="8" required />
+                <span class="password-input-wrap">
+                  <input id="signup-password" name="Password" type="password" autocomplete="new-password" minlength="8" required />
+                  <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" aria-controls="signup-password" data-password-toggle>
+                    <svg class="password-icon password-icon-show" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <svg class="password-icon password-icon-hide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 3l18 18" />
+                      <path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6" />
+                      <path d="M9.9 5.2A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.1 4.1" />
+                      <path d="M6.6 6.9C3.9 8.7 2.5 12 2.5 12s3.5 7 9.5 7a10.7 10.7 0 0 0 4.2-.9" />
+                    </svg>
+                  </button>
+                </span>
               </label>
               <label class="form-field">
                 <span>Confirm password</span>
-                <input name="Confirm Password" type="password" autocomplete="new-password" minlength="8" required />
+                <span class="password-input-wrap">
+                  <input id="signup-confirm-password" name="Confirm Password" type="password" autocomplete="new-password" minlength="8" required />
+                  <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" aria-controls="signup-confirm-password" data-password-toggle>
+                    <svg class="password-icon password-icon-show" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <svg class="password-icon password-icon-hide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 3l18 18" />
+                      <path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6" />
+                      <path d="M9.9 5.2A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.1 4.1" />
+                      <path d="M6.6 6.9C3.9 8.7 2.5 12 2.5 12s3.5 7 9.5 7a10.7 10.7 0 0 0 4.2-.9" />
+                    </svg>
+                  </button>
+                </span>
               </label>
             </div>
             <p class="account-message" data-auth-message></p>
@@ -72,5 +100,29 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
     <script src="account.js?v=7"></script>
+    <script>
+      (() => {
+        function initializePasswordToggles() {
+          document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+            const input = document.getElementById(button.getAttribute('aria-controls'));
+            if (!input) return;
+
+            button.addEventListener('click', () => {
+              const shouldShow = input.type === 'password';
+              input.type = shouldShow ? 'text' : 'password';
+              button.setAttribute('aria-label', shouldShow ? 'Hide password' : 'Show password');
+              button.setAttribute('aria-pressed', String(shouldShow));
+              button.classList.toggle('is-showing', shouldShow);
+            });
+          });
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initializePasswordToggles, { once: true });
+        } else {
+          initializePasswordToggles();
+        }
+      })();
+    </script>
   </body>
 </html>
