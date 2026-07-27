@@ -57,6 +57,34 @@
         const details = document.querySelector('[data-confirmation-details]');
         if (!details) return;
 
+        function escapeHtml(value) {
+          return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+        }
+
+        function titleCase(value) {
+          return String(value || '').trim().toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
+        }
+
+        function formatPlate(value) {
+          return String(value || '').trim().toUpperCase();
+        }
+
+        function formatTireSize(value) {
+          const raw = String(value || '').trim();
+          if (!raw) return '';
+          const compact = raw.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+          const slashMatch = compact.match(/^(\d{3})\/?(\d{2})R(\d{2})(?:[1-4])?$/);
+          if (slashMatch) return `${slashMatch[1]}/${slashMatch[2]}R${slashMatch[3]}`;
+          const noRMatch = compact.match(/^(\d{3})(\d{2})(\d{2})(?:[1-4])?$/);
+          if (noRMatch) return `${noRMatch[1]}/${noRMatch[2]}R${noRMatch[3]}`;
+          return raw.toUpperCase();
+        }
+
         let appointments = [];
         try {
           appointments = JSON.parse(localStorage.getItem(cartKey) || '[]').filter((item) => item.type === 'appointment');
@@ -70,16 +98,18 @@
         }
 
         details.innerHTML = appointments.map((item, index) => {
-          const vehicle = [item.vehicleYear, item.vehicleMake, item.vehicleModel].filter(Boolean).join(' ') || 'Vehicle details submitted';
+          const vehicle = [item.vehicleYear, titleCase(item.vehicleMake), titleCase(item.vehicleModel)].filter(Boolean).join(' ') || 'Vehicle details submitted';
           const location = [item.fullServiceAddress, item.city, item.postalCode].filter(Boolean).join(', ') || 'Service location submitted';
           return `
-            <div class="appointment-review-card"><span>Service ${index + 1}</span><strong>${item.serviceName || 'Appointment service'}</strong></div>
-            <div class="appointment-review-card"><span>Vehicle</span><strong>${vehicle}${item.tireSize ? ` - ${item.tireSize}` : ''}</strong></div>
-            <div class="appointment-review-card"><span>Plate Number</span><strong>${item.vehiclePlateNumber || 'Plate submitted'}</strong></div>
-            <div class="appointment-review-card"><span>Vehicle Colour</span><strong>${item.vehicleColour || 'Colour submitted'}</strong></div>
-            <div class="appointment-review-card"><span>Date</span><strong>${item.preferredDate || 'Date submitted'}</strong></div>
-            <div class="appointment-review-card"><span>Time</span><strong>${item.preferredTimeWindow || 'Time submitted'}</strong></div>
-            <div class="appointment-review-card"><span>Service location</span><strong>${location}</strong></div>
+            <div class="appointment-review-card"><span>Service ${index + 1}</span><strong>${escapeHtml(item.serviceName || 'Appointment service')}</strong></div>
+            <div class="appointment-review-card"><span>Vehicle</span><strong>${escapeHtml(vehicle)}</strong></div>
+            <div class="appointment-review-card"><span>Plate Number</span><strong>${escapeHtml(formatPlate(item.vehiclePlateNumber) || 'Plate submitted')}</strong></div>
+            <div class="appointment-review-card"><span>Colour</span><strong>${escapeHtml(titleCase(item.vehicleColour) || 'Colour submitted')}</strong></div>
+            <div class="appointment-review-card"><span>Tire Size</span><strong>${escapeHtml(formatTireSize(item.tireSize) || 'Tire size submitted')}</strong></div>
+            <div class="appointment-review-card"><span>Tires</span><strong>${escapeHtml(item.numberOfTires || 'Tire count submitted')}</strong></div>
+            <div class="appointment-review-card"><span>Date</span><strong>${escapeHtml(item.preferredDate || 'Date submitted')}</strong></div>
+            <div class="appointment-review-card"><span>Time</span><strong>${escapeHtml(item.preferredTimeWindow || 'Time submitted')}</strong></div>
+            <div class="appointment-review-card"><span>Service location</span><strong>${escapeHtml(location)}</strong></div>
             <div class="appointment-review-card"><span>Payment</span><strong>${money.format(Number(item.depositAmount || 0))} deposit paid, ${money.format(Number(item.remainingBalance || 0))} due at service</strong></div>
           `;
         }).join('');

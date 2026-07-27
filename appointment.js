@@ -434,6 +434,57 @@
     return field?.value?.trim() || '';
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function titleCase(value) {
+    return String(value || '').trim().toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
+  }
+
+  function formatPlate(value) {
+    return String(value || '').trim().toUpperCase();
+  }
+
+  function formatTireSize(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const compact = raw.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+    const slashMatch = compact.match(/^(\d{3})\/?(\d{2})R(\d{2})(?:[1-4])?$/);
+    if (slashMatch) return `${slashMatch[1]}/${slashMatch[2]}R${slashMatch[3]}`;
+    const noRMatch = compact.match(/^(\d{3})(\d{2})(\d{2})(?:[1-4])?$/);
+    if (noRMatch) return `${noRMatch[1]}/${noRMatch[2]}R${noRMatch[3]}`;
+    return raw.toUpperCase();
+  }
+
+  function getCleanVehicleDetails() {
+    const year = getFieldValue('Vehicle Year');
+    const make = titleCase(getFieldValue('Vehicle Make'));
+    const model = titleCase(getFieldValue('Vehicle Model'));
+    const vehicle = [year, make, model].filter(Boolean).join(' ');
+    const tireCount = getFieldValue('Number of Tires');
+
+    return {
+      vehicle: vehicle || 'Vehicle details',
+      plate: formatPlate(getFieldValue('Vehicle Plate Number')),
+      colour: titleCase(getFieldValue('Vehicle Colour')),
+      tireSize: formatTireSize(getFieldValue('Tire Size')),
+      tireCount,
+    };
+  }
+
+  function buildDetailsHtml(rows) {
+    return rows
+      .filter(([, value]) => value)
+      .map(([label, value]) => `<span>${label}: ${escapeHtml(value)}</span>`)
+      .join('<br>');
+  }
+
   function getStepControls(stepIndex) {
     const step = els.stepPanels[stepIndex];
     if (!step) return [];
@@ -507,33 +558,53 @@
   function updateReviewSummary(service = state.currentService || getCurrentService()) {
     if (!els.appointmentForm) return;
     const serviceName = service?.name || 'Not selected yet';
-    const vehicleParts = [getFieldValue('Vehicle Year'), getFieldValue('Vehicle Make'), getFieldValue('Vehicle Model')].filter(Boolean);
-    const vehiclePlate = getFieldValue('Vehicle Plate Number');
-    const vehicleColour = getFieldValue('Vehicle Colour');
-    const tireSize = getFieldValue('Tire Size');
-    const tireCount = getFieldValue('Number of Tires');
+    const vehicleDetails = getCleanVehicleDetails();
+    const hasVehicleDetails = [vehicleDetails.vehicle, vehicleDetails.plate, vehicleDetails.colour, vehicleDetails.tireSize, vehicleDetails.tireCount]
+      .some((value) => value && value !== 'Vehicle details');
     const address = getFieldValue('Full Service Address');
     const city = getFieldValue('City');
     const postalCode = getFieldValue('Postal Code');
     const date = getFieldValue('Preferred Date');
     const time = getFieldValue('Preferred Time Window');
 
-    if (els.reviewService) els.reviewService.textContent = serviceName;
+    if (els.reviewService) {
+      els.reviewService.innerHTML = serviceName === 'Not selected yet'
+        ? 'Not selected yet'
+        : buildDetailsHtml([['Service', serviceName]]);
+    }
     if (els.reviewVehicle) {
-      const details = [
-        vehicleParts.join(' ') || 'Vehicle details',
-        vehiclePlate ? `Plate: ${vehiclePlate}` : '',
-        vehicleColour ? `Colour: ${vehicleColour}` : '',
-        tireSize || '',
-        tireCount ? `${tireCount} tire(s)` : '',
-      ].filter(Boolean);
-      els.reviewVehicle.textContent = vehicleParts.length || vehiclePlate || vehicleColour || tireSize || tireCount
-        ? details.join(', ')
+      els.reviewVehicle.innerHTML = hasVehicleDetails
+        ? buildDetailsHtml([
+          ['Vehicle', vehicleDetails.vehicle],
+          ['Plate Number', vehicleDetails.plate],
+          ['Colour', vehicleDetails.colour],
+          ['Tire Size', vehicleDetails.tireSize],
+          ['Tires', vehicleDetails.tireCount],
+        ])
         : 'Not entered yet';
     }
-    if (els.reviewLocation) els.reviewLocation.textContent = address || city || postalCode ? [address, city, postalCode].filter(Boolean).join(', ') : 'Not entered yet';
-    if (els.reviewDate) els.reviewDate.textContent = date || time ? [date, time].filter(Boolean).join(' at ') : 'Not entered yet';
-    if (els.reviewPrice && service) els.reviewPrice.textContent = `${money.format(service.deposit)} due today, ${money.format(service.remaining)} on-site`;
+    if (els.reviewLocation) {
+      els.reviewLocation.innerHTML = address || city || postalCode
+        ? buildDetailsHtml([
+          ['Address', address],
+          ['City/Postal', [city, postalCode].filter(Boolean).join(', ')],
+        ])
+        : 'Not entered yet';
+    }
+    if (els.reviewDate) {
+      els.reviewDate.innerHTML = date || time
+        ? buildDetailsHtml([
+          ['Date', date],
+          ['Time', time],
+        ])
+        : 'Not entered yet';
+    }
+    if (els.reviewPrice && service) {
+      els.reviewPrice.innerHTML = buildDetailsHtml([
+        ['Due Today', money.format(service.deposit)],
+        ['Remaining On-Site', money.format(service.remaining)],
+      ]);
+    }
   }
 
   function validateAllSteps() {
@@ -633,11 +704,11 @@
       preferredDate: getFieldValue('Preferred Date'),
       preferredTimeWindow: getFieldValue('Preferred Time Window'),
       vehicleYear: getFieldValue('Vehicle Year'),
-      vehicleMake: getFieldValue('Vehicle Make'),
-      vehicleModel: getFieldValue('Vehicle Model'),
-      vehiclePlateNumber: getFieldValue('Vehicle Plate Number'),
-      vehicleColour: getFieldValue('Vehicle Colour'),
-      tireSize: getFieldValue('Tire Size'),
+      vehicleMake: titleCase(getFieldValue('Vehicle Make')),
+      vehicleModel: titleCase(getFieldValue('Vehicle Model')),
+      vehiclePlateNumber: formatPlate(getFieldValue('Vehicle Plate Number')),
+      vehicleColour: titleCase(getFieldValue('Vehicle Colour')),
+      tireSize: formatTireSize(getFieldValue('Tire Size')),
       tiresAlreadyOnRims: getFieldValue('Tires Already On Rims'),
       numberOfTires: getFieldValue('Number of Tires'),
       fullServiceAddress: getFieldValue('Full Service Address'),
