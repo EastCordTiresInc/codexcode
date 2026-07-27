@@ -272,8 +272,8 @@ async function startCheckout() {
 
   try {
     checkoutButton.disabled = true;
-    checkoutButton.textContent = 'Preparing Stripe Checkout...';
-    showCartMessage('Saving booking details and preparing Stripe Checkout...', 'info');
+    checkoutButton.textContent = 'Preparing secure checkout...';
+    showCartMessage('Saving booking details and preparing secure checkout...', 'info');
 
     const bookingItems = await ensureAllSupabaseBookings(items, profile);
 
@@ -306,7 +306,7 @@ async function startCheckout() {
   } catch (error) {
     logDeveloperError('Checkout could not be started.', error);
     showCartMessage(error.message || 'Online checkout is being connected. Please check back soon.');
-    checkoutButton.textContent = 'Checkout with Stripe';
+    checkoutButton.textContent = 'Secure Checkout';
     updateCheckoutButtonState();
   }
 }

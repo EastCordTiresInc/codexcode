@@ -35,7 +35,7 @@
       <div class="shell cart-layout">
         <section class="account-card" aria-labelledby="cart-title">
           <h1 id="cart-title">Cart</h1>
-          <p>Review appointment services before checkout. Checkout requires a customer account and uses Stripe Checkout for the amount due today.</p>
+          <p>Review appointment services before checkout. Checkout requires a customer account and uses secure checkout for the amount due today.</p>
           <div class="cart-items" data-cart-items></div>
           <div class="account-actions">
             <a class="button button-secondary" href="/appointment.html">Add Another Appointment</a>
@@ -74,7 +74,7 @@
           </div>
           <p class="appointment-payment-note">Your appointment will be confirmed automatically after successful deposit payment.</p>
           <p class="account-message" data-cart-message></p>
-          <button class="button button-primary" type="button" data-checkout-button disabled>Checkout with Stripe</button>
+          <button class="button button-primary" type="button" data-checkout-button disabled>Secure Checkout</button>
         </aside>
       </div>
     </main>
@@ -254,6 +254,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
     <script src="account.js?v=8"></script>
-    <script src="cart.js?v=8"></script>
+    <script src="cart.js?v=9"></script>
   </body>
 </html>
