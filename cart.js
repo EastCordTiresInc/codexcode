@@ -24,6 +24,44 @@ function showCartMessage(message, type = 'error') {
   cartMessage.dataset.messageType = type;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function titleCase(value) {
+  return String(value || '').trim().toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
+}
+
+function formatPlate(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function formatTireSize(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const compact = raw.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+  const slashMatch = compact.match(/^(\d{3})\/?(\d{2})R(\d{2})(?:[1-4])?$/);
+  if (slashMatch) return `${slashMatch[1]}/${slashMatch[2]}R${slashMatch[3]}`;
+  const noRMatch = compact.match(/^(\d{3})(\d{2})(\d{2})(?:[1-4])?$/);
+  if (noRMatch) return `${noRMatch[1]}/${noRMatch[2]}R${noRMatch[3]}`;
+  return raw.toUpperCase();
+}
+
+function getVehicleDetails(item) {
+  return {
+    vehicle: [item.vehicleYear, titleCase(item.vehicleMake), titleCase(item.vehicleModel)].filter(Boolean).join(' ') || 'Vehicle details submitted',
+    plate: formatPlate(item.vehiclePlateNumber) || 'Not provided',
+    colour: titleCase(item.vehicleColour) || 'Not provided',
+    tireSize: formatTireSize(item.tireSize) || 'Not provided',
+    tireCount: item.numberOfTires || 'Not provided',
+  };
+}
+
 function isAgreementAccepted() {
   return Boolean(agreementCheckbox?.checked);
 }
@@ -113,20 +151,21 @@ function validateCartSlots(items) {
 }
 
 function renderCartItem(item, index) {
-  const vehicle = [item.vehicleYear, item.vehicleMake, item.vehicleModel].filter(Boolean).join(' ') || 'Vehicle details submitted';
+  const vehicle = getVehicleDetails(item);
   return `
     <article class="cart-line">
       <span>Vehicle ${index + 1} appointment</span>
-      <strong>${item.serviceName}</strong>
-      <p>Vehicle: ${vehicle}</p>
-      <p>Plate Number: ${item.vehiclePlateNumber || 'Not provided'}</p>
-      <p>Vehicle Colour: ${item.vehicleColour || 'Not provided'}</p>
-      <p>Tire Size: ${item.tireSize}</p>
-      <p>${item.city}, ${item.postalCode} - ${item.preferredDate} at ${item.preferredTimeWindow}</p>
+      <strong>${escapeHtml(item.serviceName)}</strong>
+      <p>Vehicle: ${escapeHtml(vehicle.vehicle)}</p>
+      <p>Plate Number: ${escapeHtml(vehicle.plate)}</p>
+      <p>Colour: ${escapeHtml(vehicle.colour)}</p>
+      <p>Tire Size: ${escapeHtml(vehicle.tireSize)}</p>
+      <p>Tires: ${escapeHtml(vehicle.tireCount)}</p>
+      <p>${escapeHtml(item.city)}, ${escapeHtml(item.postalCode)} - ${escapeHtml(item.preferredDate)} at ${escapeHtml(item.preferredTimeWindow)}</p>
       <p>Starting price: ${window.EastCordAccount.money(item.startingPrice)} | Deposit due today: ${window.EastCordAccount.money(item.depositAmount)} | Remaining on-site: ${window.EastCordAccount.money(item.remainingBalance)}</p>
       <p>Your appointment will be confirmed automatically after successful deposit payment.</p>
       <div class="account-actions cart-line-actions">
-        <button class="button button-secondary" type="button" data-remove-cart-item="${item.id}">Remove this appointment</button>
+        <button class="button button-secondary" type="button" data-remove-cart-item="${escapeHtml(item.id)}">Remove this appointment</button>
       </div>
     </article>
   `;
