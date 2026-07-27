@@ -151,6 +151,66 @@
   color: #df1f2d;
 }
 
+.password-input-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.password-input-wrap input {
+  width: 100%;
+  padding-right: 54px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #4f5663;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible,
+.password-toggle.is-showing {
+  background: rgba(223, 31, 45, 0.1);
+  color: #df1f2d;
+}
+
+.password-toggle:focus-visible {
+  outline: 3px solid rgba(223, 31, 45, 0.22);
+  outline-offset: 2px;
+}
+
+.password-icon {
+  width: 21px;
+  height: 21px;
+}
+
+.password-icon-hide {
+  display: none;
+}
+
+.password-toggle.is-showing .password-icon-show {
+  display: none;
+}
+
+.password-toggle.is-showing .password-icon-hide {
+  display: block;
+}
+
 .checkout-block {
   display: none;
   gap: 12px;
@@ -334,6 +394,11 @@ button[disabled].button-primary,
   .account-actions .button {
     width: 100%;
     justify-content: center;
+  }
+
+  .password-toggle {
+    width: 44px;
+    height: 44px;
   }
 
   .agreement-modal {
