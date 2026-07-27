@@ -478,14 +478,8 @@
     };
   }
 
-  function buildVehicleDetailsHtml(details) {
-    return [
-      ['Vehicle', details.vehicle],
-      ['Plate Number', details.plate],
-      ['Colour', details.colour],
-      ['Tire Size', details.tireSize],
-      ['Tires', details.tireCount],
-    ]
+  function buildDetailsHtml(rows) {
+    return rows
       .filter(([, value]) => value)
       .map(([label, value]) => `<span>${label}: ${escapeHtml(value)}</span>`)
       .join('<br>');
@@ -573,13 +567,44 @@
     const date = getFieldValue('Preferred Date');
     const time = getFieldValue('Preferred Time Window');
 
-    if (els.reviewService) els.reviewService.textContent = serviceName;
-    if (els.reviewVehicle) {
-      els.reviewVehicle.innerHTML = hasVehicleDetails ? buildVehicleDetailsHtml(vehicleDetails) : 'Not entered yet';
+    if (els.reviewService) {
+      els.reviewService.innerHTML = serviceName === 'Not selected yet'
+        ? 'Not selected yet'
+        : buildDetailsHtml([['Service', serviceName]]);
     }
-    if (els.reviewLocation) els.reviewLocation.textContent = address || city || postalCode ? [address, city, postalCode].filter(Boolean).join(', ') : 'Not entered yet';
-    if (els.reviewDate) els.reviewDate.textContent = date || time ? [date, time].filter(Boolean).join(' at ') : 'Not entered yet';
-    if (els.reviewPrice && service) els.reviewPrice.textContent = `${money.format(service.deposit)} due today, ${money.format(service.remaining)} on-site`;
+    if (els.reviewVehicle) {
+      els.reviewVehicle.innerHTML = hasVehicleDetails
+        ? buildDetailsHtml([
+          ['Vehicle', vehicleDetails.vehicle],
+          ['Plate Number', vehicleDetails.plate],
+          ['Colour', vehicleDetails.colour],
+          ['Tire Size', vehicleDetails.tireSize],
+          ['Tires', vehicleDetails.tireCount],
+        ])
+        : 'Not entered yet';
+    }
+    if (els.reviewLocation) {
+      els.reviewLocation.innerHTML = address || city || postalCode
+        ? buildDetailsHtml([
+          ['Address', address],
+          ['City/Postal', [city, postalCode].filter(Boolean).join(', ')],
+        ])
+        : 'Not entered yet';
+    }
+    if (els.reviewDate) {
+      els.reviewDate.innerHTML = date || time
+        ? buildDetailsHtml([
+          ['Date', date],
+          ['Time', time],
+        ])
+        : 'Not entered yet';
+    }
+    if (els.reviewPrice && service) {
+      els.reviewPrice.innerHTML = buildDetailsHtml([
+        ['Due Today', money.format(service.deposit)],
+        ['Remaining On-Site', money.format(service.remaining)],
+      ]);
+    }
   }
 
   function validateAllSteps() {
