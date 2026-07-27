@@ -52,6 +52,12 @@ function formatTireSize(value) {
   return raw.toUpperCase();
 }
 
+function detailLine(label, value, fallback = '') {
+  const displayValue = value || fallback;
+  if (!displayValue) return '';
+  return `<p>${escapeHtml(label)}: ${escapeHtml(displayValue)}</p>`;
+}
+
 function getVehicleDetails(item) {
   return {
     vehicle: [item.vehicleYear, titleCase(item.vehicleMake), titleCase(item.vehicleModel)].filter(Boolean).join(' ') || 'Vehicle details submitted',
@@ -152,17 +158,23 @@ function validateCartSlots(items) {
 
 function renderCartItem(item, index) {
   const vehicle = getVehicleDetails(item);
+  const cityPostal = [item.city, item.postalCode].filter(Boolean).join(', ');
   return `
     <article class="cart-line">
       <span>Vehicle ${index + 1} appointment</span>
       <strong>${escapeHtml(item.serviceName)}</strong>
-      <p>Vehicle: ${escapeHtml(vehicle.vehicle)}</p>
-      <p>Plate Number: ${escapeHtml(vehicle.plate)}</p>
-      <p>Colour: ${escapeHtml(vehicle.colour)}</p>
-      <p>Tire Size: ${escapeHtml(vehicle.tireSize)}</p>
-      <p>Tires: ${escapeHtml(vehicle.tireCount)}</p>
-      <p>${escapeHtml(item.city)}, ${escapeHtml(item.postalCode)} - ${escapeHtml(item.preferredDate)} at ${escapeHtml(item.preferredTimeWindow)}</p>
-      <p>Starting price: ${window.EastCordAccount.money(item.startingPrice)} | Deposit due today: ${window.EastCordAccount.money(item.depositAmount)} | Remaining on-site: ${window.EastCordAccount.money(item.remainingBalance)}</p>
+      ${detailLine('Vehicle', vehicle.vehicle)}
+      ${detailLine('Plate Number', vehicle.plate)}
+      ${detailLine('Colour', vehicle.colour)}
+      ${detailLine('Tire Size', vehicle.tireSize)}
+      ${detailLine('Tires', vehicle.tireCount)}
+      ${detailLine('Address', item.fullServiceAddress)}
+      ${detailLine('City/Postal', cityPostal)}
+      ${detailLine('Date', item.preferredDate)}
+      ${detailLine('Time', item.preferredTimeWindow)}
+      ${detailLine('Starting price', window.EastCordAccount.money(item.startingPrice))}
+      ${detailLine('Deposit due today', window.EastCordAccount.money(item.depositAmount))}
+      ${detailLine('Remaining on-site', window.EastCordAccount.money(item.remainingBalance))}
       <p>Your appointment will be confirmed automatically after successful deposit payment.</p>
       <div class="account-actions cart-line-actions">
         <button class="button button-secondary" type="button" data-remove-cart-item="${escapeHtml(item.id)}">Remove this appointment</button>
