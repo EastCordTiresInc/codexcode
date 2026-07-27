@@ -4,6 +4,10 @@
   const APPOINTMENT_RESTORE_URL = '/appointment.html?restore=appointment#appointment-booking';
   const MIN_ADVANCE_MINUTES = 120;
   const MIN_ADVANCE_MESSAGE = 'Appointments must be booked at least 2 hours in advance to allow technician scheduling and travel time.';
+  const REQUIRED_FIELD_MESSAGES = {
+    'Vehicle Plate Number': 'Please enter your vehicle plate number.',
+    'Vehicle Colour': 'Please enter your vehicle colour.',
+  };
   const money = new Intl.NumberFormat('en-CA', {
     style: 'currency',
     currency: 'CAD',
@@ -438,6 +442,14 @@
     });
   }
 
+  function applyCustomRequiredMessages(controls) {
+    controls.forEach((control) => {
+      if (!Object.prototype.hasOwnProperty.call(REQUIRED_FIELD_MESSAGES, control.name)) return;
+      const isMissing = control.required && !String(control.value || '').trim();
+      control.setCustomValidity(isMissing ? REQUIRED_FIELD_MESSAGES[control.name] : '');
+    });
+  }
+
   function validateStep(stepIndex) {
     updateServicePricing(getCurrentService());
     const dateIsValid = validatePreferredDate();
@@ -450,6 +462,7 @@
     }
 
     const controls = getStepControls(stepIndex);
+    applyCustomRequiredMessages(controls);
     const firstInvalid = controls.find((control) => !control.checkValidity());
     if (firstInvalid) {
       firstInvalid.reportValidity();
@@ -495,6 +508,8 @@
     if (!els.appointmentForm) return;
     const serviceName = service?.name || 'Not selected yet';
     const vehicleParts = [getFieldValue('Vehicle Year'), getFieldValue('Vehicle Make'), getFieldValue('Vehicle Model')].filter(Boolean);
+    const vehiclePlate = getFieldValue('Vehicle Plate Number');
+    const vehicleColour = getFieldValue('Vehicle Colour');
     const tireSize = getFieldValue('Tire Size');
     const tireCount = getFieldValue('Number of Tires');
     const address = getFieldValue('Full Service Address');
@@ -505,8 +520,15 @@
 
     if (els.reviewService) els.reviewService.textContent = serviceName;
     if (els.reviewVehicle) {
-      els.reviewVehicle.textContent = vehicleParts.length || tireSize || tireCount
-        ? `${vehicleParts.join(' ') || 'Vehicle details'}${tireSize ? `, ${tireSize}` : ''}${tireCount ? `, ${tireCount} tire(s)` : ''}`
+      const details = [
+        vehicleParts.join(' ') || 'Vehicle details',
+        vehiclePlate ? `Plate: ${vehiclePlate}` : '',
+        vehicleColour ? `Colour: ${vehicleColour}` : '',
+        tireSize || '',
+        tireCount ? `${tireCount} tire(s)` : '',
+      ].filter(Boolean);
+      els.reviewVehicle.textContent = vehicleParts.length || vehiclePlate || vehicleColour || tireSize || tireCount
+        ? details.join(', ')
         : 'Not entered yet';
     }
     if (els.reviewLocation) els.reviewLocation.textContent = address || city || postalCode ? [address, city, postalCode].filter(Boolean).join(', ') : 'Not entered yet';
@@ -613,6 +635,8 @@
       vehicleYear: getFieldValue('Vehicle Year'),
       vehicleMake: getFieldValue('Vehicle Make'),
       vehicleModel: getFieldValue('Vehicle Model'),
+      vehiclePlateNumber: getFieldValue('Vehicle Plate Number'),
+      vehicleColour: getFieldValue('Vehicle Colour'),
       tireSize: getFieldValue('Tire Size'),
       tiresAlreadyOnRims: getFieldValue('Tires Already On Rims'),
       numberOfTires: getFieldValue('Number of Tires'),
