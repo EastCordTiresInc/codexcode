@@ -298,6 +298,8 @@ function buildBookingRecord(item, profile) {
     vehicle_year: item.vehicleYear || '',
     vehicle_make: item.vehicleMake || '',
     vehicle_model: item.vehicleModel || '',
+    vehicle_plate_number: item.vehiclePlateNumber || '',
+    vehicle_colour: item.vehicleColour || '',
     tire_size: item.tireSize || '',
     tires_already_on_rims: item.tiresAlreadyOnRims || '',
     number_of_tires: Number(item.numberOfTires || 0),
@@ -339,7 +341,7 @@ async function getCustomerBookings() {
 
   const { data, error } = await client
     .from('appointment_bookings')
-    .select('id, service_name, preferred_date, preferred_time_window, city, tire_size, deposit_amount, remaining_balance, booking_status, payment_status, created_at')
+    .select('id, service_name, preferred_date, preferred_time_window, city, tire_size, vehicle_year, vehicle_make, vehicle_model, vehicle_plate_number, vehicle_colour, deposit_amount, remaining_balance, booking_status, payment_status, created_at')
     .eq('customer_id', profile.customerId)
     .order('created_at', { ascending: false });
 
@@ -552,15 +554,21 @@ function renderBookingHistory(bookings) {
     return '<p class="empty-cart">No appointment bookings yet.</p>';
   }
 
-  return bookings.map((booking) => `
-    <article class="cart-line">
-      <span>${escapeHtml(booking.booking_status || 'Pending Confirmation')}</span>
-      <strong>${escapeHtml(booking.service_name)}</strong>
-      <p>${escapeHtml(booking.preferred_date || '')}${booking.preferred_time_window ? ` at ${escapeHtml(booking.preferred_time_window)}` : ''}</p>
-      <p>${escapeHtml(booking.city || '')}${booking.tire_size ? ` - ${escapeHtml(booking.tire_size)}` : ''}</p>
-      <p>Deposit: ${money(booking.deposit_amount)} | Remaining on-site: ${money(booking.remaining_balance)} | Payment: ${escapeHtml(booking.payment_status || 'pending_checkout')}</p>
-    </article>
-  `).join('');
+  return bookings.map((booking) => {
+    const vehicle = [booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(' ');
+    const plate = booking.vehicle_plate_number ? ` | Plate: ${escapeHtml(booking.vehicle_plate_number)}` : '';
+    const colour = booking.vehicle_colour ? ` | Colour: ${escapeHtml(booking.vehicle_colour)}` : '';
+    return `
+      <article class="cart-line">
+        <span>${escapeHtml(booking.booking_status || 'Pending Confirmation')}</span>
+        <strong>${escapeHtml(booking.service_name)}</strong>
+        <p>${escapeHtml(booking.preferred_date || '')}${booking.preferred_time_window ? ` at ${escapeHtml(booking.preferred_time_window)}` : ''}</p>
+        <p>${escapeHtml(vehicle || 'Vehicle details submitted')}${plate}${colour}${booking.tire_size ? ` | ${escapeHtml(booking.tire_size)}` : ''}</p>
+        <p>${escapeHtml(booking.city || '')}</p>
+        <p>Deposit: ${money(booking.deposit_amount)} | Remaining on-site: ${money(booking.remaining_balance)} | Payment: ${escapeHtml(booking.payment_status || 'pending_checkout')}</p>
+      </article>
+    `;
+  }).join('');
 }
 
 async function hydrateAccountPage() {
