@@ -113,11 +113,15 @@ function validateCartSlots(items) {
 }
 
 function renderCartItem(item, index) {
+  const vehicle = [item.vehicleYear, item.vehicleMake, item.vehicleModel].filter(Boolean).join(' ') || 'Vehicle details submitted';
   return `
     <article class="cart-line">
       <span>Vehicle ${index + 1} appointment</span>
       <strong>${item.serviceName}</strong>
-      <p>${item.vehicleYear} ${item.vehicleMake} ${item.vehicleModel} - ${item.tireSize}</p>
+      <p>Vehicle: ${vehicle}</p>
+      <p>Plate Number: ${item.vehiclePlateNumber || 'Not provided'}</p>
+      <p>Vehicle Colour: ${item.vehicleColour || 'Not provided'}</p>
+      <p>Tire Size: ${item.tireSize}</p>
       <p>${item.city}, ${item.postalCode} - ${item.preferredDate} at ${item.preferredTimeWindow}</p>
       <p>Starting price: ${window.EastCordAccount.money(item.startingPrice)} | Deposit due today: ${window.EastCordAccount.money(item.depositAmount)} | Remaining on-site: ${window.EastCordAccount.money(item.remainingBalance)}</p>
       <p>Your appointment will be confirmed automatically after successful deposit payment.</p>
@@ -191,6 +195,8 @@ function buildNetlifyFormData(item, profile) {
   formData.set('Vehicle Year', item.vehicleYear || '');
   formData.set('Vehicle Make', item.vehicleMake || '');
   formData.set('Vehicle Model', item.vehicleModel || '');
+  formData.set('Vehicle Plate Number', item.vehiclePlateNumber || '');
+  formData.set('Vehicle Colour', item.vehicleColour || '');
   formData.set('Tire Size', item.tireSize || '');
   formData.set('Tires Already On Rims', item.tiresAlreadyOnRims || '');
   formData.set('Number of Tires', item.numberOfTires || '');
