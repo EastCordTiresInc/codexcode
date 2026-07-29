@@ -3,6 +3,25 @@ const CART_KEY = 'eastcord_cart_v1';
 const ACCOUNT_SETUP_MESSAGE = 'Account signup is being connected. Please contact EastCord Tires or check back soon.';
 const EMAIL_CONFIRMATION_MESSAGE = 'Account created. Please check your email to confirm your account, then log in.';
 const TAX_RATE = 0.13;
+const CART_STORAGE_KEYS = [
+  CART_KEY,
+  'cart',
+  'eastcord_cart',
+  'appointment_cart',
+  'eastcord_appointment_cart',
+  'eastcord_appointment_cart_v1',
+];
+const APPOINTMENT_DRAFT_STORAGE_KEYS = [
+  'eastcord_pending_appointment_v1',
+  'eastcord_auth_redirect',
+  'pendingAppointment',
+  'pending_appointment',
+  'appointmentDraft',
+  'savedAppointment',
+  'eastcord_appointment_draft',
+  'eastcord_saved_appointment',
+];
+const CART_RESET_STORAGE_KEYS = [...new Set([...CART_STORAGE_KEYS, ...APPOINTMENT_DRAFT_STORAGE_KEYS])];
 
 function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
@@ -94,8 +113,46 @@ function saveCart(cart) {
   updateCartCount();
 }
 
+function getExistingStorageKeys(storage) {
+  const keys = [];
+  if (!storage) return keys;
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key) keys.push(key);
+  }
+  return keys;
+}
+
+function removeStorageKeys(storage, keys) {
+  if (!storage) return;
+  keys.forEach((key) => storage.removeItem(key));
+}
+
+function clearCartStorage() {
+  const localKeysBefore = getExistingStorageKeys(localStorage);
+  const sessionKeysBefore = getExistingStorageKeys(sessionStorage);
+  const localKeysToRemove = localKeysBefore.filter((key) => CART_RESET_STORAGE_KEYS.includes(key));
+  const sessionKeysToRemove = sessionKeysBefore.filter((key) => CART_RESET_STORAGE_KEYS.includes(key));
+
+  console.info('[EastCord appointment automation] Clearing cart storage.', {
+    localKeysBefore: localKeysToRemove,
+    sessionKeysBefore: sessionKeysToRemove,
+    cartItemCountBefore: getCart().length,
+  });
+
+  removeStorageKeys(localStorage, CART_RESET_STORAGE_KEYS);
+  removeStorageKeys(sessionStorage, CART_RESET_STORAGE_KEYS);
+  localStorage.setItem(CART_KEY, '[]');
+
+  console.info('[EastCord appointment automation] Cart storage cleared.', {
+    localKeysAfter: getExistingStorageKeys(localStorage).filter((key) => CART_RESET_STORAGE_KEYS.includes(key)),
+    sessionKeysAfter: getExistingStorageKeys(sessionStorage).filter((key) => CART_RESET_STORAGE_KEYS.includes(key)),
+    cartItemCountAfter: getCart().length,
+  });
+}
+
 function clearCart() {
-  localStorage.removeItem(CART_KEY);
+  clearCartStorage();
   updateCartCount();
 }
 
