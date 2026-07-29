@@ -7,6 +7,7 @@ const CONTACT_PHONE = '365-822-5553';
 const SITE_URL = 'eastcordtires.ca';
 const CUSTOMER_EMAIL_COLUMN = 'customer_confirmation_sent_at';
 const EASTCORD_EMAIL_COLUMN = 'eastcord_notification_sent_at';
+const TAX_RATE = 0.13;
 
 function json(statusCode, payload) {
   return {
@@ -173,10 +174,42 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
   };
 }
 
+function roundMoney(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function calculateTaxBreakdown(subtotal) {
+  const serviceSubtotal = roundMoney(subtotal);
+  const hstAmount = roundMoney(serviceSubtotal * TAX_RATE);
+  const totalWithHst = roundMoney(serviceSubtotal + hstAmount);
+  const depositAmount = roundMoney(totalWithHst * 0.20);
+  const remainingBalance = roundMoney(totalWithHst - depositAmount);
+
+  return {
+    serviceSubtotal,
+    hstAmount,
+    totalWithHst,
+    depositAmount,
+    remainingBalance,
+  };
+}
+
+function getTaxDetails(row) {
+  const fallback = calculateTaxBreakdown(row.service_subtotal ?? row.starting_price ?? 0);
+  return {
+    serviceSubtotal: roundMoney(row.service_subtotal ?? row.starting_price ?? fallback.serviceSubtotal),
+    hstAmount: roundMoney(row.hst_amount ?? fallback.hstAmount),
+    totalWithHst: roundMoney(row.total_with_hst ?? fallback.totalWithHst),
+    depositAmount: roundMoney(row.deposit_amount ?? fallback.depositAmount),
+    remainingBalance: roundMoney(row.remaining_balance ?? fallback.remainingBalance),
+  };
+}
+
 function formatMoney(value) {
   return new Intl.NumberFormat('en-CA', {
     style: 'currency',
     currency: 'CAD',
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
 }
@@ -215,7 +248,26 @@ function getCustomerPhone(rows, session) {
   return valueOrFallback(rows.find((row) => row.customer_phone)?.customer_phone || session.metadata?.customer_phone, 'Not provided');
 }
 
+function getTotals(rows) {
+  return rows.reduce((totals, row) => {
+    const tax = getTaxDetails(row);
+    totals.serviceSubtotal += tax.serviceSubtotal;
+    totals.hstAmount += tax.hstAmount;
+    totals.totalWithHst += tax.totalWithHst;
+    totals.depositAmount += tax.depositAmount;
+    totals.remainingBalance += tax.remainingBalance;
+    return totals;
+  }, {
+    serviceSubtotal: 0,
+    hstAmount: 0,
+    totalWithHst: 0,
+    depositAmount: 0,
+    remainingBalance: 0,
+  });
+}
+
 function buildAppointmentText(row, index) {
+  const tax = getTaxDetails(row);
   return [
     `Appointment ${index + 1}:`,
     `Service: ${valueOrFallback(row.service_name)}`,
@@ -226,12 +278,16 @@ function buildAppointmentText(row, index) {
     `Date: ${valueOrFallback(row.preferred_date)}`,
     `Time: ${valueOrFallback(row.preferred_time_window)}`,
     `Service Location: ${getLocation(row)}`,
-    `Deposit Paid: ${formatMoney(row.deposit_amount)}`,
-    `Remaining Balance Due at Service: ${formatMoney(row.remaining_balance)}`,
+    `Service Subtotal: ${formatMoney(tax.serviceSubtotal)}`,
+    `HST 13%: ${formatMoney(tax.hstAmount)}`,
+    `Total Including HST: ${formatMoney(tax.totalWithHst)}`,
+    `Deposit Paid: ${formatMoney(tax.depositAmount)}`,
+    `Remaining Balance Due at Service: ${formatMoney(tax.remainingBalance)}`,
   ].join('\n');
 }
 
 function buildAppointmentHtml(row, index) {
+  const tax = getTaxDetails(row);
   return `
     <h3>Appointment ${index + 1}</h3>
     <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 18px;">
@@ -243,8 +299,11 @@ function buildAppointmentHtml(row, index) {
       <tr><td style="padding:6px 0;font-weight:700;">Date:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.preferred_date))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Time:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.preferred_time_window))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Service Location:</td><td style="padding:6px 0;">${escapeHtml(getLocation(row))}</td></tr>
-      <tr><td style="padding:6px 0;font-weight:700;">Deposit Paid:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(row.deposit_amount))}</td></tr>
-      <tr><td style="padding:6px 0;font-weight:700;">Remaining Balance:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(row.remaining_balance))}</td></tr>
+      <tr><td style="padding:6px 0;font-weight:700;">Service Subtotal:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.serviceSubtotal))}</td></tr>
+      <tr><td style="padding:6px 0;font-weight:700;">HST 13%:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.hstAmount))}</td></tr>
+      <tr><td style="padding:6px 0;font-weight:700;">Total Including HST:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.totalWithHst))}</td></tr>
+      <tr><td style="padding:6px 0;font-weight:700;">Deposit Paid:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.depositAmount))}</td></tr>
+      <tr><td style="padding:6px 0;font-weight:700;">Remaining Balance:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.remainingBalance))}</td></tr>
     </table>
   `;
 }
@@ -253,13 +312,12 @@ function buildCustomerEmail({ rows, session }) {
   const customerName = getCustomerName(rows, session);
   const appointmentText = rows.map(buildAppointmentText).join('\n\n');
   const appointmentHtml = rows.map(buildAppointmentHtml).join('');
-  const totalDeposit = rows.reduce((sum, row) => sum + Number(row.deposit_amount || 0), 0);
-  const totalRemaining = rows.reduce((sum, row) => sum + Number(row.remaining_balance || 0), 0);
+  const totals = getTotals(rows);
 
   return {
     to: getCustomerEmail(rows, session),
     subject: 'Your EastCord Tires Appointment Is Confirmed',
-    text: `Hello ${customerName},\n\nYour EastCord Tires appointment is confirmed.\n\nWe have received your deposit and your appointment has been booked successfully.\n\nAppointment Details:\n${appointmentText}\n\nPayment Details:\nTotal Deposit Paid: ${formatMoney(totalDeposit)}\nTotal Remaining Balance Due at Service: ${formatMoney(totalRemaining)}\nBooking Status: Confirmed\nPayment Status: Deposit Paid\n\nImportant Safety Reminder:\nWheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.\n\nYour appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the Used Tire Warranty Policy also applies.\n\nIf you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.\n\nEastCord Tires\n${CONTACT_EMAIL}\n${CONTACT_PHONE}\n${SITE_URL}`,
+    text: `Hello ${customerName},\n\nYour EastCord Tires appointment is confirmed.\n\nWe have received your deposit and your appointment has been booked successfully.\n\nAppointment Details:\n${appointmentText}\n\nPayment Details:\nTotal Service Subtotal: ${formatMoney(totals.serviceSubtotal)}\nTotal HST 13%: ${formatMoney(totals.hstAmount)}\nTotal Including HST: ${formatMoney(totals.totalWithHst)}\nTotal Deposit Paid: ${formatMoney(totals.depositAmount)}\nTotal Remaining Balance Due at Service: ${formatMoney(totals.remainingBalance)}\nBooking Status: Confirmed\nPayment Status: Deposit Paid\n\nImportant Safety Reminder:\nWheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.\n\nYour appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the Used Tire Warranty Policy also applies.\n\nIf you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.\n\nEastCord Tires\n${CONTACT_EMAIL}\n${CONTACT_PHONE}\n${SITE_URL}`,
     html: `
       <div style="font-family:Arial,sans-serif;color:#111317;line-height:1.6;max-width:720px;margin:0 auto;">
         <h2 style="color:#111317;">Your EastCord Tires appointment is confirmed.</h2>
@@ -267,8 +325,11 @@ function buildCustomerEmail({ rows, session }) {
         <p>We have received your deposit and your appointment has been booked successfully.</p>
         ${appointmentHtml}
         <h3>Payment Details</h3>
-        <p><strong>Total Deposit Paid:</strong> ${escapeHtml(formatMoney(totalDeposit))}<br />
-        <strong>Total Remaining Balance Due at Service:</strong> ${escapeHtml(formatMoney(totalRemaining))}<br />
+        <p><strong>Total Service Subtotal:</strong> ${escapeHtml(formatMoney(totals.serviceSubtotal))}<br />
+        <strong>Total HST 13%:</strong> ${escapeHtml(formatMoney(totals.hstAmount))}<br />
+        <strong>Total Including HST:</strong> ${escapeHtml(formatMoney(totals.totalWithHst))}<br />
+        <strong>Total Deposit Paid:</strong> ${escapeHtml(formatMoney(totals.depositAmount))}<br />
+        <strong>Total Remaining Balance Due at Service:</strong> ${escapeHtml(formatMoney(totals.remainingBalance))}<br />
         <strong>Booking Status:</strong> Confirmed<br />
         <strong>Payment Status:</strong> Deposit Paid</p>
         <h3>Important Safety Reminder</h3>
@@ -285,8 +346,7 @@ function buildInternalEmail({ rows, session }) {
   const customerName = getCustomerName(rows, session);
   const customerEmail = getCustomerEmail(rows, session);
   const customerPhone = getCustomerPhone(rows, session);
-  const totalDeposit = rows.reduce((sum, row) => sum + Number(row.deposit_amount || 0), 0);
-  const totalRemaining = rows.reduce((sum, row) => sum + Number(row.remaining_balance || 0), 0);
+  const totals = getTotals(rows);
   const appointmentBlocks = rows.map((row, index) => [
     buildAppointmentText(row, index),
     `Booking ID: ${row.id}`,
@@ -301,7 +361,7 @@ function buildInternalEmail({ rows, session }) {
   return {
     to: process.env.EMAIL_TO_EASTCORD || CONTACT_EMAIL,
     subject: 'New Confirmed Appointment - EastCord Tires',
-    text: `New confirmed appointment received.\n\nCustomer Details:\nName: ${customerName}\nPhone: ${customerPhone}\nEmail: ${customerEmail}\n\nAppointment Details:\n${appointmentBlocks}\n\nPayment Details:\nTotal Deposit Paid: ${formatMoney(totalDeposit)}\nTotal Remaining Balance Due at Service: ${formatMoney(totalRemaining)}\nPayment Status: Deposit Paid\nBooking Status: Confirmed\n\nSystem Details:\nStripe Session ID: ${session.id}`,
+    text: `New confirmed appointment received.\n\nCustomer Details:\nName: ${customerName}\nPhone: ${customerPhone}\nEmail: ${customerEmail}\n\nAppointment Details:\n${appointmentBlocks}\n\nPayment Details:\nTotal Service Subtotal: ${formatMoney(totals.serviceSubtotal)}\nTotal HST 13%: ${formatMoney(totals.hstAmount)}\nTotal Including HST: ${formatMoney(totals.totalWithHst)}\nTotal Deposit Paid: ${formatMoney(totals.depositAmount)}\nTotal Remaining Balance Due at Service: ${formatMoney(totals.remainingBalance)}\nPayment Status: Deposit Paid\nBooking Status: Confirmed\n\nSystem Details:\nStripe Session ID: ${session.id}`,
     html: `
       <div style="font-family:Arial,sans-serif;color:#111317;line-height:1.6;max-width:760px;margin:0 auto;">
         <h2>New confirmed appointment received.</h2>
@@ -311,8 +371,11 @@ function buildInternalEmail({ rows, session }) {
         <strong>Email:</strong> ${escapeHtml(customerEmail)}</p>
         ${appointmentHtml}
         <h3>Payment Details</h3>
-        <p><strong>Total Deposit Paid:</strong> ${escapeHtml(formatMoney(totalDeposit))}<br />
-        <strong>Total Remaining Balance Due at Service:</strong> ${escapeHtml(formatMoney(totalRemaining))}<br />
+        <p><strong>Total Service Subtotal:</strong> ${escapeHtml(formatMoney(totals.serviceSubtotal))}<br />
+        <strong>Total HST 13%:</strong> ${escapeHtml(formatMoney(totals.hstAmount))}<br />
+        <strong>Total Including HST:</strong> ${escapeHtml(formatMoney(totals.totalWithHst))}<br />
+        <strong>Total Deposit Paid:</strong> ${escapeHtml(formatMoney(totals.depositAmount))}<br />
+        <strong>Total Remaining Balance Due at Service:</strong> ${escapeHtml(formatMoney(totals.remainingBalance))}<br />
         <strong>Payment Status:</strong> Deposit Paid<br />
         <strong>Booking Status:</strong> Confirmed</p>
         <h3>System Details</h3>
