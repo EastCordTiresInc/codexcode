@@ -16,7 +16,27 @@ const agreementCloseButtons = Array.from(document.querySelectorAll('[data-agreem
 const agreementPanel = agreementModal?.querySelector('.agreement-modal-panel');
 const MIN_ADVANCE_MINUTES = 120;
 const TAX_RATE = 0.13;
+const ACTIVE_CART_KEY = 'eastcord_cart_v1';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
+const CART_STORAGE_KEYS = [
+  ACTIVE_CART_KEY,
+  'cart',
+  'eastcord_cart',
+  'appointment_cart',
+  'eastcord_appointment_cart',
+  'eastcord_appointment_cart_v1',
+];
+const APPOINTMENT_DRAFT_STORAGE_KEYS = [
+  'eastcord_pending_appointment_v1',
+  'eastcord_auth_redirect',
+  'pendingAppointment',
+  'pending_appointment',
+  'appointmentDraft',
+  'savedAppointment',
+  'eastcord_appointment_draft',
+  'eastcord_saved_appointment',
+];
+const CART_RESET_STORAGE_KEYS = [...new Set([...CART_STORAGE_KEYS, ...APPOINTMENT_DRAFT_STORAGE_KEYS])];
 
 const SERVICE_SUBTOTALS = {
   'seasonal-changeover-rims': 40,
@@ -78,6 +98,110 @@ function isAppointmentLikeItem(item) {
     || Boolean(item.bookingId)
     || Boolean(item.preferredDate)
     || Boolean(item.vehicleYear || item.vehicleMake || item.vehicleModel);
+}
+
+function normalizeCartCollection(value) {
+  if (Array.isArray(value)) return value.filter((item) => item && typeof item === 'object');
+
+  if (value && typeof value === 'object') {
+    const nestedCart = value.items || value.cart || value.appointments || value.appointmentItems;
+    if (Array.isArray(nestedCart)) return nestedCart.filter((item) => item && typeof item === 'object');
+    if (isAppointmentLikeItem(value)) return [value];
+  }
+
+  return [];
+}
+
+function readStorageJson(storage, key) {
+  try {
+    const raw = storage?.getItem?.(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (error) {
+    logDeveloperError(`Stored cart value could not be parsed for ${key}.`, error);
+    return null;
+  }
+}
+
+function getStorageKeys(storage) {
+  const keys = [];
+  if (!storage) return keys;
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key) keys.push(key);
+  }
+  return keys;
+}
+
+function isCartRelatedStorageKey(key) {
+  return CART_RESET_STORAGE_KEYS.includes(key)
+    || /cart/i.test(key)
+    || /appointment/i.test(key)
+    || /pendingAppointment/i.test(key)
+    || /appointmentDraft/i.test(key)
+    || /savedAppointment/i.test(key);
+}
+
+function getRawStorageItemCount() {
+  const storages = [localStorage, sessionStorage];
+  return storages.reduce((count, storage) => {
+    return count + getStorageKeys(storage)
+      .filter(isCartRelatedStorageKey)
+      .reduce((storageCount, key) => {
+        const normalized = normalizeCartCollection(readStorageJson(storage, key));
+        return storageCount + normalized.length;
+      }, 0);
+  }, 0);
+}
+
+function getCartFromKnownStorage() {
+  const sharedCart = normalizeCartCollection(window.EastCordAccount?.getCart?.());
+  if (sharedCart.length) return sharedCart;
+
+  const storageSources = [localStorage, sessionStorage];
+  for (const storage of storageSources) {
+    for (const key of CART_STORAGE_KEYS) {
+      const normalized = normalizeCartCollection(readStorageJson(storage, key));
+      if (normalized.length) return normalized;
+    }
+  }
+
+  return [];
+}
+
+function hardClearCartStorage() {
+  const localKeysBefore = getStorageKeys(localStorage).filter(isCartRelatedStorageKey);
+  const sessionKeysBefore = getStorageKeys(sessionStorage).filter(isCartRelatedStorageKey);
+
+  console.info('[EastCord appointment automation] Hard clearing cart storage.', {
+    localKeysBefore,
+    sessionKeysBefore,
+    cartItemCountBefore: getRawStorageItemCount(),
+  });
+
+  localKeysBefore.forEach((key) => localStorage.removeItem(key));
+  sessionKeysBefore.forEach((key) => sessionStorage.removeItem(key));
+  localStorage.setItem(ACTIVE_CART_KEY, '[]');
+
+  if (window.EastCordAccount?.saveCart) {
+    window.EastCordAccount.saveCart([]);
+  } else {
+    document.querySelectorAll('[data-cart-count]').forEach((element) => {
+      element.textContent = '';
+    });
+  }
+
+  console.info('[EastCord appointment automation] Cart storage hard cleared.', {
+    localKeysAfter: getStorageKeys(localStorage).filter(isCartRelatedStorageKey),
+    sessionKeysAfter: getStorageKeys(sessionStorage).filter(isCartRelatedStorageKey),
+    cartItemCountAfter: getRawStorageItemCount(),
+  });
+}
+
+function updateVisibleCartCount(count) {
+  document.querySelectorAll('[data-cart-count]').forEach((element) => {
+    element.textContent = count ? ` (${count})` : '';
+  });
 }
 
 function withTaxBreakdown(item, cartIndex = 0) {
@@ -179,16 +303,18 @@ function resetAgreement() {
 }
 
 function getAppointmentItems() {
-  const rawCart = window.EastCordAccount?.getCart?.() || [];
+  const rawCart = getCartFromKnownStorage();
   const appointmentItems = rawCart
     .map((item, cartIndex) => ({ item, cartIndex }))
     .filter(({ item }) => isAppointmentLikeItem(item))
     .map(({ item, cartIndex }) => withTaxBreakdown(item, cartIndex));
 
-  if (rawCart.length && !appointmentItems.length) {
-    logDeveloperError('Cart storage contains items, but none matched appointment item shape.', {
-      cartLength: rawCart.length,
-      itemKeys: rawCart.map((item) => Object.keys(item || {})),
+  if (getRawStorageItemCount() && !appointmentItems.length) {
+    logDeveloperError('Cart storage contains saved values, but none matched appointment item shape.', {
+      cartRelatedStorageKeys: [
+        ...getStorageKeys(localStorage).filter(isCartRelatedStorageKey),
+        ...getStorageKeys(sessionStorage).filter(isCartRelatedStorageKey),
+      ],
     });
   }
 
@@ -336,19 +462,27 @@ function renderCartTotals(items) {
 
 function renderCartItemsAndTotals() {
   const items = getAppointmentItems();
+  const rawStoredCount = getRawStorageItemCount();
 
   if (cartItems) {
-    cartItems.innerHTML = items.length
-      ? items.map(renderCartItem).join('')
-      : '<p class="empty-cart">Your cart is empty. Add an appointment service to continue.</p>';
+    if (items.length) {
+      cartItems.innerHTML = items.map(renderCartItem).join('');
+    } else if (rawStoredCount) {
+      cartItems.innerHTML = '<p class="empty-cart">Some saved cart details could not be loaded. Please clear your cart and add your appointment again.</p>';
+    } else {
+      cartItems.innerHTML = '<p class="empty-cart">Your cart is empty. Add an appointment to continue.</p>';
+    }
   }
 
   renderCartTotals(items);
+  updateVisibleCartCount(items.length);
 
   const invalidCount = items.filter((item) => item.isInvalidCartItem).length;
   if (invalidCount) {
     showCartMessage('One or more appointments in your cart needs attention. Please remove the item and add it again before checkout.');
-  } else if (cartMessage?.textContent?.includes('needs attention')) {
+  } else if (rawStoredCount && !items.length) {
+    showCartMessage('Some saved cart details could not be loaded. Please clear your cart and add your appointment again.');
+  } else if (cartMessage?.textContent?.includes('needs attention') || cartMessage?.textContent?.includes('could not be loaded')) {
     showCartMessage('', 'info');
   }
 
@@ -386,10 +520,11 @@ function renderCart() {
 }
 
 function removeCartItem(itemId, itemIndex) {
-  const currentCart = window.EastCordAccount.getCart();
+  const currentCart = getCartFromKnownStorage();
   const numericIndex = Number(itemIndex);
+  const hasMatchingId = Boolean(itemId) && currentCart.some((item) => item.id === itemId);
   const nextCart = currentCart.filter((item, index) => {
-    if (itemId) return item.id !== itemId;
+    if (hasMatchingId) return item.id !== itemId;
     return index !== numericIndex;
   });
 
@@ -458,7 +593,7 @@ async function ensureSupabaseBooking(item, profile) {
   const normalizedItem = withTaxBreakdown(item, item.cartIndex || 0);
   const bookingId = await window.EastCordAccount.saveAppointmentBooking(normalizedItem, profile);
   const updatedItem = { ...normalizedItem, bookingId, paymentStatus: 'pending_checkout' };
-  const cart = window.EastCordAccount.getCart().map((cartItem, index) => (index === item.cartIndex || cartItem.id === item.id ? updatedItem : cartItem));
+  const cart = getCartFromKnownStorage().map((cartItem, index) => (index === item.cartIndex || cartItem.id === item.id ? updatedItem : cartItem));
   window.EastCordAccount.saveCart(cart);
   return updatedItem;
 }
@@ -564,7 +699,7 @@ document.addEventListener('keydown', (event) => {
 });
 checkoutButton?.addEventListener('click', startCheckout);
 clearCartButton?.addEventListener('click', () => {
-  window.EastCordAccount.clearCart();
+  hardClearCartStorage();
   resetAgreement();
   showCartMessage('Cart cleared.', 'success');
   renderCart();
