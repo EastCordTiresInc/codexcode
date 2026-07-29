@@ -280,39 +280,138 @@
     });
   }
 
+  function showMessage(message, type = 'error') {
+    const element = document.querySelector('[data-cart-message]');
+    if (!element) return;
+    element.textContent = message;
+    element.dataset.messageType = type;
+  }
+
   async function getProfile() {
     try {
-      return await window.EastCordAccount?.getCurrentProfile?.();
+      const profile = await window.EastCordAccount?.getCurrentProfile?.();
+      if (profile) return profile;
+      const token = await window.EastCordAccount?.getAccessToken?.();
+      return token ? { customerId: '', name: 'Customer', email: '', phone: '', hasSessionOnly: true } : null;
     } catch (error) {
       console.info('[EastCord appointment automation] Cart profile check failed.', { message: error.message });
       return null;
     }
   }
 
-  async function updateCheckoutAvailability(items = readRecoverableItems()) {
-    const checkoutButton = document.querySelector('[data-checkout-button]');
-    const agreementCheckbox = document.querySelector('[data-agreement-checkbox]');
-    const authBlock = document.querySelector('[data-checkout-auth-block]');
-    const message = document.querySelector('[data-cart-message]');
-    if (!checkoutButton) return;
-
+  async function getCheckoutState(items = readRecoverableItems()) {
     const totals = calculateTotals(items);
     const profile = await getProfile();
     const isLoggedIn = Boolean(profile);
-    const hasValidCart = items.length > 0 && totals.deposit > 0;
-    const hasAcceptedAgreement = Boolean(agreementCheckbox?.checked);
+    const agreementAccepted = Boolean(document.querySelector('[data-agreement-checkbox]')?.checked);
+    const validCartItems = items.filter((item) => Number(item.depositAmount || 0) > 0);
+    let disabledReason = '';
 
-    if (authBlock) authBlock.classList.toggle('is-visible', !isLoggedIn);
-    checkoutButton.disabled = !(isLoggedIn && hasValidCart && hasAcceptedAgreement);
+    if (!validCartItems.length) disabledReason = items.length ? 'Cart total could not be calculated. Please refresh or clear cart.' : 'Your cart is empty. Add an appointment to continue.';
+    else if (!isLoggedIn) disabledReason = 'Please log in before checkout.';
+    else if (!agreementAccepted) disabledReason = 'Please accept the Mobile Service Agreement before checkout.';
 
-    if (!hasValidCart) {
-      if (message) message.textContent = 'Your cart is empty. Add an appointment to continue.';
-    } else if (!isLoggedIn) {
-      if (message) message.textContent = 'Please log in before checkout.';
-    } else if (!hasAcceptedAgreement) {
-      if (message) message.textContent = 'Please accept the Mobile Service Agreement before checkout.';
-    } else if (message && /Please log in before checkout|Please accept the Mobile Service Agreement before checkout|Your cart is empty/i.test(message.textContent || '')) {
-      message.textContent = '';
+    return {
+      items,
+      profile,
+      totals,
+      isLoggedIn,
+      agreementAccepted,
+      validCartItems,
+      depositDueToday: totals.deposit,
+      disabledReason,
+      canCheckout: !disabledReason && totals.deposit > 0,
+    };
+  }
+
+  function applyCheckoutState(state) {
+    const checkoutButton = document.querySelector('[data-checkout-button]');
+    const authBlock = document.querySelector('[data-checkout-auth-block]');
+    if (!checkoutButton) return;
+
+    checkoutButton.disabled = !state.canCheckout;
+    checkoutButton.toggleAttribute('disabled', !state.canCheckout);
+    checkoutButton.setAttribute('aria-disabled', String(!state.canCheckout));
+    if (authBlock) authBlock.classList.toggle('is-visible', !state.isLoggedIn);
+
+    if (state.disabledReason) showMessage(state.disabledReason);
+    else {
+      const message = document.querySelector('[data-cart-message]');
+      if (message && /Please log in before checkout|Please accept the Mobile Service Agreement before checkout|Your cart is empty|Cart total could not be calculated/i.test(message.textContent || '')) {
+        message.textContent = '';
+      }
+    }
+
+    console.info('[EastCord appointment automation] checkout button state', {
+      isLoggedIn: state.isLoggedIn,
+      agreementAccepted: state.agreementAccepted,
+      validCartItems: state.validCartItems.length,
+      depositDueToday: state.depositDueToday,
+      disabledReason: state.disabledReason || 'none',
+      buttonDisabled: !state.canCheckout,
+    });
+  }
+
+  async function updateCheckoutAvailability(items = readRecoverableItems()) {
+    const state = await getCheckoutState(items);
+    applyCheckoutState(state);
+    return state;
+  }
+
+  async function ensureBooking(item, profile) {
+    if (item.bookingId) return item;
+    const bookingId = await window.EastCordAccount.saveAppointmentBooking(item, profile);
+    return { ...item, bookingId, paymentStatus: 'pending_checkout' };
+  }
+
+  async function startRecoveredCheckout(event) {
+    const checkoutButton = event.target.closest('[data-checkout-button]');
+    if (!checkoutButton) return;
+
+    const state = await updateCheckoutAvailability();
+    if (!state.canCheckout) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    try {
+      checkoutButton.disabled = true;
+      checkoutButton.textContent = 'Preparing secure checkout...';
+      showMessage('Saving booking details and preparing secure checkout...', 'info');
+
+      const profile = state.profile;
+      const bookingItems = [];
+      for (const item of state.validCartItems) {
+        bookingItems.push(await ensureBooking(item, profile));
+      }
+      localStorage.setItem(ACTIVE_CART_KEY, JSON.stringify(bookingItems));
+
+      const token = await window.EastCordAccount.getAccessToken();
+      const response = await fetch('/.netlify/functions/create-appointment-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ items: bookingItems, customer: profile }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.url) {
+        console.error('[EastCord appointment automation] Checkout function returned an error.', { status: response.status, response: data });
+        throw new Error(data.message || 'Online checkout is being connected. Please check back soon.');
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      console.error('[EastCord appointment automation] Checkout could not be started.', error);
+      checkoutButton.textContent = 'Secure Checkout';
+      showMessage(error.message || 'Online checkout is being connected. Please check back soon.');
+      await updateCheckoutAvailability();
     }
   }
 
@@ -321,17 +420,13 @@
     const visibleCartItems = cartContainer ? cartContainer.querySelectorAll('.cart-line').length : 0;
     const items = readRecoverableItems();
 
-    if (items.length) {
-      localStorage.setItem(ACTIVE_CART_KEY, JSON.stringify(items));
-    }
+    if (items.length) localStorage.setItem(ACTIVE_CART_KEY, JSON.stringify(items));
 
     if (cartContainer && items.length && visibleCartItems === 0) {
       cartContainer.innerHTML = items.map(renderAppointmentItem).join('');
       updateVisibleTotals(items, calculateTotals(items));
       const message = document.querySelector('[data-cart-message]');
-      if (message && /could not be loaded|Add an appointment service before checkout/i.test(message.textContent || '')) {
-        message.textContent = '';
-      }
+      if (message && /could not be loaded|Add an appointment service before checkout/i.test(message.textContent || '')) message.textContent = '';
     } else if (!items.length && cartContainer && !visibleCartItems) {
       updateVisibleTotals([], { subtotal: 0, hst: 0, total: 0, deposit: 0, remaining: 0 });
     }
@@ -342,7 +437,10 @@
   document.addEventListener('change', (event) => {
     if (!event.target.matches('[data-agreement-checkbox]')) return;
     window.setTimeout(() => updateCheckoutAvailability(), 0);
+    window.setTimeout(() => updateCheckoutAvailability(), 100);
   });
+
+  document.addEventListener('click', startRecoveredCheckout, true);
 
   document.addEventListener('click', (event) => {
     const clearButton = event.target.closest('[data-clear-cart]');
@@ -358,15 +456,12 @@
     document.querySelector('[data-cart-items]')?.replaceChildren();
     document.querySelector('[data-cart-items]')?.insertAdjacentHTML('beforeend', '<p class="empty-cart">Your cart is empty. Add an appointment to continue.</p>');
     updateVisibleTotals([], { subtotal: 0, hst: 0, total: 0, deposit: 0, remaining: 0 });
-    const message = document.querySelector('[data-cart-message]');
-    if (message) {
-      message.textContent = 'Cart cleared.';
-      message.dataset.messageType = 'success';
-    }
+    showMessage('Cart cleared.', 'success');
     updateCheckoutAvailability([]);
   }, true);
 
   window.addEventListener('DOMContentLoaded', recoverCartRenderIfNeeded);
   window.setTimeout(recoverCartRenderIfNeeded, 200);
   window.setTimeout(() => updateCheckoutAvailability(), 500);
+  window.setInterval(() => updateCheckoutAvailability(), 1500);
 })();
