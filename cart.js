@@ -51,6 +51,10 @@ function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
 }
 
+function logCartDiagnostic(message, details = {}) {
+  console.info(`[EastCord appointment automation] ${message}`, details);
+}
+
 function roundMoney(value) {
   return Math.round(Number(value || 0) * 100) / 100;
 }
@@ -77,36 +81,92 @@ function numberOrZero(value) {
   return Number.isFinite(amount) ? amount : 0;
 }
 
-function getServiceSubtotal(item) {
-  const directSubtotal = numberOrZero(item.serviceSubtotal);
-  if (directSubtotal > 0) return directSubtotal;
+function getFirstValue(item, names, fallback = '') {
+  for (const name of names) {
+    if (item[name] !== undefined && item[name] !== null && item[name] !== '') return item[name];
+  }
+  return fallback;
+}
 
-  const startingPrice = numberOrZero(item.startingPrice);
-  if (startingPrice > 0) return startingPrice;
-
-  const servicePrice = SERVICE_SUBTOTALS[item.serviceId];
-  if (servicePrice > 0) return servicePrice;
-
-  return 0;
+function unwrapCartItem(item) {
+  if (!item || typeof item !== 'object') return item;
+  if (item.item && typeof item.item === 'object') return { ...item.item, cartIndex: item.cartIndex ?? item.item.cartIndex };
+  if (item.appointment && typeof item.appointment === 'object') return { ...item.appointment, cartIndex: item.cartIndex ?? item.appointment.cartIndex };
+  if (item.booking && typeof item.booking === 'object') return { ...item.booking, cartIndex: item.cartIndex ?? item.booking.cartIndex };
+  return item;
 }
 
 function isAppointmentLikeItem(item) {
-  if (!item || typeof item !== 'object') return false;
-  return item.type === 'appointment'
-    || Boolean(item.serviceId)
-    || Boolean(item.serviceName)
-    || Boolean(item.bookingId)
-    || Boolean(item.preferredDate)
-    || Boolean(item.vehicleYear || item.vehicleMake || item.vehicleModel);
+  const source = unwrapCartItem(item);
+  if (!source || typeof source !== 'object') return false;
+  return source.type === 'appointment'
+    || Boolean(source.serviceId || source.service_id)
+    || Boolean(source.serviceName || source.service_name)
+    || Boolean(source.bookingId || source.booking_id)
+    || Boolean(source.preferredDate || source.preferred_date)
+    || Boolean(source.vehicleYear || source.vehicle_year || source.vehicleMake || source.vehicle_make || source.vehicleModel || source.vehicle_model);
+}
+
+function normalizeAppointmentItem(item, cartIndex = 0) {
+  const source = unwrapCartItem(item);
+  if (!source || typeof source !== 'object') return null;
+
+  const serviceId = getFirstValue(source, ['serviceId', 'service_id']);
+  const serviceSubtotal = getFirstValue(source, ['serviceSubtotal', 'service_subtotal', 'startingPrice', 'starting_price'], SERVICE_SUBTOTALS[serviceId] || 0);
+
+  return {
+    ...source,
+    id: getFirstValue(source, ['id', 'cartId', 'cart_id'], `cart-item-${cartIndex}`),
+    type: source.type || 'appointment',
+    cartIndex: source.cartIndex ?? cartIndex,
+    customerId: getFirstValue(source, ['customerId', 'customer_id']),
+    customerName: getFirstValue(source, ['customerName', 'customer_name']),
+    customerEmail: getFirstValue(source, ['customerEmail', 'customer_email']),
+    customerPhone: getFirstValue(source, ['customerPhone', 'customer_phone']),
+    serviceId,
+    serviceName: getFirstValue(source, ['serviceName', 'service_name']),
+    startingPrice: getFirstValue(source, ['startingPrice', 'starting_price'], serviceSubtotal),
+    serviceSubtotal,
+    hstAmount: getFirstValue(source, ['hstAmount', 'hst_amount']),
+    totalWithHst: getFirstValue(source, ['totalWithHst', 'total_with_hst']),
+    taxRate: getFirstValue(source, ['taxRate', 'tax_rate'], TAX_RATE),
+    depositAmount: getFirstValue(source, ['depositAmount', 'deposit_amount']),
+    remainingBalance: getFirstValue(source, ['remainingBalance', 'remaining_balance']),
+    preferredDate: getFirstValue(source, ['preferredDate', 'preferred_date']),
+    preferredTimeWindow: getFirstValue(source, ['preferredTimeWindow', 'preferred_time_window']),
+    vehicleYear: getFirstValue(source, ['vehicleYear', 'vehicle_year']),
+    vehicleMake: getFirstValue(source, ['vehicleMake', 'vehicle_make']),
+    vehicleModel: getFirstValue(source, ['vehicleModel', 'vehicle_model']),
+    vehiclePlateNumber: getFirstValue(source, ['vehiclePlateNumber', 'vehicle_plate_number']),
+    vehicleColour: getFirstValue(source, ['vehicleColour', 'vehicle_colour']),
+    tireSize: getFirstValue(source, ['tireSize', 'tire_size']),
+    tiresAlreadyOnRims: getFirstValue(source, ['tiresAlreadyOnRims', 'tires_already_on_rims']),
+    numberOfTires: getFirstValue(source, ['numberOfTires', 'number_of_tires']),
+    fullServiceAddress: getFirstValue(source, ['fullServiceAddress', 'full_service_address']),
+    city: getFirstValue(source, ['city']),
+    postalCode: getFirstValue(source, ['postalCode', 'postal_code']),
+    parkingAccessNotes: getFirstValue(source, ['parkingAccessNotes', 'parking_access_notes']),
+    additionalNotes: getFirstValue(source, ['additionalNotes', 'additional_notes']),
+    serviceAreaStatus: getFirstValue(source, ['serviceAreaStatus', 'service_area_status'], 'In service area'),
+    bookingId: getFirstValue(source, ['bookingId', 'booking_id']),
+    bookingStatus: getFirstValue(source, ['bookingStatus', 'booking_status'], 'Pending Confirmation'),
+    paymentStatus: getFirstValue(source, ['paymentStatus', 'payment_status'], 'pending_checkout'),
+    stripeSessionId: getFirstValue(source, ['stripeSessionId', 'stripe_session_id']),
+  };
 }
 
 function normalizeCartCollection(value) {
-  if (Array.isArray(value)) return value.filter((item) => item && typeof item === 'object');
+  const normalizeList = (items) => items
+    .filter((item) => item && typeof item === 'object')
+    .map((item, index) => normalizeAppointmentItem(item, index))
+    .filter(Boolean);
+
+  if (Array.isArray(value)) return normalizeList(value);
 
   if (value && typeof value === 'object') {
     const nestedCart = value.items || value.cart || value.appointments || value.appointmentItems;
-    if (Array.isArray(nestedCart)) return nestedCart.filter((item) => item && typeof item === 'object');
-    if (isAppointmentLikeItem(value)) return [value];
+    if (Array.isArray(nestedCart)) return normalizeList(nestedCart);
+    if (isAppointmentLikeItem(value)) return normalizeList([value]);
   }
 
   return [];
@@ -154,15 +214,22 @@ function getRawStorageItemCount() {
   }, 0);
 }
 
+function hasAppointmentLikeItems(items) {
+  return items.some((item) => isAppointmentLikeItem(item));
+}
+
 function getCartFromKnownStorage() {
+  const activeCart = normalizeCartCollection(readStorageJson(localStorage, ACTIVE_CART_KEY));
+  if (hasAppointmentLikeItems(activeCart)) return activeCart;
+
   const sharedCart = normalizeCartCollection(window.EastCordAccount?.getCart?.());
-  if (sharedCart.length) return sharedCart;
+  if (hasAppointmentLikeItems(sharedCart)) return sharedCart;
 
   const storageSources = [localStorage, sessionStorage];
   for (const storage of storageSources) {
     for (const key of CART_STORAGE_KEYS) {
       const normalized = normalizeCartCollection(readStorageJson(storage, key));
-      if (normalized.length) return normalized;
+      if (hasAppointmentLikeItems(normalized)) return normalized;
     }
   }
 
@@ -204,13 +271,28 @@ function updateVisibleCartCount(count) {
   });
 }
 
+function getServiceSubtotal(item) {
+  const normalized = normalizeAppointmentItem(item, item.cartIndex || 0) || item;
+  const directSubtotal = numberOrZero(normalized.serviceSubtotal);
+  if (directSubtotal > 0) return directSubtotal;
+
+  const startingPrice = numberOrZero(normalized.startingPrice);
+  if (startingPrice > 0) return startingPrice;
+
+  const servicePrice = SERVICE_SUBTOTALS[normalized.serviceId];
+  if (servicePrice > 0) return servicePrice;
+
+  return 0;
+}
+
 function withTaxBreakdown(item, cartIndex = 0) {
-  const serviceSubtotal = getServiceSubtotal(item);
-  const id = item.id || `cart-item-${cartIndex}`;
+  const normalizedItem = normalizeAppointmentItem(item, cartIndex) || item;
+  const serviceSubtotal = getServiceSubtotal(normalizedItem);
+  const id = normalizedItem.id || `cart-item-${cartIndex}`;
 
   if (!serviceSubtotal) {
     return {
-      ...item,
+      ...normalizedItem,
       id,
       cartIndex,
       type: 'appointment',
@@ -229,7 +311,7 @@ function withTaxBreakdown(item, cartIndex = 0) {
   const calculated = calculateTaxBreakdown(serviceSubtotal);
 
   return {
-    ...item,
+    ...normalizedItem,
     id,
     cartIndex,
     type: 'appointment',
@@ -243,6 +325,16 @@ function withTaxBreakdown(item, cartIndex = 0) {
   };
 }
 
+function formatMoney(value) {
+  if (window.EastCordAccount?.money) return window.EastCordAccount.money(value);
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: 'CAD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
 function showCartMessage(message, type = 'error') {
   if (!cartMessage) return;
   cartMessage.textContent = message;
@@ -254,7 +346,7 @@ function escapeHtml(value) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+    .replace(/\"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
 
@@ -305,9 +397,24 @@ function resetAgreement() {
 function getAppointmentItems() {
   const rawCart = getCartFromKnownStorage();
   const appointmentItems = rawCart
-    .map((item, cartIndex) => ({ item, cartIndex }))
-    .filter(({ item }) => isAppointmentLikeItem(item))
-    .map(({ item, cartIndex }) => withTaxBreakdown(item, cartIndex));
+    .map((item, cartIndex) => normalizeAppointmentItem(item, cartIndex))
+    .filter((item) => {
+      const isAppointment = isAppointmentLikeItem(item);
+      if (!isAppointment) {
+        logCartDiagnostic('Cart item skipped because it did not match appointment shape.', {
+          keys: item && typeof item === 'object' ? Object.keys(item) : [],
+        });
+      }
+      return isAppointment;
+    })
+    .map((item, cartIndex) => withTaxBreakdown(item, item.cartIndex ?? cartIndex));
+
+  logCartDiagnostic('Cart items loaded.', {
+    rawCount: rawCart.length,
+    validAppointmentCount: appointmentItems.filter((item) => !item.isInvalidCartItem).length,
+    invalidAppointmentCount: appointmentItems.filter((item) => item.isInvalidCartItem).length,
+    rawItemKeys: rawCart.map((item) => (item && typeof item === 'object' ? Object.keys(item) : [])),
+  });
 
   if (getRawStorageItemCount() && !appointmentItems.length) {
     logDeveloperError('Cart storage contains saved values, but none matched appointment item shape.', {
@@ -432,11 +539,11 @@ function renderCartItem(item, index) {
       ${detailLine('City/Postal', cityPostal)}
       ${detailLine('Date', item.preferredDate)}
       ${detailLine('Time', item.preferredTimeWindow)}
-      ${detailLine('Service Subtotal', window.EastCordAccount.money(item.serviceSubtotal))}
-      ${detailLine('HST 13%', window.EastCordAccount.money(item.hstAmount))}
-      ${detailLine('Total Including HST', window.EastCordAccount.money(item.totalWithHst))}
-      ${detailLine('Deposit Due Today', window.EastCordAccount.money(item.depositAmount))}
-      ${detailLine('Remaining On-Site', window.EastCordAccount.money(item.remainingBalance))}
+      ${detailLine('Service Subtotal', formatMoney(item.serviceSubtotal))}
+      ${detailLine('HST 13%', formatMoney(item.hstAmount))}
+      ${detailLine('Total Including HST', formatMoney(item.totalWithHst))}
+      ${detailLine('Deposit Due Today', formatMoney(item.depositAmount))}
+      ${detailLine('Remaining On-Site', formatMoney(item.remainingBalance))}
       <p>Your appointment will be confirmed automatically after successful deposit payment.</p>
       <div class="account-actions cart-line-actions">
         <button class="button button-secondary" type="button" data-remove-cart-item="${escapeHtml(item.id || '')}" data-remove-cart-index="${escapeHtml(item.cartIndex)}">Remove this appointment</button>
@@ -453,11 +560,11 @@ function renderCartTotals(items) {
   const depositTotal = roundMoney(validItems.reduce((sum, item) => sum + Number(item.depositAmount || 0), 0));
   const balanceTotal = roundMoney(validItems.reduce((sum, item) => sum + Number(item.remainingBalance || 0), 0));
 
-  if (cartSubtotal) cartSubtotal.textContent = window.EastCordAccount.money(subtotalTotal);
-  if (cartHst) cartHst.textContent = window.EastCordAccount.money(hstTotal);
-  if (cartTotal) cartTotal.textContent = window.EastCordAccount.money(totalWithHst);
-  if (cartDeposit) cartDeposit.textContent = window.EastCordAccount.money(depositTotal);
-  if (cartBalance) cartBalance.textContent = `${window.EastCordAccount.money(balanceTotal)} due on-site after service`;
+  if (cartSubtotal) cartSubtotal.textContent = formatMoney(subtotalTotal);
+  if (cartHst) cartHst.textContent = formatMoney(hstTotal);
+  if (cartTotal) cartTotal.textContent = formatMoney(totalWithHst);
+  if (cartDeposit) cartDeposit.textContent = formatMoney(depositTotal);
+  if (cartBalance) cartBalance.textContent = `${formatMoney(balanceTotal)} due on-site after service`;
 }
 
 function renderCartItemsAndTotals() {
