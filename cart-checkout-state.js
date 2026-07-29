@@ -27,6 +27,27 @@
     return Boolean(document.querySelector('[data-agreement-checkbox]')?.checked);
   }
 
+  function ensureCancellationPolicyInAgreement() {
+    const agreementContent = document.querySelector('.agreement-content');
+    if (!agreementContent || agreementContent.querySelector('[data-cancellation-policy-section]')) return;
+
+    const policy = document.createElement('section');
+    policy.dataset.cancellationPolicySection = '';
+    policy.innerHTML = `
+      <h3>Cancellation &amp; Rescheduling Policy</h3>
+      <p>Customers may cancel or request to reschedule their appointment up to 2 hours before the scheduled appointment time.</p>
+      <p>Cancellations or rescheduling requests made less than 2 hours before the appointment may not be accepted, and the deposit may be non-refundable.</p>
+      <p>If the customer is unavailable, provides incorrect information, does not provide a safe service location, or does not have required items such as the wheel lock key, EastCord Tires may treat the appointment as missed or incomplete, and the deposit may be non-refundable.</p>
+      <p>To cancel or reschedule, please contact EastCord Tires as soon as possible at <a href="mailto:info@eastcordtires.ca">info@eastcordtires.ca</a> or <a href="tel:3658225553">365-822-5553</a>.</p>
+    `;
+
+    const limitationHeading = Array.from(agreementContent.querySelectorAll('h3'))
+      .find((heading) => /Limitation of Liability/i.test(heading.textContent || ''));
+
+    if (limitationHeading) limitationHeading.insertAdjacentElement('beforebegin', policy);
+    else agreementContent.appendChild(policy);
+  }
+
   function getStorageKeys(storage) {
     const keys = [];
     for (let index = 0; storage && index < storage.length; index += 1) {
@@ -255,6 +276,9 @@
   window.addEventListener('storage', scheduleCheckoutStateUpdate);
   window.addEventListener('eastcord:cart-cleared', scheduleCheckoutStateUpdate);
   window.addEventListener('eastcord:cart-updated', scheduleCheckoutStateUpdate);
-  window.addEventListener('DOMContentLoaded', scheduleCheckoutStateUpdate);
+  window.addEventListener('DOMContentLoaded', () => {
+    ensureCancellationPolicyInAgreement();
+    scheduleCheckoutStateUpdate();
+  });
   window.setInterval(updateCheckoutButtonState, 1500);
 })();
