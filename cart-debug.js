@@ -280,7 +280,43 @@
     });
   }
 
-  function recoverCartRenderIfNeeded() {
+  async function getProfile() {
+    try {
+      return await window.EastCordAccount?.getCurrentProfile?.();
+    } catch (error) {
+      console.info('[EastCord appointment automation] Cart profile check failed.', { message: error.message });
+      return null;
+    }
+  }
+
+  async function updateCheckoutAvailability(items = readRecoverableItems()) {
+    const checkoutButton = document.querySelector('[data-checkout-button]');
+    const agreementCheckbox = document.querySelector('[data-agreement-checkbox]');
+    const authBlock = document.querySelector('[data-checkout-auth-block]');
+    const message = document.querySelector('[data-cart-message]');
+    if (!checkoutButton) return;
+
+    const totals = calculateTotals(items);
+    const profile = await getProfile();
+    const isLoggedIn = Boolean(profile);
+    const hasValidCart = items.length > 0 && totals.deposit > 0;
+    const hasAcceptedAgreement = Boolean(agreementCheckbox?.checked);
+
+    if (authBlock) authBlock.classList.toggle('is-visible', !isLoggedIn);
+    checkoutButton.disabled = !(isLoggedIn && hasValidCart && hasAcceptedAgreement);
+
+    if (!hasValidCart) {
+      if (message) message.textContent = 'Your cart is empty. Add an appointment to continue.';
+    } else if (!isLoggedIn) {
+      if (message) message.textContent = 'Please log in before checkout.';
+    } else if (!hasAcceptedAgreement) {
+      if (message) message.textContent = 'Please accept the Mobile Service Agreement before checkout.';
+    } else if (message && /Please log in before checkout|Please accept the Mobile Service Agreement before checkout|Your cart is empty/i.test(message.textContent || '')) {
+      message.textContent = '';
+    }
+  }
+
+  async function recoverCartRenderIfNeeded() {
     const cartContainer = document.querySelector('[data-cart-items]');
     const visibleCartItems = cartContainer ? cartContainer.querySelectorAll('.cart-line').length : 0;
     const items = readRecoverableItems();
@@ -299,7 +335,14 @@
     } else if (!items.length && cartContainer && !visibleCartItems) {
       updateVisibleTotals([], { subtotal: 0, hst: 0, total: 0, deposit: 0, remaining: 0 });
     }
+
+    await updateCheckoutAvailability(items);
   }
+
+  document.addEventListener('change', (event) => {
+    if (!event.target.matches('[data-agreement-checkbox]')) return;
+    window.setTimeout(() => updateCheckoutAvailability(), 0);
+  });
 
   document.addEventListener('click', (event) => {
     const clearButton = event.target.closest('[data-clear-cart]');
@@ -320,8 +363,10 @@
       message.textContent = 'Cart cleared.';
       message.dataset.messageType = 'success';
     }
+    updateCheckoutAvailability([]);
   }, true);
 
   window.addEventListener('DOMContentLoaded', recoverCartRenderIfNeeded);
   window.setTimeout(recoverCartRenderIfNeeded, 200);
+  window.setTimeout(() => updateCheckoutAvailability(), 500);
 })();
