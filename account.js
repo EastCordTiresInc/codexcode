@@ -2,6 +2,7 @@ const AUTH_CONFIG = window.EASTCORD_AUTH_CONFIG || {};
 const CART_KEY = 'eastcord_cart_v1';
 const ACCOUNT_SETUP_MESSAGE = 'Account signup is being connected. Please contact EastCord Tires or check back soon.';
 const EMAIL_CONFIRMATION_MESSAGE = 'Account created. Please check your email to confirm your account, then log in.';
+const TAX_RATE = 0.13;
 
 function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
@@ -102,8 +103,42 @@ function money(value) {
   return new Intl.NumberFormat('en-CA', {
     style: 'currency',
     currency: 'CAD',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(Number(value || 0));
+}
+
+function roundMoney(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function calculateTaxBreakdown(subtotal) {
+  const serviceSubtotal = roundMoney(subtotal);
+  const hstAmount = roundMoney(serviceSubtotal * TAX_RATE);
+  const totalWithHst = roundMoney(serviceSubtotal + hstAmount);
+  const depositAmount = roundMoney(totalWithHst * 0.20);
+  const remainingBalance = roundMoney(totalWithHst - depositAmount);
+
+  return {
+    serviceSubtotal,
+    hstAmount,
+    totalWithHst,
+    depositAmount,
+    remainingBalance,
+    taxRate: TAX_RATE,
+  };
+}
+
+function getBookingTaxDetails(item) {
+  const fallback = calculateTaxBreakdown(item.serviceSubtotal ?? item.startingPrice ?? 0);
+  return {
+    serviceSubtotal: roundMoney(item.serviceSubtotal ?? item.startingPrice ?? fallback.serviceSubtotal),
+    hstAmount: roundMoney(item.hstAmount ?? fallback.hstAmount),
+    totalWithHst: roundMoney(item.totalWithHst ?? fallback.totalWithHst),
+    depositAmount: roundMoney(item.depositAmount ?? fallback.depositAmount),
+    remainingBalance: roundMoney(item.remainingBalance ?? fallback.remainingBalance),
+    taxRate: Number(item.taxRate ?? TAX_RATE),
+  };
 }
 
 function escapeHtml(value) {
@@ -283,6 +318,7 @@ async function getCurrentProfile() {
 }
 
 function buildBookingRecord(item, profile) {
+  const tax = getBookingTaxDetails(item);
   return {
     customer_id: profile.customerId,
     customer_name: profile.name || '',
@@ -290,9 +326,13 @@ function buildBookingRecord(item, profile) {
     customer_phone: profile.phone || '',
     service_id: item.serviceId || '',
     service_name: item.serviceName || '',
-    starting_price: Number(item.startingPrice || 0),
-    deposit_amount: Number(item.depositAmount || 0),
-    remaining_balance: Number(item.remainingBalance || 0),
+    starting_price: tax.serviceSubtotal,
+    service_subtotal: tax.serviceSubtotal,
+    hst_amount: tax.hstAmount,
+    total_with_hst: tax.totalWithHst,
+    deposit_amount: tax.depositAmount,
+    remaining_balance: tax.remainingBalance,
+    tax_rate: tax.taxRate,
     preferred_date: item.preferredDate || null,
     preferred_time_window: item.preferredTimeWindow || '',
     vehicle_year: item.vehicleYear || '',
@@ -341,7 +381,7 @@ async function getCustomerBookings() {
 
   const { data, error } = await client
     .from('appointment_bookings')
-    .select('id, service_name, preferred_date, preferred_time_window, city, tire_size, vehicle_year, vehicle_make, vehicle_model, vehicle_plate_number, vehicle_colour, deposit_amount, remaining_balance, booking_status, payment_status, created_at')
+    .select('id, service_name, preferred_date, preferred_time_window, city, tire_size, vehicle_year, vehicle_make, vehicle_model, vehicle_plate_number, vehicle_colour, service_subtotal, hst_amount, total_with_hst, deposit_amount, remaining_balance, booking_status, payment_status, created_at')
     .eq('customer_id', profile.customerId)
     .order('created_at', { ascending: false });
 
@@ -565,6 +605,7 @@ function renderBookingHistory(bookings) {
         <p>${escapeHtml(booking.preferred_date || '')}${booking.preferred_time_window ? ` at ${escapeHtml(booking.preferred_time_window)}` : ''}</p>
         <p>${escapeHtml(vehicle || 'Vehicle details submitted')}${plate}${colour}${booking.tire_size ? ` | ${escapeHtml(booking.tire_size)}` : ''}</p>
         <p>${escapeHtml(booking.city || '')}</p>
+        <p>Service subtotal: ${money(booking.service_subtotal || 0)} | HST 13%: ${money(booking.hst_amount || 0)} | Total including HST: ${money(booking.total_with_hst || 0)}</p>
         <p>Deposit: ${money(booking.deposit_amount)} | Remaining on-site: ${money(booking.remaining_balance)} | Payment: ${escapeHtml(booking.payment_status || 'pending_checkout')}</p>
       </article>
     `;
