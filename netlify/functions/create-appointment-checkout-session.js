@@ -5,6 +5,7 @@ const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
 const MIN_ADVANCE_MINUTES = 120;
 const SERVICE_TIME_ZONE = 'America/Toronto';
+const TAX_RATE = 0.13;
 
 const SERVICES = {
   'seasonal-changeover-rims': { name: 'Seasonal Changeover - All 4 Tires Pre-Mounted on Rims', startingPrice: 40 },
@@ -68,9 +69,26 @@ function getSupabaseAdmin() {
   });
 }
 
-function moneyAmount(value) {
+function roundMoney(value) {
   const amount = Number(value);
   return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : 0;
+}
+
+function calculateServiceAmounts(subtotal) {
+  const serviceSubtotal = roundMoney(subtotal);
+  const hstAmount = roundMoney(serviceSubtotal * TAX_RATE);
+  const totalWithHst = roundMoney(serviceSubtotal + hstAmount);
+  const depositAmount = roundMoney(totalWithHst * 0.20);
+  const remainingBalance = roundMoney(totalWithHst - depositAmount);
+
+  return {
+    serviceSubtotal,
+    hstAmount,
+    totalWithHst,
+    depositAmount,
+    remainingBalance,
+    taxRate: TAX_RATE,
+  };
 }
 
 function normalizeBookingItems(payload) {
@@ -218,7 +236,7 @@ function buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError
   };
 }
 
-function buildBookingRecord({ booking, customer, service, startingPrice, depositAmount, remainingBalance, verifiedUser }) {
+function buildBookingRecord({ booking, customer, service, amounts, verifiedUser }) {
   return {
     customer_id: verifiedUser.id,
     customer_name: customer.name || booking.customerName || '',
@@ -226,9 +244,13 @@ function buildBookingRecord({ booking, customer, service, startingPrice, deposit
     customer_phone: customer.phone || booking.customerPhone || '',
     service_id: booking.serviceId || '',
     service_name: service.name,
-    starting_price: startingPrice,
-    deposit_amount: depositAmount,
-    remaining_balance: remainingBalance,
+    starting_price: amounts.serviceSubtotal,
+    service_subtotal: amounts.serviceSubtotal,
+    hst_amount: amounts.hstAmount,
+    total_with_hst: amounts.totalWithHst,
+    deposit_amount: amounts.depositAmount,
+    remaining_balance: amounts.remainingBalance,
+    tax_rate: amounts.taxRate,
     preferred_date: booking.preferredDate || null,
     preferred_time_window: booking.preferredTimeWindow || '',
     vehicle_year: booking.vehicleYear || '',
@@ -267,7 +289,7 @@ async function getVerifiedUser(event, supabaseAdmin) {
   return authData.user;
 }
 
-async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifiedUser, service, startingPrice, depositAmount, remainingBalance }) {
+async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifiedUser, service, amounts }) {
   if (!supabaseAdmin || !verifiedUser) return { row: null, effectiveBookingId: booking.bookingId };
 
   const { data: row, error } = await supabaseAdmin
@@ -303,7 +325,7 @@ async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifi
 
   const { data: repairedRow, error: repairError } = await supabaseAdmin
     .from('appointment_bookings')
-    .insert(buildBookingRecord({ booking, customer, service, startingPrice, depositAmount, remainingBalance, verifiedUser }))
+    .insert(buildBookingRecord({ booking, customer, service, amounts, verifiedUser }))
     .select('id, customer_id, payment_status')
     .single();
 
@@ -417,23 +439,19 @@ exports.handler = async (event) => {
     const validationMessage = validateBookingFields(booking, customer);
     if (validationMessage) return json(400, { message: validationMessage });
 
-    const startingPrice = moneyAmount(booking.startingPrice || service.startingPrice);
-    const depositAmount = moneyAmount(booking.depositAmount);
-    const remainingBalance = moneyAmount(booking.remainingBalance || startingPrice - depositAmount);
+    const amounts = calculateServiceAmounts(service.startingPrice);
 
-    if (depositAmount <= 0) {
+    if (amounts.depositAmount <= 0) {
       return json(400, { message: 'The booking deposit amount is missing. Please return to the appointment page and add the service again.' });
     }
 
-    const lookupResult = await findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifiedUser, service, startingPrice, depositAmount, remainingBalance });
+    const lookupResult = await findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifiedUser, service, amounts });
     if (lookupResult?.errorResponse) return lookupResult.errorResponse;
 
     preparedItems.push({
       booking,
       service,
-      startingPrice,
-      depositAmount,
-      remainingBalance,
+      ...amounts,
       effectiveBookingId: lookupResult?.effectiveBookingId || booking.bookingId,
       lookupDiagnostics: lookupResult?.diagnostics || null,
     });
@@ -448,7 +466,11 @@ exports.handler = async (event) => {
   const siteUrl = getSiteUrl(event);
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
   const bookingIds = preparedItems.map((item) => item.effectiveBookingId).filter(Boolean);
-  const totalDeposit = preparedItems.reduce((sum, item) => sum + item.depositAmount, 0);
+  const totalSubtotal = roundMoney(preparedItems.reduce((sum, item) => sum + item.serviceSubtotal, 0));
+  const totalHst = roundMoney(preparedItems.reduce((sum, item) => sum + item.hstAmount, 0));
+  const totalWithHst = roundMoney(preparedItems.reduce((sum, item) => sum + item.totalWithHst, 0));
+  const totalDeposit = roundMoney(preparedItems.reduce((sum, item) => sum + item.depositAmount, 0));
+  const totalRemaining = roundMoney(preparedItems.reduce((sum, item) => sum + item.remainingBalance, 0));
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -460,7 +482,7 @@ exports.handler = async (event) => {
           currency: 'cad',
           product_data: {
             name: `Vehicle ${index + 1}: ${item.service.name} - 20% Booking Deposit`,
-            description: '20% booking deposit based on the selected starting price. Remaining balance is paid on-site after service.',
+            description: '20% booking deposit, including applicable HST. Remaining balance, including applicable HST, is paid on-site after service.',
           },
           unit_amount: Math.round(item.depositAmount * 100),
         },
@@ -478,7 +500,12 @@ exports.handler = async (event) => {
         customer_phone: String(customer.phone).slice(0, 500),
         booking_status: 'Confirmed After Payment',
         payment_status: 'pending_checkout',
+        tax_rate: TAX_RATE.toFixed(2),
+        total_service_subtotal: totalSubtotal.toFixed(2),
+        total_hst_amount: totalHst.toFixed(2),
+        total_with_hst: totalWithHst.toFixed(2),
         total_deposit_amount: totalDeposit.toFixed(2),
+        total_remaining_balance: totalRemaining.toFixed(2),
       },
     });
 
@@ -487,6 +514,13 @@ exports.handler = async (event) => {
         const { error: updateError } = await supabaseAdmin
           .from('appointment_bookings')
           .update({
+            starting_price: item.serviceSubtotal,
+            service_subtotal: item.serviceSubtotal,
+            hst_amount: item.hstAmount,
+            total_with_hst: item.totalWithHst,
+            deposit_amount: item.depositAmount,
+            remaining_balance: item.remainingBalance,
+            tax_rate: item.taxRate,
             stripe_session_id: session.id,
             payment_status: 'pending_checkout',
             updated_at: new Date().toISOString(),
@@ -495,7 +529,7 @@ exports.handler = async (event) => {
           .eq('customer_id', verifiedUser.id);
 
         if (updateError) {
-          logDeveloperError('Booking row could not be updated with Stripe session ID.', {
+          logDeveloperError('Booking row could not be updated with Stripe session ID and HST totals.', {
             bookingId: item.effectiveBookingId,
             updateError,
           });
@@ -508,7 +542,11 @@ exports.handler = async (event) => {
       hasUrl: Boolean(session.url),
       appointmentCount: preparedItems.length,
       bookingIds,
+      totalSubtotal,
+      totalHst,
+      totalWithHst,
       totalDeposit,
+      totalRemaining,
     });
 
     return json(200, { url: session.url });
@@ -518,6 +556,6 @@ exports.handler = async (event) => {
       type: error.type,
       code: error.code,
     });
-    return json(500, { message: error.message || 'Stripe Checkout could not be started. Please try again or contact EastCord Tires for help.' });
+    return json(500, { message: error.message || 'Secure checkout could not be started. Please try again or contact EastCord Tires for help.' });
   }
 };

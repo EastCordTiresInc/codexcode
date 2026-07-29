@@ -3,6 +3,7 @@
   const PENDING_APPOINTMENT_KEY = 'eastcord_pending_appointment_v1';
   const APPOINTMENT_RESTORE_URL = '/appointment.html?restore=appointment#appointment-booking';
   const MIN_ADVANCE_MINUTES = 120;
+  const TAX_RATE = 0.13;
   const MIN_ADVANCE_MESSAGE = 'Appointments must be booked at least 2 hours in advance to allow technician scheduling and travel time.';
   const REQUIRED_FIELD_MESSAGES = {
     'Vehicle Plate Number': 'Please enter your vehicle plate number.',
@@ -11,7 +12,8 @@
   const money = new Intl.NumberFormat('en-CA', {
     style: 'currency',
     currency: 'CAD',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 
   const state = {
@@ -29,6 +31,27 @@
     console.error(`[EastCord appointment automation] ${context}`, error);
   }
 
+  function roundMoney(value) {
+    return Math.round(Number(value || 0) * 100) / 100;
+  }
+
+  function calculateServiceAmounts(subtotal) {
+    const serviceSubtotal = roundMoney(subtotal);
+    const hstAmount = roundMoney(serviceSubtotal * TAX_RATE);
+    const totalWithHst = roundMoney(serviceSubtotal + hstAmount);
+    const deposit = roundMoney(totalWithHst * 0.20);
+    const remaining = roundMoney(totalWithHst - deposit);
+
+    return {
+      serviceSubtotal,
+      hstAmount,
+      totalWithHst,
+      deposit,
+      remaining,
+      taxRate: TAX_RATE,
+    };
+  }
+
   function setValue(element, value) {
     if (element) element.value = value;
   }
@@ -39,12 +62,18 @@
     els.serviceAreaStatusField = document.querySelector('[data-service-area-status]');
     els.serviceAreaWarning = document.querySelector('[data-service-area-warning]');
     els.startingPrice = document.querySelector('[data-starting-price]');
+    els.hstPrice = document.querySelector('[data-hst-price]');
+    els.totalPrice = document.querySelector('[data-total-price]');
     els.depositPrice = document.querySelector('[data-deposit-price]');
     els.balancePrice = document.querySelector('[data-balance-price]');
     els.serviceSelect = document.getElementById('service-select');
     els.serviceIdField = document.querySelector('[data-hidden-service-id]');
     els.serviceNameField = document.querySelector('[data-hidden-service-name]');
     els.startingPriceField = document.querySelector('[data-hidden-starting-price]');
+    els.serviceSubtotalField = document.querySelector('[data-hidden-service-subtotal]');
+    els.hstAmountField = document.querySelector('[data-hidden-hst-amount]');
+    els.totalWithHstField = document.querySelector('[data-hidden-total-with-hst]');
+    els.taxRateField = document.querySelector('[data-hidden-tax-rate]');
     els.depositField = document.querySelector('[data-hidden-deposit-price]');
     els.balanceField = document.querySelector('[data-hidden-balance-price]');
     els.preferredDate = document.querySelector('[data-preferred-date]');
@@ -79,16 +108,15 @@
       return null;
     }
 
-    const price = Number(option.dataset.price || 0);
-    const deposit = Math.round(price * 0.20 * 100) / 100;
-    const remaining = Math.round((price - deposit) * 100) / 100;
+    const price = roundMoney(option.dataset.price || 0);
+    const amounts = calculateServiceAmounts(price);
 
     return {
       id: option.value,
       name: option.dataset.serviceName || option.textContent.trim(),
       price,
-      deposit,
-      remaining,
+      startingPrice: price,
+      ...amounts,
     };
   }
 
@@ -96,13 +124,19 @@
     if (!service) return;
     state.currentService = service;
 
-    if (els.startingPrice) els.startingPrice.textContent = money.format(service.price);
+    if (els.startingPrice) els.startingPrice.textContent = money.format(service.serviceSubtotal);
+    if (els.hstPrice) els.hstPrice.textContent = money.format(service.hstAmount);
+    if (els.totalPrice) els.totalPrice.textContent = money.format(service.totalWithHst);
     if (els.depositPrice) els.depositPrice.textContent = money.format(service.deposit);
     if (els.balancePrice) els.balancePrice.textContent = money.format(service.remaining);
 
     setValue(els.serviceIdField, service.id);
     setValue(els.serviceNameField, service.name);
-    setValue(els.startingPriceField, service.price.toFixed(2));
+    setValue(els.startingPriceField, service.serviceSubtotal.toFixed(2));
+    setValue(els.serviceSubtotalField, service.serviceSubtotal.toFixed(2));
+    setValue(els.hstAmountField, service.hstAmount.toFixed(2));
+    setValue(els.totalWithHstField, service.totalWithHst.toFixed(2));
+    setValue(els.taxRateField, service.taxRate.toFixed(2));
     setValue(els.depositField, service.deposit.toFixed(2));
     setValue(els.balanceField, service.remaining.toFixed(2));
 
@@ -601,6 +635,9 @@
     }
     if (els.reviewPrice && service) {
       els.reviewPrice.innerHTML = buildDetailsHtml([
+        ['Service Subtotal', money.format(service.serviceSubtotal)],
+        ['HST 13%', money.format(service.hstAmount)],
+        ['Total Including HST', money.format(service.totalWithHst)],
         ['Due Today', money.format(service.deposit)],
         ['Remaining On-Site', money.format(service.remaining)],
       ]);
@@ -622,7 +659,7 @@
     const fields = {};
     if (els.appointmentForm) {
       new FormData(els.appointmentForm).forEach((value, key) => {
-        if (!['form-name', 'Booking Status', 'Service area status', 'Service Name', 'Starting Price', 'Booking Deposit', 'Remaining Balance'].includes(key)) {
+        if (!['form-name', 'Booking Status', 'Service area status', 'Service Name', 'Starting Price', 'Service Subtotal', 'HST Amount', 'Total With HST', 'Tax Rate', 'Booking Deposit', 'Remaining Balance'].includes(key)) {
           fields[key] = String(value || '');
         }
       });
@@ -698,7 +735,11 @@
       customerPhone: profile.phone,
       serviceId: selectedService.id,
       serviceName: selectedService.name,
-      startingPrice: selectedService.price,
+      startingPrice: selectedService.serviceSubtotal,
+      serviceSubtotal: selectedService.serviceSubtotal,
+      hstAmount: selectedService.hstAmount,
+      totalWithHst: selectedService.totalWithHst,
+      taxRate: selectedService.taxRate,
       depositAmount: selectedService.deposit,
       remainingBalance: selectedService.remaining,
       preferredDate: getFieldValue('Preferred Date'),

@@ -73,8 +73,12 @@
             <input type="hidden" name="Service area status" data-service-area-status value="In service area" />
             <input type="hidden" name="Service Name" data-hidden-service-name value="Seasonal Changeover - All 4 Tires Pre-Mounted on Rims" />
             <input type="hidden" name="Starting Price" data-hidden-starting-price value="40" />
-            <input type="hidden" name="Booking Deposit" data-hidden-deposit-price value="8" />
-            <input type="hidden" name="Remaining Balance" data-hidden-balance-price value="32" />
+            <input type="hidden" name="Service Subtotal" data-hidden-service-subtotal value="40" />
+            <input type="hidden" name="HST Amount" data-hidden-hst-amount value="5.20" />
+            <input type="hidden" name="Total With HST" data-hidden-total-with-hst value="45.20" />
+            <input type="hidden" name="Tax Rate" data-hidden-tax-rate value="0.13" />
+            <input type="hidden" name="Booking Deposit" data-hidden-deposit-price value="9.04" />
+            <input type="hidden" name="Remaining Balance" data-hidden-balance-price value="36.16" />
 
             <div class="appointment-form-heading">
               <h2 id="booking-title">Add Appointment to Cart</h2>
@@ -103,11 +107,13 @@
                 </select>
               </label>
               <div class="appointment-price-summary" aria-live="polite">
-                <div><span>Starting price</span><strong data-starting-price>$40</strong></div>
-                <div><span>Due today</span><strong><small>20% booking deposit - </small><span data-deposit-price>$8</span></strong></div>
-                <div><span>Remaining balance</span><strong><span data-balance-price>$32</span> <small>due on-site after service</small></strong></div>
+                <div><span>Service subtotal</span><strong data-starting-price>$40.00</strong></div>
+                <div><span>HST 13%</span><strong data-hst-price>$5.20</strong></div>
+                <div><span>Total including HST</span><strong data-total-price>$45.20</strong></div>
+                <div><span>Due today</span><strong><small>20% booking deposit - </small><span data-deposit-price>$9.04</span></strong></div>
+                <div><span>Remaining balance</span><strong><span data-balance-price>$36.16</span> <small>due on-site after service</small></strong></div>
               </div>
-              <p class="appointment-payment-note">Your 20% booking deposit helps reserve your booking. The remaining balance is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required.</p>
+              <p class="appointment-payment-note">Your 20% booking deposit, including applicable HST, helps reserve your booking. The remaining balance, including applicable HST, is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required.</p>
               <div class="appointment-step-actions"><button class="button button-primary" type="button" data-next-step>Next: Vehicle Details</button></div>
             </section>
 
@@ -157,7 +163,7 @@
                 <div class="appointment-review-card"><span>Vehicle</span><strong data-review-vehicle>Not entered yet</strong></div>
                 <div class="appointment-review-card"><span>Location</span><strong data-review-location>Not entered yet</strong></div>
                 <div class="appointment-review-card"><span>Date &amp; Time</span><strong data-review-date>Not entered yet</strong></div>
-                <div class="appointment-review-card"><span>Deposit</span><strong data-review-price>$8 due today, $32 on-site</strong></div>
+                <div class="appointment-review-card"><span>Deposit</span><strong data-review-price>Due today: $9.04<br>Remaining on-site: $36.16</strong></div>
               </div>
               <div class="checkout-block" data-login-required-block hidden><strong>Please sign up or log in before adding this appointment to cart.</strong><div class="account-actions"><a class="button button-primary" href="/login.html">Log In</a><a class="button button-secondary" href="/signup.html">Create Account</a></div></div>
               <p class="appointment-status-message" data-appointment-message aria-live="polite"></p>
@@ -172,8 +178,8 @@
               <li>Each vehicle appointment takes approximately 1 hour.</li>
               <li>Add appointment service details to cart first.</li>
               <li>Sign up or log in before checkout.</li>
-              <li>20% booking deposit is paid online through secure checkout.</li>
-              <li>Remaining balance is paid on-site after service.</li>
+              <li>20% booking deposit, including applicable HST, is paid online through secure checkout.</li>
+              <li>Remaining balance, including applicable HST, is paid on-site after service.</li>
             </ul>
             <p>Your appointment is <strong>confirmed automatically</strong> after successful deposit payment.</p>
           </aside>
@@ -183,7 +189,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=8"></script>
-    <script src="appointment.js?v=34" defer></script>
+    <script src="account.js?v=9"></script>
+    <script src="appointment.js?v=35" defer></script>
   </body>
 </html>

@@ -50,12 +50,24 @@
             <strong data-cart-customer>Please sign up or log in before checkout.</strong>
           </div>
           <div class="cart-summary-card">
-            <span>Due today</span>
-            <strong data-cart-deposit>$0</strong>
+            <span>Subtotal</span>
+            <strong data-cart-subtotal>$0.00</strong>
           </div>
           <div class="cart-summary-card">
-            <span>Remaining balance</span>
-            <strong data-cart-balance>$0 due on-site after service</strong>
+            <span>HST 13%</span>
+            <strong data-cart-hst>$0.00</strong>
+          </div>
+          <div class="cart-summary-card">
+            <span>Total including HST</span>
+            <strong data-cart-total>$0.00</strong>
+          </div>
+          <div class="cart-summary-card">
+            <span>Deposit due today</span>
+            <strong data-cart-deposit>$0.00</strong>
+          </div>
+          <div class="cart-summary-card">
+            <span>Remaining on-site</span>
+            <strong data-cart-balance>$0.00 due on-site after service</strong>
           </div>
           <div class="checkout-block" data-checkout-auth-block>
             <strong>Please sign up or log in before checkout.</strong>
@@ -74,6 +86,8 @@
           </div>
           <p class="appointment-payment-note"><strong>Accepted Online Payments:</strong> Accepted online payments include Visa, Mastercard, American Express, Discover, Apple Pay, Google Pay, and other supported payment methods.</p>
           <p class="appointment-payment-note">Accepted payment methods may vary depending on your card, device, and bank.</p>
+          <p class="appointment-payment-note">Your 20% booking deposit, including applicable HST, is paid online through secure checkout.</p>
+          <p class="appointment-payment-note">Remaining balance, including applicable HST, is paid on-site after service.</p>
           <p class="appointment-payment-note">Your appointment will be confirmed automatically after successful deposit payment.</p>
           <p class="account-message" data-cart-message></p>
           <button class="button button-primary" type="button" data-checkout-button disabled>Secure Checkout</button>
@@ -230,6 +244,10 @@
       <input name="Customer Phone" />
       <input name="Service Needed" />
       <input name="Starting Price" />
+      <input name="Service Subtotal" />
+      <input name="HST Amount" />
+      <input name="Total With HST" />
+      <input name="Tax Rate" />
       <input name="Booking Deposit" />
       <input name="Remaining Balance" />
       <input name="Booking Status" />
@@ -255,7 +273,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=8"></script>
-    <script src="cart.js?v=11"></script>
+    <script src="account.js?v=11"></script>
+    <script src="cart.js?v=16"></script>
+    <script src="cart-debug.js?v=4"></script>
+    <script src="cart-checkout-state.js?v=1"></script>
   </body>
 </html>
