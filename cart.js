@@ -18,6 +18,15 @@ const MIN_ADVANCE_MINUTES = 120;
 const TAX_RATE = 0.13;
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
 
+const SERVICE_SUBTOTALS = {
+  'seasonal-changeover-rims': 40,
+  'seasonal-swap-not-mounted': 80,
+  'mount-balance-1': 25,
+  'mount-balance-2': 50,
+  'mount-balance-3': 75,
+  'mount-balance-4': 100,
+};
+
 function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
 }
@@ -43,19 +52,70 @@ function calculateTaxBreakdown(subtotal) {
   };
 }
 
-function withTaxBreakdown(item) {
-  const subtotal = Number(item.serviceSubtotal ?? item.startingPrice ?? 0);
-  const calculated = calculateTaxBreakdown(subtotal);
+function numberOrZero(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function getServiceSubtotal(item) {
+  const directSubtotal = numberOrZero(item.serviceSubtotal);
+  if (directSubtotal > 0) return directSubtotal;
+
+  const startingPrice = numberOrZero(item.startingPrice);
+  if (startingPrice > 0) return startingPrice;
+
+  const servicePrice = SERVICE_SUBTOTALS[item.serviceId];
+  if (servicePrice > 0) return servicePrice;
+
+  return 0;
+}
+
+function isAppointmentLikeItem(item) {
+  if (!item || typeof item !== 'object') return false;
+  return item.type === 'appointment'
+    || Boolean(item.serviceId)
+    || Boolean(item.serviceName)
+    || Boolean(item.bookingId)
+    || Boolean(item.preferredDate)
+    || Boolean(item.vehicleYear || item.vehicleMake || item.vehicleModel);
+}
+
+function withTaxBreakdown(item, cartIndex = 0) {
+  const serviceSubtotal = getServiceSubtotal(item);
+  const id = item.id || `cart-item-${cartIndex}`;
+
+  if (!serviceSubtotal) {
+    return {
+      ...item,
+      id,
+      cartIndex,
+      type: 'appointment',
+      isInvalidCartItem: true,
+      invalidReason: 'This appointment is missing service pricing. Please remove it and add the appointment again.',
+      startingPrice: 0,
+      serviceSubtotal: 0,
+      hstAmount: 0,
+      totalWithHst: 0,
+      taxRate: TAX_RATE,
+      depositAmount: 0,
+      remainingBalance: 0,
+    };
+  }
+
+  const calculated = calculateTaxBreakdown(serviceSubtotal);
 
   return {
     ...item,
-    startingPrice: roundMoney(item.startingPrice ?? calculated.serviceSubtotal),
-    serviceSubtotal: roundMoney(item.serviceSubtotal ?? calculated.serviceSubtotal),
-    hstAmount: roundMoney(item.hstAmount ?? calculated.hstAmount),
-    totalWithHst: roundMoney(item.totalWithHst ?? calculated.totalWithHst),
-    taxRate: Number(item.taxRate ?? TAX_RATE),
-    depositAmount: roundMoney(item.depositAmount ?? calculated.depositAmount),
-    remainingBalance: roundMoney(item.remainingBalance ?? calculated.remainingBalance),
+    id,
+    cartIndex,
+    type: 'appointment',
+    startingPrice: calculated.serviceSubtotal,
+    serviceSubtotal: calculated.serviceSubtotal,
+    hstAmount: calculated.hstAmount,
+    totalWithHst: calculated.totalWithHst,
+    taxRate: calculated.taxRate,
+    depositAmount: calculated.depositAmount,
+    remainingBalance: calculated.remainingBalance,
   };
 }
 
@@ -118,9 +178,31 @@ function resetAgreement() {
   updateCheckoutButtonState();
 }
 
+function getAppointmentItems() {
+  const rawCart = window.EastCordAccount?.getCart?.() || [];
+  const appointmentItems = rawCart
+    .map((item, cartIndex) => ({ item, cartIndex }))
+    .filter(({ item }) => isAppointmentLikeItem(item))
+    .map(({ item, cartIndex }) => withTaxBreakdown(item, cartIndex));
+
+  if (rawCart.length && !appointmentItems.length) {
+    logDeveloperError('Cart storage contains items, but none matched appointment item shape.', {
+      cartLength: rawCart.length,
+      itemKeys: rawCart.map((item) => Object.keys(item || {})),
+    });
+  }
+
+  return appointmentItems;
+}
+
+function getValidAppointmentItems() {
+  return getAppointmentItems().filter((item) => !item.isInvalidCartItem);
+}
+
 function updateCheckoutButtonState() {
   if (!checkoutButton) return;
-  checkoutButton.disabled = !isAgreementAccepted();
+  const hasValidItems = getValidAppointmentItems().length > 0;
+  checkoutButton.disabled = !isAgreementAccepted() || !hasValidItems;
 }
 
 function openAgreementModal() {
@@ -135,10 +217,6 @@ function closeAgreementModal() {
   agreementModal.hidden = true;
   document.body.classList.remove('agreement-modal-open');
   agreementOpenButton?.focus();
-}
-
-function getAppointmentItems() {
-  return window.EastCordAccount.getCart().filter((item) => item.type === 'appointment').map(withTaxBreakdown);
 }
 
 function getTimeWindowStartMinutes(value) {
@@ -197,13 +275,28 @@ function validateCartSlots(items) {
   return '';
 }
 
+function renderInvalidCartItem(item, index) {
+  return `
+    <article class="cart-line cart-line-invalid">
+      <span>Vehicle ${index + 1} appointment</span>
+      <strong>${escapeHtml(item.serviceName || 'Appointment item needs attention')}</strong>
+      <p>${escapeHtml(item.invalidReason || 'This appointment item could not be read. Please remove it and add the appointment again.')}</p>
+      <div class="account-actions cart-line-actions">
+        <button class="button button-secondary" type="button" data-remove-cart-item="${escapeHtml(item.id || '')}" data-remove-cart-index="${escapeHtml(item.cartIndex)}">Remove this appointment</button>
+      </div>
+    </article>
+  `;
+}
+
 function renderCartItem(item, index) {
+  if (item.isInvalidCartItem) return renderInvalidCartItem(item, index);
+
   const vehicle = getVehicleDetails(item);
   const cityPostal = [item.city, item.postalCode].filter(Boolean).join(', ');
   return `
     <article class="cart-line">
       <span>Vehicle ${index + 1} appointment</span>
-      <strong>${escapeHtml(item.serviceName)}</strong>
+      <strong>${escapeHtml(item.serviceName || 'Appointment service')}</strong>
       ${detailLine('Vehicle', vehicle.vehicle)}
       ${detailLine('Plate Number', vehicle.plate)}
       ${detailLine('Colour', vehicle.colour)}
@@ -220,20 +313,29 @@ function renderCartItem(item, index) {
       ${detailLine('Remaining On-Site', window.EastCordAccount.money(item.remainingBalance))}
       <p>Your appointment will be confirmed automatically after successful deposit payment.</p>
       <div class="account-actions cart-line-actions">
-        <button class="button button-secondary" type="button" data-remove-cart-item="${escapeHtml(item.id)}">Remove this appointment</button>
+        <button class="button button-secondary" type="button" data-remove-cart-item="${escapeHtml(item.id || '')}" data-remove-cart-index="${escapeHtml(item.cartIndex)}">Remove this appointment</button>
       </div>
     </article>
   `;
 }
 
-async function renderCart() {
+function renderCartTotals(items) {
+  const validItems = items.filter((item) => !item.isInvalidCartItem);
+  const subtotalTotal = roundMoney(validItems.reduce((sum, item) => sum + Number(item.serviceSubtotal || 0), 0));
+  const hstTotal = roundMoney(validItems.reduce((sum, item) => sum + Number(item.hstAmount || 0), 0));
+  const totalWithHst = roundMoney(validItems.reduce((sum, item) => sum + Number(item.totalWithHst || 0), 0));
+  const depositTotal = roundMoney(validItems.reduce((sum, item) => sum + Number(item.depositAmount || 0), 0));
+  const balanceTotal = roundMoney(validItems.reduce((sum, item) => sum + Number(item.remainingBalance || 0), 0));
+
+  if (cartSubtotal) cartSubtotal.textContent = window.EastCordAccount.money(subtotalTotal);
+  if (cartHst) cartHst.textContent = window.EastCordAccount.money(hstTotal);
+  if (cartTotal) cartTotal.textContent = window.EastCordAccount.money(totalWithHst);
+  if (cartDeposit) cartDeposit.textContent = window.EastCordAccount.money(depositTotal);
+  if (cartBalance) cartBalance.textContent = `${window.EastCordAccount.money(balanceTotal)} due on-site after service`;
+}
+
+function renderCartItemsAndTotals() {
   const items = getAppointmentItems();
-  const profile = await window.EastCordAccount.getCurrentProfile();
-  const subtotalTotal = roundMoney(items.reduce((sum, item) => sum + Number(item.serviceSubtotal || 0), 0));
-  const hstTotal = roundMoney(items.reduce((sum, item) => sum + Number(item.hstAmount || 0), 0));
-  const totalWithHst = roundMoney(items.reduce((sum, item) => sum + Number(item.totalWithHst || 0), 0));
-  const depositTotal = roundMoney(items.reduce((sum, item) => sum + Number(item.depositAmount || 0), 0));
-  const balanceTotal = roundMoney(items.reduce((sum, item) => sum + Number(item.remainingBalance || 0), 0));
 
   if (cartItems) {
     cartItems.innerHTML = items.length
@@ -241,16 +343,33 @@ async function renderCart() {
       : '<p class="empty-cart">Your cart is empty. Add an appointment service to continue.</p>';
   }
 
+  renderCartTotals(items);
+
+  const invalidCount = items.filter((item) => item.isInvalidCartItem).length;
+  if (invalidCount) {
+    showCartMessage('One or more appointments in your cart needs attention. Please remove the item and add it again before checkout.');
+  } else if (cartMessage?.textContent?.includes('needs attention')) {
+    showCartMessage('', 'info');
+  }
+
+  updateCheckoutButtonState();
+  return items;
+}
+
+async function hydrateCartProfile() {
+  let profile = null;
+
+  try {
+    profile = await window.EastCordAccount.getCurrentProfile();
+  } catch (error) {
+    logDeveloperError('Cart profile lookup failed; cart items were still rendered.', error);
+  }
+
   if (cartCustomer) {
     cartCustomer.textContent = profile
       ? `${profile.name || 'Customer'} - ${profile.email}${profile.phone ? ` - ${profile.phone}` : ''}`
       : 'Please sign up or log in before checkout.';
   }
-  if (cartSubtotal) cartSubtotal.textContent = window.EastCordAccount.money(subtotalTotal);
-  if (cartHst) cartHst.textContent = window.EastCordAccount.money(hstTotal);
-  if (cartTotal) cartTotal.textContent = window.EastCordAccount.money(totalWithHst);
-  if (cartDeposit) cartDeposit.textContent = window.EastCordAccount.money(depositTotal);
-  if (cartBalance) cartBalance.textContent = `${window.EastCordAccount.money(balanceTotal)} due on-site after service`;
   if (authBlock) authBlock.classList.toggle('is-visible', !profile);
 
   if (!window.EastCordAccount.isAuthConfigured()) {
@@ -258,11 +377,21 @@ async function renderCart() {
   }
 
   updateCheckoutButtonState();
+  return profile;
 }
 
-function removeCartItem(itemId) {
+function renderCart() {
+  renderCartItemsAndTotals();
+  hydrateCartProfile();
+}
+
+function removeCartItem(itemId, itemIndex) {
   const currentCart = window.EastCordAccount.getCart();
-  const nextCart = currentCart.filter((item) => item.id !== itemId);
+  const numericIndex = Number(itemIndex);
+  const nextCart = currentCart.filter((item, index) => {
+    if (itemId) return item.id !== itemId;
+    return index !== numericIndex;
+  });
 
   if (nextCart.length === currentCart.length) {
     showCartMessage('This appointment could not be found in your cart. Please refresh and try again.');
@@ -326,10 +455,10 @@ async function submitNetlifyFormBackup(formData) {
 
 async function ensureSupabaseBooking(item, profile) {
   if (item.bookingId) return item;
-  const normalizedItem = withTaxBreakdown(item);
+  const normalizedItem = withTaxBreakdown(item, item.cartIndex || 0);
   const bookingId = await window.EastCordAccount.saveAppointmentBooking(normalizedItem, profile);
   const updatedItem = { ...normalizedItem, bookingId, paymentStatus: 'pending_checkout' };
-  const cart = window.EastCordAccount.getCart().map((cartItem) => (cartItem.id === item.id ? updatedItem : cartItem));
+  const cart = window.EastCordAccount.getCart().map((cartItem, index) => (index === item.cartIndex || cartItem.id === item.id ? updatedItem : cartItem));
   window.EastCordAccount.saveCart(cart);
   return updatedItem;
 }
@@ -344,9 +473,20 @@ async function ensureAllSupabaseBookings(items, profile) {
 
 async function startCheckout() {
   const items = getAppointmentItems();
+  const validItems = items.filter((item) => !item.isInvalidCartItem);
 
   if (!isAgreementAccepted()) {
     showCartMessage('Please review and accept the Mobile Service Agreement before checkout.');
+    return;
+  }
+
+  if (!validItems.length) {
+    showCartMessage(items.length ? 'Please remove the invalid appointment item and add it again before checkout.' : 'Add an appointment service before checkout.');
+    return;
+  }
+
+  if (validItems.length !== items.length) {
+    showCartMessage('Please remove the invalid appointment item and add it again before checkout.');
     return;
   }
 
@@ -358,18 +498,13 @@ async function startCheckout() {
 
   const profile = await window.EastCordAccount.getCurrentProfile();
 
-  if (!items.length) {
-    showCartMessage('Add an appointment service before checkout.');
-    return;
-  }
-
   if (!profile) {
     if (authBlock) authBlock.classList.add('is-visible');
     showCartMessage('Please sign up or log in before checkout.');
     return;
   }
 
-  const cartSlotMessage = validateCartSlots(items);
+  const cartSlotMessage = validateCartSlots(validItems);
   if (cartSlotMessage) {
     showCartMessage(cartSlotMessage);
     return;
@@ -380,7 +515,7 @@ async function startCheckout() {
     checkoutButton.textContent = 'Preparing secure checkout...';
     showCartMessage('Saving booking details and preparing secure checkout...', 'info');
 
-    const bookingItems = await ensureAllSupabaseBookings(items, profile);
+    const bookingItems = await ensureAllSupabaseBookings(validItems, profile);
 
     bookingItems.forEach((bookingItem) => {
       submitNetlifyFormBackup(buildNetlifyFormData(bookingItem, profile)).catch((error) => {
@@ -419,7 +554,7 @@ async function startCheckout() {
 cartItems?.addEventListener('click', (event) => {
   const removeButton = event.target.closest('[data-remove-cart-item]');
   if (!removeButton) return;
-  removeCartItem(removeButton.dataset.removeCartItem);
+  removeCartItem(removeButton.dataset.removeCartItem, removeButton.dataset.removeCartIndex);
 });
 agreementCheckbox?.addEventListener('change', updateCheckoutButtonState);
 agreementOpenButton?.addEventListener('click', openAgreementModal);
