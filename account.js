@@ -99,17 +99,60 @@ function getFriendlySupabaseError(error, fallback = 'Signup could not be complet
   return message;
 }
 
-function getCart() {
+function isAppointmentLikeItem(item) {
+  if (!item || typeof item !== 'object') return false;
+  return item.type === 'appointment'
+    || Boolean(item.serviceId)
+    || Boolean(item.serviceName)
+    || Boolean(item.bookingId)
+    || Boolean(item.preferredDate)
+    || Boolean(item.vehicleYear || item.vehicleMake || item.vehicleModel);
+}
+
+function normalizeCartCollection(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => item && typeof item === 'object' && isAppointmentLikeItem(item));
+  }
+
+  if (value && typeof value === 'object') {
+    const nestedCart = value.items || value.cart || value.appointments || value.appointmentItems;
+    if (Array.isArray(nestedCart)) {
+      return nestedCart.filter((item) => item && typeof item === 'object' && isAppointmentLikeItem(item));
+    }
+    if (isAppointmentLikeItem(value)) return [value];
+  }
+
+  return [];
+}
+
+function readStorageJson(storage, key) {
   try {
-    return JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+    const raw = storage?.getItem?.(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
   } catch (error) {
-    logDeveloperError('Cart storage could not be read.', error);
-    return [];
+    logDeveloperError(`Cart storage could not be read from ${key}.`, error);
+    return null;
   }
 }
 
+function getCart() {
+  const activeCart = normalizeCartCollection(readStorageJson(localStorage, CART_KEY));
+  if (activeCart.length) return activeCart;
+
+  for (const key of CART_STORAGE_KEYS) {
+    const localCart = normalizeCartCollection(readStorageJson(localStorage, key));
+    if (localCart.length) return localCart;
+
+    const sessionCart = normalizeCartCollection(readStorageJson(sessionStorage, key));
+    if (sessionCart.length) return sessionCart;
+  }
+
+  return [];
+}
+
 function saveCart(cart) {
-  localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  localStorage.setItem(CART_KEY, JSON.stringify(normalizeCartCollection(cart)));
   updateCartCount();
 }
 
@@ -123,30 +166,37 @@ function getExistingStorageKeys(storage) {
   return keys;
 }
 
+function isCartRelatedStorageKey(key) {
+  return CART_RESET_STORAGE_KEYS.includes(key)
+    || /cart/i.test(key)
+    || /appointment/i.test(key)
+    || /pendingAppointment/i.test(key)
+    || /appointmentDraft/i.test(key)
+    || /savedAppointment/i.test(key);
+}
+
 function removeStorageKeys(storage, keys) {
   if (!storage) return;
   keys.forEach((key) => storage.removeItem(key));
 }
 
 function clearCartStorage() {
-  const localKeysBefore = getExistingStorageKeys(localStorage);
-  const sessionKeysBefore = getExistingStorageKeys(sessionStorage);
-  const localKeysToRemove = localKeysBefore.filter((key) => CART_RESET_STORAGE_KEYS.includes(key));
-  const sessionKeysToRemove = sessionKeysBefore.filter((key) => CART_RESET_STORAGE_KEYS.includes(key));
+  const localKeysBefore = getExistingStorageKeys(localStorage).filter(isCartRelatedStorageKey);
+  const sessionKeysBefore = getExistingStorageKeys(sessionStorage).filter(isCartRelatedStorageKey);
 
   console.info('[EastCord appointment automation] Clearing cart storage.', {
-    localKeysBefore: localKeysToRemove,
-    sessionKeysBefore: sessionKeysToRemove,
+    localKeysBefore,
+    sessionKeysBefore,
     cartItemCountBefore: getCart().length,
   });
 
-  removeStorageKeys(localStorage, CART_RESET_STORAGE_KEYS);
-  removeStorageKeys(sessionStorage, CART_RESET_STORAGE_KEYS);
+  removeStorageKeys(localStorage, localKeysBefore);
+  removeStorageKeys(sessionStorage, sessionKeysBefore);
   localStorage.setItem(CART_KEY, '[]');
 
   console.info('[EastCord appointment automation] Cart storage cleared.', {
-    localKeysAfter: getExistingStorageKeys(localStorage).filter((key) => CART_RESET_STORAGE_KEYS.includes(key)),
-    sessionKeysAfter: getExistingStorageKeys(sessionStorage).filter((key) => CART_RESET_STORAGE_KEYS.includes(key)),
+    localKeysAfter: getExistingStorageKeys(localStorage).filter(isCartRelatedStorageKey),
+    sessionKeysAfter: getExistingStorageKeys(sessionStorage).filter(isCartRelatedStorageKey),
     cartItemCountAfter: getCart().length,
   });
 }
@@ -154,6 +204,7 @@ function clearCartStorage() {
 function clearCart() {
   clearCartStorage();
   updateCartCount();
+  window.dispatchEvent(new CustomEvent('eastcord:cart-cleared'));
 }
 
 function money(value) {
@@ -711,6 +762,17 @@ function bindLogoutButtons() {
   });
 }
 
+function bindCartClearButtons() {
+  document.addEventListener('click', (event) => {
+    const clearButton = event.target.closest('[data-clear-cart]');
+    if (!clearButton) return;
+    if (event.defaultPrevented) return;
+
+    event.preventDefault();
+    clearCart();
+  });
+}
+
 window.EastCordAccount = {
   isAuthConfigured,
   getSupabaseClient,
@@ -719,6 +781,7 @@ window.EastCordAccount = {
   getCart,
   saveCart,
   clearCart,
+  clearCartStorage,
   saveAppointmentBooking,
   money,
   setupMessage: ACCOUNT_SETUP_MESSAGE,
@@ -729,6 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
   preserveAuthSwitchLinks();
   bindAuthForms();
   bindLogoutButtons();
+  bindCartClearButtons();
   hydrateAccountPage();
   updateAuthNavigation();
 });
