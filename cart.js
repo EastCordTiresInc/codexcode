@@ -1,5 +1,8 @@
 const cartItems = document.querySelector('[data-cart-items]');
 const cartCustomer = document.querySelector('[data-cart-customer]');
+const cartSubtotal = document.querySelector('[data-cart-subtotal]');
+const cartHst = document.querySelector('[data-cart-hst]');
+const cartTotal = document.querySelector('[data-cart-total]');
 const cartDeposit = document.querySelector('[data-cart-deposit]');
 const cartBalance = document.querySelector('[data-cart-balance]');
 const cartMessage = document.querySelector('[data-cart-message]');
@@ -12,10 +15,48 @@ const agreementModal = document.querySelector('[data-agreement-modal]');
 const agreementCloseButtons = Array.from(document.querySelectorAll('[data-agreement-close]'));
 const agreementPanel = agreementModal?.querySelector('.agreement-modal-panel');
 const MIN_ADVANCE_MINUTES = 120;
+const TAX_RATE = 0.13;
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
 
 function logDeveloperError(context, error) {
   console.error(`[EastCord appointment automation] ${context}`, error);
+}
+
+function roundMoney(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function calculateTaxBreakdown(subtotal) {
+  const serviceSubtotal = roundMoney(subtotal);
+  const hstAmount = roundMoney(serviceSubtotal * TAX_RATE);
+  const totalWithHst = roundMoney(serviceSubtotal + hstAmount);
+  const depositAmount = roundMoney(totalWithHst * 0.20);
+  const remainingBalance = roundMoney(totalWithHst - depositAmount);
+
+  return {
+    serviceSubtotal,
+    hstAmount,
+    totalWithHst,
+    depositAmount,
+    remainingBalance,
+    taxRate: TAX_RATE,
+  };
+}
+
+function withTaxBreakdown(item) {
+  const subtotal = Number(item.serviceSubtotal ?? item.startingPrice ?? 0);
+  const calculated = calculateTaxBreakdown(subtotal);
+
+  return {
+    ...item,
+    startingPrice: roundMoney(item.startingPrice ?? calculated.serviceSubtotal),
+    serviceSubtotal: roundMoney(item.serviceSubtotal ?? calculated.serviceSubtotal),
+    hstAmount: roundMoney(item.hstAmount ?? calculated.hstAmount),
+    totalWithHst: roundMoney(item.totalWithHst ?? calculated.totalWithHst),
+    taxRate: Number(item.taxRate ?? TAX_RATE),
+    depositAmount: roundMoney(item.depositAmount ?? calculated.depositAmount),
+    remainingBalance: roundMoney(item.remainingBalance ?? calculated.remainingBalance),
+  };
 }
 
 function showCartMessage(message, type = 'error') {
@@ -97,7 +138,7 @@ function closeAgreementModal() {
 }
 
 function getAppointmentItems() {
-  return window.EastCordAccount.getCart().filter((item) => item.type === 'appointment');
+  return window.EastCordAccount.getCart().filter((item) => item.type === 'appointment').map(withTaxBreakdown);
 }
 
 function getTimeWindowStartMinutes(value) {
@@ -172,9 +213,11 @@ function renderCartItem(item, index) {
       ${detailLine('City/Postal', cityPostal)}
       ${detailLine('Date', item.preferredDate)}
       ${detailLine('Time', item.preferredTimeWindow)}
-      ${detailLine('Starting price', window.EastCordAccount.money(item.startingPrice))}
-      ${detailLine('Deposit due today', window.EastCordAccount.money(item.depositAmount))}
-      ${detailLine('Remaining on-site', window.EastCordAccount.money(item.remainingBalance))}
+      ${detailLine('Service Subtotal', window.EastCordAccount.money(item.serviceSubtotal))}
+      ${detailLine('HST 13%', window.EastCordAccount.money(item.hstAmount))}
+      ${detailLine('Total Including HST', window.EastCordAccount.money(item.totalWithHst))}
+      ${detailLine('Deposit Due Today', window.EastCordAccount.money(item.depositAmount))}
+      ${detailLine('Remaining On-Site', window.EastCordAccount.money(item.remainingBalance))}
       <p>Your appointment will be confirmed automatically after successful deposit payment.</p>
       <div class="account-actions cart-line-actions">
         <button class="button button-secondary" type="button" data-remove-cart-item="${escapeHtml(item.id)}">Remove this appointment</button>
@@ -186,8 +229,11 @@ function renderCartItem(item, index) {
 async function renderCart() {
   const items = getAppointmentItems();
   const profile = await window.EastCordAccount.getCurrentProfile();
-  const depositTotal = items.reduce((sum, item) => sum + Number(item.depositAmount || 0), 0);
-  const balanceTotal = items.reduce((sum, item) => sum + Number(item.remainingBalance || 0), 0);
+  const subtotalTotal = roundMoney(items.reduce((sum, item) => sum + Number(item.serviceSubtotal || 0), 0));
+  const hstTotal = roundMoney(items.reduce((sum, item) => sum + Number(item.hstAmount || 0), 0));
+  const totalWithHst = roundMoney(items.reduce((sum, item) => sum + Number(item.totalWithHst || 0), 0));
+  const depositTotal = roundMoney(items.reduce((sum, item) => sum + Number(item.depositAmount || 0), 0));
+  const balanceTotal = roundMoney(items.reduce((sum, item) => sum + Number(item.remainingBalance || 0), 0));
 
   if (cartItems) {
     cartItems.innerHTML = items.length
@@ -200,6 +246,9 @@ async function renderCart() {
       ? `${profile.name || 'Customer'} - ${profile.email}${profile.phone ? ` - ${profile.phone}` : ''}`
       : 'Please sign up or log in before checkout.';
   }
+  if (cartSubtotal) cartSubtotal.textContent = window.EastCordAccount.money(subtotalTotal);
+  if (cartHst) cartHst.textContent = window.EastCordAccount.money(hstTotal);
+  if (cartTotal) cartTotal.textContent = window.EastCordAccount.money(totalWithHst);
   if (cartDeposit) cartDeposit.textContent = window.EastCordAccount.money(depositTotal);
   if (cartBalance) cartBalance.textContent = `${window.EastCordAccount.money(balanceTotal)} due on-site after service`;
   if (authBlock) authBlock.classList.toggle('is-visible', !profile);
@@ -234,7 +283,11 @@ function buildNetlifyFormData(item, profile) {
   formData.set('Customer Email', profile.email || '');
   formData.set('Customer Phone', profile.phone || '');
   formData.set('Service Needed', item.serviceName || '');
-  formData.set('Starting Price', Number(item.startingPrice || 0).toFixed(2));
+  formData.set('Starting Price', Number(item.startingPrice || item.serviceSubtotal || 0).toFixed(2));
+  formData.set('Service Subtotal', Number(item.serviceSubtotal || 0).toFixed(2));
+  formData.set('HST Amount', Number(item.hstAmount || 0).toFixed(2));
+  formData.set('Total With HST', Number(item.totalWithHst || 0).toFixed(2));
+  formData.set('Tax Rate', Number(item.taxRate || TAX_RATE).toFixed(2));
   formData.set('Booking Deposit', Number(item.depositAmount || 0).toFixed(2));
   formData.set('Remaining Balance', Number(item.remainingBalance || 0).toFixed(2));
   formData.set('Booking Status', 'Pending Confirmation');
@@ -273,8 +326,9 @@ async function submitNetlifyFormBackup(formData) {
 
 async function ensureSupabaseBooking(item, profile) {
   if (item.bookingId) return item;
-  const bookingId = await window.EastCordAccount.saveAppointmentBooking(item, profile);
-  const updatedItem = { ...item, bookingId, paymentStatus: 'pending_checkout' };
+  const normalizedItem = withTaxBreakdown(item);
+  const bookingId = await window.EastCordAccount.saveAppointmentBooking(normalizedItem, profile);
+  const updatedItem = { ...normalizedItem, bookingId, paymentStatus: 'pending_checkout' };
   const cart = window.EastCordAccount.getCart().map((cartItem) => (cartItem.id === item.id ? updatedItem : cartItem));
   window.EastCordAccount.saveCart(cart);
   return updatedItem;
