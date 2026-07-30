@@ -11,10 +11,10 @@
 .popular-brands::after {
   content: "";
   position: absolute;
-  inset: auto -12% -240px 46%;
+  inset: auto -16% -260px 50%;
   height: 420px;
   border-radius: 50%;
-  background: rgba(229, 36, 42, 0.06);
+  background: rgba(229, 36, 42, 0.05);
   pointer-events: none;
 }
 
@@ -23,182 +23,184 @@
   z-index: 1;
 }
 
-.brand-carousel-heading {
-  align-items: center;
+.brand-card-heading {
+  align-items: end;
 }
 
-.brand-carousel-wrap {
+.brand-text-grid {
   display: grid;
-  place-items: center;
-  margin-top: 4px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
 }
 
-.brand-carousel-panel {
-  width: min(100%, 720px);
-  padding: clamp(24px, 5vw, 42px);
+.brand-text-card {
+  position: relative;
+  min-height: 132px;
+  padding: 24px 22px 22px;
   display: grid;
+  align-content: center;
   justify-items: center;
-  gap: 24px;
-  background:
-    radial-gradient(circle at 50% 12%, rgba(229, 36, 42, 0.12), transparent 42%),
-    linear-gradient(145deg, #111214, #050506);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 34px;
-  box-shadow: 0 32px 80px rgba(17, 18, 20, 0.18);
-}
-
-.brand-carousel-card {
-  position: relative;
-  width: min(100%, 430px);
-  aspect-ratio: 1;
-  min-height: 300px;
-  padding: clamp(28px, 6vw, 46px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  gap: 10px;
   text-align: center;
-  color: var(--white);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.035)),
-    #15161a;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  box-shadow:
-    inset 0 0 0 12px rgba(255, 255, 255, 0.025),
-    0 24px 52px rgba(0, 0, 0, 0.28);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(228, 229, 231, 0.98);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(17, 18, 20, 0.045);
   overflow: hidden;
-  transition: transform 220ms ease, opacity 220ms ease;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.brand-carousel-card::before {
+.brand-text-card::before {
   content: "";
   position: absolute;
-  inset: 24px;
-  border: 1px dashed rgba(255, 255, 255, 0.16);
-  border-radius: inherit;
-  pointer-events: none;
-}
-
-.brand-carousel-card::after {
-  content: "";
-  position: absolute;
-  width: 128px;
-  height: 128px;
-  right: -38px;
-  bottom: -34px;
-  border: 24px solid rgba(229, 36, 42, 0.16);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.brand-carousel-card.is-changing {
+  inset: 0;
+  background: linear-gradient(180deg, rgba(229, 36, 42, 0.035), transparent 52%);
   opacity: 0;
-  transform: translateY(10px) scale(0.985);
+  pointer-events: none;
+  transition: opacity 180ms ease;
 }
 
-.brand-carousel-kicker {
-  position: relative;
-  z-index: 1;
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 0.72rem;
-  font-weight: 850;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+.brand-text-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(229, 36, 42, 0.34);
+  box-shadow: 0 18px 42px rgba(17, 18, 20, 0.075);
 }
 
-.brand-carousel-name {
-  position: relative;
-  z-index: 1;
-  margin-top: 16px;
-  max-width: 100%;
-  color: var(--white);
-  font-size: clamp(2.2rem, 7vw, 4.65rem);
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  line-height: 0.95;
-  text-transform: uppercase;
+.brand-text-card:hover::before {
+  opacity: 1;
 }
 
-.brand-carousel-accent {
-  position: relative;
-  z-index: 1;
-  width: 72px;
-  height: 4px;
-  margin: 22px 0 18px;
+.brand-accent {
+  width: 34px;
+  height: 3px;
   background: var(--red);
   border-radius: 999px;
-  box-shadow: 0 0 0 8px rgba(229, 36, 42, 0.1);
 }
 
-.brand-carousel-category {
+.brand-text-card strong {
   position: relative;
   z-index: 1;
-  max-width: 280px;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: clamp(0.9rem, 2.5vw, 1.05rem);
-  font-weight: 740;
+  max-width: 100%;
+  color: var(--ink);
+  font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.brand-text-card > span:last-child {
+  position: relative;
+  z-index: 1;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
   line-height: 1.45;
 }
 
-.brand-carousel-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
+.brand-style-michelin strong {
+  color: #264f96;
+  font-family: Arial Black, Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.brand-carousel-dots {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
+.brand-style-bridgestone strong {
+  color: #151515;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.03em;
 }
 
-.brand-carousel-dot,
-.brand-carousel-arrow {
-  border: 0;
-  color: var(--white);
-  cursor: pointer;
+.brand-style-bridgestone .brand-accent {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  transform: skew(-12deg);
 }
 
-.brand-carousel-dot {
-  width: 9px;
-  height: 9px;
-  padding: 0;
-  background: rgba(255, 255, 255, 0.35);
-  border-radius: 999px;
-  transition: width 180ms ease, background 180ms ease;
+.brand-style-goodyear strong {
+  color: #1f2f44;
+  font-family: Arial Black, Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
-.brand-carousel-dot.is-active {
-  width: 26px;
-  background: var(--red);
+.brand-style-goodyear .brand-accent {
+  background: linear-gradient(90deg, #f0bd1a, var(--red));
 }
 
-.brand-carousel-arrow {
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  font-size: 1.6rem;
-  line-height: 1;
-  transition: background 180ms ease, transform 180ms ease;
+.brand-style-continental strong {
+  color: #121212;
+  font-family: Georgia, Times New Roman, serif;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-.brand-carousel-arrow:hover,
-.brand-carousel-arrow:focus-visible {
-  background: var(--red);
-  transform: translateY(-1px);
+.brand-style-yokohama strong,
+.brand-style-hankook strong {
+  color: #111214;
+  font-family: Arial Black, Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.brand-style-yokohama .brand-accent {
+  width: 42px;
+  background:
+    linear-gradient(135deg, transparent 0 22%, var(--red) 22% 45%, transparent 45% 58%, var(--red) 58% 82%, transparent 82%);
+}
+
+.brand-style-hankook .brand-accent {
+  width: 46px;
+  background: linear-gradient(90deg, #f36c21, var(--red));
+  transform: skew(-18deg);
+}
+
+.brand-style-firestone strong {
+  color: #d11f2d;
+  font-family: Georgia, Times New Roman, serif;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+
+.brand-style-bfgoodrich strong {
+  color: #1d467f;
+  font-family: Arial Black, Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.brand-style-bfgoodrich .brand-accent {
+  width: 58px;
+  height: 5px;
+  background: linear-gradient(180deg, #1d467f 0 50%, #cf4037 50% 100%);
+}
+
+.brand-style-general strong {
+  color: #c4122e;
+  font-family: Arial Black, Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.brand-style-general .brand-accent {
+  width: 18px;
+  height: 18px;
+  background: rgba(196, 18, 46, 0.15);
+  border: 3px solid #c4122e;
+  border-radius: 6px;
+  transform: rotate(45deg);
 }
 
 .brand-note {
   max-width: 780px;
-  margin: 24px auto 0;
+  margin: 22px auto 0;
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.65;
@@ -214,59 +216,29 @@
 }
 
 @media (max-width: 800px) {
-  .brand-carousel-panel {
-    border-radius: 28px;
-  }
-
-  .brand-carousel-card {
-    width: min(100%, 370px);
-    min-height: 280px;
+  .brand-text-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 560px) {
-  .brand-carousel-wrap {
-    margin-inline: -2px;
+  .brand-text-grid {
+    grid-template-columns: 1fr;
+    gap: 11px;
   }
 
-  .brand-carousel-panel {
-    padding: 20px 14px 22px;
-    border-radius: 22px;
+  .brand-text-card {
+    min-height: 112px;
+    padding: 20px 18px;
+    border-radius: 15px;
   }
 
-  .brand-carousel-card {
-    width: min(100%, 310px);
-    min-height: 246px;
-    padding: 28px 24px;
-  }
-
-  .brand-carousel-card::before {
-    inset: 16px;
-  }
-
-  .brand-carousel-name {
-    font-size: clamp(2rem, 12vw, 3rem);
-  }
-
-  .brand-carousel-controls {
-    gap: 10px;
-  }
-
-  .brand-carousel-arrow {
-    width: 34px;
-    height: 34px;
+  .brand-text-card strong {
+    font-size: clamp(1.35rem, 9vw, 1.85rem);
   }
 
   .brand-actions {
     display: grid;
     grid-template-columns: 1fr;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .brand-carousel-card,
-  .brand-carousel-dot,
-  .brand-carousel-arrow {
-    transition: none;
   }
 }
