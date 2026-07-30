@@ -43,12 +43,10 @@
 
 .brand-text-card {
   position: relative;
-  min-height: 132px;
-  padding: 24px 22px 22px;
+  min-height: 124px;
+  padding: 24px 22px;
   display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 10px;
+  place-items: center;
   text-align: center;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgba(228, 229, 231, 0.98);
@@ -78,38 +76,14 @@
   opacity: 1;
 }
 
-.brand-accent,
-.brand-style-bridgestone .brand-accent,
-.brand-style-goodyear .brand-accent,
-.brand-style-yokohama .brand-accent,
-.brand-style-hankook .brand-accent,
-.brand-style-bfgoodrich .brand-accent,
-.brand-style-general .brand-accent {
-  width: 34px;
-  height: 3px;
-  background: var(--red);
-  border: 0;
-  border-radius: 999px;
-  transform: none;
-}
-
 .brand-text-card strong {
   position: relative;
   z-index: 1;
   max-width: 100%;
   color: var(--ink);
-  font-size: clamp(1.35rem, 2.2vw, 1.9rem);
-  line-height: 1;
+  font-size: clamp(1.45rem, 2.15vw, 1.9rem);
+  line-height: 1.05;
   overflow-wrap: anywhere;
-}
-
-.brand-text-card > span:last-child {
-  position: relative;
-  z-index: 1;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1.45;
 }
 
 .brand-style-michelin strong {
@@ -206,13 +180,13 @@
   }
 
   .brand-text-card {
-    min-height: 112px;
+    min-height: 104px;
     padding: 20px 18px;
     border-radius: 15px;
   }
 
   .brand-text-card strong {
-    font-size: clamp(1.35rem, 9vw, 1.85rem);
+    font-size: clamp(1.4rem, 9vw, 1.85rem);
   }
 
   .brand-actions {
