@@ -3,3 +3,12 @@ window.EASTCORD_AUTH_CONFIG = {
   supabaseUrl: '',
   supabaseAnonKey: '',
 };
+
+(() => {
+  if (window.EastCordCartIsolationLoaderLoaded) return;
+  window.EastCordCartIsolationLoaderLoaded = true;
+  const script = document.createElement('script');
+  script.src = 'cart-account-isolation.js?v=1';
+  script.defer = true;
+  document.head.appendChild(script);
+})();
