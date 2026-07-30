@@ -8,7 +8,7 @@ window.EASTCORD_AUTH_CONFIG = {
   if (window.EastCordCartIsolationLoaderLoaded) return;
   window.EastCordCartIsolationLoaderLoaded = true;
   const script = document.createElement('script');
-  script.src = 'cart-account-isolation.js?v=1';
+  script.src = 'cart-account-isolation-v2.js?v=1';
   script.defer = true;
   document.head.appendChild(script);
 })();
