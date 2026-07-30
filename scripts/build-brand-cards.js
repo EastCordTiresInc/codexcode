@@ -16,49 +16,31 @@ const brandSection = `      <section class="popular-brands section" id="tire-bra
 
           <div class="brand-text-grid" aria-label="Popular tire brands EastCord can help source">
             <article class="brand-text-card brand-style-michelin">
-              <span class="brand-accent" aria-hidden="true"></span>
-              <strong>Michelin</strong>
-              <span>Touring • Performance • Winter</span>
+              <strong>MICHELIN</strong>
             </article>
             <article class="brand-text-card brand-style-bridgestone">
-              <span class="brand-accent" aria-hidden="true"></span>
               <strong>Bridgestone</strong>
-              <span>All-Season • SUV • Winter</span>
             </article>
             <article class="brand-text-card brand-style-goodyear">
-              <span class="brand-accent" aria-hidden="true"></span>
-              <strong>Goodyear</strong>
-              <span>Daily Driving • CUV • Light Truck</span>
+              <strong>GOODYEAR</strong>
             </article>
             <article class="brand-text-card brand-style-continental">
-              <span class="brand-accent" aria-hidden="true"></span>
               <strong>Continental</strong>
-              <span>Passenger • Touring • Winter</span>
             </article>
             <article class="brand-text-card brand-style-yokohama">
-              <span class="brand-accent" aria-hidden="true"></span>
-              <strong>Yokohama</strong>
-              <span>Performance • SUV • All-Season</span>
+              <strong>YOKOHAMA</strong>
             </article>
             <article class="brand-text-card brand-style-hankook">
-              <span class="brand-accent" aria-hidden="true"></span>
-              <strong>Hankook</strong>
-              <span>Passenger • CUV • Winter</span>
+              <strong>HANKOOK</strong>
             </article>
             <article class="brand-text-card brand-style-firestone">
-              <span class="brand-accent" aria-hidden="true"></span>
               <strong>Firestone</strong>
-              <span>Daily Driving • Seasonal Options</span>
             </article>
             <article class="brand-text-card brand-style-bfgoodrich">
-              <span class="brand-accent" aria-hidden="true"></span>
               <strong>BFGoodrich</strong>
-              <span>SUV • Light Truck • Performance</span>
             </article>
             <article class="brand-text-card brand-style-general">
-              <span class="brand-accent" aria-hidden="true"></span>
-              <strong>General Tire</strong>
-              <span>All-Season • SUV • Winter</span>
+              <strong>GENERAL TIRE</strong>
             </article>
           </div>
 
