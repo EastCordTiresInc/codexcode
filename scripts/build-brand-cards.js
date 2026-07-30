@@ -7,7 +7,7 @@ const brandSection = `      <section class="popular-brands section" id="tire-bra
         <div class="shell popular-brands-shell">
           <div class="section-heading brand-card-heading">
             <div>
-              <h2 id="tire-brands-title">Popular Tire Brands We Can Source</h2>
+              <h2 id="tire-brands-title"><span>Popular Tire Brands</span> <span>We Can Source</span></h2>
             </div>
             <p>
               We help customers find used and new tires from popular brands based on size, season, and current supplier availability.
