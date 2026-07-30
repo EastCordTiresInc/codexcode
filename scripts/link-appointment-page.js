@@ -3,6 +3,7 @@ const path = require('path');
 
 const root = process.cwd();
 const APPOINTMENT_PAGE = '/appointment.html';
+const NEW_TIRES_PAGE = '/new-tires.html';
 const MIO_BOOKING_URL = 'https://hosted.miocommerce.com/io/eastcord-tires/booking/b95731f5-cadb-4849-877c-6238425fd25c';
 const MOBILE_MENU_SCRIPT = '<script src="mobile-menu.js?v=1" defer></script>';
 const extensions = new Set(['.html', '.js']);
@@ -13,6 +14,11 @@ const replacements = [
   [/href="#appointment"/g, 'href="/appointment.html"'],
   [/href="\/#appointment"/g, 'href="/appointment.html"'],
   [/href="index\.html#appointment"/g, 'href="/appointment.html"'],
+  [/href="#new-tires"/g, `href="${NEW_TIRES_PAGE}"`],
+  [/href="\/#new-tires"/g, `href="${NEW_TIRES_PAGE}"`],
+  [/href="index\.html#new-tires"/g, `href="${NEW_TIRES_PAGE}"`],
+  [/class="service-card new-tires-card" id="new-tires" href="#tire-brands"/g, `class="service-card new-tires-card" id="new-tires" href="${NEW_TIRES_PAGE}"`],
+  [/class="service-card new-tires-card" id="new-tires" href="\/#tire-brands"/g, `class="service-card new-tires-card" id="new-tires" href="${NEW_TIRES_PAGE}"`],
   [/class="service-card changeover-card" id="appointment" href="#contact"/g, 'class="service-card changeover-card" id="appointment" href="/appointment.html"'],
   [/class="service-card changeover-card" id="appointment" href="\/#contact"/g, 'class="service-card changeover-card" id="appointment" href="/appointment.html"'],
   [/href="\/appointment\.html"\s+target="_blank"\s+rel="noopener noreferrer"/g, 'href="/appointment.html"'],
@@ -60,7 +66,7 @@ function updateFile(filePath) {
 
   if (next !== original) {
     fs.writeFileSync(filePath, next);
-    console.log(`[EastCord appointment automation] Routed appointment links in ${path.relative(root, filePath)}`);
+    console.log(`[EastCord appointment automation] Routed appointment and new tire links in ${path.relative(root, filePath)}`);
   }
 }
 
