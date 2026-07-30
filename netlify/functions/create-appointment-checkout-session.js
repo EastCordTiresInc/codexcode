@@ -22,6 +22,17 @@ function logDeveloperError(context, details) {
   console.error(`[EastCord appointment automation] ${context}`, details);
 }
 
+function logCheckoutStep(message, details = {}) {
+  console.log(`[EastCord checkout function] ${message}`, details);
+}
+
+function getStripeMode(secretKey) {
+  if (!secretKey) return 'missing';
+  if (secretKey.startsWith('sk_live_')) return 'live';
+  if (secretKey.startsWith('sk_test_')) return 'test';
+  return 'unknown';
+}
+
 function json(statusCode, payload) {
   return {
     statusCode,
@@ -382,15 +393,15 @@ function validateBookingFields(booking, customer) {
 }
 
 exports.handler = async (event) => {
-  console.log('[EastCord appointment automation] create-appointment-checkout-session invoked.', {
-    method: event.httpMethod,
-    hasStripeSecret: Boolean(process.env.STRIPE_SECRET_KEY),
-  });
+  logCheckoutStep('Function started');
+  logCheckoutStep('Request method', { method: event.httpMethod });
+  logCheckoutStep('Stripe mode only', { mode: getStripeMode(process.env.STRIPE_SECRET_KEY) });
 
   if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
 
   if (!process.env.STRIPE_SECRET_KEY) {
     logDeveloperError('STRIPE_SECRET_KEY is missing in Netlify environment variables.', { hasStripeSecret: false });
+    logCheckoutStep('Error message if failed', { message: STRIPE_KEY_MISSING_MESSAGE });
     return json(500, { message: STRIPE_KEY_MISSING_MESSAGE });
   }
 
@@ -399,12 +410,14 @@ exports.handler = async (event) => {
     payload = JSON.parse(event.body || '{}');
   } catch (error) {
     logDeveloperError('Invalid checkout request body.', error);
+    logCheckoutStep('Error message if failed', { message: 'Invalid booking request.' });
     return json(400, { message: 'Invalid booking request.' });
   }
 
   const bookingItems = normalizeBookingItems(payload);
   const customer = payload.customer || bookingItems[0]?.customer || {};
 
+  logCheckoutStep('Cart item count', { count: bookingItems.length });
   console.info('[EastCord appointment automation] Checkout request diagnostics', {
     appointmentCount: bookingItems.length,
     bookingIds: bookingItems.map((item) => item.bookingId || ''),
@@ -412,21 +425,40 @@ exports.handler = async (event) => {
     depositAmounts: bookingItems.map((item) => item.depositAmount || ''),
   });
 
-  if (!bookingItems.length) return json(400, { message: 'Add an appointment service before checkout.' });
+  if (!bookingItems.length) {
+    logCheckoutStep('Error message if failed', { message: 'Add an appointment service before checkout.' });
+    return json(400, { message: 'Add an appointment service before checkout.' });
+  }
+
   if (!required(customer.customerId) || !required(customer.email)) {
+    logCheckoutStep('Auth/customer validation result', {
+      customerIdPresent: Boolean(customer.customerId),
+      customerEmailPresent: Boolean(customer.email),
+      verifiedUser: false,
+      valid: false,
+    });
     return json(401, { message: 'Please log in before checkout.' });
   }
 
   const cartSlotValidation = validateCartSlotAvailability(bookingItems);
   if (!cartSlotValidation.valid) {
     logDeveloperError('Checkout stopped because cart slot validation failed.', cartSlotValidation);
+    logCheckoutStep('Error message if failed', { message: SLOT_UNAVAILABLE_MESSAGE, reason: cartSlotValidation.reason });
     return json(409, { message: SLOT_UNAVAILABLE_MESSAGE, reason: cartSlotValidation.reason });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
   const verifiedUser = await getVerifiedUser(event, supabaseAdmin);
+  logCheckoutStep('Auth/customer validation result', {
+    hasSupabaseAdmin: Boolean(supabaseAdmin),
+    hasBearerToken: Boolean(getBearerToken(event)),
+    verifiedUser: Boolean(verifiedUser?.id),
+    customerIdPresent: Boolean(customer.customerId),
+    customerMatches: Boolean(verifiedUser?.id && verifiedUser.id === customer.customerId),
+  });
 
   if (verifiedUser && verifiedUser.id !== customer.customerId) {
+    logCheckoutStep('Error message if failed', { message: 'This cart does not match the logged-in customer.' });
     return json(403, { message: 'This cart does not match the logged-in customer.' });
   }
 
@@ -434,14 +466,21 @@ exports.handler = async (event) => {
 
   for (const booking of bookingItems) {
     const service = SERVICES[booking.serviceId];
-    if (!service) return json(400, { message: 'Please choose a valid tire service.' });
+    if (!service) {
+      logCheckoutStep('Error message if failed', { message: 'Please choose a valid tire service.', serviceId: booking.serviceId || '' });
+      return json(400, { message: 'Please choose a valid tire service.' });
+    }
 
     const validationMessage = validateBookingFields(booking, customer);
-    if (validationMessage) return json(400, { message: validationMessage });
+    if (validationMessage) {
+      logCheckoutStep('Error message if failed', { message: validationMessage, bookingId: booking.bookingId || '' });
+      return json(400, { message: validationMessage });
+    }
 
     const amounts = calculateServiceAmounts(service.startingPrice);
 
     if (amounts.depositAmount <= 0) {
+      logCheckoutStep('Error message if failed', { message: 'The booking deposit amount is missing.', serviceId: booking.serviceId || '' });
       return json(400, { message: 'The booking deposit amount is missing. Please return to the appointment page and add the service again.' });
     }
 
@@ -460,6 +499,7 @@ exports.handler = async (event) => {
   const paidSlotConflicts = await findPaidSlotConflicts(supabaseAdmin, preparedItems);
   if (paidSlotConflicts.length) {
     logDeveloperError('Checkout stopped because one or more slots are already confirmed and paid.', paidSlotConflicts);
+    logCheckoutStep('Error message if failed', { message: SLOT_UNAVAILABLE_MESSAGE, conflictsCount: paidSlotConflicts.length });
     return json(409, { message: SLOT_UNAVAILABLE_MESSAGE, conflicts: paidSlotConflicts });
   }
 
@@ -471,6 +511,7 @@ exports.handler = async (event) => {
   const totalWithHst = roundMoney(preparedItems.reduce((sum, item) => sum + item.totalWithHst, 0));
   const totalDeposit = roundMoney(preparedItems.reduce((sum, item) => sum + item.depositAmount, 0));
   const totalRemaining = roundMoney(preparedItems.reduce((sum, item) => sum + item.remainingBalance, 0));
+  logCheckoutStep('Deposit amount', { depositAmount: totalDeposit });
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -507,6 +548,13 @@ exports.handler = async (event) => {
         total_deposit_amount: totalDeposit.toFixed(2),
         total_remaining_balance: totalRemaining.toFixed(2),
       },
+    });
+
+    logCheckoutStep('Stripe session created', {
+      created: Boolean(session?.url),
+      sessionIdPresent: Boolean(session?.id),
+      appointmentCount: preparedItems.length,
+      depositAmount: totalDeposit,
     });
 
     if (supabaseAdmin && verifiedUser) {
@@ -556,6 +604,8 @@ exports.handler = async (event) => {
       type: error.type,
       code: error.code,
     });
+    logCheckoutStep('Stripe session created', { created: false });
+    logCheckoutStep('Error message if failed', { message: error.message || 'Secure checkout could not be started.' });
     return json(500, { message: error.message || 'Secure checkout could not be started. Please try again or contact EastCord Tires for help.' });
   }
 };
