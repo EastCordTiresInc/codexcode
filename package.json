@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "node scripts/generate-auth-config.js && node scripts/link-appointment-page.js && echo \"Static EastCord Tires site\""
+    "build": "node scripts/generate-auth-config.js && node scripts/generate-tireconnect-config.js && node scripts/link-appointment-page.js && echo \"Static EastCord Tires site\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
