@@ -27,6 +27,14 @@
   align-items: end;
 }
 
+.brand-card-heading h2 span {
+  display: inline-block;
+}
+
+.brand-card-heading h2 span:first-child {
+  margin-right: 0.18em;
+}
+
 .brand-text-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -70,11 +78,19 @@
   opacity: 1;
 }
 
-.brand-accent {
+.brand-accent,
+.brand-style-bridgestone .brand-accent,
+.brand-style-goodyear .brand-accent,
+.brand-style-yokohama .brand-accent,
+.brand-style-hankook .brand-accent,
+.brand-style-bfgoodrich .brand-accent,
+.brand-style-general .brand-accent {
   width: 34px;
   height: 3px;
   background: var(--red);
+  border: 0;
   border-radius: 999px;
+  transform: none;
 }
 
 .brand-text-card strong {
@@ -111,23 +127,12 @@
   letter-spacing: -0.03em;
 }
 
-.brand-style-bridgestone .brand-accent {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  transform: skew(-12deg);
-}
-
 .brand-style-goodyear strong {
   color: #1f2f44;
   font-family: Arial Black, Arial, Helvetica, sans-serif;
   font-weight: 900;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-}
-
-.brand-style-goodyear .brand-accent {
-  background: linear-gradient(90deg, #f0bd1a, var(--red));
 }
 
 .brand-style-continental strong {
@@ -147,18 +152,6 @@
   text-transform: uppercase;
 }
 
-.brand-style-yokohama .brand-accent {
-  width: 42px;
-  background:
-    linear-gradient(135deg, transparent 0 22%, var(--red) 22% 45%, transparent 45% 58%, var(--red) 58% 82%, transparent 82%);
-}
-
-.brand-style-hankook .brand-accent {
-  width: 46px;
-  background: linear-gradient(90deg, #f36c21, var(--red));
-  transform: skew(-18deg);
-}
-
 .brand-style-firestone strong {
   color: #d11f2d;
   font-family: Georgia, Times New Roman, serif;
@@ -175,27 +168,12 @@
   letter-spacing: -0.02em;
 }
 
-.brand-style-bfgoodrich .brand-accent {
-  width: 58px;
-  height: 5px;
-  background: linear-gradient(180deg, #1d467f 0 50%, #cf4037 50% 100%);
-}
-
 .brand-style-general strong {
   color: #c4122e;
   font-family: Arial Black, Arial, Helvetica, sans-serif;
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.brand-style-general .brand-accent {
-  width: 18px;
-  height: 18px;
-  background: rgba(196, 18, 46, 0.15);
-  border: 3px solid #c4122e;
-  border-radius: 6px;
-  transform: rotate(45deg);
 }
 
 .brand-note {
