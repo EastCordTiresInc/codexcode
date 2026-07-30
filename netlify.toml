@@ -4,6 +4,18 @@
   functions = "netlify/functions"
 
 [[redirects]]
+  from = "/new-tires"
+  to = "/new-tires.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/new-tires/"
+  to = "/new-tires.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/signup"
   to = "/signup.html"
   status = 301
