@@ -1,4 +1,6 @@
 .popular-brands {
+  position: relative;
+  overflow: hidden;
   background:
     linear-gradient(rgba(228, 229, 231, 0.42) 1px, transparent 1px),
     linear-gradient(90deg, rgba(228, 229, 231, 0.42) 1px, transparent 1px),
@@ -6,103 +8,292 @@
   background-size: 70px 70px, 70px 70px, auto;
 }
 
-.brand-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+.popular-brands::after {
+  content: "";
+  position: absolute;
+  inset: auto -16% -260px 50%;
+  height: 420px;
+  border-radius: 50%;
+  background: rgba(229, 36, 42, 0.05);
+  pointer-events: none;
 }
 
-.brand-tile {
-  min-height: 88px;
-  padding: 20px 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(228, 229, 231, 0.96);
+.popular-brands-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.brand-card-heading {
+  align-items: end;
+}
+
+.brand-card-heading h2 span {
+  display: inline-block;
+}
+
+.brand-card-heading h2 span:first-child {
+  margin-right: 0.18em;
+}
+
+.brand-text-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.brand-text-card {
+  position: relative;
+  min-height: 124px;
+  padding: 24px 22px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(228, 229, 231, 0.98);
   border-radius: 18px;
   box-shadow: 0 12px 30px rgba(17, 18, 20, 0.045);
   overflow: hidden;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: brandCardIn 520ms ease forwards;
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
 }
 
-.brand-logo {
-  display: block;
-  width: min(78%, 210px);
+.brand-text-card:nth-child(1) { animation-delay: 40ms; }
+.brand-text-card:nth-child(2) { animation-delay: 100ms; }
+.brand-text-card:nth-child(3) { animation-delay: 160ms; }
+.brand-text-card:nth-child(4) { animation-delay: 220ms; }
+.brand-text-card:nth-child(5) { animation-delay: 280ms; }
+.brand-text-card:nth-child(6) { animation-delay: 340ms; }
+.brand-text-card:nth-child(7) { animation-delay: 400ms; }
+.brand-text-card:nth-child(8) { animation-delay: 460ms; }
+.brand-text-card:nth-child(9) { animation-delay: 520ms; }
+
+.brand-text-card::before,
+.brand-text-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.brand-text-card::before {
+  background: linear-gradient(180deg, rgba(229, 36, 42, 0.035), transparent 52%);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.brand-text-card::after {
+  width: 42%;
+  background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.42) 48%, transparent 100%);
+  opacity: 0;
+  transform: translateX(-170%) skewX(-14deg);
+  transition: opacity 220ms ease, transform 560ms ease;
+}
+
+.brand-text-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(229, 36, 42, 0.34);
+  box-shadow: 0 20px 48px rgba(17, 18, 20, 0.085);
+}
+
+.brand-text-card:hover::before {
+  opacity: 1;
+}
+
+.brand-text-card:hover::after {
+  opacity: 0.52;
+  transform: translateX(270%) skewX(-14deg);
+}
+
+.brand-text-card strong {
+  position: relative;
+  z-index: 1;
   max-width: 100%;
-  height: 48px;
-  object-fit: contain;
-  object-position: center;
+  color: var(--ink);
+  font-size: clamp(1.45rem, 2.15vw, 1.9rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  transition: transform 220ms ease;
 }
 
-.brand-logo-bridgestone {
-  width: min(84%, 230px);
-  height: 50px;
+.brand-text-card strong::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  width: min(64px, 70%);
+  height: 3px;
+  background: var(--red);
+  border-radius: 999px;
+  opacity: 0;
+  transform: translateX(-50%) scaleX(0.55);
+  transform-origin: center;
+  transition: opacity 220ms ease, transform 220ms ease;
 }
 
-.brand-logo-goodyear,
-.brand-logo-yokohama,
-.brand-logo-hankook,
-.brand-logo-bfgoodrich {
-  width: min(80%, 218px);
+.brand-text-card:hover strong {
+  transform: scale(1.018);
 }
 
-.brand-logo-general {
-  width: min(88%, 240px);
-  height: 58px;
+.brand-text-card:hover strong::after {
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1);
 }
 
-.brand-tile:hover {
-  transform: translateY(-3px);
-  border-color: rgba(229, 36, 42, 0.44);
-  box-shadow: 0 18px 42px rgba(17, 18, 20, 0.075);
+.brand-style-michelin strong {
+  color: #264f96;
+  font-family: Arial Black, Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brand-style-bridgestone strong {
+  color: #151515;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.brand-style-goodyear strong {
+  color: #1f2f44;
+  font-family: Arial Black, Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.brand-style-continental strong {
+  color: #121212;
+  font-family: Georgia, Times New Roman, serif;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.brand-style-yokohama strong,
+.brand-style-hankook strong {
+  color: #111214;
+  font-family: Arial Black, Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.brand-style-firestone strong {
+  color: #d11f2d;
+  font-family: Georgia, Times New Roman, serif;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+
+.brand-style-bfgoodrich strong {
+  color: #1d467f;
+  font-family: Arial Black, Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.brand-style-general strong {
+  color: #c4122e;
+  font-family: Arial Black, Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .brand-note {
-  margin: 22px 0 0;
+  max-width: 780px;
+  margin: 22px auto 0;
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.65;
+  text-align: center;
 }
 
 .brand-actions {
   margin-top: 32px;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
 }
 
+@keyframes brandCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 800px) {
-  .brand-tile-grid {
+  .brand-text-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 560px) {
-  .brand-tile-grid {
+  .brand-text-grid {
     grid-template-columns: 1fr;
     gap: 11px;
   }
 
-  .brand-tile {
-    min-height: 72px;
-    padding: 17px 18px;
+  .brand-text-card {
+    min-height: 104px;
+    padding: 20px 18px;
     border-radius: 15px;
   }
 
-  .brand-logo {
-    width: min(82%, 190px);
-    height: 42px;
-  }
-
-  .brand-logo-bridgestone,
-  .brand-logo-general {
-    width: min(88%, 210px);
-    height: 48px;
+  .brand-text-card strong {
+    font-size: clamp(1.4rem, 9vw, 1.85rem);
   }
 
   .brand-actions {
     display: grid;
     grid-template-columns: 1fr;
+  }
+}
+
+@media (hover: none) {
+  .brand-text-card:hover {
+    transform: none;
+  }
+
+  .brand-text-card:hover strong {
+    transform: none;
+  }
+
+  .brand-text-card:hover strong::after,
+  .brand-text-card:hover::after {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-text-card {
+    opacity: 1;
+    transform: none;
+    animation: none;
+    transition: border-color 0.01ms linear, box-shadow 0.01ms linear;
+  }
+
+  .brand-text-card::before,
+  .brand-text-card::after,
+  .brand-text-card strong,
+  .brand-text-card strong::after {
+    transition: none;
+  }
+
+  .brand-text-card:hover,
+  .brand-text-card:hover strong {
+    transform: none;
   }
 }
