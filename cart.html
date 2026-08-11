@@ -47,7 +47,7 @@
           <h2>Checkout Summary</h2>
           <div class="cart-summary-card">
             <span>Customer profile</span>
-            <strong data-cart-customer>Please sign up or log in before checkout.</strong>
+            <strong data-cart-customer>Checking account...</strong>
           </div>
           <div class="cart-summary-card">
             <span>Subtotal</span>
@@ -90,7 +90,7 @@
           <p class="appointment-payment-note">Remaining balance, including applicable HST, is paid on-site after service.</p>
           <p class="appointment-payment-note">Your appointment will be confirmed automatically after successful deposit payment.</p>
           <p class="account-message" data-cart-message></p>
-          <button class="button button-primary" type="button" data-checkout-button disabled>Secure Checkout</button>
+          <button class="button button-primary" type="button" data-checkout-button aria-disabled="true">Secure Checkout</button>
         </aside>
       </div>
     </main>
@@ -273,9 +273,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=11"></script>
-    <script src="cart.js?v=16"></script>
-    <script src="cart-debug.js?v=4"></script>
-    <script src="cart-checkout-state.js?v=2"></script>
+    <script src="account.js?v=12"></script>
+    <script src="cart.js?v=18"></script>
   </body>
 </html>
