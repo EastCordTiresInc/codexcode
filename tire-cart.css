@@ -1,0 +1,370 @@
+.tire-cart-page {
+  background: #f5f6f8;
+}
+
+.tire-cart-panel,
+.tire-cart-panel * {
+  box-sizing: border-box;
+}
+
+.tire-cart-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  width: min(calc(100% - 32px), 860px);
+  margin-inline: auto;
+}
+
+.tire-cart-panel {
+  padding: 24px;
+  border: 1px solid #d8dade;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(17, 18, 20, 0.06);
+}
+
+.tire-cart-panel h1,
+.tire-cart-panel h2,
+.tire-cart-panel p {
+  margin-top: 0;
+}
+
+.tire-cart-eyebrow {
+  margin-bottom: 6px;
+  color: var(--red);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tire-cart-items {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.tire-cart-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid #d8dade;
+  border-radius: 8px;
+  background: #fbfbfc;
+}
+
+.tire-cart-item h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.tire-cart-item p {
+  margin: 3px 0;
+  color: #555d68;
+  font-size: 0.85rem;
+}
+
+.tire-cart-item-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(90px, 1fr));
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.tire-cart-item-summary div {
+  display: grid;
+  gap: 3px;
+}
+
+.tire-cart-item-summary dt {
+  color: #626a76;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tire-cart-item-summary dd {
+  margin: 0;
+  color: #111317;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.tire-cart-item.is-unavailable {
+  border-color: #efb8ba;
+  background: #fff4f4;
+}
+
+.tire-cart-item .tire-cart-unavailable {
+  color: #9f1d20;
+  font-weight: 800;
+}
+
+.tire-cart-item-controls {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.tire-cart-item-controls label {
+  color: #4f5663;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.tire-cart-item-controls select {
+  min-width: 68px;
+  min-height: 38px;
+  padding: 0 8px;
+  border: 1px solid #c9ccd1;
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+
+.tire-cart-remove {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--red);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.tire-cart-empty {
+  padding: 24px;
+  border: 1px dashed #cfd3d8;
+  border-radius: 8px;
+  color: #626a76;
+  text-align: center;
+}
+
+.tire-cart-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.tire-reservation-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.tire-cart-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #111214;
+  color: #fff;
+}
+
+.tire-cart-total strong {
+  color: #fff;
+  font-size: 1.25rem;
+}
+
+.tire-reservation-notice {
+  padding: 12px;
+  border-left: 4px solid var(--red);
+  background: #fff4f4;
+  color: #4f5663;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+[data-tire-reservation-form] {
+  display: grid;
+  gap: 14px;
+}
+
+.tire-reservation-field {
+  display: grid;
+  gap: 6px;
+}
+
+.tire-reservation-field span {
+  color: #333840;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.tire-reservation-field input,
+.tire-reservation-field textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #c9ccd1;
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+}
+
+.tire-fulfillment-options {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #c9ccd1;
+  border-radius: 6px;
+}
+
+.tire-fulfillment-options legend {
+  max-width: calc(100% - 10px);
+  padding: 0 5px;
+  color: #333840;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.tire-fulfillment-options label {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  color: #4f5663;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.tire-fulfillment-options input {
+  margin-top: 3px;
+  accent-color: var(--red);
+}
+
+.tire-installation-directions {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-left: 4px solid var(--red);
+  border-radius: 4px;
+  background: #fff4f4;
+}
+
+.tire-installation-directions[hidden] {
+  display: none;
+}
+
+.tire-installation-directions p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.tire-installation-directions .button {
+  justify-content: center;
+}
+
+.tire-checkout-auth {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #efb8ba;
+  border-radius: 6px;
+  background: #fff4f4;
+}
+
+.tire-checkout-auth[hidden] {
+  display: none;
+}
+
+.tire-checkout-auth p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.tire-checkout-auth .tire-cart-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 4px;
+}
+
+.tire-checkout-auth .button {
+  width: 100%;
+  justify-content: center;
+}
+
+.tire-cart-honeypot {
+  position: absolute;
+  left: -10000px;
+}
+
+.tire-cart-message {
+  min-height: 20px;
+  margin: 0;
+  color: #9f1d20;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.tire-reservation-submit {
+  width: 100%;
+  justify-content: center;
+}
+
+.tire-reservation-submit.is-signed-out,
+.tire-reservation-submit.is-signed-out:disabled {
+  border-color: #8a8f98;
+  background: #8a8f98;
+  box-shadow: none;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.tire-reservation-submit.is-signed-in,
+.tire-reservation-submit.is-signed-in:disabled {
+  border-color: var(--red);
+  background: var(--red);
+  box-shadow: 0 10px 24px rgba(229, 36, 42, 0.22);
+  color: #fff;
+  opacity: 1;
+}
+
+.tire-reservation-submit.is-signed-in:disabled {
+  cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+  .tire-cart-layout {
+    width: min(calc(100% - 20px), 860px);
+  }
+
+  .tire-cart-panel {
+    padding: 18px;
+  }
+
+  .tire-cart-item {
+    grid-template-columns: 1fr;
+  }
+
+  .tire-cart-item-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .tire-cart-item-controls {
+    justify-items: start;
+  }
+
+  .tire-cart-actions {
+    display: grid;
+  }
+}

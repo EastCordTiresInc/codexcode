@@ -37,6 +37,7 @@ const APPOINTMENT_DRAFT_STORAGE_KEYS = [
   'eastcord_saved_appointment',
 ];
 const CART_RESET_STORAGE_KEYS = [...new Set([...CART_STORAGE_KEYS, ...APPOINTMENT_DRAFT_STORAGE_KEYS])];
+let accountCartHydrated = false;
 
 const SERVICE_SUBTOTALS = {
   'seasonal-changeover-rims': 40,
@@ -195,7 +196,6 @@ function getStorageKeys(storage) {
 
 function isCartRelatedStorageKey(key) {
   return CART_RESET_STORAGE_KEYS.includes(key)
-    || /cart/i.test(key)
     || /appointment/i.test(key)
     || /pendingAppointment/i.test(key)
     || /appointmentDraft/i.test(key)
@@ -612,6 +612,18 @@ async function hydrateCartProfile() {
       : 'Please sign up or log in before checkout.';
   }
   if (authBlock) authBlock.classList.toggle('is-visible', !profile);
+
+  if (profile && !accountCartHydrated) {
+    try {
+      const mergedCart = await window.EastCordAccount.loadCustomerCart('appointment', getCartFromKnownStorage());
+      localStorage.setItem(ACTIVE_CART_KEY, JSON.stringify(mergedCart));
+      accountCartHydrated = true;
+      renderCartItemsAndTotals();
+    } catch (error) {
+      logDeveloperError('Saved appointment cart could not be loaded from the customer account.', error);
+      showCartMessage(error.message || 'Your saved account cart could not be loaded.', 'info');
+    }
+  }
 
   if (!window.EastCordAccount.isAuthConfigured()) {
     showCartMessage(window.EastCordAccount.setupMessage || 'Account system is being connected. Please check back soon.', 'info');

@@ -25,6 +25,39 @@ on public.customer_profiles for update
 using (auth.uid() = id)
 with check (auth.uid() = id);
 
+create table if not exists public.customer_carts (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid not null references auth.users(id) on delete cascade,
+  cart_type text not null check (cart_type in ('appointment', 'used_tire')),
+  items jsonb not null default '[]'::jsonb check (jsonb_typeof(items) = 'array'),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (customer_id, cart_type)
+);
+
+alter table public.customer_carts enable row level security;
+
+drop policy if exists "Customers can read own carts" on public.customer_carts;
+create policy "Customers can read own carts"
+on public.customer_carts for select
+using (auth.uid() = customer_id);
+
+drop policy if exists "Customers can insert own carts" on public.customer_carts;
+create policy "Customers can insert own carts"
+on public.customer_carts for insert
+with check (auth.uid() = customer_id);
+
+drop policy if exists "Customers can update own carts" on public.customer_carts;
+create policy "Customers can update own carts"
+on public.customer_carts for update
+using (auth.uid() = customer_id)
+with check (auth.uid() = customer_id);
+
+drop policy if exists "Customers can delete own carts" on public.customer_carts;
+create policy "Customers can delete own carts"
+on public.customer_carts for delete
+using (auth.uid() = customer_id);
+
 create table if not exists public.appointment_bookings (
   id uuid primary key default gen_random_uuid(),
   customer_id uuid not null references auth.users(id) on delete cascade,

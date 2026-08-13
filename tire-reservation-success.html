@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reservation Request Sent | EastCord Tires</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="tire-cart.css?v=1" />
+  </head>
+  <body class="tire-cart-page">
+    <main class="section" id="main-content">
+      <div class="shell">
+        <section class="tire-cart-panel">
+          <p class="tire-cart-eyebrow">Request received</p>
+          <h1>Thank you</h1>
+          <p>Your used tire reservation request was sent to EastCord Tires. We will contact you to confirm availability, pricing, and pickup or installation details.</p>
+          <p><strong>Your tires are not held until EastCord Tires confirms the reservation.</strong></p>
+          <div class="tire-cart-actions">
+            <a class="button button-primary" href="/used-tires">Return to Used Tires</a>
+            <a class="button button-secondary" href="/">Return Home</a>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js?v=3"></script>
+    <script src="account.js?v=17"></script>
+    <script>
+      localStorage.removeItem('eastcord_used_tire_cart_v1');
+      window.EastCordAccount?.clearCustomerCart?.('used_tire').catch(function (error) {
+        console.warn('[EastCord tire cart] Account cart could not be cleared after reservation.', error);
+      });
+    </script>
+  </body>
+</html>

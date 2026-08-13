@@ -50,6 +50,9 @@
         </div>
       </section>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js?v=3"></script>
+    <script src="account.js?v=17"></script>
     <script>
       (() => {
         const cartKey = 'eastcord_cart_v1';
@@ -148,6 +151,12 @@
           `;
         }).join('');
       })();
+    </script>
+    <script>
+      window.EastCordAccount?.clearCart?.();
+      window.EastCordAccount?.clearCustomerCart?.('appointment').catch(function (error) {
+        console.warn('[EastCord appointment automation] Account cart could not be cleared after checkout.', error);
+      });
     </script>
   </body>
 </html>

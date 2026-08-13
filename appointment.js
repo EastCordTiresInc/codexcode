@@ -23,6 +23,8 @@
     paidBookedSlots: new Set(),
     paidBookedSlotsDate: '',
     paidBookedSlotsLoading: false,
+    savedTires: [],
+    selectedTireIds: new Set(),
   };
 
   const els = {};
@@ -89,7 +91,11 @@
     els.reviewVehicle = document.querySelector('[data-review-vehicle]');
     els.reviewLocation = document.querySelector('[data-review-location]');
     els.reviewDate = document.querySelector('[data-review-date]');
+    els.reviewTires = document.querySelector('[data-review-tires]');
     els.reviewPrice = document.querySelector('[data-review-price]');
+    els.tireOptions = document.querySelector('[data-appointment-tire-options]');
+    els.appointmentCartSummary = document.querySelector('[data-appointment-cart-summary]');
+    els.tireCartSummary = document.querySelector('[data-tire-cart-summary]');
     els.loginRequiredBlock = document.querySelector('[data-login-required-block]');
     els.menuToggle = document.querySelector('.menu-toggle');
     els.primaryNavigation = document.querySelector('#primary-navigation');
@@ -237,6 +243,107 @@
 
   function getSlotKey(date, timeWindow) {
     return `${date || ''}__${timeWindow || ''}`;
+  }
+
+  function getLocalUsedTireCart() {
+    try {
+      const stored = JSON.parse(localStorage.getItem('eastcord_used_tire_cart_v1') || '[]');
+      return Array.isArray(stored)
+        ? stored.filter((item) => item?.type === 'used_tire' && item.inventoryId)
+        : [];
+    } catch (error) {
+      logDeveloperError('Used tire cart could not be read.', error);
+      return [];
+    }
+  }
+
+  function getSelectedTires() {
+    return state.savedTires.filter((item) => state.selectedTireIds.has(String(item.inventoryId)));
+  }
+
+  function formatSavedTireLabel(item) {
+    const qty = Math.max(1, Number(item.qty) || 1);
+    return `${item.brand || 'Tire'} ${item.size || ''}`.trim() + ` × ${qty}`;
+  }
+
+  function getSelectedTiresSummary() {
+    const selected = getSelectedTires();
+    if (!selected.length) return 'No saved tires selected';
+    return selected.map(formatSavedTireLabel).join(', ');
+  }
+
+  function applySelectedTiresToForm() {
+    const selected = getSelectedTires();
+    if (!selected.length || !els.appointmentForm) return;
+
+    const sizes = [...new Set(selected.map((item) => String(item.size || '').trim()).filter(Boolean))];
+    const totalQty = Math.min(4, selected.reduce((sum, item) => sum + (Number(item.qty) || 1), 0));
+    const sizeField = els.appointmentForm.elements.namedItem('Tire Size');
+    const qtyField = els.appointmentForm.elements.namedItem('Number of Tires');
+
+    if (sizeField && sizes.length === 1) sizeField.value = sizes[0];
+    if (qtyField && totalQty) qtyField.value = String(totalQty);
+  }
+
+  function renderSavedTireOptions() {
+    if (!els.tireOptions) return;
+
+    if (!state.savedTires.length) {
+      els.tireOptions.innerHTML = '<p>No saved tires found. Add tires to your tire cart, then return here to book installation.</p>';
+      return;
+    }
+
+    els.tireOptions.innerHTML = state.savedTires.map((item) => {
+      const id = String(item.inventoryId);
+      const checked = state.selectedTireIds.has(id) ? ' checked' : '';
+      return `
+        <label class="appointment-tire-option">
+          <input type="checkbox" data-appointment-tire-id="${escapeHtml(id)}"${checked} />
+          <span>
+            <strong>${escapeHtml(formatSavedTireLabel(item))}</strong>
+            <small>${escapeHtml(item.season || 'Used tire')} · ${escapeHtml(window.EastCordAccount?.money?.(item.unitPrice) || '')}</small>
+          </span>
+        </label>
+      `;
+    }).join('');
+  }
+
+  function updateCartLinkSummaries() {
+    const appointmentCount = getCartAppointmentItems().length;
+    const tireCount = state.savedTires.reduce((total, item) => total + (Number(item.qty) || 0), 0);
+    if (els.appointmentCartSummary) {
+      els.appointmentCartSummary.textContent = `${appointmentCount} appointment${appointmentCount === 1 ? '' : 's'} saved`;
+    }
+    if (els.tireCartSummary) {
+      els.tireCartSummary.textContent = `${tireCount} tire${tireCount === 1 ? '' : 's'} saved`;
+    }
+  }
+
+  async function hydrateCustomerTires() {
+    let localTires = getLocalUsedTireCart();
+    try {
+      if (window.EastCordAccount?.loadCustomerCart) {
+        const [usedTires, appointmentCart] = await Promise.all([
+          window.EastCordAccount.loadCustomerCart('used_tire', localTires),
+          window.EastCordAccount.loadCustomerCart('appointment', window.EastCordAccount.getCart?.() || []),
+        ]);
+        localTires = usedTires;
+        localStorage.setItem('eastcord_cart_v1', JSON.stringify(appointmentCart));
+      }
+    } catch (error) {
+      logDeveloperError('Saved tire cart could not be loaded for appointment booking.', error);
+    }
+
+    state.savedTires = localTires.filter((item) => !item.unavailable);
+    syncSelectedTiresWithSavedCart();
+    renderSavedTireOptions();
+    updateCartLinkSummaries();
+    updateReviewSummary(state.currentService || getCurrentService());
+  }
+
+  function syncSelectedTiresWithSavedCart() {
+    const validIds = new Set(state.savedTires.map((item) => String(item.inventoryId)));
+    state.selectedTireIds = new Set([...state.selectedTireIds].filter((id) => validIds.has(id)));
   }
 
   function getCartAppointmentItems() {
@@ -633,6 +740,9 @@
         ])
         : 'Not entered yet';
     }
+    if (els.reviewTires) {
+      els.reviewTires.textContent = getSelectedTiresSummary();
+    }
     if (els.reviewPrice && service) {
       els.reviewPrice.innerHTML = buildDetailsHtml([
         ['Service Subtotal', money.format(service.serviceSubtotal)],
@@ -669,6 +779,7 @@
       serviceId: service?.id || 'seasonal-changeover-rims',
       fields,
       currentStep: state.currentStep,
+      selectedTireIds: [...state.selectedTireIds],
       savedAt: new Date().toISOString(),
     };
   }
@@ -706,6 +817,10 @@
       field.value = value;
     });
 
+    state.selectedTireIds = new Set((draft.selectedTireIds || []).map(String));
+    syncSelectedTiresWithSavedCart();
+    renderSavedTireOptions();
+
     updateServicePricing(getCurrentService());
     validateServiceArea();
     validatePreferredDate();
@@ -725,6 +840,12 @@
     if (!validatePreferredDate() || !validatePreferredTimeWindow()) {
       throw new Error('Please choose a valid future appointment date and time window.');
     }
+
+    const selectedTires = getSelectedTires();
+    const linkedTireNotes = selectedTires.length
+      ? `Linked tire cart items: ${selectedTires.map((item) => `${item.brand || 'Tire'} ${item.size || ''} x${item.qty || 1} (ID ${item.inventoryId})`).join('; ')}`
+      : '';
+    const additionalNotes = [getFieldValue('Additional Notes'), linkedTireNotes].filter(Boolean).join('\n');
 
     return {
       id: `appointment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -756,7 +877,8 @@
       city: getFieldValue('City'),
       postalCode: getFieldValue('Postal Code'),
       parkingAccessNotes: getFieldValue('Parking Driveway Access Notes'),
-      additionalNotes: getFieldValue('Additional Notes'),
+      additionalNotes,
+      linkedTires: selectedTires,
       serviceAreaStatus: els.serviceAreaStatusField?.value || 'In service area',
       bookingStatus: 'Pending Confirmation',
       paymentStatus: 'pending_checkout',
@@ -817,6 +939,7 @@
       const cart = window.EastCordAccount.getCart();
       cart.push(appointmentItem);
       window.EastCordAccount.saveCart(cart);
+      await window.EastCordAccount.saveCustomerCart('appointment', cart);
       clearPendingAppointmentDraft();
       window.location.href = '/cart.html';
     } catch (error) {
@@ -835,7 +958,7 @@
     els.primaryNavigation.classList.remove('is-open');
   }
 
-  function initializeAppointmentPage() {
+  async function initializeAppointmentPage() {
     if (state.initialized) return;
     cacheElements();
     state.initialized = true;
@@ -869,6 +992,15 @@
       refreshPaidBookedSlotsForSelectedDate();
     });
     els.preferredTimeWindow?.addEventListener('change', validatePreferredTimeWindow);
+    els.tireOptions?.addEventListener('change', (event) => {
+      const checkbox = event.target.closest('[data-appointment-tire-id]');
+      if (!checkbox) return;
+      const tireId = String(checkbox.dataset.appointmentTireId);
+      if (checkbox.checked) state.selectedTireIds.add(tireId);
+      else state.selectedTireIds.delete(tireId);
+      applySelectedTiresToForm();
+      updateReviewSummary(state.currentService || getCurrentService());
+    });
     els.appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
 
     window.updateEastCordServicePrice = () => updateServicePricing(getCurrentService());
@@ -877,6 +1009,7 @@
     hideLoginRequiredBlock();
     updateAuthActionLinks();
     setMinimumDate();
+    await hydrateCustomerTires();
     const restored = restorePendingAppointmentDraft();
     updateServicePricing(getCurrentService());
     validatePreferredDate();

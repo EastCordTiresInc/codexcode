@@ -108,6 +108,18 @@
   border-top: 1px solid rgba(15, 23, 42, 0.1);
 }
 
+.account-cart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.account-cart-grid a {
+  width: fit-content;
+  color: #ba151b;
+  font-weight: 800;
+}
+
 .cart-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.36fr);
@@ -383,6 +395,10 @@ button[disabled].button-primary,
 }
 
 @media (max-width: 700px) {
+  .account-cart-grid {
+    grid-template-columns: 1fr;
+  }
+
   .account-form-grid {
     grid-template-columns: 1fr;
   }

@@ -3,7 +3,7 @@ const chatPanel = document.querySelector('#chat-panel');
 const chatThread = document.querySelector('[data-chat-thread]');
 const chatOptions = document.querySelector('[data-chat-options]');
 
-const inventoryLink = '#inventory';
+const inventoryLink = '/used-tires';
 const appointmentLink = 'https://hosted.miocommerce.com/io/eastcord-tires/booking/b95731f5-cadb-4849-877c-6238425fd25c';
 const warrantyLink = 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf';
 const inquiryFormName = 'eastcord-inquiry';

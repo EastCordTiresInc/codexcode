@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Review used tires and send a reservation request to EastCord Tires." />
+    <title>Used Tire Cart | EastCord Tires</title>
+    <link rel="stylesheet" href="styles.css?v=2" />
+    <link rel="stylesheet" href="tire-cart.css?v=7" />
+  </head>
+  <body class="tire-cart-page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="nav-shell">
+        <a class="brand brand-logo" href="/" aria-label="EastCord Tires home">
+          <img src="assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" aria-label="Open navigation menu">
+          <span></span><span></span><span></span>
+        </button>
+        <nav class="main-nav" id="primary-navigation" aria-label="Main navigation">
+          <a href="/">Home</a>
+          <a href="/used-tires">Used Tires</a>
+          <a href="/new-tires">New Tires</a>
+          <a href="/appointment">Appointment</a>
+          <a href="/#contact">Contact</a>
+          <a aria-current="page" href="/tire-cart">Tire Cart<span data-cart-count></span></a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="section" id="main-content">
+      <div class="shell tire-cart-layout">
+        <section class="tire-cart-panel" aria-labelledby="tire-cart-title">
+          <p class="tire-cart-eyebrow">Used tire reservation</p>
+          <h1 id="tire-cart-title">Your Tire Cart</h1>
+          <p>Review quantities before sending your request.</p>
+          <div class="tire-cart-items" data-tire-cart-items></div>
+          <div class="tire-cart-actions">
+            <a class="button button-secondary" href="/used-tires">Continue Shopping</a>
+            <button class="button button-secondary" type="button" data-clear-tire-cart>Clear Tire Cart</button>
+          </div>
+        </section>
+
+        <aside class="tire-cart-panel tire-reservation-panel" aria-labelledby="reservation-title">
+          <h2 id="reservation-title">Request a Reservation</h2>
+          <div class="tire-cart-total">
+            <span>Estimated tire subtotal</span>
+            <strong data-tire-cart-total>$0.00</strong>
+          </div>
+          <p class="tire-reservation-notice">
+            Submitting this form does not guarantee a hold. EastCord Tires will confirm availability, pickup or installation details, taxes, and payment.
+          </p>
+
+          <form
+            name="used-tire-reservation"
+            method="POST"
+            action="/tire-reservation-success.html"
+            data-netlify="true"
+            netlify-honeypot="bot-field"
+            data-tire-reservation-form
+          >
+            <input type="hidden" name="form-name" value="used-tire-reservation" />
+            <input type="hidden" name="subject" value="New used tire reservation request" />
+            <input type="hidden" name="Tire Request" data-tire-request-details />
+            <input type="hidden" name="Estimated Subtotal" data-tire-request-total />
+            <p class="tire-cart-honeypot" aria-hidden="true">
+              <label>Do not fill this out <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
+            </p>
+
+            <label class="tire-reservation-field">
+              <span>Full name *</span>
+              <input type="text" name="Full Name" autocomplete="name" required />
+            </label>
+            <label class="tire-reservation-field">
+              <span>Email address *</span>
+              <input type="email" name="Email Address" autocomplete="email" required />
+            </label>
+            <label class="tire-reservation-field">
+              <span>Phone number *</span>
+              <input type="tel" name="Phone Number" autocomplete="tel" required />
+            </label>
+
+            <fieldset class="tire-fulfillment-options">
+              <legend>Pickup or installation? *</legend>
+              <label>
+                <input type="radio" name="Fulfillment Preference" value="Pickup" checked />
+                <span><strong>Pickup</strong> — EastCord Tires will confirm when your order is ready.</span>
+              </label>
+              <label>
+                <input type="radio" name="Fulfillment Preference" value="Installation" />
+                <span><strong>Installation</strong> — purchase your tires, then book installation separately.</span>
+              </label>
+            </fieldset>
+
+            <div class="tire-installation-directions" data-installation-directions hidden>
+              <strong>Installation selected</strong>
+              <p>After submitting your tire order, open the Appointment page and book the appropriate installation service for your vehicle.</p>
+              <a class="button button-secondary" href="/appointment" target="_blank" rel="noopener">Open Appointment Page</a>
+            </div>
+
+            <div class="tire-checkout-auth" data-tire-checkout-auth hidden>
+              <strong>Customer account required</strong>
+              <p>Please sign up or log in before buying tires. Your tire cart will remain saved.</p>
+              <div class="tire-cart-actions">
+                <a class="button button-primary" href="/signup?redirect=/tire-cart">Sign Up</a>
+                <a class="button button-secondary" href="/login?redirect=/tire-cart">Log In</a>
+              </div>
+            </div>
+
+            <p class="tire-cart-message" data-tire-cart-message aria-live="polite"></p>
+            <button class="button button-primary tire-reservation-submit" type="submit" data-tire-reservation-submit>
+              Buy Now
+            </button>
+          </form>
+        </aside>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js?v=3"></script>
+    <script src="account.js?v=17"></script>
+    <script src="tire-cart.js?v=6"></script>
+    <script src="mobile-menu.js?v=1" defer></script>
+  </body>
+</html>

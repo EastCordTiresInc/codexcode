@@ -1,0 +1,18 @@
+# Internal documentation and database setup (keep in git, not on live site)
+docs/
+supabase/
+inventory/
+
+# Dev and data-pipeline scripts (used during Netlify build, not served as pages)
+scripts/
+
+# Local templates and repo notes
+.env.example
+README.md
+.netlify-redeploy
+
+# Debug and test utilities
+cart-debug.js
+
+# Duplicate of signup.html (_redirects already points /signup -> signup.html)
+signup

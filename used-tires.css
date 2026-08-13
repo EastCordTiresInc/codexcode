@@ -1,0 +1,996 @@
+.used-tires-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(228, 229, 231, 0.42) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(228, 229, 231, 0.42) 1px, transparent 1px),
+    linear-gradient(180deg, #ffffff 0%, #f7f7f6 100%);
+  background-size: 70px 70px, 70px 70px, auto;
+}
+
+.used-tires-hero {
+  padding-bottom: clamp(20px, 4vw, 40px);
+}
+
+.used-tires-hero-card {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 48px);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: var(--shadow-sm);
+}
+
+.used-tires-hero-card h1 {
+  margin: 0 0 12px;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.05;
+}
+
+.used-tires-hero-card p {
+  margin: 0;
+  max-width: 680px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.used-search-widget {
+  max-width: 1180px;
+  margin: 0 auto;
+  border: 1px solid #d8dade;
+  border-radius: 4px;
+  background: #ececec;
+  box-shadow: 0 18px 40px rgba(17, 18, 20, 0.08);
+  overflow: hidden;
+}
+
+.used-search-widget-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #d8dade;
+}
+
+.used-search-widget-header h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.used-search-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+  gap: 0;
+  background: #ececec;
+}
+
+.used-search-form-wrap {
+  padding: 22px 24px 24px;
+  background: #ececec;
+}
+
+.used-search-form {
+  display: grid;
+  gap: 16px;
+}
+
+.used-search-link {
+  color: var(--red);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.used-search-link:hover {
+  text-decoration: underline;
+}
+
+.used-search-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.used-search-field {
+  display: grid;
+  gap: 6px;
+}
+
+.used-search-field span {
+  color: #34363a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.used-search-field span em {
+  color: var(--red);
+  font-style: normal;
+}
+
+.used-search-field select,
+.used-search-field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #c9ccd1;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.used-search-field select:focus,
+.used-search-field input:focus {
+  outline: none;
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(229, 36, 42, 0.12);
+}
+
+.used-search-fields-single {
+  grid-template-columns: 1fr;
+}
+
+.used-search-more {
+  border-top: 1px solid #d8dade;
+  padding-top: 14px;
+}
+
+.used-search-more summary {
+  color: var(--red);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+}
+
+.used-search-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.used-search-more[open] summary {
+  margin-bottom: 14px;
+}
+
+.used-search-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: #6f7277;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 180ms ease;
+}
+
+.used-search-submit:hover:not(:disabled) {
+  background: var(--red);
+}
+
+.used-search-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.used-search-submit svg {
+  width: 18px;
+  height: 18px;
+}
+
+.used-search-guide {
+  padding: 22px 24px;
+  background: #f3f3f3;
+  border-left: 1px solid #d8dade;
+}
+
+.used-search-guide h3 {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.tire-size-diagram {
+  display: grid;
+  gap: 16px;
+}
+
+.tire-size-string {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.tire-size-part {
+  position: relative;
+  padding-bottom: 18px;
+}
+
+.tire-size-part::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  color: var(--red);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tire-size-part.is-red {
+  color: var(--red);
+}
+
+.tire-locations {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.tire-location-card {
+  padding: 12px;
+  border: 1px solid #d8dade;
+  border-radius: 8px;
+  background: #fff;
+  text-align: center;
+}
+
+.tire-location-card svg {
+  width: 100%;
+  max-width: 140px;
+  height: auto;
+  margin: 0 auto 8px;
+  display: block;
+}
+
+.tire-location-card p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.used-inventory-results {
+  max-width: 1180px;
+  margin: 28px auto 0;
+}
+
+.used-inventory-results-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.used-inventory-results-header h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+}
+
+.used-inventory-load-status {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.used-inventory-load-status[data-status-type='error'] {
+  color: var(--red-dark);
+}
+
+.used-inventory-load-status[data-status-type='success'] {
+  color: #237146;
+}
+
+.used-inventory-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.used-inventory-status[data-status-type='error'] {
+  color: var(--red-dark);
+}
+
+.used-inventory-status[data-status-type='success'] {
+  color: #237146;
+}
+
+.used-inventory-results .inventory-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.used-tire-card {
+  display: grid;
+  gap: 0;
+  padding: 16px 16px 14px;
+  border: 1px solid #cfd3d8;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(17, 18, 20, 0.06);
+}
+
+.used-tire-card-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.used-tire-card-brand span {
+  color: #111214;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.used-tire-card-brand img {
+  max-width: 150px;
+  max-height: 36px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.used-tire-card-photos {
+  margin: 0 -16px 12px;
+  overflow: hidden;
+  background: #eef0f2;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.used-tire-card-photo-track {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #eef0f2;
+}
+
+.used-tire-card-photo-slide {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.24s ease;
+  background: #eef0f2;
+}
+
+.used-tire-card-photo-slide.is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.used-tire-card-photo-slide img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.used-tire-card-photo-slide.is-placeholder,
+.used-tire-card-photo-slide.is-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  text-align: center;
+  background: #eef0f2;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.used-tire-card-photo-status {
+  color: #6f7277;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.used-tire-card-photos.is-loading .used-tire-card-photo-status {
+  animation: used-tire-photo-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes used-tire-photo-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+.used-tire-card-photo-folder-link {
+  color: var(--red);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.used-tire-card-photo-folder-link:hover {
+  color: #8b0000;
+}
+
+.used-tire-card-photo-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.used-tire-card-photos:not(.has-multiple-photos) .used-tire-card-photo-nav,
+.used-tire-card-photos:not(.has-multiple-photos) .used-tire-card-photo-count {
+  display: none;
+}
+
+.used-tire-card-photo-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #cfd3d8;
+  border-radius: 999px;
+  background: #fff;
+  color: #111214;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: zoom-in;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.used-tire-card-photo-zoom-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.used-tire-card-photo-zoom-btn:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.used-tire-card-photo-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #cfd3d8;
+  border-radius: 999px;
+  background: #fff;
+  color: #111214;
+  cursor: pointer;
+}
+
+.used-tire-card-photo-nav svg {
+  width: 16px;
+  height: 16px;
+}
+
+.used-tire-card-photo-nav:hover:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.used-tire-card-photo-nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.used-tire-card-photo-count {
+  min-width: 48px;
+  color: #6f7277;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.used-tire-card-heading {
+  margin-bottom: 12px;
+}
+
+.used-tire-card-type {
+  margin: 0 0 4px;
+  color: #6f7277;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.used-tire-card-heading h3 {
+  margin: 0;
+  color: #111214;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+.used-tire-card-divider {
+  width: 100%;
+  height: 0;
+  margin: 10px 0 0;
+  border: 0;
+  border-top: 2px solid var(--red);
+}
+
+.used-tire-card-details {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.used-tire-card-season {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #111214;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.used-tire-card-season-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
+
+.used-tire-card-season-icon.is-all-season {
+  color: #2563eb;
+}
+
+.used-tire-card-season-icon.is-winter {
+  color: #0284c7;
+}
+
+.used-tire-card-season-icon.is-summer {
+  color: #ea580c;
+}
+
+.used-tire-card-line {
+  margin: 0;
+  color: #111214;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.used-tire-card-label {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.used-tire-card-size-value {
+  border-bottom: 1px dashed #111214;
+  font-weight: 700;
+}
+
+.used-tire-card-pricing {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #cfd3d8;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.used-tire-card-qty-row {
+  display: grid;
+  gap: 4px;
+}
+
+.used-tire-card-qty-label {
+  color: #4f5663;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.used-tire-card-qty {
+  min-width: 64px;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid #c9ccd1;
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+
+.used-tire-card-price-block {
+  text-align: right;
+}
+
+.used-tire-card-price-label {
+  display: block;
+  color: #4f5663;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.used-tire-card-price {
+  display: block;
+  color: var(--red);
+  font-size: clamp(1.55rem, 4vw, 1.85rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.used-tire-card-set-total {
+  margin: 4px 0 0;
+  color: #111214;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.used-tire-card-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--red);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: background 180ms ease;
+  cursor: pointer;
+}
+
+.used-tire-card-cta:hover {
+  background: var(--red-dark);
+  color: #fff;
+  text-decoration: none;
+}
+
+.used-tire-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.used-tire-card-cta.is-secondary {
+  border: 1px solid var(--red);
+  background: #fff;
+  color: var(--red);
+}
+
+.used-tire-card-cta.is-secondary:hover {
+  background: #fff1f1;
+  color: var(--red-dark);
+}
+
+.used-tire-card-cta:disabled {
+  border-color: #cfd3d8;
+  background: #e5e7eb;
+  color: #777;
+  cursor: not-allowed;
+}
+
+.used-tire-card-cart-status {
+  min-height: 18px;
+  margin: 0;
+  color: #166534;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.used-tire-card-cart-status a {
+  color: var(--red);
+}
+
+.used-tire-card-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid #cfd3d8;
+  border-radius: 4px;
+  color: #111214;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.used-tire-card-link:hover {
+  border-color: var(--red);
+  color: var(--red);
+  text-decoration: none;
+}
+
+.used-tire-card-link svg {
+  width: 16px;
+  height: 16px;
+}
+
+.used-inventory-empty {
+  padding: 28px;
+  border: 1px dashed #d8dade;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.used-inventory-empty p {
+  margin: 0;
+}
+
+.used-inventory-empty-link {
+  margin-top: 14px !important;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.used-inventory-empty-link a {
+  color: var(--red);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.used-inventory-empty-link a:hover {
+  text-decoration: underline;
+}
+
+.used-inventory-sold-out {
+  border-color: #efb8ba;
+  background: #fff5f5;
+  color: #8b1e1e;
+  font-weight: 700;
+}
+
+.used-tire-card-stock-alert {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.used-tire-card-stock-alert.is-sold-out {
+  color: #8b1e1e;
+  background: #fff1f1;
+  border: 1px solid #efb8ba;
+}
+
+.used-tire-card-stock-alert.is-low {
+  color: #8a5a00;
+  background: #fff8e8;
+  border: 1px solid #efd39a;
+}
+
+.used-tire-card-stock-alert.is-placeholder {
+  visibility: hidden;
+  border: 1px solid transparent;
+}
+
+@media (max-width: 900px) {
+  .used-search-body {
+    grid-template-columns: 1fr;
+  }
+
+  .used-search-guide {
+    border-left: 0;
+    border-top: 1px solid #d8dade;
+  }
+}
+
+@media (max-width: 620px) {
+  .used-search-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .tire-locations {
+    grid-template-columns: 1fr;
+  }
+}
+
+body.used-tire-photo-lightbox-open {
+  overflow: hidden;
+}
+
+.used-tire-photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.used-tire-photo-lightbox[hidden] {
+  display: none !important;
+}
+
+.used-tire-photo-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(17, 18, 20, 0.88);
+  cursor: zoom-out;
+}
+
+.used-tire-photo-lightbox-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(960px, 100%);
+  max-height: calc(100vh - 48px);
+  display: grid;
+  place-items: center;
+  padding: 48px 56px 36px;
+}
+
+.used-tire-photo-lightbox-image {
+  max-width: 100%;
+  max-height: calc(100vh - 120px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  background: #111214;
+}
+
+.used-tire-photo-lightbox-close,
+.used-tire-photo-lightbox-nav {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.used-tire-photo-lightbox-close svg,
+.used-tire-photo-lightbox-nav svg {
+  width: 20px;
+  height: 20px;
+}
+
+.used-tire-photo-lightbox-close:hover,
+.used-tire-photo-lightbox-nav:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.used-tire-photo-lightbox-close {
+  top: 0;
+  right: 0;
+}
+
+.used-tire-photo-lightbox-nav.is-prev {
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.used-tire-photo-lightbox-nav.is-next {
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.used-tire-photo-lightbox-nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.used-tire-photo-lightbox-count {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 620px) {
+  .used-tire-photo-lightbox {
+    padding: 12px;
+  }
+
+  .used-tire-photo-lightbox-dialog {
+    padding: 44px 12px 32px;
+  }
+
+  .used-tire-photo-lightbox-nav.is-prev,
+  .used-tire-photo-lightbox-nav.is-next {
+    top: auto;
+    bottom: 0;
+    transform: none;
+  }
+
+  .used-tire-photo-lightbox-nav.is-prev {
+    left: calc(50% - 48px);
+  }
+
+  .used-tire-photo-lightbox-nav.is-next {
+    right: calc(50% - 48px);
+  }
+}

@@ -73,6 +73,18 @@ button {
   transform: translateY(0);
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .shell {
   width: min(var(--shell), calc(100% - 40px));
   margin-inline: auto;
@@ -136,13 +148,22 @@ button {
 }
 
 .main-nav a,
+.main-nav .auth-link-button,
 .footer-links a {
   position: relative;
   color: #34363a;
+  font-family: inherit;
   font-size: 0.875rem;
   font-weight: 650;
   text-decoration: none;
   transition: color 180ms ease;
+}
+
+.main-nav .auth-link-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .main-nav a::after {
@@ -158,6 +179,8 @@ button {
 
 .main-nav a:hover,
 .main-nav a:focus-visible,
+.main-nav .auth-link-button:hover,
+.main-nav .auth-link-button:focus-visible,
 .footer-links a:hover,
 .footer-links a:focus-visible {
   color: var(--red);
@@ -166,6 +189,31 @@ button {
 .main-nav a:hover::after,
 .main-nav a:focus-visible::after {
   right: 0;
+}
+
+.main-nav .auth-nav-group {
+  display: inline-flex;
+  gap: 18px;
+  align-items: center;
+}
+
+.main-nav .auth-nav-group[hidden] {
+  display: none !important;
+}
+
+.main-nav .auth-session-indicator {
+  padding: 7px 10px;
+  border: 1px solid rgba(229, 36, 42, 0.25);
+  border-radius: 999px;
+  background: #fff4f4;
+  color: var(--red-dark);
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.main-nav .auth-session-indicator::after {
+  display: none;
 }
 
 .menu-toggle {
@@ -1054,6 +1102,23 @@ h3 {
   .main-nav a {
     padding: 13px 4px;
     font-size: 1rem;
+  }
+
+  .main-nav .auth-link-button {
+    padding: 13px 4px;
+    font-size: 1rem;
+    text-align: left;
+  }
+
+  .main-nav .auth-nav-group {
+    display: grid;
+    gap: 0;
+  }
+
+  .main-nav .auth-session-indicator {
+    width: fit-content;
+    padding: 8px 12px;
+    font-size: 0.85rem;
   }
 
   .main-nav a::after {

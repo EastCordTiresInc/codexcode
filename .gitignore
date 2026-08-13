@@ -1,0 +1,24 @@
+# Local Netlify folder (includes .netlify/.env secrets)
+.netlify
+
+# Local secrets — never commit
+.env
+.env.local
+.env.*.local
+assets/.env
+
+# Dependencies
+node_modules/
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Python cache (inventory scripts)
+__pycache__/
+*.pyc

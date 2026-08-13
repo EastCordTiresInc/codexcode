@@ -37,7 +37,7 @@
   }
 
   function isCartStorageKey(key) {
-    return CART_STORAGE_KEYS.includes(key) || /cart/i.test(key);
+    return CART_STORAGE_KEYS.includes(key);
   }
 
   function clearCartStorageKeys() {

@@ -3,6 +3,21 @@
   publish = "."
   functions = "netlify/functions"
 
+[functions."sync-inventory-from-sheets"]
+  schedule = "*/15 * * * *"
+
+[[redirects]]
+  from = "/used-tires"
+  to = "/used-tires.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/used-tires/"
+  to = "/used-tires.html"
+  status = 301
+  force = true
+
 [[redirects]]
   from = "/new-tires"
   to = "/new-tires.html"
@@ -60,6 +75,18 @@
 [[redirects]]
   from = "/cart/"
   to = "/cart.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/tire-cart"
+  to = "/tire-cart.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/tire-cart/"
+  to = "/tire-cart.html"
   status = 301
   force = true
 

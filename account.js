@@ -3,6 +3,9 @@ const CART_KEY = 'eastcord_cart_v1';
 const ACCOUNT_SETUP_MESSAGE = 'Account signup is being connected. Please contact EastCord Tires or check back soon.';
 const EMAIL_CONFIRMATION_MESSAGE = 'Account created. Please check your email to confirm your account, then log in.';
 const TAX_RATE = 0.13;
+const CUSTOMER_CART_TYPES = new Set(['appointment', 'used_tire']);
+const ACCOUNT_USED_TIRE_CART_KEY = 'eastcord_used_tire_cart_v1';
+const CUSTOMER_CART_OWNER_KEY_PREFIX = 'eastcord_customer_cart_owner_';
 const CART_STORAGE_KEYS = [
   CART_KEY,
   'cart',
@@ -47,7 +50,14 @@ function logAuthConfigStatus() {
 }
 
 function isAuthConfigured() {
-  return Boolean(AUTH_CONFIG.supabaseUrl && AUTH_CONFIG.supabaseAnonKey && window.supabase);
+  const url = AUTH_CONFIG.supabaseUrl;
+  const key = AUTH_CONFIG.supabaseAnonKey;
+  return Boolean(
+    url
+    && key
+    && key.startsWith('eyJ')
+    && window.supabase,
+  );
 }
 
 function getSupabaseClient() {
@@ -60,7 +70,10 @@ function getSupabaseClient() {
 
 function getRedirectTarget(defaultTarget = '/account.html') {
   const params = new URLSearchParams(window.location.search);
-  return params.get('redirect') || localStorage.getItem('eastcord_auth_redirect') || defaultTarget;
+  const candidate = params.get('redirect')
+    || localStorage.getItem('eastcord_auth_redirect')
+    || defaultTarget;
+  return candidate.startsWith('/') && !candidate.startsWith('//') ? candidate : defaultTarget;
 }
 
 function goToRedirectTarget(defaultTarget = '/account.html') {
@@ -151,9 +164,109 @@ function getCart() {
   return [];
 }
 
+function validateCustomerCartType(cartType) {
+  if (!CUSTOMER_CART_TYPES.has(cartType)) {
+    throw new Error(`Unsupported customer cart type: ${cartType}`);
+  }
+}
+
+function normalizeCustomerCartItems(items) {
+  return Array.isArray(items)
+    ? items.filter((item) => item && typeof item === 'object')
+    : [];
+}
+
+function getCustomerCartItemKey(cartType, item, index) {
+  if (cartType === 'used_tire') {
+    return item.inventoryId ? `inventory:${item.inventoryId}` : `fallback:${item.id || index}`;
+  }
+  return item.bookingId
+    ? `booking:${item.bookingId}`
+    : `appointment:${item.id || `${item.preferredDate || ''}:${item.preferredTimeWindow || ''}:${index}`}`;
+}
+
+function mergeCustomerCartItems(cartType, remoteItems, localItems) {
+  validateCustomerCartType(cartType);
+  const merged = new Map();
+  normalizeCustomerCartItems(remoteItems).forEach((item, index) => {
+    merged.set(getCustomerCartItemKey(cartType, item, index), item);
+  });
+  normalizeCustomerCartItems(localItems).forEach((item, index) => {
+    merged.set(getCustomerCartItemKey(cartType, item, index), item);
+  });
+  return Array.from(merged.values());
+}
+
+function getCustomerCartOwnerKey(cartType) {
+  return `${CUSTOMER_CART_OWNER_KEY_PREFIX}${cartType}`;
+}
+
+async function saveCustomerCart(cartType, items) {
+  validateCustomerCartType(cartType);
+  const client = getSupabaseClient();
+  const user = await getCurrentUser();
+  if (!client || !user) return normalizeCustomerCartItems(items);
+
+  const normalizedItems = normalizeCustomerCartItems(items);
+  const { error } = await client
+    .from('customer_carts')
+    .upsert({
+      customer_id: user.id,
+      cart_type: cartType,
+      items: normalizedItems,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'customer_id,cart_type' });
+
+  if (error) {
+    logSupabaseError(`${cartType} customer cart save failed.`, error);
+    throw new Error('Your cart is saved on this device, but it could not be synced to your account.');
+  }
+  localStorage.setItem(getCustomerCartOwnerKey(cartType), user.id);
+  return normalizedItems;
+}
+
+async function loadCustomerCart(cartType, localItems = []) {
+  validateCustomerCartType(cartType);
+  const normalizedLocalItems = normalizeCustomerCartItems(localItems);
+  const client = getSupabaseClient();
+  const user = await getCurrentUser();
+  if (!client || !user) return normalizedLocalItems;
+
+  const { data, error } = await client
+    .from('customer_carts')
+    .select('items')
+    .eq('customer_id', user.id)
+    .eq('cart_type', cartType)
+    .maybeSingle();
+
+  if (error) {
+    logSupabaseError(`${cartType} customer cart read failed.`, error);
+    throw new Error('Your account cart could not be loaded. Your cart on this device is still available.');
+  }
+
+  const remoteItems = normalizeCustomerCartItems(data?.items);
+  const localCartOwner = localStorage.getItem(getCustomerCartOwnerKey(cartType));
+  const mergedItems = data && localCartOwner === user.id
+    ? remoteItems
+    : mergeCustomerCartItems(cartType, remoteItems, normalizedLocalItems);
+  if (!data || JSON.stringify(mergedItems) !== JSON.stringify(remoteItems)) {
+    await saveCustomerCart(cartType, mergedItems);
+  }
+  localStorage.setItem(getCustomerCartOwnerKey(cartType), user.id);
+  return mergedItems;
+}
+
+async function clearCustomerCart(cartType) {
+  return saveCustomerCart(cartType, []);
+}
+
 function saveCart(cart) {
-  localStorage.setItem(CART_KEY, JSON.stringify(normalizeCartCollection(cart)));
+  const normalizedCart = normalizeCartCollection(cart);
+  localStorage.setItem(CART_KEY, JSON.stringify(normalizedCart));
   updateCartCount();
+  saveCustomerCart('appointment', normalizedCart).catch((error) => {
+    logDeveloperError('Appointment cart background sync failed.', error);
+  });
 }
 
 function getExistingStorageKeys(storage) {
@@ -168,7 +281,6 @@ function getExistingStorageKeys(storage) {
 
 function isCartRelatedStorageKey(key) {
   return CART_RESET_STORAGE_KEYS.includes(key)
-    || /cart/i.test(key)
     || /appointment/i.test(key)
     || /pendingAppointment/i.test(key)
     || /appointmentDraft/i.test(key)
@@ -510,7 +622,7 @@ async function signUpCustomer({ fullName, email, phone, password }) {
     email,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}/account.html`,
+      emailRedirectTo: new URL(getRedirectTarget('/account.html'), window.location.origin).toString(),
       data: {
         full_name: fullName,
         phone,
@@ -566,7 +678,22 @@ async function signInCustomer({ email, password }) {
 
 async function signOutCustomer() {
   const client = getSupabaseClient();
-  if (client) await client.auth.signOut();
+  if (client) {
+    try {
+      await Promise.all([
+        saveCustomerCart('appointment', getCart()),
+        saveCustomerCart('used_tire', getLocalUsedTireCart()),
+      ]);
+    } catch (error) {
+      logDeveloperError('Carts could not be fully synced before logout.', error);
+    }
+    await client.auth.signOut();
+  }
+  removeStorageKeys(localStorage, CART_STORAGE_KEYS);
+  removeStorageKeys(sessionStorage, CART_STORAGE_KEYS);
+  localStorage.removeItem(ACCOUNT_USED_TIRE_CART_KEY);
+  localStorage.removeItem(getCustomerCartOwnerKey('appointment'));
+  localStorage.removeItem(getCustomerCartOwnerKey('used_tire'));
   window.location.href = '/login.html';
 }
 
@@ -594,6 +721,26 @@ async function updateAuthNavigation() {
   });
   document.querySelectorAll('[data-account-name]').forEach((element) => {
     element.textContent = profile?.name || 'My Account';
+  });
+
+  document.querySelectorAll('.main-nav').forEach((navigation) => {
+    let indicator = navigation.querySelector('[data-auth-session-indicator]');
+    if (!profile) {
+      indicator?.remove();
+      return;
+    }
+
+    if (!indicator) {
+      indicator = document.createElement('a');
+      indicator.href = '/account.html';
+      indicator.className = 'auth-session-indicator';
+      indicator.dataset.authSessionIndicator = '';
+      navigation.append(indicator);
+    }
+
+    const displayName = profile.name || profile.email || 'Customer';
+    indicator.textContent = `Signed in: ${displayName}`;
+    indicator.title = `Signed in as ${displayName}`;
   });
   updateCartCount();
 }
@@ -658,7 +805,7 @@ function bindAuthForms() {
 
       const redirectTarget = getRedirectTarget('/appointment.html?restore=appointment#appointment-booking');
       const loginUrl = `/login.html?redirect=${encodeURIComponent(redirectTarget)}`;
-      setAuthMessage(`${EMAIL_CONFIRMATION_MESSAGE} After confirming, log in to continue your saved appointment.`, 'success');
+      setAuthMessage(`${EMAIL_CONFIRMATION_MESSAGE} After confirming, log in to continue.`, 'success');
       const messageElement = document.querySelector('[data-auth-message]');
       if (messageElement) {
         messageElement.insertAdjacentHTML('beforeend', ` <a href="${loginUrl}">Log in after confirming</a>`);
@@ -720,6 +867,39 @@ function renderBookingHistory(bookings) {
   }).join('');
 }
 
+function getLocalUsedTireCart() {
+  const stored = readStorageJson(localStorage, ACCOUNT_USED_TIRE_CART_KEY);
+  return normalizeCustomerCartItems(stored)
+    .filter((item) => item.type === 'used_tire' && item.inventoryId);
+}
+
+async function hydrateAccountCartSummaries() {
+  const appointmentSummary = document.querySelector('[data-account-appointment-cart]');
+  const tireSummary = document.querySelector('[data-account-tire-cart]');
+  if (!appointmentSummary && !tireSummary) return;
+
+  try {
+    const [appointmentCart, tireCart] = await Promise.all([
+      loadCustomerCart('appointment', getCart()),
+      loadCustomerCart('used_tire', getLocalUsedTireCart()),
+    ]);
+    localStorage.setItem(CART_KEY, JSON.stringify(normalizeCartCollection(appointmentCart)));
+    localStorage.setItem(ACCOUNT_USED_TIRE_CART_KEY, JSON.stringify(tireCart));
+
+    if (appointmentSummary) {
+      appointmentSummary.textContent = `${appointmentCart.length} appointment${appointmentCart.length === 1 ? '' : 's'} saved`;
+    }
+    if (tireSummary) {
+      const tireCount = tireCart.reduce((total, item) => total + (Number(item.qty) || 0), 0);
+      tireSummary.textContent = `${tireCount} tire${tireCount === 1 ? '' : 's'} saved`;
+    }
+  } catch (error) {
+    logDeveloperError('Account cart summaries could not be loaded.', error);
+    if (appointmentSummary) appointmentSummary.textContent = 'Could not load account cart';
+    if (tireSummary) tireSummary.textContent = 'Could not load account cart';
+  }
+}
+
 async function hydrateAccountPage() {
   const accountPanel = document.querySelector('[data-account-panel]');
   const bookingPanel = document.querySelector('[data-booking-history]');
@@ -749,6 +929,7 @@ async function hydrateAccountPage() {
       const bookings = await getCustomerBookings();
       bookingPanel.innerHTML = renderBookingHistory(bookings);
     }
+    await hydrateAccountCartSummaries();
   } catch (error) {
     logDeveloperError('Account page hydration failed.', error);
     accountPanel.innerHTML = '<p>Account details could not be loaded right now. Please try again shortly.</p>';
@@ -780,6 +961,10 @@ window.EastCordAccount = {
   getAccessToken,
   getCart,
   saveCart,
+  loadCustomerCart,
+  saveCustomerCart,
+  clearCustomerCart,
+  mergeCustomerCartItems,
   clearCart,
   clearCartStorage,
   saveAppointmentBooking,
