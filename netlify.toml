@@ -3,6 +3,9 @@
   publish = "."
   functions = "netlify/functions"
 
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY"
+
 [functions."sync-inventory-from-sheets"]
   schedule = "*/15 * * * *"
 

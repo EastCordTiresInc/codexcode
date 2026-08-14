@@ -49,7 +49,7 @@ const brandSection = `      <section class="popular-brands section" id="tire-bra
           </p>
 
           <div class="brand-actions" aria-label="Tire brand section actions">
-            <a class="button button-primary" href="/used-tires">Check Used Tires</a>
+            <a class="button button-primary" href="/used-tires.html">Check Used Tires</a>
             <a class="button button-dark" href="/new-tires.html">Shop New Tires</a>
           </div>
         </div>
