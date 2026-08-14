@@ -667,6 +667,21 @@ exports.handler = async (event) => {
   }
 
   const session = stripeEvent.data.object;
+
+  if (session.metadata?.order_type === 'used_tire') {
+    if (session.payment_status && session.payment_status !== 'paid') {
+      return json(200, { received: true, ignored: true, reason: 'payment_not_paid', paymentStatus: session.payment_status });
+    }
+    const { fulfillPaidUsedTireOrder } = require('./lib/used-tire-order');
+    const result = await fulfillPaidUsedTireOrder({ supabaseAdmin, session });
+    if (!result.ok) {
+      return json(result.statusCode || 500, {
+        message: result.message || 'Used tire order could not be updated after payment.',
+      });
+    }
+    return json(200, { received: true, orderType: 'used_tire', alreadyPaid: Boolean(result.alreadyPaid) });
+  }
+
   const bookingIds = getSessionBookingIds(session);
 
   console.log('[EastCord appointment automation] Stripe checkout.session.completed received.', {

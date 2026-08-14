@@ -44,31 +44,24 @@
         </section>
 
         <aside class="tire-cart-panel tire-reservation-panel" aria-labelledby="reservation-title">
-          <h2 id="reservation-title">Request a Reservation</h2>
+          <h2 id="reservation-title">Secure Checkout</h2>
           <div class="tire-cart-total">
-            <span>Estimated tire subtotal</span>
+            <span>Tire subtotal</span>
             <strong data-tire-cart-total>$0.00</strong>
           </div>
+          <div class="tire-cart-total">
+            <span>HST 13%</span>
+            <strong data-tire-cart-hst>$0.00</strong>
+          </div>
+          <div class="tire-cart-total">
+            <span>Total due today</span>
+            <strong data-tire-cart-grand-total>$0.00</strong>
+          </div>
           <p class="tire-reservation-notice">
-            Submitting this form does not guarantee a hold. EastCord Tires will confirm availability, pickup or installation details, taxes, and payment.
+            Payment is taken securely through Stripe. Stock is checked again at checkout. Pickup or installation details are confirmed after payment.
           </p>
 
-          <form
-            name="used-tire-reservation"
-            method="POST"
-            action="/tire-reservation-success.html"
-            data-netlify="true"
-            netlify-honeypot="bot-field"
-            data-tire-reservation-form
-          >
-            <input type="hidden" name="form-name" value="used-tire-reservation" />
-            <input type="hidden" name="subject" value="New used tire reservation request" />
-            <input type="hidden" name="Tire Request" data-tire-request-details />
-            <input type="hidden" name="Estimated Subtotal" data-tire-request-total />
-            <p class="tire-cart-honeypot" aria-hidden="true">
-              <label>Do not fill this out <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
-            </p>
-
+          <form data-tire-reservation-form>
             <label class="tire-reservation-field">
               <span>Full name *</span>
               <input type="text" name="Full Name" autocomplete="name" required />
@@ -111,7 +104,7 @@
 
             <p class="tire-cart-message" data-tire-cart-message aria-live="polite"></p>
             <button class="button button-primary tire-reservation-submit" type="submit" data-tire-reservation-submit>
-              Buy Now
+              Pay with Stripe
             </button>
           </form>
         </aside>
@@ -120,8 +113,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=3"></script>
-    <script src="account.js?v=19"></script>
-    <script src="tire-cart.js?v=7"></script>
+    <script src="account.js?v=20"></script>
+    <script src="tire-cart.js?v=9"></script>
     <script src="mobile-menu.js?v=1" defer></script>
   </body>
 </html>

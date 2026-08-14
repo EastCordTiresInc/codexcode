@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Reservation Request Sent | EastCord Tires</title>
+    <title>Payment Received | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="tire-cart.css?v=1" />
   </head>
@@ -11,13 +11,12 @@
     <main class="section" id="main-content">
       <div class="shell">
         <section class="tire-cart-panel">
-          <p class="tire-cart-eyebrow">Request received</p>
+          <p class="tire-cart-eyebrow">Used tire order</p>
           <h1>Thank you</h1>
-          <p>Your used tire reservation request was sent to EastCord Tires. We will contact you to confirm availability, pricing, and pickup or installation details.</p>
-          <p><strong>Your tires are not held until EastCord Tires confirms the reservation.</strong></p>
+          <p data-order-status>Confirming your Stripe payment...</p>
           <div class="tire-cart-actions">
             <a class="button button-primary" href="/used-tires">Return to Used Tires</a>
-            <a class="button button-secondary" href="/">Return Home</a>
+            <a class="button button-secondary" href="/account">View My Account</a>
           </div>
         </section>
       </div>
@@ -26,10 +25,49 @@
     <script src="auth-config.js?v=3"></script>
     <script src="account.js?v=19"></script>
     <script>
-      localStorage.removeItem('eastcord_used_tire_cart_v1');
-      window.EastCordAccount?.clearCustomerCart?.('used_tire').catch(function (error) {
-        console.warn('[EastCord tire cart] Account cart could not be cleared after reservation.', error);
-      });
+      (function () {
+        const status = document.querySelector('[data-order-status]');
+        const params = new URLSearchParams(window.location.search);
+        const sessionId = params.get('session_id') || '';
+
+        function clearCart() {
+          localStorage.removeItem('eastcord_used_tire_cart_v1');
+          window.EastCordAccount?.clearCustomerCart?.('used_tire').catch(function (error) {
+            console.warn('[EastCord tire cart] Account cart could not be cleared after payment.', error);
+          });
+        }
+
+        async function confirmPayment() {
+          if (!sessionId) {
+            if (status) status.textContent = 'Payment was received. If you just paid, your order is being confirmed.';
+            clearCart();
+            return;
+          }
+
+          try {
+            const response = await fetch('/.netlify/functions/confirm-used-tire-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: sessionId }),
+            });
+            const data = await response.json().catch(function () { return {}; });
+            if (!response.ok) {
+              throw new Error(data.message || 'Payment confirmation is still processing.');
+            }
+            if (status) {
+              status.textContent = 'Your used tire payment was received. EastCord Tires will contact you about pickup or installation.';
+            }
+            clearCart();
+          } catch (error) {
+            if (status) {
+              status.textContent = error.message || 'Your payment was sent. EastCord Tires will confirm the order shortly.';
+            }
+            clearCart();
+          }
+        }
+
+        confirmPayment();
+      })();
     </script>
     <script src="mobile-menu.js?v=1" defer></script>
   </body>

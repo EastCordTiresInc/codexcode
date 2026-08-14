@@ -871,6 +871,9 @@ function renderUsedTireCard(item) {
 function getUsedTireCart() {
   try {
     const stored = JSON.parse(localStorage.getItem(USED_TIRE_CART_KEY) || '[]');
+    if (window.EastCordAccount?.normalizeUsedTireCartItems) {
+      return window.EastCordAccount.normalizeUsedTireCartItems(stored);
+    }
     return Array.isArray(stored)
       ? stored.filter((item) => item?.type === 'used_tire' && item.inventoryId)
       : [];

@@ -176,6 +176,38 @@ function normalizeCustomerCartItems(items) {
     : [];
 }
 
+function parseUsedTireInventoryId(item) {
+  const direct = Number(item?.inventoryId);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const numericId = Number(item?.id);
+  if (Number.isFinite(numericId) && numericId > 0) return numericId;
+  const match = String(item?.id || '').match(/used-tire-(\d+)/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function normalizeUsedTireCartItems(items) {
+  const byId = new Map();
+  normalizeCustomerCartItems(items).forEach((item) => {
+    const inventoryId = parseUsedTireInventoryId(item);
+    if (!inventoryId) return;
+    const qty = Math.max(1, Number(item.qty) || 1);
+    const existing = byId.get(inventoryId);
+    byId.set(inventoryId, {
+      ...(existing || {}),
+      ...item,
+      id: item.id || existing?.id || `used-tire-${inventoryId}`,
+      type: 'used_tire',
+      inventoryId,
+      qty: Math.min(4, qty),
+      maxStock: Number(item.maxStock) || Number(existing?.maxStock) || qty,
+      unitPrice: item.unitPrice ?? item.price ?? existing?.unitPrice ?? null,
+      brand: item.brand || existing?.brand || '',
+      size: item.size || existing?.size || '',
+    });
+  });
+  return Array.from(byId.values());
+}
+
 function getCustomerCartItemKey(cartType, item, index) {
   if (cartType === 'used_tire') {
     return item.inventoryId ? `inventory:${item.inventoryId}` : `fallback:${item.id || index}`;
@@ -187,6 +219,12 @@ function getCustomerCartItemKey(cartType, item, index) {
 
 function mergeCustomerCartItems(cartType, remoteItems, localItems) {
   validateCustomerCartType(cartType);
+  if (cartType === 'used_tire') {
+    return normalizeUsedTireCartItems([
+      ...normalizeCustomerCartItems(remoteItems),
+      ...normalizeCustomerCartItems(localItems),
+    ]);
+  }
   const merged = new Map();
   normalizeCustomerCartItems(remoteItems).forEach((item, index) => {
     merged.set(getCustomerCartItemKey(cartType, item, index), item);
@@ -749,6 +787,9 @@ async function signOutCustomer() {
 }
 
 function updateCartCount() {
+  if (document.body.classList.contains('used-tires-page') || document.body.classList.contains('tire-cart-page')) {
+    return;
+  }
   const count = getCart().length;
   document.querySelectorAll('[data-cart-count]').forEach((element) => {
     element.textContent = count ? ` (${count})` : '';
@@ -920,8 +961,7 @@ function renderBookingHistory(bookings) {
 
 function getLocalUsedTireCart() {
   const stored = readStorageJson(localStorage, ACCOUNT_USED_TIRE_CART_KEY);
-  return normalizeCustomerCartItems(stored)
-    .filter((item) => item.type === 'used_tire' && item.inventoryId);
+  return normalizeUsedTireCartItems(stored);
 }
 
 let accountCartsHydrated = false;
@@ -945,15 +985,16 @@ async function hydrateSignedInCarts() {
       loadCustomerCart('appointment', getCart()),
       loadCustomerCart('used_tire', getLocalUsedTireCart()),
     ]);
+    const normalizedTireCart = normalizeUsedTireCartItems(tireCart);
 
     localStorage.setItem(CART_KEY, JSON.stringify(normalizeCartCollection(appointmentCart)));
-    localStorage.setItem(ACCOUNT_USED_TIRE_CART_KEY, JSON.stringify(tireCart));
+    localStorage.setItem(ACCOUNT_USED_TIRE_CART_KEY, JSON.stringify(normalizedTireCart));
     accountCartsHydrated = true;
     updateCartCount();
     window.dispatchEvent(new CustomEvent('eastcord:account-carts-hydrated', {
-      detail: { appointmentCart, tireCart },
+      detail: { appointmentCart, tireCart: normalizedTireCart },
     }));
-    return { appointmentCart, tireCart };
+    return { appointmentCart, tireCart: normalizedTireCart };
   })().catch((error) => {
     accountCartHydratePromise = null;
     accountCartsHydrated = false;
@@ -1085,6 +1126,7 @@ window.EastCordAccount = {
   hydrateSignedInCarts,
   clearCustomerCart,
   mergeCustomerCartItems,
+  normalizeUsedTireCartItems,
   clearCart,
   clearCartStorage,
   saveAppointmentBooking,

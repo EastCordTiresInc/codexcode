@@ -1,6 +1,9 @@
 const USED_TIRE_CART_KEY = 'eastcord_used_tire_cart_v1';
+const TAX_RATE = 0.13;
 const cartItemsEl = document.querySelector('[data-tire-cart-items]');
 const cartTotalEl = document.querySelector('[data-tire-cart-total]');
+const cartHstEl = document.querySelector('[data-tire-cart-hst]');
+const cartGrandTotalEl = document.querySelector('[data-tire-cart-grand-total]');
 const cartMessageEl = document.querySelector('[data-tire-cart-message]');
 const reservationForm = document.querySelector('[data-tire-reservation-form]');
 const reservationSubmit = document.querySelector('[data-tire-reservation-submit]');
@@ -14,13 +17,20 @@ let authChecked = false;
 function readTireCart() {
   try {
     const stored = JSON.parse(localStorage.getItem(USED_TIRE_CART_KEY) || '[]');
-    return Array.isArray(stored)
-      ? stored.filter((item) => item?.type === 'used_tire' && item.inventoryId)
-      : [];
+    return normalizeTireCart(stored);
   } catch (error) {
     console.warn('[EastCord tire cart] Cart could not be read.', error);
     return [];
   }
+}
+
+function normalizeTireCart(items) {
+  if (window.EastCordAccount?.normalizeUsedTireCartItems) {
+    return window.EastCordAccount.normalizeUsedTireCartItems(items);
+  }
+  return Array.isArray(items)
+    ? items.filter((item) => item?.type === 'used_tire' && item.inventoryId)
+    : [];
 }
 
 function saveTireCart() {
@@ -62,6 +72,20 @@ function getCartSubtotal() {
     (total, item) => total + ((Number(item.unitPrice) || 0) * (Number(item.qty) || 0)),
     0,
   );
+}
+
+function roundMoney(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function getCartTotals() {
+  const subtotal = roundMoney(getCartSubtotal());
+  const hstAmount = roundMoney(subtotal * TAX_RATE);
+  return {
+    subtotal,
+    hstAmount,
+    totalWithHst: roundMoney(subtotal + hstAmount),
+  };
 }
 
 function renderQuantityOptions(item) {
@@ -118,7 +142,10 @@ function renderTireCart() {
       : '<div class="tire-cart-empty">Your tire cart is empty. Search used tires to add a set.</div>';
   }
 
-  if (cartTotalEl) cartTotalEl.textContent = formatMoney(getCartSubtotal());
+  const totals = getCartTotals();
+  if (cartTotalEl) cartTotalEl.textContent = formatMoney(totals.subtotal);
+  if (cartHstEl) cartHstEl.textContent = formatMoney(totals.hstAmount);
+  if (cartGrandTotalEl) cartGrandTotalEl.textContent = formatMoney(totals.totalWithHst);
   if (reservationSubmit) {
     reservationSubmit.classList.toggle('is-signed-in', Boolean(currentProfile));
     reservationSubmit.classList.toggle('is-signed-out', !currentProfile);
@@ -156,7 +183,11 @@ async function hydrateCustomerAccount() {
 
   if (currentProfile) {
     try {
-      tireCart = await window.EastCordAccount.loadCustomerCart('used_tire', tireCart);
+      const loadedCart = await window.EastCordAccount.loadCustomerCart('used_tire', tireCart);
+      const normalizedLoaded = normalizeTireCart(loadedCart);
+      tireCart = normalizedLoaded.length || !tireCart.length
+        ? normalizedLoaded
+        : tireCart;
       localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(tireCart));
     } catch (error) {
       console.warn('[EastCord tire cart] Saved account cart could not be loaded.', error);
@@ -201,17 +232,77 @@ async function refreshCartAvailability() {
   }
 }
 
-function buildReservationDetails() {
-  return tireCart.map((item) => {
-    return [
-      `ID ${item.inventoryId}`,
-      `${item.brand} ${item.size}`,
-      `Quantity ${item.qty}`,
-      `${formatMoney(item.unitPrice)} per tire`,
-      `${formatMoney((Number(item.unitPrice) || 0) * (Number(item.qty) || 0))} line subtotal`,
-    ].join(' — ');
-  }).join('\n');
+function getFormValue(name) {
+  const field = reservationForm?.elements?.namedItem(name);
+  return String(field?.value || '').trim();
 }
+
+reservationForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  if (!currentProfile) {
+    if (checkoutAuth) checkoutAuth.hidden = false;
+    if (cartMessageEl) {
+      cartMessageEl.textContent = 'Please sign up or log in before buying tires.';
+    }
+    return;
+  }
+
+  if (!tireCart.length || tireCart.some((item) => item.unavailable)) {
+    if (cartMessageEl) {
+      cartMessageEl.textContent = tireCart.length
+        ? 'Remove unavailable tires before checkout.'
+        : 'Add at least one tire before checkout.';
+    }
+    return;
+  }
+
+  const customer = {
+    customerId: currentProfile.customerId,
+    name: getFormValue('Full Name') || currentProfile.name,
+    email: getFormValue('Email Address') || currentProfile.email,
+    phone: getFormValue('Phone Number') || currentProfile.phone,
+  };
+
+  if (!customer.name || !customer.email || !customer.phone) {
+    if (cartMessageEl) cartMessageEl.textContent = 'Please complete your name, email, and phone.';
+    return;
+  }
+
+  try {
+    if (reservationSubmit) {
+      reservationSubmit.disabled = true;
+      reservationSubmit.textContent = 'Opening Stripe...';
+    }
+    if (cartMessageEl) cartMessageEl.textContent = 'Checking stock and preparing secure checkout...';
+
+    const token = await window.EastCordAccount.getAccessToken();
+    const response = await fetch('/.netlify/functions/create-used-tire-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+      body: JSON.stringify({
+        items: tireCart,
+        customer,
+        fulfillmentPreference: getFormValue('Fulfillment Preference') || 'Pickup',
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.url) {
+      throw new Error(data.message || 'Secure checkout could not be started.');
+    }
+    window.location.href = data.url;
+  } catch (error) {
+    if (cartMessageEl) cartMessageEl.textContent = error.message || 'Secure checkout could not be started.';
+    if (reservationSubmit) {
+      reservationSubmit.textContent = 'Pay with Stripe';
+      reservationSubmit.disabled = false;
+    }
+    renderTireCart();
+  }
+});
 
 cartItemsEl?.addEventListener('change', (event) => {
   const select = event.target.closest('[data-tire-cart-qty]');
@@ -251,32 +342,6 @@ reservationForm?.addEventListener('change', (event) => {
   }
 });
 
-reservationForm?.addEventListener('submit', (event) => {
-  if (!currentProfile) {
-    event.preventDefault();
-    if (checkoutAuth) checkoutAuth.hidden = false;
-    if (cartMessageEl) {
-      cartMessageEl.textContent = 'Please sign up or log in before buying tires.';
-    }
-    return;
-  }
-
-  if (!tireCart.length || tireCart.some((item) => item.unavailable)) {
-    event.preventDefault();
-    if (cartMessageEl) {
-      cartMessageEl.textContent = tireCart.length
-        ? 'Remove unavailable tires before submitting.'
-        : 'Add at least one tire before submitting a reservation request.';
-    }
-    return;
-  }
-
-  const detailsInput = reservationForm.querySelector('[data-tire-request-details]');
-  const totalInput = reservationForm.querySelector('[data-tire-request-total]');
-  if (detailsInput) detailsInput.value = buildReservationDetails();
-  if (totalInput) totalInput.value = formatMoney(getCartSubtotal());
-});
-
 async function initTireCart() {
   renderTireCart();
   await hydrateCustomerAccount();
@@ -285,10 +350,12 @@ async function initTireCart() {
 }
 
 window.addEventListener('eastcord:account-carts-hydrated', (event) => {
-  if (Array.isArray(event.detail?.tireCart)) {
-    tireCart = event.detail.tireCart;
-    renderTireCart();
-  }
+  const incoming = normalizeTireCart(event.detail?.tireCart);
+  if (!incoming.length && tireCart.length) return;
+  if (!incoming.length) return;
+  tireCart = incoming.length >= tireCart.length ? incoming : tireCart;
+  localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(tireCart));
+  renderTireCart();
 });
 
 initTireCart();

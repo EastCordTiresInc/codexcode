@@ -26,7 +26,10 @@ as $$
   end;
 $$;
 
-create or replace function public.normalize_rim_for_search(rim_size integer)
+drop function if exists public.normalize_rim_for_search(integer);
+drop function if exists public.normalize_rim_for_search(bigint);
+
+create or replace function public.normalize_rim_for_search(rim_size bigint)
 returns text
 language sql
 immutable
@@ -38,9 +41,12 @@ as $$
   end;
 $$;
 
+drop function if exists public.parse_tire_size_for_search(text, integer, boolean);
+drop function if exists public.parse_tire_size_for_search(text, bigint, boolean);
+
 create or replace function public.parse_tire_size_for_search(
   raw_tire_size text,
-  rim_size integer default null,
+  rim_size bigint default null,
   is_flotation boolean default false
 )
 returns table (
@@ -176,7 +182,7 @@ with parsed_rows as (
   from public.usedtireinventory as src
   cross join lateral public.parse_tire_size_for_search(
     regexp_replace(src.tire_size, '\.0+$', ''),
-    src.rim_size,
+    src.rim_size::bigint,
     coalesce(src.is_flotation, false)
   ) as parsed
   where parsed.width is not null
@@ -215,7 +221,7 @@ begin
   into parsed
   from public.parse_tire_size_for_search(
     clean_size,
-    new.rim_size,
+    new.rim_size::bigint,
     coalesce(new.is_flotation, false)
   );
 
