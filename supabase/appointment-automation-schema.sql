@@ -67,6 +67,10 @@ create table if not exists public.appointment_bookings (
   service_id text not null,
   service_name text not null,
   starting_price numeric(10,2) not null,
+  service_subtotal numeric(10,2),
+  hst_amount numeric(10,2),
+  total_with_hst numeric(10,2),
+  tax_rate numeric(6,4),
   deposit_amount numeric(10,2) not null,
   remaining_balance numeric(10,2) not null,
   preferred_date date not null,
@@ -74,6 +78,8 @@ create table if not exists public.appointment_bookings (
   vehicle_year text,
   vehicle_make text,
   vehicle_model text,
+  vehicle_plate_number text,
+  vehicle_colour text,
   tire_size text,
   tires_already_on_rims text,
   number_of_tires integer,
@@ -134,3 +140,11 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
+
+alter table public.appointment_bookings
+  add column if not exists service_subtotal numeric(10,2),
+  add column if not exists hst_amount numeric(10,2),
+  add column if not exists total_with_hst numeric(10,2),
+  add column if not exists tax_rate numeric(6,4),
+  add column if not exists vehicle_plate_number text,
+  add column if not exists vehicle_colour text;

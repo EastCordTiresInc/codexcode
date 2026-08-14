@@ -69,6 +69,8 @@
     els.depositPrice = document.querySelector('[data-deposit-price]');
     els.balancePrice = document.querySelector('[data-balance-price]');
     els.serviceSelect = document.getElementById('service-select');
+    els.rimsField = document.querySelector('[data-rims-field]');
+    els.tireCountField = document.querySelector('[data-tire-count-field]');
     els.serviceIdField = document.querySelector('[data-hidden-service-id]');
     els.serviceNameField = document.querySelector('[data-hidden-service-name]');
     els.startingPriceField = document.querySelector('[data-hidden-starting-price]');
@@ -92,13 +94,20 @@
     els.reviewLocation = document.querySelector('[data-review-location]');
     els.reviewDate = document.querySelector('[data-review-date]');
     els.reviewTires = document.querySelector('[data-review-tires]');
+    els.reviewTiresCard = document.querySelector('[data-review-tires-card]');
     els.reviewPrice = document.querySelector('[data-review-price]');
+    els.tireSelector = document.querySelector('[data-appointment-tire-selector]');
+    els.linkedTireHint = document.querySelector('[data-linked-tire-hint]');
     els.tireOptions = document.querySelector('[data-appointment-tire-options]');
     els.appointmentCartSummary = document.querySelector('[data-appointment-cart-summary]');
     els.tireCartSummary = document.querySelector('[data-tire-cart-summary]');
     els.loginRequiredBlock = document.querySelector('[data-login-required-block]');
     els.menuToggle = document.querySelector('.menu-toggle');
     els.primaryNavigation = document.querySelector('#primary-navigation');
+  }
+
+  function setSelectedService(serviceId) {
+    if (els.serviceSelect && serviceId) els.serviceSelect.value = serviceId;
   }
 
   function getCurrentService() {
@@ -146,13 +155,109 @@
     setValue(els.depositField, service.deposit.toFixed(2));
     setValue(els.balanceField, service.remaining.toFixed(2));
 
+    updateTireSelectorVisibility(service);
+    syncServiceVehicleDefaults(service);
     updateReviewSummary(service);
+  }
+
+  function getServiceTireCount(service = getCurrentService()) {
+    return getMountBalanceTireCount(service) || 4;
+  }
+
+  function getServiceTiresOnRims(service = getCurrentService()) {
+    return service?.id === 'seasonal-changeover-rims' ? 'Yes' : 'No';
+  }
+
+  function syncServiceVehicleDefaults(service = getCurrentService()) {
+    if (!els.appointmentForm || !service) return;
+    const rimsField = els.appointmentForm.elements.namedItem('Tires Already On Rims');
+    const qtyField = els.appointmentForm.elements.namedItem('Number of Tires');
+    const tireCount = getServiceTireCount(service);
+    const tiresOnRims = getServiceTiresOnRims(service);
+
+    if (rimsField) rimsField.value = tiresOnRims;
+    if (qtyField) {
+      qtyField.value = String(tireCount);
+      qtyField.readOnly = true;
+    }
+    if (els.rimsField) els.rimsField.hidden = true;
+  }
+
+  function isMountBalanceService(service = getCurrentService()) {
+    return String(service?.id || '').startsWith('mount-balance');
+  }
+
+  function getMountBalanceTireCount(service = getCurrentService()) {
+    const match = String(service?.id || '').match(/^mount-balance-([1-4])$/);
+    return match ? Number(match[1]) : 0;
+  }
+
+  function updateTireSelectorVisibility(service = getCurrentService()) {
+    const canLinkTires = isMountBalanceService(service);
+    if (els.tireSelector) els.tireSelector.hidden = !canLinkTires;
+    if (els.reviewTiresCard) els.reviewTiresCard.hidden = !canLinkTires;
+    updateLinkedTireHint(service);
+
+    if (!canLinkTires && state.selectedTireIds.size) {
+      state.selectedTireIds.clear();
+      renderSavedTireOptions();
+    } else if (canLinkTires) {
+      pruneSelectedTiresToService(service);
+    }
+  }
+
+  function getSelectedTireQuantity(selectedIds = state.selectedTireIds) {
+    return state.savedTires
+      .filter((item) => selectedIds.has(String(item.inventoryId)))
+      .reduce((sum, item) => sum + (Number(item.qty) || 1), 0);
+  }
+
+  function updateLinkedTireHint(service = getCurrentService()) {
+    if (!els.linkedTireHint || !isMountBalanceService(service)) return;
+    const count = getServiceTireCount(service);
+    els.linkedTireHint.textContent = `If you link tires from your cart, select a total of ${count} tire${count === 1 ? '' : 's'} to match this appointment.`;
+  }
+
+  function pruneSelectedTiresToService(service = getCurrentService()) {
+    const limit = getServiceTireCount(service);
+    if (!limit || getSelectedTireQuantity() <= limit) return;
+
+    const nextSelection = new Set();
+    let runningQty = 0;
+    state.savedTires.forEach((item) => {
+      if (!state.selectedTireIds.has(String(item.inventoryId))) return;
+      const qty = Number(item.qty) || 1;
+      if (runningQty + qty > limit) return;
+      nextSelection.add(String(item.inventoryId));
+      runningQty += qty;
+    });
+    state.selectedTireIds = nextSelection;
+    renderSavedTireOptions();
+  }
+
+  function getLinkedTireMismatchMessage(service = getCurrentService()) {
+    if (!isMountBalanceService(service) || !state.selectedTireIds.size) return '';
+    const needed = getServiceTireCount(service);
+    const selectedQty = getSelectedTireQuantity();
+    if (selectedQty === needed) return '';
+    if (selectedQty > needed) {
+      return `This appointment is for ${needed} tire${needed === 1 ? '' : 's'}. Linked cart tires currently total ${selectedQty}.`;
+    }
+    return `Select ${needed - selectedQty} more tire${needed - selectedQty === 1 ? '' : 's'} from your cart so the linked quantity matches this appointment.`;
+  }
+
+  function validateLinkedTireQuantity() {
+    const message = getLinkedTireMismatchMessage();
+    if (!message) return true;
+    showAppointmentMessage(message, 'error');
+    return false;
   }
 
   function updateFromSelectedService() {
     const service = getCurrentService();
     console.log('[EastCord appointment automation] Service changed:', service);
     updateServicePricing(service);
+    if (isMountBalanceService(service)) applySelectedTiresToForm();
     showAppointmentMessage('', 'info');
   }
 
@@ -258,6 +363,7 @@
   }
 
   function getSelectedTires() {
+    if (!isMountBalanceService()) return [];
     return state.savedTires.filter((item) => state.selectedTireIds.has(String(item.inventoryId)));
   }
 
@@ -268,8 +374,11 @@
 
   function getSelectedTiresSummary() {
     const selected = getSelectedTires();
-    if (!selected.length) return 'No saved tires selected';
-    return selected.map(formatSavedTireLabel).join(', ');
+    const needed = getServiceTireCount();
+    if (!selected.length) return `No saved tires selected. This appointment is for ${needed} tire${needed === 1 ? '' : 's'}.`;
+    const selectedQty = getSelectedTireQuantity();
+    if (selectedQty === needed) return selected.map(formatSavedTireLabel).join(', ');
+    return `${selected.map(formatSavedTireLabel).join(', ')} — ${selectedQty} of ${needed} tires selected`;
   }
 
   function applySelectedTiresToForm() {
@@ -277,12 +386,8 @@
     if (!selected.length || !els.appointmentForm) return;
 
     const sizes = [...new Set(selected.map((item) => String(item.size || '').trim()).filter(Boolean))];
-    const totalQty = Math.min(4, selected.reduce((sum, item) => sum + (Number(item.qty) || 1), 0));
     const sizeField = els.appointmentForm.elements.namedItem('Tire Size');
-    const qtyField = els.appointmentForm.elements.namedItem('Number of Tires');
-
     if (sizeField && sizes.length === 1) sizeField.value = sizes[0];
-    if (qtyField && totalQty) qtyField.value = String(totalQty);
   }
 
   function renderSavedTireOptions() {
@@ -653,6 +758,10 @@
       return false;
     }
 
+    if (stepIndex === 0 && !validateLinkedTireQuantity()) {
+      return false;
+    }
+
     const controls = getStepControls(stepIndex);
     applyCustomRequiredMessages(controls);
     const firstInvalid = controls.find((control) => !control.checkValidity());
@@ -740,6 +849,7 @@
         ])
         : 'Not entered yet';
     }
+    if (els.reviewTiresCard) els.reviewTiresCard.hidden = !isMountBalanceService(service);
     if (els.reviewTires) {
       els.reviewTires.textContent = getSelectedTiresSummary();
     }
@@ -807,9 +917,7 @@
 
     if (!draft || !els.appointmentForm) return false;
 
-    if (els.serviceSelect && draft.serviceId) {
-      els.serviceSelect.value = draft.serviceId;
-    }
+    if (draft.serviceId) setSelectedService(draft.serviceId);
 
     Object.entries(draft.fields || {}).forEach(([name, value]) => {
       const field = els.appointmentForm.elements.namedItem(name);
@@ -893,6 +1001,11 @@
 
     if (!validateAllSteps()) {
       showAppointmentMessage('Please complete all required appointment fields before adding to cart.');
+      return;
+    }
+
+    if (!validateLinkedTireQuantity()) {
+      showStep(0);
       return;
     }
 
@@ -995,11 +1108,31 @@
     els.tireOptions?.addEventListener('change', (event) => {
       const checkbox = event.target.closest('[data-appointment-tire-id]');
       if (!checkbox) return;
+      if (!isMountBalanceService()) {
+        checkbox.checked = false;
+        updateTireSelectorVisibility();
+        return;
+      }
+
       const tireId = String(checkbox.dataset.appointmentTireId);
-      if (checkbox.checked) state.selectedTireIds.add(tireId);
-      else state.selectedTireIds.delete(tireId);
+      if (checkbox.checked) {
+        const nextSelection = new Set(state.selectedTireIds);
+        nextSelection.add(tireId);
+        const needed = getServiceTireCount();
+        const nextQty = getSelectedTireQuantity(nextSelection);
+        if (needed && nextQty > needed) {
+          checkbox.checked = false;
+          showAppointmentMessage(`This appointment is for ${needed} tire${needed === 1 ? '' : 's'}. Linked cart tires must match that number.`, 'error');
+          return;
+        }
+        state.selectedTireIds.add(tireId);
+      } else {
+        state.selectedTireIds.delete(tireId);
+      }
       applySelectedTiresToForm();
       updateReviewSummary(state.currentService || getCurrentService());
+      const mismatch = getLinkedTireMismatchMessage();
+      showAppointmentMessage(mismatch, mismatch ? 'error' : 'success');
     });
     els.appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
 

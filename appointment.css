@@ -210,7 +210,15 @@ label:has(input[name="bot-field"]) {
   font-weight: 800;
 }
 
-.form-field-full { grid-column: 1 / -1; }
+.form-field input[readonly] {
+  background: #f5f6f8;
+  color: #333840;
+  cursor: default;
+}
+
+.form-field[hidden] {
+  display: none !important;
+}
 
 .form-field input,
 .form-field select,
@@ -267,6 +275,11 @@ label:has(input[name="bot-field"]) {
   width: fit-content;
   color: #ba151b;
   font-weight: 800;
+}
+
+.appointment-tire-selector[hidden],
+.appointment-review-card[hidden] {
+  display: none;
 }
 
 .appointment-tire-selector {

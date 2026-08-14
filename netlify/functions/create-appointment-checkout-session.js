@@ -274,6 +274,41 @@ function buildBookingRecord({ booking, customer, service, amounts, verifiedUser 
   };
 }
 
+function extractMissingColumnName(error) {
+  const message = String(error?.message || error?.details || '');
+  const schemaCacheMatch = message.match(/could not find the '([^']+)' column/i);
+  if (schemaCacheMatch) return schemaCacheMatch[1];
+  const postgresMatch = message.match(/column "([^"]+)" of relation/i);
+  if (postgresMatch) return postgresMatch[1];
+  return '';
+}
+
+async function insertBookingRecord(supabaseAdmin, record, selectColumns) {
+  const row = { ...record };
+  const strippedColumns = new Set();
+
+  while (Object.keys(row).length) {
+    const result = await supabaseAdmin
+      .from('appointment_bookings')
+      .insert(row)
+      .select(selectColumns)
+      .single();
+
+    if (!result.error) return result;
+
+    const missingColumn = extractMissingColumnName(result.error);
+    if (!missingColumn || !(missingColumn in row) || strippedColumns.has(missingColumn)) {
+      return result;
+    }
+
+    delete row[missingColumn];
+    strippedColumns.add(missingColumn);
+    console.warn('[EastCord appointment automation] appointment_bookings missing column; retrying without it.', missingColumn);
+  }
+
+  return { data: null, error: { message: 'No remaining booking columns to save.' } };
+}
+
 async function getVerifiedUser(event, supabaseAdmin) {
   if (!supabaseAdmin) return null;
 
@@ -323,11 +358,11 @@ async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifi
   const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: false, reason: 'booking_id_not_found_repairing' });
   console.warn('[EastCord appointment automation] Booking id was not found; creating repair row before checkout.', diagnostics);
 
-  const { data: repairedRow, error: repairError } = await supabaseAdmin
-    .from('appointment_bookings')
-    .insert(buildBookingRecord({ booking, customer, service, amounts, verifiedUser }))
-    .select('id, customer_id, payment_status')
-    .single();
+  const { data: repairedRow, error: repairError } = await insertBookingRecord(
+    supabaseAdmin,
+    buildBookingRecord({ booking, customer, service, amounts, verifiedUser }),
+    'id, customer_id, payment_status'
+  );
 
   if (repairError || !repairedRow) {
     const repairDiagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError: repairError, rowFound: false, reason: 'booking_repair_insert_failed_checkout_allowed' });

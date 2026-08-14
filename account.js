@@ -427,9 +427,22 @@ function isDuplicateKeyError(error) {
   return error?.code === '23505' || String(error?.message || '').toLowerCase().includes('duplicate key');
 }
 
+function extractMissingColumnName(error) {
+  const message = String(error?.message || error?.details || '');
+  const schemaCacheMatch = message.match(/could not find the '([^']+)' column/i);
+  if (schemaCacheMatch) return schemaCacheMatch[1];
+  const postgresMatch = message.match(/column "([^"]+)" of relation/i);
+  if (postgresMatch) return postgresMatch[1];
+  return '';
+}
+
 function isMissingColumnError(error, columnName) {
-  const message = String(error?.message || '').toLowerCase();
-  return error?.code === '42703' && message.includes(columnName.toLowerCase());
+  const message = String(error?.message || error?.details || '').toLowerCase();
+  const code = String(error?.code || '');
+  const isColumnError = code === '42703' || code === 'PGRST204' || message.includes('schema cache') || /column ".+" of relation/.test(message);
+  if (!isColumnError) return false;
+  if (!columnName) return true;
+  return message.includes(columnName.toLowerCase());
 }
 
 function profileSaveErrorMessage(error) {
@@ -576,20 +589,56 @@ function buildBookingRecord(item, profile) {
   };
 }
 
+function bookingSaveErrorMessage(error) {
+  const message = String(error?.message || '').toLowerCase();
+  if (message.includes('row-level security') || error?.code === '42501') {
+    return 'Booking details could not be saved because your account is not allowed to create this booking. Please log out, log back in, and try again.';
+  }
+  if (error?.code === 'PGRST205' || (message.includes('could not find the table') && message.includes('appointment_bookings'))) {
+    return 'Booking details could not be saved because the appointment bookings table is not set up yet.';
+  }
+  if (error?.code === '23502') {
+    return 'Booking details could not be saved because a required field is missing. Please complete the appointment form and try again.';
+  }
+  return 'Booking details could not be saved right now. Please try again shortly.';
+}
+
+async function insertAppointmentBooking(client, record) {
+  const row = { ...record };
+  const strippedColumns = new Set();
+
+  while (Object.keys(row).length) {
+    const result = await client
+      .from('appointment_bookings')
+      .insert(row)
+      .select('id')
+      .single();
+
+    if (!result.error) return result;
+
+    const missingColumn = extractMissingColumnName(result.error);
+    if (!missingColumn || !(missingColumn in row) || strippedColumns.has(missingColumn)) {
+      return result;
+    }
+
+    delete row[missingColumn];
+    strippedColumns.add(missingColumn);
+    console.info('[EastCord appointment automation] appointment_bookings missing column; retrying without it.', missingColumn);
+  }
+
+  return { data: null, error: { message: 'No remaining booking columns to save.' } };
+}
+
 async function saveAppointmentBooking(item, profile) {
   const client = getSupabaseClient();
   if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
   if (!profile?.customerId) throw new Error('Please sign up or log in before booking.');
 
-  const { data, error } = await client
-    .from('appointment_bookings')
-    .insert(buildBookingRecord(item, profile))
-    .select('id')
-    .single();
+  const { data, error } = await insertAppointmentBooking(client, buildBookingRecord(item, profile));
 
   if (error) {
     logSupabaseError('appointment_bookings insert failed.', error);
-    throw new Error('Booking details could not be saved right now. Please try again shortly.');
+    throw new Error(bookingSaveErrorMessage(error));
   }
   return data.id;
 }
@@ -601,7 +650,7 @@ async function getCustomerBookings() {
 
   const { data, error } = await client
     .from('appointment_bookings')
-    .select('id, service_name, preferred_date, preferred_time_window, city, tire_size, vehicle_year, vehicle_make, vehicle_model, vehicle_plate_number, vehicle_colour, service_subtotal, hst_amount, total_with_hst, deposit_amount, remaining_balance, booking_status, payment_status, created_at')
+    .select('*')
     .eq('customer_id', profile.customerId)
     .order('created_at', { ascending: false });
 

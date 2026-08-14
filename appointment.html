@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=3" />
-    <link rel="stylesheet" href="appointment.css?v=18" />
+    <link rel="stylesheet" href="appointment.css?v=22" />
     <link rel="stylesheet" href="account.css?v=2" />
     <link rel="stylesheet" href="chat.css" />
   </head>
@@ -120,9 +120,9 @@
                   <option value="mount-balance-4" data-service-name="Mount &amp; Balance - 4 Tires" data-price="100">Mount &amp; Balance - 4 Tires - Starting price $100</option>
                 </select>
               </label>
-              <fieldset class="appointment-tire-selector">
-                <legend>Tires for this appointment (optional)</legend>
-                <p>Select tires from your saved tire cart if this appointment is for their installation.</p>
+              <fieldset class="appointment-tire-selector" data-appointment-tire-selector hidden>
+                <legend>Link your tires</legend>
+                <p data-linked-tire-hint>If you link tires from your cart, select the same number of tires as this Mount &amp; Balance appointment.</p>
                 <div class="appointment-tire-options" data-appointment-tire-options>
                   <p>Checking your saved tire cart...</p>
                 </div>
@@ -148,8 +148,19 @@
                 <label class="form-field"><span>Vehicle Plate Number</span><input name="Vehicle Plate Number" type="text" placeholder="ABCD 123" required /></label>
                 <label class="form-field"><span>Vehicle Colour</span><input name="Vehicle Colour" type="text" placeholder="Black, White, Silver, Red, Blue, etc." required /></label>
                 <label class="form-field"><span>Tire size</span><input name="Tire Size" type="text" placeholder="Example: 225/60R17" required /></label>
-                <label class="form-field"><span>Are tires already on rims?</span><select name="Tires Already On Rims" required><option value="">Select one</option><option value="Yes">Yes</option><option value="No">No</option><option value="Not sure">Not sure</option></select></label>
-                <label class="form-field"><span>Number of tires</span><input name="Number of Tires" type="number" inputmode="numeric" min="1" max="4" placeholder="4" required /></label>
+                <label class="form-field" data-rims-field hidden>
+                  <span>Are tires already on rims?</span>
+                  <select name="Tires Already On Rims" required>
+                    <option value="">Select one</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                    <option value="Not sure">Not sure</option>
+                  </select>
+                </label>
+                <label class="form-field" data-tire-count-field>
+                  <span>Number of tires</span>
+                  <input name="Number of Tires" type="number" inputmode="numeric" min="1" max="4" value="4" required readonly />
+                </label>
               </div>
               <label class="form-field form-field-full"><span>Additional notes</span><textarea name="Additional Notes" rows="4" placeholder="Tire condition, special instructions, or anything else EastCord should know."></textarea></label>
               <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next: Location</button></div>
@@ -185,7 +196,7 @@
                 <div class="appointment-review-card"><span>Vehicle</span><strong data-review-vehicle>Not entered yet</strong></div>
                 <div class="appointment-review-card"><span>Location</span><strong data-review-location>Not entered yet</strong></div>
                 <div class="appointment-review-card"><span>Date &amp; Time</span><strong data-review-date>Not entered yet</strong></div>
-                <div class="appointment-review-card"><span>Saved Tires</span><strong data-review-tires>No saved tires selected</strong></div>
+                <div class="appointment-review-card" data-review-tires-card hidden><span>Linked Tires</span><strong data-review-tires>No saved tires selected</strong></div>
                 <div class="appointment-review-card"><span>Deposit</span><strong data-review-price>Due today: $9.04<br>Remaining on-site: $36.16</strong></div>
               </div>
               <div class="checkout-block" data-login-required-block hidden><strong>Please sign up or log in before adding this appointment to cart.</strong><div class="account-actions"><a class="button button-primary" href="/login.html">Log In</a><a class="button button-secondary" href="/signup.html">Create Account</a></div></div>
@@ -200,7 +211,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=17"></script>
-    <script src="appointment.js?v=37" defer></script>
+    <script src="account.js?v=18"></script>
+    <script src="appointment.js?v=42" defer></script>
   </body>
 </html>

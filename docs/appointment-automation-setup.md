@@ -44,7 +44,20 @@ Run this SQL in Supabase SQL Editor:
 Tables used:
 
 - `public.customer_profiles`
+- `public.customer_carts`
 - `public.appointment_bookings`
+
+If the bookings table already exists from an earlier run, re-run `supabase/appointment-automation-schema.sql` so these newer columns are added:
+
+```sql
+alter table public.appointment_bookings
+  add column if not exists service_subtotal numeric(10,2),
+  add column if not exists hst_amount numeric(10,2),
+  add column if not exists total_with_hst numeric(10,2),
+  add column if not exists tax_rate numeric(6,4),
+  add column if not exists vehicle_plate_number text,
+  add column if not exists vehicle_colour text;
+```
 
 For stronger duplicate-email protection on Stripe webhook retries, also run:
 
