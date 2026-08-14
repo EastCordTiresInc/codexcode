@@ -1051,7 +1051,6 @@ async function hydrateTireCardPhotos(list) {
 
 async function loadCardPhotos(gallery) {
   const folderId = gallery.dataset.folderId;
-  const driveUrl = gallery.dataset.driveUrl || '';
   const track = gallery.querySelector('.used-tire-card-photo-track');
   const controls = gallery.querySelector('.used-tire-card-photo-controls');
   if (!folderId || !track) return;
@@ -1061,13 +1060,12 @@ async function loadCardPhotos(gallery) {
     gallery.classList.remove('is-loading');
 
     if (!photos.length) {
-      if (controls) controls.hidden = true;
-      track.innerHTML = renderPhotoFallback(driveUrl, 'Photos could not be loaded.');
+      hidePhotoGallery(gallery);
       return;
     }
 
     track.innerHTML = renderPhotoSlides(photos);
-    bindPhotoImages(track, driveUrl);
+    bindPhotoImages(track);
 
     gallery.classList.toggle('has-multiple-photos', photos.length > 1);
 
@@ -1079,9 +1077,7 @@ async function loadCardPhotos(gallery) {
     }
   } catch (error) {
     console.warn('[EastCord inventory] Could not load tire photos.', error);
-    gallery.classList.remove('is-loading');
-    if (controls) controls.hidden = true;
-    track.innerHTML = renderPhotoFallback(driveUrl, 'Photos could not be loaded.');
+    hidePhotoGallery(gallery);
   }
 }
 
@@ -1161,7 +1157,13 @@ function renderPhotoSlides(photos) {
   }).join('');
 }
 
-function bindPhotoImages(track, driveUrl) {
+function hidePhotoGallery(gallery) {
+  if (!gallery) return;
+  gallery.classList.remove('is-loading');
+  gallery.hidden = true;
+}
+
+function bindPhotoImages(track) {
   track.querySelectorAll('img[data-photo-id]').forEach((img) => {
     const photoId = img.dataset.photoId;
     const sources = buildPhotoSources({
@@ -1177,23 +1179,20 @@ function bindPhotoImages(track, driveUrl) {
         return;
       }
 
+      const gallery = img.closest('[data-tire-photos]');
       const slide = img.closest('.used-tire-card-photo-slide');
       if (!slide) return;
-      slide.classList.remove('is-active');
-      slide.classList.add('is-error', 'is-active');
-      slide.innerHTML = renderSlideErrorContent(driveUrl, 'Photo preview unavailable.');
+      slide.remove();
+
+      const remaining = gallery?.querySelectorAll('.used-tire-card-photo-slide img') || [];
+      if (!remaining.length) {
+        hidePhotoGallery(gallery);
+        return;
+      }
+
+      remaining[0].closest('.used-tire-card-photo-slide')?.classList.add('is-active');
     });
   });
-}
-
-function renderSlideErrorContent(driveUrl, message) {
-  const link = driveUrl
-    ? `<a class="used-tire-card-photo-folder-link" href="${escapeHtml(driveUrl)}" target="_blank" rel="noopener noreferrer">Open photos in Google Drive</a>`
-    : '';
-  return `
-    <span class="used-tire-card-photo-status">${escapeHtml(message)}</span>
-    ${link}
-  `;
 }
 
 function getGoogleApiKey() {
@@ -1294,18 +1293,6 @@ async function fetchFromPhotoServer(folderId) {
   }
 
   return [];
-}
-
-function renderPhotoFallback(driveUrl, message) {
-  const link = driveUrl
-    ? `<a class="used-tire-card-photo-folder-link" href="${escapeHtml(driveUrl)}" target="_blank" rel="noopener noreferrer">Open photos in Google Drive</a>`
-    : '';
-  return `
-    <div class="used-tire-card-photo-slide is-placeholder is-active">
-      <span class="used-tire-card-photo-status">${escapeHtml(message)}</span>
-      ${link}
-    </div>
-  `;
 }
 
 async function fetchDrivePhotos(folderId) {
