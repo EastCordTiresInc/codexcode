@@ -246,7 +246,8 @@ async function loadCustomerCart(cartType, localItems = []) {
 
   const remoteItems = normalizeCustomerCartItems(data?.items);
   const localCartOwner = localStorage.getItem(getCustomerCartOwnerKey(cartType));
-  const mergedItems = data && localCartOwner === user.id
+  const belongsToOtherUser = Boolean(localCartOwner && localCartOwner !== user.id);
+  const mergedItems = belongsToOtherUser
     ? remoteItems
     : mergeCustomerCartItems(cartType, remoteItems, normalizedLocalItems);
   if (!data || JSON.stringify(mergedItems) !== JSON.stringify(remoteItems)) {
@@ -722,6 +723,7 @@ async function signInCustomer({ email, password }) {
 
   const profile = profileFromUser(data?.user);
   if (profile) await upsertCustomerProfile(profile);
+  await hydrateSignedInCarts();
   return data;
 }
 
@@ -922,18 +924,85 @@ function getLocalUsedTireCart() {
     .filter((item) => item.type === 'used_tire' && item.inventoryId);
 }
 
+let accountCartsHydrated = false;
+let accountCartHydratePromise = null;
+
+async function hydrateSignedInCarts() {
+  if (accountCartHydratePromise) return accountCartHydratePromise;
+
+  accountCartHydratePromise = (async () => {
+    const user = await getCurrentUser();
+    if (!user) {
+      accountCartHydratePromise = null;
+      accountCartsHydrated = false;
+      return {
+        appointmentCart: getCart(),
+        tireCart: getLocalUsedTireCart(),
+      };
+    }
+
+    const [appointmentCart, tireCart] = await Promise.all([
+      loadCustomerCart('appointment', getCart()),
+      loadCustomerCart('used_tire', getLocalUsedTireCart()),
+    ]);
+
+    localStorage.setItem(CART_KEY, JSON.stringify(normalizeCartCollection(appointmentCart)));
+    localStorage.setItem(ACCOUNT_USED_TIRE_CART_KEY, JSON.stringify(tireCart));
+    accountCartsHydrated = true;
+    updateCartCount();
+    window.dispatchEvent(new CustomEvent('eastcord:account-carts-hydrated', {
+      detail: { appointmentCart, tireCart },
+    }));
+    return { appointmentCart, tireCart };
+  })().catch((error) => {
+    accountCartHydratePromise = null;
+    accountCartsHydrated = false;
+    throw error;
+  });
+
+  return accountCartHydratePromise;
+}
+
+async function persistSignedInCarts() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return;
+
+    if (!accountCartsHydrated) {
+      await hydrateSignedInCarts();
+    }
+
+    await Promise.all([
+      saveCustomerCart('appointment', getCart()),
+      saveCustomerCart('used_tire', getLocalUsedTireCart()),
+    ]);
+  } catch (error) {
+    logDeveloperError('Signed-in carts could not be saved.', error);
+  }
+}
+
+function bindAccountCartPersistence() {
+  hydrateSignedInCarts().catch((error) => {
+    logDeveloperError('Signed-in carts could not be loaded.', error);
+  });
+
+  const persist = () => {
+    persistSignedInCarts();
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') persist();
+  });
+  window.addEventListener('pagehide', persist);
+}
+
 async function hydrateAccountCartSummaries() {
   const appointmentSummary = document.querySelector('[data-account-appointment-cart]');
   const tireSummary = document.querySelector('[data-account-tire-cart]');
   if (!appointmentSummary && !tireSummary) return;
 
   try {
-    const [appointmentCart, tireCart] = await Promise.all([
-      loadCustomerCart('appointment', getCart()),
-      loadCustomerCart('used_tire', getLocalUsedTireCart()),
-    ]);
-    localStorage.setItem(CART_KEY, JSON.stringify(normalizeCartCollection(appointmentCart)));
-    localStorage.setItem(ACCOUNT_USED_TIRE_CART_KEY, JSON.stringify(tireCart));
+    const { appointmentCart, tireCart } = await hydrateSignedInCarts();
 
     if (appointmentSummary) {
       appointmentSummary.textContent = `${appointmentCart.length} appointment${appointmentCart.length === 1 ? '' : 's'} saved`;
@@ -1012,6 +1081,8 @@ window.EastCordAccount = {
   saveCart,
   loadCustomerCart,
   saveCustomerCart,
+  persistSignedInCarts,
+  hydrateSignedInCarts,
   clearCustomerCart,
   mergeCustomerCartItems,
   clearCart,
@@ -1027,6 +1098,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindAuthForms();
   bindLogoutButtons();
   bindCartClearButtons();
+  bindAccountCartPersistence();
   hydrateAccountPage();
   updateAuthNavigation();
 });

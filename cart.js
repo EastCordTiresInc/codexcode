@@ -638,6 +638,10 @@ function renderCart() {
   hydrateCartProfile();
 }
 
+window.addEventListener('eastcord:account-carts-hydrated', () => {
+  renderCartItemsAndTotals();
+});
+
 function removeCartItem(itemId, itemIndex) {
   const currentCart = getCartFromKnownStorage();
   const numericIndex = Number(itemIndex);

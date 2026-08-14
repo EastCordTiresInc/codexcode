@@ -3,8 +3,8 @@ const INVENTORY_SELECT = 'id, tire_size, rim_size, type, brand, current_stock, s
 const STATIC_INVENTORY_URL = '/assets/used-inventory.json';
 const EMPTY_MESSAGE = 'No tires are listed right now. Please contact EastCord Tires for current availability.';
 const SETUP_MESSAGE = 'Inventory is being connected. Supabase credentials are not configured yet.';
-const NO_MATCH_MESSAGE = 'No tires match that size and season. Try different options or contact EastCord Tires.';
-const SOLD_OUT_MESSAGE = 'This size is currently sold out. Please contact EastCord Tires to check availability or ask about similar tires.';
+const NO_MATCH_MESSAGE = 'No tires match that search. Try different options or contact EastCord Tires.';
+const SOLD_OUT_MESSAGE = 'Those tires are currently sold out. Please contact EastCord Tires to check availability or ask about similar tires.';
 const TIRE_CALCULATOR_URL = '/#tire-size-calculator';
 const LOW_STOCK_THRESHOLD = 2;
 const INVENTORY_AUTO_REFRESH_MS = 30000;
@@ -445,7 +445,7 @@ function parseStock(value) {
 }
 
 function bindInventoryControls() {
-  const { form, width, profile, rim } = getElements();
+  const { form, width, profile, rim, brand } = getElements();
 
   form?.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -462,6 +462,10 @@ function bindInventoryControls() {
 
   rim?.addEventListener('change', () => {
     refreshDependentOptions('rim');
+  });
+
+  brand?.addEventListener('change', () => {
+    if (brand.value) runSearch();
   });
 
   document.querySelector('[data-inventory-refresh]')?.addEventListener('click', async (event) => {
@@ -493,7 +497,7 @@ function populateSearchOptions() {
   fillSelect(width, widths, 'Select width');
   fillSelect(profile, uniqueProfiles('', inStock), 'Select profile');
   fillSelect(rim, uniqueRims('', '', inStock), 'Select wheel size');
-  fillSelect(brand, uniqueSorted(inStock.map((item) => item.brand).filter(Boolean)), 'Any brand', true);
+  fillSelect(brand, uniqueSortedText(inStock.map((item) => item.brand).filter(Boolean)), 'Any brand', true);
 }
 
 function refreshDependentOptions(changedField) {
@@ -539,16 +543,20 @@ function isInStock(item) {
   return (Number(item?.stock) || 0) > 0;
 }
 
-function matchesSearchFilters(item, filters) {
-  if (item.width !== filters.width) return false;
-  if (item.profile !== filters.profile) return false;
-  if (item.rim !== filters.rim) return false;
+function brandsMatch(left, right) {
+  return clean(left).toLowerCase() === clean(right).toLowerCase();
+}
 
-  if (filters.season !== 'all' && item.seasonKey && item.seasonKey !== filters.season) {
+function matchesSearchFilters(item, filters) {
+  if (filters.width && item.width !== filters.width) return false;
+  if (filters.profile && item.profile !== filters.profile) return false;
+  if (filters.rim && item.rim !== filters.rim) return false;
+
+  if (filters.season && filters.season !== 'all' && item.seasonKey && item.seasonKey !== filters.season) {
     return false;
   }
 
-  if (filters.brand && item.brand !== filters.brand) {
+  if (filters.brand && !brandsMatch(item.brand, filters.brand)) {
     return false;
   }
 
@@ -557,6 +565,10 @@ function matchesSearchFilters(item, filters) {
 
 function uniqueSorted(values) {
   return [...new Set(values)].sort((a, b) => Number(a) - Number(b));
+}
+
+function uniqueSortedText(values) {
+  return [...new Set(values)].sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
 }
 
 function formatProfileOption(value) {
@@ -591,42 +603,73 @@ function fillSelect(select, values, placeholder, allowEmpty = false) {
   }
 }
 
-function runSearch() {
+function getSearchFilters() {
   const { width, profile, rim, season, brand } = getElements();
+  return {
+    width: width?.value || '',
+    profile: profile?.value || '',
+    rim: rim?.value || '',
+    season: season?.value || '',
+    brand: brand?.value || '',
+  };
+}
 
-  if (!width?.value || !profile?.value || !rim?.value || !season?.value) {
+function hasCompleteSize(filters) {
+  return Boolean(filters.width && filters.profile && filters.rim);
+}
+
+function formatSearchSummary(filters) {
+  const { season, brand } = getElements();
+  const parts = [];
+
+  if (hasCompleteSize(filters)) {
+    parts.push(`${filters.width}/${filters.profile}R${filters.rim}`);
+  }
+
+  if (filters.brand) {
+    parts.push(brand?.selectedOptions?.[0]?.textContent || formatBrandLabel(filters.brand));
+  }
+
+  if (filters.season === 'all') {
+    parts.push('any season');
+  } else if (filters.season) {
+    parts.push(season?.selectedOptions?.[0]?.textContent?.toLowerCase() || filters.season);
+  }
+
+  return parts.join(' · ');
+}
+
+function runSearch() {
+  const selected = getSearchFilters();
+  const completeSize = hasCompleteSize(selected);
+  const filters = completeSize
+    ? selected
+    : { ...selected, width: '', profile: '', rim: '' };
+
+  if (!completeSize && !filters.brand) {
     showResultsSection();
-    renderSearchMessage('Please select width, profile, wheel size, and season to search.');
+    renderSearchMessage('Please select a brand, or choose width, profile, and wheel size to search.');
     return;
   }
 
   searchPerformed = true;
   showResultsSection();
 
-  const filters = {
-    width: width.value,
-    profile: profile.value,
-    rim: rim.value,
-    season: season.value,
-    brand: brand?.value || '',
-  };
-  const sizeLabel = `${width.value}/${profile.value}R${rim.value}`;
-  const seasonLabel = season.value === 'all' ? 'any season' : season.selectedOptions?.[0]?.textContent?.toLowerCase() ?? '';
-
+  const summary = formatSearchSummary(filters);
   const matching = inventory.filter((item) => matchesSearchFilters(item, filters));
   lastResults = matching.filter(isInStock);
 
   if (!lastResults.length && matching.some((item) => !isInStock(item))) {
-    renderSoldOutMessage(sizeLabel, seasonLabel);
+    renderSoldOutMessage(summary);
     return;
   }
 
-  renderResults(lastResults);
+  renderResults(lastResults, summary);
 }
 
-function renderSoldOutMessage(sizeLabel, seasonLabel) {
+function renderSoldOutMessage(summary) {
   const { list, status } = getElements();
-  const detail = `${sizeLabel}${seasonLabel ? ` (${seasonLabel})` : ''}`;
+  const detail = summary || 'that search';
 
   if (status) {
     status.textContent = `Sold out for ${detail}.`;
@@ -680,8 +723,8 @@ function renderInventoryEmptyState(message, options = {}) {
   `;
 }
 
-function renderResults(products) {
-  const { list, status, width, profile, rim, season } = getElements();
+function renderResults(products, summary = formatSearchSummary(getSearchFilters())) {
+  const { list, status } = getElements();
 
   if (!inventoryLoaded) {
     renderSearchMessage('Loading inventory...');
@@ -698,12 +741,9 @@ function renderResults(products) {
     return;
   }
 
-  const sizeLabel = `${width?.value}/${profile?.value}R${rim?.value}`;
-  const seasonLabel = season?.value === 'all' ? 'any season' : season?.selectedOptions?.[0]?.textContent?.toLowerCase() ?? '';
-
   if (!products.length) {
     if (status) {
-      status.textContent = `No matches for ${sizeLabel}${seasonLabel ? ` (${seasonLabel})` : ''}.`;
+      status.textContent = `No matches for ${summary || 'that search'}.`;
       status.dataset.statusType = 'info';
     }
     if (list) {
@@ -713,7 +753,7 @@ function renderResults(products) {
   }
 
   if (status) {
-    status.textContent = `${products.length} match${products.length === 1 ? '' : 'es'} for ${sizeLabel}${seasonLabel ? ` (${seasonLabel})` : ''}.`;
+    status.textContent = `${products.length} match${products.length === 1 ? '' : 'es'} for ${summary}.`;
     status.dataset.statusType = 'success';
   }
 
@@ -728,6 +768,7 @@ function renderResults(products) {
 
 function renderUsedTireCard(item) {
   const brandLabel = formatBrandLabel(item.brand);
+  const brandSlug = getBrandLogoSlug(item.brand);
   const brandLogo = getBrandLogoPath(item.brand);
   const seasonLabel = formatSeasonLabel(item.season);
   const stockCount = Math.max(0, Number(item.stock) || 0);
@@ -748,7 +789,7 @@ function renderUsedTireCard(item) {
     <article class="used-tire-card${stockCount ? '' : ' is-sold-out'}">
       <div class="used-tire-card-brand">
         ${brandLogo
-    ? `<img src="${escapeHtml(brandLogo)}" alt="${escapeHtml(brandLabel)}" loading="lazy" />`
+    ? `<img src="${escapeHtml(brandLogo)}" alt="${escapeHtml(brandLabel)}" data-brand="${escapeHtml(brandSlug)}" loading="lazy" />`
     : `<span>${escapeHtml(brandLabel)}</span>`}
       </div>
 
@@ -1524,7 +1565,7 @@ function formatSeasonLabel(season) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function getBrandLogoPath(brand) {
+function getBrandLogoSlug(brand) {
   const normalized = formatBrandLabel(brand).toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const map = {
     bridgestone: 'bridgestone',
@@ -1538,8 +1579,12 @@ function getBrandLogoPath(brand) {
     'general-tire': 'general-tire',
   };
 
-  const slug = map[normalized];
-  return slug ? `/assets/brands/${slug}.svg` : null;
+  return map[normalized] || '';
+}
+
+function getBrandLogoPath(brand) {
+  const slug = getBrandLogoSlug(brand);
+  return slug ? `/assets/brands/${slug}.svg?v=3` : null;
 }
 
 function isPhotoLink(value) {

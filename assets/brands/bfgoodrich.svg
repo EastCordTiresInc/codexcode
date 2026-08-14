@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 72" role="img" aria-label="BFGoodrich">
-  <rect width="240" height="72" fill="transparent"/>
-  <text x="120" y="44" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="22" font-weight="700" fill="#005eb8">BFGoodrich</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-label="BFGOODRICH">
+  <text x="110" y="38" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="30" font-weight="700" fill="#005eb8">BFGOODRICH</text>
 </svg>

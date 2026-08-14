@@ -26,12 +26,10 @@ function readTireCart() {
 function saveTireCart() {
   localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(tireCart));
   updateCartCount();
-  if (currentProfile) {
-    window.EastCordAccount?.saveCustomerCart?.('used_tire', tireCart).catch((error) => {
-      console.warn('[EastCord tire cart] Account cart sync failed.', error);
-      if (cartMessageEl) cartMessageEl.textContent = error.message;
-    });
-  }
+  window.EastCordAccount?.saveCustomerCart?.('used_tire', tireCart).catch((error) => {
+    console.warn('[EastCord tire cart] Account cart sync failed.', error);
+    if (cartMessageEl) cartMessageEl.textContent = error.message;
+  });
 }
 
 function updateCartCount() {
@@ -285,5 +283,12 @@ async function initTireCart() {
   await refreshCartAvailability();
   renderTireCart();
 }
+
+window.addEventListener('eastcord:account-carts-hydrated', (event) => {
+  if (Array.isArray(event.detail?.tireCart)) {
+    tireCart = event.detail.tireCart;
+    renderTireCart();
+  }
+});
 
 initTireCart();

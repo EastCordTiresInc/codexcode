@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 const indexPath = 'index.html';
-const index = fs.readFileSync(indexPath, 'utf8');
+const index = fs.readFileSync(indexPath, 'utf8').replace(/\r\n/g, '\n');
 
 const brandSection = `      <section class="popular-brands section" id="tire-brands" aria-labelledby="tire-brands-title">
         <div class="shell popular-brands-shell">
@@ -56,7 +56,7 @@ const brandSection = `      <section class="popular-brands section" id="tire-bra
       </section>`;
 
 let output = index.replace(
-  /      <section class="popular-brands section" id="tire-brands" aria-labelledby="tire-brands-title">[\s\S]*?      <\/section>\n\n      <section class="tire-calculator section"/,
+  /      <section class="popular-brands section" id="tire-brands" aria-labelledby="tire-brands-title">[\s\S]*?      <\/section>\r?\n\r?\n      <section class="tire-calculator section"/,
   `${brandSection}\n\n      <section class="tire-calculator section"`,
 );
 

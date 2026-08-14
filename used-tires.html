@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=3" />
     <link rel="stylesheet" href="auth.css" />
-    <link rel="stylesheet" href="used-tires.css?v=20" />
+    <link rel="stylesheet" href="used-tires.css?v=22" />
   </head>
   <body class="used-tires-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -47,7 +47,7 @@
         <div class="shell">
           <div class="used-tires-hero-card">
             <h1>Search Used Tires</h1>
-            <p>Find live used tire inventory from EastCord Tires by tire size and season. Results come directly from our Supabase inventory database.</p>
+            <p>Find live used tire inventory from EastCord Tires by tire size, season, or brand. Results come directly from our Supabase inventory database.</p>
           </div>
         </div>
       </section>
@@ -67,46 +67,39 @@
 
                   <div class="used-search-fields">
                     <label class="used-search-field">
-                      <span>Width <em>*</em></span>
-                      <select id="inventory-width" name="width" required>
+                      <span>Width</span>
+                      <select id="inventory-width" name="width">
                         <option value="">Select width</option>
                       </select>
                     </label>
                     <label class="used-search-field">
-                      <span>Profile <em>*</em></span>
-                      <select id="inventory-profile" name="profile" required>
+                      <span>Profile</span>
+                      <select id="inventory-profile" name="profile">
                         <option value="">Select profile</option>
                       </select>
                     </label>
                     <label class="used-search-field">
-                      <span>Wheel Size <em>*</em></span>
-                      <select id="inventory-rim" name="rim" required>
+                      <span>Wheel Size</span>
+                      <select id="inventory-rim" name="rim">
                         <option value="">Select wheel size</option>
                       </select>
                     </label>
                     <label class="used-search-field">
-                      <span>Season <em>*</em></span>
-                      <select id="inventory-season" name="season" required>
-                        <option value="">Select season</option>
-                        <option value="all">Any season</option>
+                      <span>Season</span>
+                      <select id="inventory-season" name="season">
+                        <option value="">Any season</option>
                         <option value="all-season">All-season</option>
                         <option value="winter">Winter</option>
                         <option value="summer">Summer</option>
                       </select>
                     </label>
+                    <label class="used-search-field">
+                      <span>Brand</span>
+                      <select id="inventory-brand" name="brand">
+                        <option value="">Any brand</option>
+                      </select>
+                    </label>
                   </div>
-
-                  <details class="used-search-more">
-                    <summary>More options</summary>
-                    <div class="used-search-fields used-search-fields-single">
-                      <label class="used-search-field">
-                        <span>Brand</span>
-                        <select id="inventory-brand" name="brand">
-                          <option value="">Any brand</option>
-                        </select>
-                      </label>
-                    </div>
-                  </details>
 
                   <button class="used-search-submit" type="submit" data-inventory-submit>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
@@ -188,7 +181,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=3"></script>
-    <script src="account.js?v=18"></script>
+    <script src="account.js?v=19"></script>
     <script>
       (function () {
         var status = document.querySelector('[data-inventory-load-status]');
@@ -203,7 +196,7 @@
         });
       })();
     </script>
-    <script src="inventory.js?v=33"></script>
+    <script src="inventory.js?v=37"></script>
     <script src="mobile-menu.js?v=1" defer></script>
   </body>
 </html>
