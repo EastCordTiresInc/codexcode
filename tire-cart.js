@@ -1,18 +1,45 @@
 const USED_TIRE_CART_KEY = 'eastcord_used_tire_cart_v1';
-const TAX_RATE = 0.13;
-const cartItemsEl = document.querySelector('[data-tire-cart-items]');
-const cartTotalEl = document.querySelector('[data-tire-cart-total]');
-const cartHstEl = document.querySelector('[data-tire-cart-hst]');
-const cartGrandTotalEl = document.querySelector('[data-tire-cart-grand-total]');
-const cartMessageEl = document.querySelector('[data-tire-cart-message]');
-const reservationForm = document.querySelector('[data-tire-reservation-form]');
-const reservationSubmit = document.querySelector('[data-tire-reservation-submit]');
-const installationDirections = document.querySelector('[data-installation-directions]');
-const checkoutAuth = document.querySelector('[data-tire-checkout-auth]');
+const TIRE_CART_TAX_RATE = 0.13;
 
-let tireCart = readTireCart();
+let tireCart = [];
 let currentProfile = null;
 let authChecked = false;
+
+function cartItemsEl() {
+  return document.querySelector('[data-tire-cart-items]');
+}
+
+function cartTotalEl() {
+  return document.querySelector('[data-tire-cart-total]');
+}
+
+function cartHstEl() {
+  return document.querySelector('[data-tire-cart-hst]');
+}
+
+function cartGrandTotalEl() {
+  return document.querySelector('[data-tire-cart-grand-total]');
+}
+
+function cartMessageEl() {
+  return document.querySelector('[data-tire-cart-message]');
+}
+
+function reservationForm() {
+  return document.querySelector('[data-tire-reservation-form]');
+}
+
+function reservationSubmit() {
+  return document.querySelector('[data-tire-reservation-submit]');
+}
+
+function installationDirections() {
+  return document.querySelector('[data-installation-directions]');
+}
+
+function checkoutAuth() {
+  return document.querySelector('[data-tire-checkout-auth]');
+}
 
 function readTireCart() {
   try {
@@ -33,18 +60,50 @@ function normalizeTireCart(items) {
     : [];
 }
 
-function saveTireCart() {
+function countTireCart(items = tireCart) {
+  return items.reduce((total, item) => total + (Number(item.qty) || 0), 0);
+}
+
+function adoptStoredTireCart() {
+  const stored = readTireCart();
+  if (!tireCart.length && stored.length) {
+    tireCart = stored;
+  }
+  return tireCart;
+}
+
+function writeTireCart(nextCart, { allowEmpty = false } = {}) {
+  const normalized = normalizeTireCart(nextCart);
+  if (!normalized.length && !allowEmpty) {
+    const stored = readTireCart();
+    if (stored.length) {
+      tireCart = stored;
+      return tireCart;
+    }
+    if (tireCart.length) return tireCart;
+  }
+  tireCart = normalized;
   localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(tireCart));
+  return tireCart;
+}
+
+function saveTireCart() {
+  writeTireCart(tireCart, { allowEmpty: !tireCart.length });
   updateCartCount();
-  window.EastCordAccount?.saveCustomerCart?.('used_tire', tireCart).catch((error) => {
+  window.EastCordAccount?.notifyUsedTireCartChanged?.(tireCart);
+  window.EastCordAccount?.saveCustomerCart?.('used_tire', tireCart, { allowEmpty: !tireCart.length }).catch((error) => {
     console.warn('[EastCord tire cart] Account cart sync failed.', error);
-    if (cartMessageEl) cartMessageEl.textContent = error.message;
+    const messageEl = cartMessageEl();
+    if (messageEl) messageEl.textContent = error.message;
   });
 }
 
 function updateCartCount() {
-  const count = tireCart.reduce((total, item) => total + (Number(item.qty) || 0), 0);
-  document.querySelectorAll('[data-cart-count]').forEach((element) => {
+  const count = countTireCart(adoptStoredTireCart());
+  if (window.EastCordAccount?.updateCartCount) {
+    window.EastCordAccount.updateCartCount();
+  }
+  document.querySelectorAll('[data-tire-cart-count]').forEach((element) => {
     element.textContent = count ? ` (${count})` : '';
   });
 }
@@ -80,7 +139,7 @@ function roundMoney(value) {
 
 function getCartTotals() {
   const subtotal = roundMoney(getCartSubtotal());
-  const hstAmount = roundMoney(subtotal * TAX_RATE);
+  const hstAmount = roundMoney(subtotal * TIRE_CART_TAX_RATE);
   return {
     subtotal,
     hstAmount,
@@ -96,16 +155,37 @@ function renderQuantityOptions(item) {
   }).join('');
 }
 
+function getPricing() {
+  return window.EastCordUsedTirePricing || {
+    isMarkdownStock(stock) {
+      const count = Math.max(0, Number(stock) || 0);
+      return count > 0 && count < 4;
+    },
+    getUsedTireUnitPrice(listPrice, stock) {
+      const price = Number(listPrice);
+      if (!Number.isFinite(price) || price <= 0) return null;
+      const rounded = Math.round(price * 100) / 100;
+      return this.isMarkdownStock(stock) ? Math.round(price * 0.8 * 100) / 100 : rounded;
+    },
+  };
+}
+
 function renderTireCartItem(item) {
   const lineTotal = (Number(item.unitPrice) || 0) * (Number(item.qty) || 0);
+  const markdown = Boolean(item.markdown) || getPricing().isMarkdownStock(item.maxStock);
+  const listPrice = Number(item.listPrice);
   const availability = item.unavailable
     ? '<p class="tire-cart-unavailable">Currently unavailable — remove this tire before submitting.</p>'
     : '';
+  const markdownNote = markdown && !item.unavailable
+    ? '<p class="tire-cart-markdown">20% off low-stock tire</p>'
+    : '';
 
   return `
-    <article class="tire-cart-item${item.unavailable ? ' is-unavailable' : ''}">
+    <article class="tire-cart-item${item.unavailable ? ' is-unavailable' : ''}${markdown ? ' is-markdown' : ''}">
       <div>
         <h3>${escapeHtml(item.brand)} ${escapeHtml(item.size)}</h3>
+        ${markdownNote}
         <dl class="tire-cart-item-summary">
           <div>
             <dt>Stock</dt>
@@ -113,7 +193,12 @@ function renderTireCartItem(item) {
           </div>
           <div>
             <dt>Per tire</dt>
-            <dd>${escapeHtml(formatMoney(item.unitPrice))}</dd>
+            <dd>
+              ${escapeHtml(formatMoney(item.unitPrice))}
+              ${markdown && Number.isFinite(listPrice) && listPrice > Number(item.unitPrice)
+    ? `<span class="tire-cart-was">Was ${escapeHtml(formatMoney(listPrice))}</span>`
+    : ''}
+            </dd>
           </div>
           <div>
             <dt>Total (${escapeHtml(item.qty)})</dt>
@@ -136,20 +221,32 @@ function renderTireCartItem(item) {
 }
 
 function renderTireCart() {
-  if (cartItemsEl) {
-    cartItemsEl.innerHTML = tireCart.length
-      ? tireCart.map(renderTireCartItem).join('')
-      : '<div class="tire-cart-empty">Your tire cart is empty. Search used tires to add a set.</div>';
+  adoptStoredTireCart();
+  const listEl = cartItemsEl();
+  if (listEl) {
+    if (!tireCart.length) {
+      listEl.innerHTML = '<div class="tire-cart-empty">Your tire cart is empty. Search used tires to add a set.</div>';
+    } else {
+      listEl.innerHTML = tireCart.map((item) => {
+        try {
+          return renderTireCartItem(item);
+        } catch (error) {
+          console.warn('[EastCord tire cart] A cart item could not be displayed.', error, item);
+          return `<article class="tire-cart-item"><div><h3>${escapeHtml(item?.brand || 'Used tire')} ${escapeHtml(item?.size || '')}</h3><p>This tire could not be fully displayed.</p></div><button class="tire-cart-remove" type="button" data-remove-tire="${escapeHtml(item?.inventoryId)}">Remove</button></article>`;
+        }
+      }).join('');
+    }
   }
 
   const totals = getCartTotals();
-  if (cartTotalEl) cartTotalEl.textContent = formatMoney(totals.subtotal);
-  if (cartHstEl) cartHstEl.textContent = formatMoney(totals.hstAmount);
-  if (cartGrandTotalEl) cartGrandTotalEl.textContent = formatMoney(totals.totalWithHst);
-  if (reservationSubmit) {
-    reservationSubmit.classList.toggle('is-signed-in', Boolean(currentProfile));
-    reservationSubmit.classList.toggle('is-signed-out', !currentProfile);
-    reservationSubmit.disabled = !authChecked
+  if (cartTotalEl()) cartTotalEl().textContent = formatMoney(totals.subtotal);
+  if (cartHstEl()) cartHstEl().textContent = formatMoney(totals.hstAmount);
+  if (cartGrandTotalEl()) cartGrandTotalEl().textContent = formatMoney(totals.totalWithHst);
+  const submit = reservationSubmit();
+  if (submit) {
+    submit.classList.toggle('is-signed-in', Boolean(currentProfile));
+    submit.classList.toggle('is-signed-out', !currentProfile);
+    submit.disabled = !authChecked
       || !currentProfile
       || !tireCart.length
       || tireCart.some((item) => item.unavailable);
@@ -158,7 +255,8 @@ function renderTireCart() {
 }
 
 function fillCustomerFields(profile) {
-  if (!reservationForm || !profile) return;
+  const form = reservationForm();
+  if (!form || !profile) return;
   const values = {
     'Full Name': profile.name || '',
     'Email Address': profile.email || '',
@@ -166,8 +264,9 @@ function fillCustomerFields(profile) {
   };
 
   Object.entries(values).forEach(([name, value]) => {
-    const input = reservationForm.elements.namedItem(name);
-    if (input && !input.value) input.value = value;
+    if (!value) return;
+    const input = form.elements.namedItem(name);
+    if (input && 'value' in input) input.value = value;
   });
 }
 
@@ -183,179 +282,231 @@ async function hydrateCustomerAccount() {
 
   if (currentProfile) {
     try {
-      const loadedCart = await window.EastCordAccount.loadCustomerCart('used_tire', tireCart);
-      const normalizedLoaded = normalizeTireCart(loadedCart);
-      tireCart = normalizedLoaded.length || !tireCart.length
-        ? normalizedLoaded
-        : tireCart;
-      localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(tireCart));
+      const loadedCart = await window.EastCordAccount.loadCustomerCart('used_tire', readTireCart());
+      const merged = normalizeTireCart([
+        ...(Array.isArray(loadedCart) ? loadedCart : []),
+        ...readTireCart(),
+        ...tireCart,
+      ]);
+      writeTireCart(merged);
     } catch (error) {
       console.warn('[EastCord tire cart] Saved account cart could not be loaded.', error);
-      if (cartMessageEl) cartMessageEl.textContent = error.message;
+      if (cartMessageEl()) cartMessageEl().textContent = error.message;
+      adoptStoredTireCart();
     }
   }
 
-  if (checkoutAuth) checkoutAuth.hidden = Boolean(currentProfile);
+  if (checkoutAuth()) checkoutAuth().hidden = Boolean(currentProfile);
   if (currentProfile) fillCustomerFields(currentProfile);
   renderTireCart();
 }
 
 async function refreshCartAvailability() {
+  adoptStoredTireCart();
   if (!tireCart.length) return;
 
   try {
     const response = await fetch('/.netlify/functions/get-used-inventory');
     if (!response.ok) throw new Error(`Inventory request failed (${response.status})`);
     const rows = await response.json();
-    const rowsById = new Map(rows.map((row) => [Number(row.id), row]));
+    if (!Array.isArray(rows)) throw new Error('Inventory request failed.');
+    const rowsById = new Map(rows.map((row) => [String(row.id), row]));
 
-    tireCart = tireCart.map((item) => {
-      const row = rowsById.get(Number(item.inventoryId));
+    writeTireCart(tireCart.map((item) => {
+      const row = rowsById.get(String(item.inventoryId))
+        || rowsById.get(String(item.inventoryId).replace(/^used-tire-/i, ''));
       const stock = Math.max(0, Number(row?.current_stock) || 0);
       if (!row || !stock) return { ...item, unavailable: true, maxStock: 0 };
+
+      const listPrice = Number(row.selling_price);
+      const unitPrice = getPricing().getUsedTireUnitPrice(listPrice, stock);
+      const markdown = getPricing().isMarkdownStock(stock);
 
       return {
         ...item,
         brand: row.brand || item.brand,
+        size: item.size || row.size_label || item.size,
         maxStock: stock,
         qty: Math.min(Math.max(1, Number(item.qty) || 1), stock, 4),
-        unitPrice: Number(row.selling_price),
+        listPrice,
+        unitPrice,
+        markdown,
         unavailable: false,
       };
+    }));
+    updateCartCount();
+    window.EastCordAccount?.notifyUsedTireCartChanged?.(tireCart);
+    window.EastCordAccount?.saveCustomerCart?.('used_tire', tireCart).catch((error) => {
+      console.warn('[EastCord tire cart] Account cart sync failed.', error);
     });
-    saveTireCart();
   } catch (error) {
     console.warn('[EastCord tire cart] Live availability could not be checked.', error);
-    if (cartMessageEl) {
-      cartMessageEl.textContent = 'Live availability could not be checked. Please refresh before submitting.';
+    if (cartMessageEl()) {
+      cartMessageEl().textContent = 'Live availability could not be checked. Please refresh before submitting.';
     }
   }
 }
 
 function getFormValue(name) {
-  const field = reservationForm?.elements?.namedItem(name);
+  const field = reservationForm()?.elements?.namedItem(name);
   return String(field?.value || '').trim();
 }
 
-reservationForm?.addEventListener('submit', async (event) => {
-  event.preventDefault();
+function setCartMessage(message) {
+  const messageEl = cartMessageEl();
+  if (messageEl) messageEl.textContent = message;
+}
 
-  if (!currentProfile) {
-    if (checkoutAuth) checkoutAuth.hidden = false;
-    if (cartMessageEl) {
-      cartMessageEl.textContent = 'Please sign up or log in before buying tires.';
+function sameCartItemId(left, right) {
+  return String(left ?? '') === String(right ?? '');
+}
+
+function bindCartEvents() {
+  reservationForm()?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    if (!currentProfile) {
+      const auth = checkoutAuth();
+      if (auth) auth.hidden = false;
+      setCartMessage('Please sign up or log in before buying tires.');
+      return;
     }
-    return;
-  }
 
-  if (!tireCart.length || tireCart.some((item) => item.unavailable)) {
-    if (cartMessageEl) {
-      cartMessageEl.textContent = tireCart.length
+    if (!tireCart.length || tireCart.some((item) => item.unavailable)) {
+      setCartMessage(tireCart.length
         ? 'Remove unavailable tires before checkout.'
-        : 'Add at least one tire before checkout.';
+        : 'Add at least one tire before checkout.');
+      return;
     }
-    return;
-  }
 
-  const customer = {
-    customerId: currentProfile.customerId,
-    name: getFormValue('Full Name') || currentProfile.name,
-    email: getFormValue('Email Address') || currentProfile.email,
-    phone: getFormValue('Phone Number') || currentProfile.phone,
-  };
+    const customer = {
+      customerId: currentProfile.customerId,
+      name: getFormValue('Full Name') || currentProfile.name,
+      email: getFormValue('Email Address') || currentProfile.email,
+      phone: getFormValue('Phone Number') || currentProfile.phone,
+    };
 
-  if (!customer.name || !customer.email || !customer.phone) {
-    if (cartMessageEl) cartMessageEl.textContent = 'Please complete your name, email, and phone.';
-    return;
-  }
-
-  try {
-    if (reservationSubmit) {
-      reservationSubmit.disabled = true;
-      reservationSubmit.textContent = 'Opening Stripe...';
+    if (!customer.name || !customer.email || !customer.phone) {
+      setCartMessage('Please complete your name, email, and phone.');
+      return;
     }
-    if (cartMessageEl) cartMessageEl.textContent = 'Checking stock and preparing secure checkout...';
 
-    const token = await window.EastCordAccount.getAccessToken();
-    const response = await fetch('/.netlify/functions/create-used-tire-checkout-session', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: token ? `Bearer ${token}` : '',
-      },
-      body: JSON.stringify({
-        items: tireCart,
-        customer,
-        fulfillmentPreference: getFormValue('Fulfillment Preference') || 'Pickup',
-      }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.url) {
-      throw new Error(data.message || 'Secure checkout could not be started.');
+    const submit = reservationSubmit();
+    try {
+      if (submit) {
+        submit.disabled = true;
+        submit.textContent = 'Opening Stripe...';
+      }
+      setCartMessage('Checking stock and preparing secure checkout...');
+
+      const token = await window.EastCordAccount.getAccessToken();
+      const response = await fetch('/.netlify/functions/create-used-tire-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          items: tireCart,
+          customer,
+          fulfillmentPreference: getFormValue('Fulfillment Preference') || 'Pickup',
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.url) {
+        throw new Error(data.message || 'Secure checkout could not be started.');
+      }
+      window.location.href = data.url;
+    } catch (error) {
+      setCartMessage(error.message || 'Secure checkout could not be started.');
+      if (submit) {
+        submit.textContent = 'Pay with Stripe';
+        submit.disabled = false;
+      }
+      renderTireCart();
     }
-    window.location.href = data.url;
-  } catch (error) {
-    if (cartMessageEl) cartMessageEl.textContent = error.message || 'Secure checkout could not be started.';
-    if (reservationSubmit) {
-      reservationSubmit.textContent = 'Pay with Stripe';
-      reservationSubmit.disabled = false;
-    }
+  });
+
+  cartItemsEl()?.addEventListener('change', (event) => {
+    const select = event.target.closest('[data-tire-cart-qty]');
+    if (!select) return;
+
+    const item = tireCart.find((entry) => sameCartItemId(entry.inventoryId, select.dataset.tireCartQty));
+    if (!item) return;
+
+    item.qty = Math.min(Math.max(1, Number(select.value) || 1), Number(item.maxStock) || 1, 4);
+    saveTireCart();
     renderTireCart();
-  }
-});
+  });
 
-cartItemsEl?.addEventListener('change', (event) => {
-  const select = event.target.closest('[data-tire-cart-qty]');
-  if (!select) return;
+  cartItemsEl()?.addEventListener('click', (event) => {
+    const removeButton = event.target.closest('[data-remove-tire]');
+    if (!removeButton) return;
 
-  const item = tireCart.find(
-    (entry) => Number(entry.inventoryId) === Number(select.dataset.tireCartQty),
-  );
-  if (!item) return;
+    tireCart = tireCart.filter((item) => !sameCartItemId(item.inventoryId, removeButton.dataset.removeTire));
+    saveTireCart();
+    renderTireCart();
+  });
 
-  item.qty = Math.min(Math.max(1, Number(select.value) || 1), Number(item.maxStock) || 1, 4);
-  saveTireCart();
-  renderTireCart();
-});
+  document.querySelector('[data-clear-tire-cart]')?.addEventListener('click', () => {
+    tireCart = [];
+    saveTireCart();
+    renderTireCart();
+  });
 
-cartItemsEl?.addEventListener('click', (event) => {
-  const removeButton = event.target.closest('[data-remove-tire]');
-  if (!removeButton) return;
-
-  tireCart = tireCart.filter(
-    (item) => Number(item.inventoryId) !== Number(removeButton.dataset.removeTire),
-  );
-  saveTireCart();
-  renderTireCart();
-});
-
-document.querySelector('[data-clear-tire-cart]')?.addEventListener('click', () => {
-  tireCart = [];
-  saveTireCart();
-  renderTireCart();
-});
-
-reservationForm?.addEventListener('change', (event) => {
-  if (event.target.name !== 'Fulfillment Preference') return;
-  if (installationDirections) {
-    installationDirections.hidden = event.target.value !== 'Installation';
-  }
-});
+  reservationForm()?.addEventListener('change', (event) => {
+    if (event.target.name !== 'Fulfillment Preference') return;
+    const directions = installationDirections();
+    if (directions) directions.hidden = event.target.value !== 'Installation';
+  });
+}
 
 async function initTireCart() {
+  bindCartEvents();
+  tireCart = readTireCart();
   renderTireCart();
   await hydrateCustomerAccount();
   await refreshCartAvailability();
   renderTireCart();
+  startCartAvailabilityRefresh();
+}
+
+function applyIncomingTireCart(incoming) {
+  writeTireCart([
+    ...tireCart,
+    ...normalizeTireCart(incoming),
+    ...readTireCart(),
+  ]);
+  renderTireCart();
+}
+
+function startCartAvailabilityRefresh() {
+  window.setInterval(() => {
+    if (document.hidden) return;
+    refreshCartAvailability().then(() => renderTireCart());
+  }, 8000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    refreshCartAvailability().then(() => renderTireCart());
+  });
 }
 
 window.addEventListener('eastcord:account-carts-hydrated', (event) => {
-  const incoming = normalizeTireCart(event.detail?.tireCart);
-  if (!incoming.length && tireCart.length) return;
-  if (!incoming.length) return;
-  tireCart = incoming.length >= tireCart.length ? incoming : tireCart;
-  localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(tireCart));
+  applyIncomingTireCart(event.detail?.tireCart);
+});
+
+window.addEventListener('eastcord:used-tire-cart-changed', (event) => {
+  applyIncomingTireCart(event.detail?.tireCart || readTireCart());
+});
+
+window.addEventListener('storage', (event) => {
+  if (event.key !== USED_TIRE_CART_KEY) return;
+  tireCart = readTireCart();
   renderTireCart();
 });
 
-initTireCart();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initTireCart, { once: true });
+} else {
+  initTireCart();
+}

@@ -8,35 +8,8 @@
   background-size: auto, 72px 72px, 72px 72px, auto;
 }
 
-.new-tires-hero {
-  padding-bottom: clamp(28px, 5vw, 56px);
-}
-
-.new-tires-hero-card {
-  display: grid;
-  gap: 18px;
-  max-width: 980px;
-  margin: 0 auto;
-  padding: clamp(28px, 5vw, 54px);
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.12);
-}
-
-.new-tires-hero-card h1 {
-  margin: 0;
-  color: #111317;
-  font-size: clamp(2.35rem, 6vw, 4rem);
-  line-height: 1.02;
-}
-
-.new-tires-hero-card p {
-  max-width: 720px;
-  margin: 0;
-  color: #4f5663;
-  font-size: clamp(1rem, 1.6vw, 1.15rem);
-  line-height: 1.7;
+.new-tires-page .section {
+  padding-top: clamp(28px, 4vw, 48px);
 }
 
 .new-tires-widget-card {
@@ -88,7 +61,6 @@
 }
 
 @media (max-width: 700px) {
-  .new-tires-hero-card,
   .new-tires-widget-card {
     border-radius: 20px;
   }

@@ -1,0 +1,307 @@
+.installer-honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.installer-apply-row {
+  margin-top: 22px;
+}
+
+.installer-application-page .zoho-form-section {
+  min-height: 70vh;
+  padding-top: 32px;
+}
+
+.zoho-back-row {
+  margin: 0 0 14px;
+}
+
+.zoho-back-link {
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.zoho-back-link:hover {
+  color: #df1f2d;
+}
+
+.zoho-form-header h1 {
+  margin: 0 0 8px;
+  color: #1f2937;
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.zoho-section-heading h2 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.installer-types-section {
+  padding: 8px 0 64px;
+}
+
+.installer-types-shell,
+.zoho-form-shell {
+  width: min(100%, 760px);
+  margin-inline: auto;
+}
+
+.installer-types-shell h2 {
+  margin: 0 0 16px;
+  color: #111317;
+  font-size: clamp(1.4rem, 2.6vw, 1.9rem);
+}
+
+.installer-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.installer-type-card {
+  padding: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.installer-type-card span {
+  display: inline-flex;
+  margin-bottom: 10px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  color: #fff;
+  background: #df1f2d;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.installer-type-card strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #111317;
+  font-size: 1.25rem;
+}
+
+.installer-type-card p {
+  margin: 0;
+  color: #4f5663;
+  line-height: 1.6;
+}
+
+.zoho-form-section {
+  padding: 28px 0 80px;
+  background: #eef1f4;
+  scroll-margin-top: 96px;
+}
+
+.zoho-form,
+form.zoho-form[netlify-honeypot] {
+  display: block !important;
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: hidden;
+  clip: auto !important;
+  clip-path: none !important;
+  border: 1px solid #d5dbe3;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.zoho-form-header {
+  padding: 28px 28px 22px;
+  border-top: 6px solid #df1f2d;
+  border-bottom: 1px solid #e6ebf0;
+  background: #fff;
+}
+
+.zoho-form-kicker {
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.zoho-form-header h2 {
+  margin: 0 0 8px;
+  color: #1f2937;
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.zoho-form-header p,
+.zoho-section-heading p,
+.zoho-privacy {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.zoho-section {
+  display: grid;
+  gap: 16px;
+  padding: 22px 28px;
+  border-bottom: 1px solid #e6ebf0;
+}
+
+.zoho-section-heading h3 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.zoho-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+}
+
+.zoho-field {
+  display: grid;
+  gap: 6px;
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.zoho-field-full,
+.zoho-options {
+  grid-column: 1 / -1;
+}
+
+.zoho-required {
+  color: #dc2626;
+  font-weight: 800;
+}
+
+.zoho-field input,
+.zoho-field select,
+.zoho-field textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #c5ccd6;
+  border-radius: 3px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+  font-weight: 500;
+  outline: none;
+}
+
+.zoho-field textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.zoho-field input:focus,
+.zoho-field select:focus,
+.zoho-field textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.zoho-options {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.zoho-options legend {
+  margin-bottom: 8px;
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.zoho-options label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1f2937;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.zoho-options input {
+  width: 16px;
+  height: 16px;
+  accent-color: #2563eb;
+}
+
+.zoho-form-footer {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  padding: 22px 28px 28px;
+  background: #f8fafc;
+}
+
+.zoho-submit,
+.zoho-submit-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 22px;
+  border: 0;
+  border-radius: 3px;
+  background: #df1f2d;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.zoho-submit:hover,
+.zoho-submit-link:hover {
+  background: #c31824;
+}
+
+.zoho-submit:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.zoho-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+@media (max-width: 680px) {
+  .installer-type-grid,
+  .zoho-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .zoho-form-header,
+  .zoho-section,
+  .zoho-form-footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}

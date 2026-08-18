@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="EastCord Tires Privacy Policy." />
     <title>Privacy Policy | EastCord Tires</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="/footer-section.css?v=2" />
+    <link rel="stylesheet" href="/styles.css?v=6" />
+    <link rel="stylesheet" href="/footer-section.css?v=5" />
     <link rel="stylesheet" href="/legal-pages.css" />
   </head>
   <body class="policy-page">
@@ -19,11 +19,31 @@
         </a>
         <nav class="main-nav" aria-label="Main navigation">
           <a href="/">Home</a>
-          <a href="/#used-tires">Used Tires</a>
-          <a href="/#new-tires">New Tires</a>
-          <a href="/#appointment">Appointment</a>
-          <a href="/#warranty">Warranty</a>
+          <div class="nav-dropdown">
+            <button class="nav-dropdown-toggle" type="button" aria-expanded="false" aria-haspopup="true">Tires</button>
+            <div class="nav-dropdown-menu">
+              <a href="/used-tires">Used Tires</a>
+              <a href="/new-tires">New Tires</a>
+            </div>
+          </div>
+          <a href="/appointment">Appointment</a>
+          <a href="/local-installers">Local Installers</a>
           <a href="/#contact">Contact</a>
+          <span class="nav-carts" aria-label="Shopping carts">
+            <a href="/tire-cart">Tire Cart<span data-tire-cart-count></span></a>
+            <a href="/cart">Appointment Cart<span data-appointment-cart-count></span></a>
+          </span>
+          <span class="auth-nav-group" data-auth-logged-out>
+            <a href="/signup">Sign Up</a>
+            <a href="/login">Log In</a>
+          </span>
+          <span class="auth-nav-group" data-auth-logged-in hidden>
+            <a class="auth-account-link" href="/account">
+              <span data-account-name>My Account</span>
+              <small data-account-email></small>
+            </a>
+            <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
+          </span>
         </nav>
       </div>
     </header>
@@ -57,7 +77,7 @@
 
             <div class="policy-section">
               <h2>Service Providers</h2>
-              <p>We may share necessary information with trusted service providers, including TireConnect, MioCommerce, payment processors, website hosting providers, email or communication tools, and delivery or service providers if needed.</p>
+              <p>We may share necessary information with trusted service providers, including TireConnect, payment processors, website hosting providers, email or communication tools, and delivery or service providers if needed.</p>
               <p>We do not sell customer personal information.</p>
             </div>
 
@@ -93,7 +113,7 @@
     <footer class="site-footer">
       <div class="shell footer-grid">
         <div>
-          <img src="/assets/eastcord-logo-red-white.png" alt="EastCord Tires" class="footer-logo" />
+          <img src="/assets/eastcord-logo-footer.svg" alt="EastCord Tires" class="footer-logo" />
           <p>Used tires, new tires, and changeover services.</p>
         </div>
         <div class="footer-social">
@@ -105,11 +125,27 @@
             <a href="https://www.tiktok.com/@eastcordtires?_r=1&_t=ZS-985mxkvGCzE" target="_blank" rel="noopener noreferrer">TikTok</a>
           </div>
         </div>
+        <div class="footer-info">
+          <h3>Tire Information</h3>
+          <div class="footer-info-links" aria-label="EastCord Tires tire information links">
+            <a href="/used-tires">Used Tires</a>
+            <a href="/new-tires">New Tires</a>
+            <a href="/tire-size-guide">Tire Size Guide</a>
+            <a href="/tire-season-guide">Tire Season Guide</a>
+            <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
+            <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
+            <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
+            <a href="/appointment">Changeover / Swap Service</a>
+            <a href="/local-installers">Local Installers</a>
+            <a href="/#contact">Contact EastCord</a>
+          </div>
+        </div>
         <div>
           <h3>Quick Links</h3>
-          <a href="/#used-tires">Used Tires</a>
-          <a href="/#new-tires">New Tires</a>
-          <a href="/#appointment">Appointment</a>
+          <a href="/used-tires">Used Tires</a>
+          <a href="/new-tires">New Tires</a>
+          <a href="/appointment">Appointment</a>
+          <a href="/local-installers">Local Installers</a>
           <a href="/#warranty">Warranty</a>
           <a href="/#contact">Contact</a>
         </div>
@@ -118,7 +154,7 @@
         <p class="footer-legal">
           <span>© 2026 EastCord Tires</span>
           <span class="footer-legal-separator">|</span>
-          <a href="/terms-and-conditions">Terms & Conditions</a>
+          <a href="/terms-and-conditions">Terms &amp; Conditions</a>
           <span class="footer-legal-separator">|</span>
           <a href="/privacy-policy">Privacy Policy</a>
           <span class="footer-legal-separator">|</span>
@@ -128,5 +164,6 @@
         </p>
       </div>
     </footer>
+    <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

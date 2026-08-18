@@ -25,6 +25,10 @@
     nav.classList.toggle('open', isOpen);
     nav.classList.toggle('is-open', isOpen);
     document.body.classList.toggle('menu-open', isOpen);
+    if (!isOpen) {
+      nav.querySelectorAll('.nav-dropdown').forEach((item) => item.classList.remove('is-open'));
+      nav.querySelectorAll('.nav-dropdown-toggle').forEach((toggle) => toggle.setAttribute('aria-expanded', 'false'));
+    }
   }
 
   function initializeMobileMenu() {
@@ -56,7 +60,22 @@
     });
 
     nav.querySelectorAll('a, button').forEach((item) => {
-      item.addEventListener('click', () => setMenuState(button, nav, false));
+      item.addEventListener('click', () => {
+        if (item.classList.contains('nav-dropdown-toggle')) return;
+        setMenuState(button, nav, false);
+      });
+    });
+
+    nav.querySelectorAll('.nav-dropdown-toggle').forEach((toggle) => {
+      toggle.addEventListener('click', (event) => {
+        if (window.matchMedia('(min-width: 801px)').matches) return;
+        event.preventDefault();
+        const dropdown = toggle.closest('.nav-dropdown');
+        const willOpen = !dropdown?.classList.contains('is-open');
+        nav.querySelectorAll('.nav-dropdown').forEach((item) => item.classList.remove('is-open'));
+        dropdown?.classList.toggle('is-open', willOpen);
+        toggle.setAttribute('aria-expanded', String(willOpen));
+      });
     });
 
     document.addEventListener('click', (event) => {

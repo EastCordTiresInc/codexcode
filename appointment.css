@@ -131,7 +131,7 @@
 
 .hidden-field,
 .hidden-field[hidden],
-[netlify-honeypot],
+[netlify-honeypot]:not(form),
 input[name="bot-field"],
 label:has(input[name="bot-field"]) {
   display: none !important;

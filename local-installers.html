@@ -3,15 +3,30 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="EastCord Tires seasonal tire guide for passenger vehicles." />
-    <title>Tire Season Guide | EastCord Tires</title>
-    <link rel="stylesheet" href="/styles.css?v=6" />
-    <link rel="stylesheet" href="/footer-section.css?v=5" />
-    <link rel="stylesheet" href="/legal-pages.css" />
+    <meta
+      name="description"
+      content="Apply to become an EastCord Tires local technician. Approved technicians can be assigned mobile service-call jobs."
+    />
+    <title>Local Installers | EastCord Tires</title>
+    <link rel="stylesheet" href="styles.css?v=6" />
+    <link rel="stylesheet" href="heading-balance.css" />
+    <link rel="stylesheet" href="footer-section.css?v=5" />
+    <link rel="stylesheet" href="auth.css" />
+    <link rel="stylesheet" href="appointment.css?v=23" />
+    <link rel="stylesheet" href="local-installers.css?v=4" />
   </head>
-  <body class="policy-page">
+  <body class="appointment-page installer-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
-    <header class="site-header"><div class="nav-shell"><a class="brand brand-logo" href="/#home" aria-label="EastCord Tires home"><img src="/assets/eastcord-logo-red-black.svg" alt="EastCord Tires" /></a><nav class="main-nav" aria-label="Main navigation">
+
+    <header class="site-header">
+      <div class="nav-shell">
+        <a class="brand brand-logo" href="/" aria-label="EastCord Tires home">
+          <img src="/assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" aria-label="Open navigation menu">
+          <span></span><span></span><span></span>
+        </button>
+        <nav class="main-nav" id="primary-navigation" aria-label="Main navigation">
           <a href="/">Home</a>
           <div class="nav-dropdown">
             <button class="nav-dropdown-toggle" type="button" aria-expanded="false" aria-haspopup="true">Tires</button>
@@ -21,7 +36,7 @@
             </div>
           </div>
           <a href="/appointment">Appointment</a>
-          <a href="/local-installers">Local Installers</a>
+          <a href="/local-installers" aria-current="page">Local Installers</a>
           <a href="/#contact">Contact</a>
           <span class="nav-carts" aria-label="Shopping carts">
             <a href="/tire-cart">Tire Cart<span data-tire-cart-count></span></a>
@@ -38,14 +53,53 @@
             </a>
             <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
           </span>
-        </nav></div></header>
-    <main id="main-content"><section class="policy-hero"><div class="shell"><p class="eyebrow"><span></span> Tire Information</p><h1>Tire Season Guide</h1></div></section><section class="policy-content"><div class="shell"><article class="policy-card">
-      <div class="policy-section"><h2>All-Season Tires</h2><p>All-season tires are built for general driving in milder conditions. They can be a practical choice for drivers who want one tire type for everyday use.</p></div>
-      <div class="policy-section"><h2>Winter Tires</h2><p>Winter tires are designed for colder temperatures, snow, and ice. Their rubber compound and tread pattern help improve grip when temperatures drop.</p></div>
-      <div class="policy-section"><h2>Summer Tires</h2><p>Summer tires are made for warmer weather and dry or wet roads. They are not intended for freezing temperatures or winter driving.</p></div>
-      <div class="policy-section"><h2>Seasonal Changeover</h2><p>EastCord Tires can help with changeover or swap service so your passenger vehicle is ready for the season.</p></div>
-      <div class="policy-contact"><h2>Contact EastCord Tires</h2><p>Email: <a href="mailto:info@eastcordtires.ca">info@eastcordtires.ca</a></p><p>Phone: <a href="tel:+13658225553">365-822-5553</a></p></div>
-    </article></div></section></main>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="appointment-hero section" aria-labelledby="installer-title">
+        <div class="shell appointment-hero-grid">
+          <div>
+            <h1 id="installer-title">Local Installers</h1>
+            <p>
+              EastCord assigns mobile tire jobs to approved local technicians. If you can go to the customer,
+              apply so we can send you service calls.
+            </p>
+            <div class="appointment-hero-actions">
+              <a class="button button-primary appointment-start-button" href="/installer-application">Apply to Install</a>
+            </div>
+          </div>
+          <div class="appointment-status-card" aria-label="How installer jobs work">
+            <span>Service Calls</span>
+            <strong>You go to the customer</strong>
+            <p>Approved technicians receive EastCord jobs based on coverage area, schedule, and the mobile work you can do.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section installer-types-section" aria-labelledby="job-types-title">
+        <div class="shell installer-types-shell">
+          <h2 id="job-types-title">Service-call jobs</h2>
+          <div class="installer-type-grid">
+            <article class="installer-type-card">
+              <span>Home</span>
+              <strong>Residential calls</strong>
+              <p>Go to the customer’s home for changeover, swap, mount and balance, or related tire service.</p>
+            </article>
+            <article class="installer-type-card">
+              <span>Workplace</span>
+              <strong>On-site calls</strong>
+              <p>Meet the customer at work or another parking location for the same mobile tire service.</p>
+            </article>
+          </div>
+          <div class="installer-apply-row">
+            <a class="button button-primary" href="/installer-application">Apply to Install</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
     <footer class="site-footer">
       <div class="shell footer-grid">
         <div>
@@ -100,6 +154,10 @@
         </p>
       </div>
     </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js?v=3"></script>
+    <script src="account.js?v=30"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

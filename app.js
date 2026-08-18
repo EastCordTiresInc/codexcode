@@ -11,19 +11,14 @@ function closeMenu() {
 }
 
 function forceFooterLogo() {
-  const footerBrand = document.querySelector(".footer-brand");
-  const footerText = footerBrand?.querySelector("p");
-  if (!footerBrand || !footerText) return;
-
-  let footerLogo = footerBrand.querySelector(".footer-logo");
-  if (!footerLogo) {
-    footerLogo = footerBrand.querySelector("img") || document.createElement("img");
-    footerBrand.insertBefore(footerLogo, footerText);
-  }
-
-  footerLogo.src = "/assets/eastcord-logo-red-white.png";
-  footerLogo.alt = "EastCord Tires";
-  footerLogo.className = "footer-logo";
+  document.querySelectorAll(".brand-logo img").forEach((img) => {
+    img.src = "/assets/eastcord-logo-red-black.svg";
+    img.alt = "EastCord Tires";
+  });
+  document.querySelectorAll(".footer-logo").forEach((img) => {
+    img.src = "/assets/eastcord-logo-footer.svg";
+    img.alt = "EastCord Tires";
+  });
 }
 
 menuButton.addEventListener("click", () => {
@@ -45,4 +40,4 @@ document.addEventListener("keydown", (event) => {
 });
 
 forceFooterLogo();
-currentYear.textContent = new Date().getFullYear();
+if (currentYear) currentYear.textContent = new Date().getFullYear();

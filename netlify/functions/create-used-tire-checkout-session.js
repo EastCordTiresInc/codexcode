@@ -1,6 +1,7 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { calculateTax, roundMoney } = require('./lib/used-tire-order');
+const { getUsedTireUnitPrice, isMarkdownStock } = require('./lib/used-tire-pricing');
 
 function json(statusCode, payload) {
   return {
@@ -54,7 +55,7 @@ function normalizeCartItems(items) {
   if (!Array.isArray(items)) return [];
   return items
     .map((item) => ({
-      inventoryId: Number(item.inventoryId || item.id),
+      inventoryId: String(item.inventoryId || item.id || '').replace(/^used-tire-/i, '').trim(),
       qty: Math.max(1, Math.min(4, Number(item.qty) || 1)),
       brand: String(item.brand || '').trim(),
       size: String(item.size || '').trim(),
@@ -102,20 +103,24 @@ exports.handler = async (event) => {
 
     if (error) return json(500, { message: error.message });
     const stock = Math.max(0, Number(row?.current_stock) || 0);
-    const price = Number(row?.selling_price);
-    if (!row || !stock || !Number.isFinite(price) || price <= 0) {
+    const listPrice = Number(row?.selling_price);
+    const price = getUsedTireUnitPrice(listPrice, stock);
+    if (!row || !stock || price === null) {
       return json(409, { message: `${item.brand || 'A selected tire'} is no longer available. Remove it and try again.` });
     }
     if (item.qty > stock) {
       return json(409, { message: `Only ${stock} ${row.brand} ${row.tire_size} tire(s) are left.` });
     }
 
+    const markdown = isMarkdownStock(stock);
     preparedItems.push({
-      inventoryId: Number(row.id),
+      inventoryId: row.id,
       qty: item.qty,
       brand: row.brand || item.brand,
       size: row.tire_size || item.size,
-      unitPrice: roundMoney(price),
+      listPrice: roundMoney(listPrice),
+      unitPrice: price,
+      markdown,
       lineTotal: roundMoney(price * item.qty),
     });
   }
@@ -159,8 +164,8 @@ exports.handler = async (event) => {
           price_data: {
             currency: 'cad',
             product_data: {
-              name: `${item.brand} ${item.size} used tire`,
-              description: `Quantity ${item.qty}`,
+              name: `${item.brand} ${item.size} used tire${item.markdown ? ' — 20% off' : ''}`,
+              description: `Quantity ${item.qty}${item.markdown ? ' · low-stock markdown' : ''}`,
             },
             unit_amount: Math.round(item.unitPrice * 100),
           },

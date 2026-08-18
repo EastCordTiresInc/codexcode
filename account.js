@@ -2,10 +2,15 @@ const AUTH_CONFIG = window.EASTCORD_AUTH_CONFIG || {};
 const CART_KEY = 'eastcord_cart_v1';
 const ACCOUNT_SETUP_MESSAGE = 'Account signup is being connected. Please contact EastCord Tires or check back soon.';
 const EMAIL_CONFIRMATION_MESSAGE = 'Account created. Please check your email to confirm your account, then log in.';
+const EXISTING_MEMBER_LOGIN_MESSAGE = 'This email already has an EastCord Tires account. Please sign in.';
 const TAX_RATE = 0.13;
 const CUSTOMER_CART_TYPES = new Set(['appointment', 'used_tire']);
 const ACCOUNT_USED_TIRE_CART_KEY = 'eastcord_used_tire_cart_v1';
 const CUSTOMER_CART_OWNER_KEY_PREFIX = 'eastcord_customer_cart_owner_';
+const customerCartSaveChains = {
+  appointment: Promise.resolve(),
+  used_tire: Promise.resolve(),
+};
 const CART_STORAGE_KEYS = [
   CART_KEY,
   'cart',
@@ -100,8 +105,8 @@ function getFriendlySupabaseError(error, fallback = 'Signup could not be complet
   const lowerMessage = message.toLowerCase();
 
   if (!message) return fallback;
-  if (lowerMessage.includes('already registered') || lowerMessage.includes('already exists')) {
-    return 'An account may already exist for this email. Please log in or use password recovery if needed.';
+  if (lowerMessage.includes('already registered') || lowerMessage.includes('already exists') || lowerMessage.includes('already been registered')) {
+    return EXISTING_MEMBER_LOGIN_MESSAGE;
   }
   if (lowerMessage.includes('invalid email')) return 'Please enter a valid email address.';
   if (lowerMessage.includes('password')) return message;
@@ -114,6 +119,7 @@ function getFriendlySupabaseError(error, fallback = 'Signup could not be complet
 
 function isAppointmentLikeItem(item) {
   if (!item || typeof item !== 'object') return false;
+  if (item.type === 'used_tire' || item.inventoryId) return false;
   return item.type === 'appointment'
     || Boolean(item.serviceId)
     || Boolean(item.serviceName)
@@ -150,15 +156,24 @@ function readStorageJson(storage, key) {
 }
 
 function getCart() {
-  const activeCart = normalizeCartCollection(readStorageJson(localStorage, CART_KEY));
-  if (activeCart.length) return activeCart;
+  const rawActiveCart = readStorageJson(localStorage, CART_KEY);
+  if (rawActiveCart !== null) {
+    return normalizeCartCollection(rawActiveCart);
+  }
 
   for (const key of CART_STORAGE_KEYS) {
+    if (key === CART_KEY) continue;
     const localCart = normalizeCartCollection(readStorageJson(localStorage, key));
-    if (localCart.length) return localCart;
+    if (localCart.length) {
+      localStorage.setItem(CART_KEY, JSON.stringify(localCart));
+      return localCart;
+    }
 
     const sessionCart = normalizeCartCollection(readStorageJson(sessionStorage, key));
-    if (sessionCart.length) return sessionCart;
+    if (sessionCart.length) {
+      localStorage.setItem(CART_KEY, JSON.stringify(sessionCart));
+      return sessionCart;
+    }
   }
 
   return [];
@@ -170,39 +185,63 @@ function validateCustomerCartType(cartType) {
   }
 }
 
+function unwrapCartItems(items) {
+  if (Array.isArray(items)) return items;
+  if (typeof items === 'string') {
+    try {
+      return unwrapCartItems(JSON.parse(items));
+    } catch (error) {
+      return [];
+    }
+  }
+  if (!items || typeof items !== 'object') return [];
+  if (Array.isArray(items.items)) return items.items;
+  const keys = Object.keys(items);
+  if (keys.length && keys.every((key) => /^\d+$/.test(key))) {
+    return keys.sort((a, b) => Number(a) - Number(b)).map((key) => items[key]);
+  }
+  return [];
+}
+
 function normalizeCustomerCartItems(items) {
-  return Array.isArray(items)
-    ? items.filter((item) => item && typeof item === 'object')
-    : [];
+  return unwrapCartItems(items).filter((item) => item && typeof item === 'object' && !Array.isArray(item));
 }
 
 function parseUsedTireInventoryId(item) {
-  const direct = Number(item?.inventoryId);
-  if (Number.isFinite(direct) && direct > 0) return direct;
-  const numericId = Number(item?.id);
-  if (Number.isFinite(numericId) && numericId > 0) return numericId;
-  const match = String(item?.id || '').match(/used-tire-(\d+)/i);
-  return match ? Number(match[1]) : 0;
+  const candidates = [item?.inventoryId, item?.inventory_id, item?.id];
+  for (const candidate of candidates) {
+    if (candidate == null || candidate === '') continue;
+    const raw = String(candidate).trim();
+    if (!raw || raw === 'undefined' || raw === 'null') continue;
+    const usedMatch = raw.match(/^used-tire-(.+)$/i);
+    const value = usedMatch ? usedMatch[1] : raw;
+    if (/^\d+$/.test(value)) return Number(value);
+    return value;
+  }
+  return '';
 }
 
 function normalizeUsedTireCartItems(items) {
   const byId = new Map();
   normalizeCustomerCartItems(items).forEach((item) => {
     const inventoryId = parseUsedTireInventoryId(item);
-    if (!inventoryId) return;
-    const qty = Math.max(1, Number(item.qty) || 1);
-    const existing = byId.get(inventoryId);
-    byId.set(inventoryId, {
+    if (inventoryId === '' || inventoryId == null) return;
+    const qty = Math.max(1, Number(item.qty ?? item.quantity) || 1);
+    const key = String(inventoryId);
+    const existing = byId.get(key);
+    byId.set(key, {
       ...(existing || {}),
       ...item,
       id: item.id || existing?.id || `used-tire-${inventoryId}`,
       type: 'used_tire',
       inventoryId,
       qty: Math.min(4, qty),
-      maxStock: Number(item.maxStock) || Number(existing?.maxStock) || qty,
-      unitPrice: item.unitPrice ?? item.price ?? existing?.unitPrice ?? null,
+      maxStock: Number(item.maxStock ?? item.current_stock ?? existing?.maxStock) || qty,
+      listPrice: item.listPrice ?? existing?.listPrice ?? item.unitPrice ?? item.selling_price ?? existing?.unitPrice ?? null,
+      unitPrice: item.unitPrice ?? item.price ?? item.selling_price ?? existing?.unitPrice ?? null,
+      markdown: Boolean(item.markdown ?? existing?.markdown),
       brand: item.brand || existing?.brand || '',
-      size: item.size || existing?.size || '',
+      size: item.size || item.size_label || item.tire_size || existing?.size || '',
     });
   });
   return Array.from(byId.values());
@@ -239,13 +278,33 @@ function getCustomerCartOwnerKey(cartType) {
   return `${CUSTOMER_CART_OWNER_KEY_PREFIX}${cartType}`;
 }
 
-async function saveCustomerCart(cartType, items) {
+function normalizeCartItemsByType(cartType, items) {
+  return cartType === 'used_tire'
+    ? normalizeUsedTireCartItems(items)
+    : normalizeCustomerCartItems(items);
+}
+
+function notifyUsedTireCartChanged(cart = getLocalUsedTireCart()) {
+  updateCartCount();
+  window.dispatchEvent(new CustomEvent('eastcord:used-tire-cart-changed', {
+    detail: { tireCart: cart },
+  }));
+}
+
+async function persistCustomerCart(cartType, items, options = {}) {
   validateCustomerCartType(cartType);
   const client = getSupabaseClient();
   const user = await getCurrentUser();
-  if (!client || !user) return normalizeCustomerCartItems(items);
+  const normalizedItems = normalizeCartItemsByType(cartType, items);
 
-  const normalizedItems = normalizeCustomerCartItems(items);
+  if (cartType === 'used_tire' && !normalizedItems.length && !options.allowEmpty) {
+    const latestLocal = getLocalUsedTireCart();
+    if (latestLocal.length) return latestLocal;
+    return [];
+  }
+
+  if (!client || !user) return normalizedItems;
+
   const { error } = await client
     .from('customer_carts')
     .upsert({
@@ -263,12 +322,25 @@ async function saveCustomerCart(cartType, items) {
   return normalizedItems;
 }
 
+function saveCustomerCart(cartType, items, options = {}) {
+  validateCustomerCartType(cartType);
+  const next = customerCartSaveChains[cartType]
+    .catch(() => undefined)
+    .then(() => persistCustomerCart(cartType, items, options));
+  customerCartSaveChains[cartType] = next;
+  return next;
+}
+
 async function loadCustomerCart(cartType, localItems = []) {
   validateCustomerCartType(cartType);
-  const normalizedLocalItems = normalizeCustomerCartItems(localItems);
+  const snapshotLocalItems = normalizeCartItemsByType(cartType, localItems);
   const client = getSupabaseClient();
   const user = await getCurrentUser();
-  if (!client || !user) return normalizedLocalItems;
+  if (!client || !user) {
+    return cartType === 'used_tire'
+      ? mergeCustomerCartItems(cartType, snapshotLocalItems, getLocalUsedTireCart())
+      : snapshotLocalItems;
+  }
 
   const { data, error } = await client
     .from('customer_carts')
@@ -282,13 +354,22 @@ async function loadCustomerCart(cartType, localItems = []) {
     throw new Error('Your account cart could not be loaded. Your cart on this device is still available.');
   }
 
-  const remoteItems = normalizeCustomerCartItems(data?.items);
+  const remoteItems = normalizeCartItemsByType(cartType, data?.items);
+  const latestLocalItems = cartType === 'used_tire'
+    ? mergeCustomerCartItems(cartType, snapshotLocalItems, getLocalUsedTireCart())
+    : snapshotLocalItems;
   const localCartOwner = localStorage.getItem(getCustomerCartOwnerKey(cartType));
   const belongsToOtherUser = Boolean(localCartOwner && localCartOwner !== user.id);
-  const mergedItems = belongsToOtherUser
+  let mergedItems = belongsToOtherUser && !latestLocalItems.length
     ? remoteItems
-    : mergeCustomerCartItems(cartType, remoteItems, normalizedLocalItems);
-  if (!data || JSON.stringify(mergedItems) !== JSON.stringify(remoteItems)) {
+    : mergeCustomerCartItems(cartType, remoteItems, latestLocalItems);
+
+  if (cartType === 'used_tire' && !mergedItems.length && latestLocalItems.length) {
+    mergedItems = latestLocalItems;
+  }
+
+  const shouldSave = !data || JSON.stringify(mergedItems) !== JSON.stringify(remoteItems);
+  if (shouldSave && (cartType !== 'used_tire' || mergedItems.length)) {
     await saveCustomerCart(cartType, mergedItems);
   }
   localStorage.setItem(getCustomerCartOwnerKey(cartType), user.id);
@@ -296,7 +377,7 @@ async function loadCustomerCart(cartType, localItems = []) {
 }
 
 async function clearCustomerCart(cartType) {
-  return saveCustomerCart(cartType, []);
+  return saveCustomerCart(cartType, [], { allowEmpty: true });
 }
 
 function saveCart(cart) {
@@ -442,13 +523,14 @@ function profileFromUser(user) {
 }
 
 function profileFromRow(row, fallbackUser) {
-  if (!row && fallbackUser) return profileFromUser(fallbackUser);
+  const fallback = profileFromUser(fallbackUser) || {};
+  if (!row && fallbackUser) return fallback;
   if (!row) return null;
   return {
-    customerId: row.id,
-    name: row.full_name || '',
-    email: row.email || fallbackUser?.email || '',
-    phone: row.phone || '',
+    customerId: row.id || fallback.customerId,
+    name: row.full_name || fallback.name || '',
+    email: row.email || fallback.email || '',
+    phone: row.phone || fallback.phone || '',
   };
 }
 
@@ -700,6 +782,28 @@ async function getCustomerBookings() {
   return data || [];
 }
 
+function getSignupEmailRedirectTo() {
+  return new URL(getRedirectTarget('/account.html'), window.location.origin).toString();
+}
+
+function isAlreadyRegisteredError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  const code = String(error?.code || '').toLowerCase();
+  return code === 'user_already_exists'
+    || message.includes('already registered')
+    || message.includes('already been registered')
+    || message.includes('user already exists');
+}
+
+function isExistingAuthUser(data) {
+  if (!data?.user || data.session) return false;
+  return Array.isArray(data.user.identities) && data.user.identities.length === 0;
+}
+
+function existingMemberSignupResult() {
+  return { alreadyMember: true, session: null };
+}
+
 async function signUpCustomer({ fullName, email, phone, password }) {
   const client = getSupabaseClient();
   if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
@@ -710,7 +814,7 @@ async function signUpCustomer({ fullName, email, phone, password }) {
     email,
     password,
     options: {
-      emailRedirectTo: new URL(getRedirectTarget('/account.html'), window.location.origin).toString(),
+      emailRedirectTo: getSignupEmailRedirectTo(),
       data: {
         full_name: fullName,
         phone,
@@ -719,9 +823,16 @@ async function signUpCustomer({ fullName, email, phone, password }) {
   });
 
   if (error) {
+    if (isAlreadyRegisteredError(error)) {
+      return existingMemberSignupResult();
+    }
     console.info('[EastCord appointment automation] signup error');
     logSupabaseError('Supabase signup failed.', error);
     throw new Error(getFriendlySupabaseError(error));
+  }
+
+  if (isExistingAuthUser(data)) {
+    return existingMemberSignupResult();
   }
 
   console.info('[EastCord appointment automation] signup success', {
@@ -786,13 +897,115 @@ async function signOutCustomer() {
   window.location.href = '/login.html';
 }
 
-function updateCartCount() {
-  if (document.body.classList.contains('used-tires-page') || document.body.classList.contains('tire-cart-page')) {
-    return;
-  }
-  const count = getCart().length;
-  document.querySelectorAll('[data-cart-count]').forEach((element) => {
+function getAppointmentCartCount() {
+  return getCart().filter((item) => item.serviceId || item.serviceName).length;
+}
+
+function getUsedTireCartCount() {
+  return getLocalUsedTireCart().reduce((total, item) => total + (Number(item.qty) || 0), 0);
+}
+
+function setCartCountText(selector, count) {
+  document.querySelectorAll(selector).forEach((element) => {
     element.textContent = count ? ` (${count})` : '';
+  });
+}
+
+function updateCartCount() {
+  const appointmentCount = getAppointmentCartCount();
+  const tireCount = getUsedTireCartCount();
+  setCartCountText('[data-appointment-cart-count]', appointmentCount);
+  setCartCountText('[data-tire-cart-count]', tireCount);
+  document.querySelectorAll('[data-cart-count]').forEach((element) => {
+    const href = element.closest('a')?.getAttribute('href') || '';
+    const count = /tire-cart/.test(href) ? tireCount : appointmentCount;
+    element.textContent = count ? ` (${count})` : '';
+  });
+}
+
+function displayNameFromProfile(profile) {
+  return String(profile?.name || '').trim() || profile?.email || 'My Account';
+}
+
+function applySignedInProfile(profile) {
+  const signedIn = Boolean(profile);
+
+  document.querySelectorAll('[data-auth-logged-out]').forEach((element) => {
+    element.hidden = signedIn;
+  });
+  document.querySelectorAll('[data-auth-logged-in]').forEach((element) => {
+    element.hidden = !signedIn;
+  });
+
+  const displayName = signedIn ? displayNameFromProfile(profile) : 'My Account';
+  document.querySelectorAll('[data-account-name]').forEach((element) => {
+    element.textContent = displayName;
+  });
+
+  document.querySelectorAll('[data-account-email]').forEach((element) => {
+    const email = signedIn ? (profile.email || '') : '';
+    element.textContent = email;
+    element.hidden = !email;
+  });
+
+  document.querySelectorAll('[data-account-phone]').forEach((element) => {
+    element.textContent = signedIn ? (profile.phone || '') : '';
+  });
+
+  document.querySelectorAll('[data-signed-in-identity]').forEach((element) => {
+    element.hidden = !signedIn;
+  });
+
+  document.querySelectorAll('[data-auth-session-indicator]').forEach((element) => {
+    element.remove();
+  });
+
+  if (signedIn) fillKnownCustomerFields(profile);
+}
+
+function fillKnownCustomerFields(profile) {
+  if (!profile) return;
+
+  const values = {
+    'Full Name': profile.name || '',
+    Name: profile.name || '',
+    Email: profile.email || '',
+    'Email Address': profile.email || '',
+    Phone: profile.phone || '',
+    'Phone Number': profile.phone || '',
+  };
+
+  document.querySelectorAll('form').forEach((form) => {
+    if (form.matches('[data-login-form], [data-signup-form], [name="eastcord-inquiry"]')) return;
+    Object.entries(values).forEach(([name, value]) => {
+      if (!value) return;
+      const field = form.elements?.namedItem(name);
+      if (field && 'value' in field && field.type !== 'password') {
+        field.value = value;
+      }
+    });
+  });
+}
+
+function bindAuthStateChanges() {
+  const client = getSupabaseClient();
+  if (!client || bindAuthStateChanges.bound) return;
+  bindAuthStateChanges.bound = true;
+
+  client.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') {
+      applySignedInProfile(null);
+      updateCartCount();
+      return;
+    }
+    if (
+      event === 'INITIAL_SESSION'
+      || event === 'SIGNED_IN'
+      || event === 'TOKEN_REFRESHED'
+      || event === 'USER_UPDATED'
+    ) {
+      updateAuthNavigation();
+    }
   });
 }
 
@@ -805,35 +1018,7 @@ async function updateAuthNavigation() {
     profile = null;
   }
 
-  document.querySelectorAll('[data-auth-logged-out]').forEach((element) => {
-    element.hidden = Boolean(profile);
-  });
-  document.querySelectorAll('[data-auth-logged-in]').forEach((element) => {
-    element.hidden = !profile;
-  });
-  document.querySelectorAll('[data-account-name]').forEach((element) => {
-    element.textContent = profile?.name || 'My Account';
-  });
-
-  document.querySelectorAll('.main-nav').forEach((navigation) => {
-    let indicator = navigation.querySelector('[data-auth-session-indicator]');
-    if (!profile) {
-      indicator?.remove();
-      return;
-    }
-
-    if (!indicator) {
-      indicator = document.createElement('a');
-      indicator.href = '/account.html';
-      indicator.className = 'auth-session-indicator';
-      indicator.dataset.authSessionIndicator = '';
-      navigation.append(indicator);
-    }
-
-    const displayName = profile.name || profile.email || 'Customer';
-    indicator.textContent = `Signed in: ${displayName}`;
-    indicator.title = `Signed in as ${displayName}`;
-  });
+  applySignedInProfile(profile);
   updateCartCount();
 }
 
@@ -842,6 +1027,17 @@ function setAuthMessage(message, type = '') {
   if (!authMessage) return;
   authMessage.textContent = message;
   authMessage.className = `account-message ${type}`.trim();
+}
+
+function getLoginPageUrl() {
+  const redirectTarget = getRedirectTarget('/account.html');
+  return `/login.html?redirect=${encodeURIComponent(redirectTarget)}`;
+}
+
+function appendLoginLinkToAuthMessage() {
+  const messageElement = document.querySelector('[data-auth-message]');
+  if (!messageElement) return;
+  messageElement.insertAdjacentHTML('beforeend', ` <a href="${getLoginPageUrl()}">Go to sign in</a>`);
 }
 
 function bindAuthForms() {
@@ -887,6 +1083,15 @@ function bindAuthForms() {
         password,
       });
 
+      if (signupResult?.alreadyMember) {
+        setAuthMessage(EXISTING_MEMBER_LOGIN_MESSAGE, 'success');
+        appendLoginLinkToAuthMessage();
+        window.setTimeout(() => {
+          window.location.href = getLoginPageUrl();
+        }, 1200);
+        return;
+      }
+
       if (signupResult?.session) {
         setAuthMessage('Account created. Redirecting you back...', 'success');
         window.setTimeout(() => {
@@ -895,13 +1100,8 @@ function bindAuthForms() {
         return;
       }
 
-      const redirectTarget = getRedirectTarget('/appointment.html?restore=appointment#appointment-booking');
-      const loginUrl = `/login.html?redirect=${encodeURIComponent(redirectTarget)}`;
       setAuthMessage(`${EMAIL_CONFIRMATION_MESSAGE} After confirming, log in to continue.`, 'success');
-      const messageElement = document.querySelector('[data-auth-message]');
-      if (messageElement) {
-        messageElement.insertAdjacentHTML('beforeend', ` <a href="${loginUrl}">Log in after confirming</a>`);
-      }
+      appendLoginLinkToAuthMessage();
     } catch (error) {
       setAuthMessage(error.message || 'Signup could not be completed.', 'error');
     }
@@ -981,20 +1181,29 @@ async function hydrateSignedInCarts() {
       };
     }
 
-    const [appointmentCart, tireCart] = await Promise.all([
+    const [appointmentCart, remoteTireCart] = await Promise.all([
       loadCustomerCart('appointment', getCart()),
       loadCustomerCart('used_tire', getLocalUsedTireCart()),
     ]);
-    const normalizedTireCart = normalizeUsedTireCartItems(tireCart);
+    const normalizedTireCart = mergeCustomerCartItems(
+      'used_tire',
+      remoteTireCart,
+      getLocalUsedTireCart(),
+    );
 
-    localStorage.setItem(CART_KEY, JSON.stringify(normalizeCartCollection(appointmentCart)));
-    localStorage.setItem(ACCOUNT_USED_TIRE_CART_KEY, JSON.stringify(normalizedTireCart));
+    const normalizedAppointmentCart = normalizeCartCollection(appointmentCart)
+      .filter((item) => item.serviceId || item.serviceName);
+
+    localStorage.setItem(CART_KEY, JSON.stringify(normalizedAppointmentCart));
+    if (normalizedTireCart.length || !getLocalUsedTireCart().length) {
+      localStorage.setItem(ACCOUNT_USED_TIRE_CART_KEY, JSON.stringify(normalizedTireCart));
+    }
     accountCartsHydrated = true;
-    updateCartCount();
+    notifyUsedTireCartChanged();
     window.dispatchEvent(new CustomEvent('eastcord:account-carts-hydrated', {
-      detail: { appointmentCart, tireCart: normalizedTireCart },
+      detail: { appointmentCart, tireCart: getLocalUsedTireCart() },
     }));
-    return { appointmentCart, tireCart: normalizedTireCart };
+    return { appointmentCart, tireCart: getLocalUsedTireCart() };
   })().catch((error) => {
     accountCartHydratePromise = null;
     accountCartsHydrated = false;
@@ -1124,12 +1333,15 @@ window.EastCordAccount = {
   saveCustomerCart,
   persistSignedInCarts,
   hydrateSignedInCarts,
+  notifyUsedTireCartChanged,
+  applySignedInProfile,
   clearCustomerCart,
   mergeCustomerCartItems,
   normalizeUsedTireCartItems,
   clearCart,
   clearCartStorage,
   saveAppointmentBooking,
+  updateCartCount,
   money,
   setupMessage: ACCOUNT_SETUP_MESSAGE,
 };
@@ -1140,6 +1352,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindAuthForms();
   bindLogoutButtons();
   bindCartClearButtons();
+  bindAuthStateChanges();
   bindAccountCartPersistence();
   hydrateAccountPage();
   updateAuthNavigation();

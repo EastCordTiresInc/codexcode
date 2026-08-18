@@ -43,7 +43,7 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
 
   const items = getOrderItems(order);
   for (const item of items) {
-    const inventoryId = Number(item.inventoryId);
+    const inventoryId = String(item.inventoryId || item.id || '').replace(/^used-tire-/i, '').trim();
     const qty = Math.max(1, Number(item.qty) || 0);
     if (!inventoryId || !qty) continue;
 

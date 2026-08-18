@@ -1,4 +1,4 @@
-const INVENTORY_SELECT = 'id,tire_size,rim_size,type,brand,current_stock,selling_price,drive_link,is_flotation';
+const INVENTORY_SELECT = 'id,tire_size,rim_size,type,brand,current_stock,selling_price,drive_link,is_flotation,width,profile,wheel_size,size_label,season';
 
 exports.handler = async function getUsedInventory(event) {
   if (event.httpMethod !== 'GET') {

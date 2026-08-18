@@ -1,5 +1,5 @@
 const INVENTORY_TABLE = 'usedtireinventory';
-const INVENTORY_SELECT = 'id, tire_size, rim_size, type, brand, current_stock, selling_price, drive_link, is_flotation';
+const INVENTORY_SELECT = 'id, tire_size, rim_size, type, brand, current_stock, selling_price, drive_link, is_flotation, width, profile, wheel_size, size_label, season';
 const STATIC_INVENTORY_URL = '/assets/used-inventory.json';
 const EMPTY_MESSAGE = 'No tires are listed right now. Please contact EastCord Tires for current availability.';
 const SETUP_MESSAGE = 'Inventory is being connected. Supabase credentials are not configured yet.';
@@ -47,10 +47,14 @@ async function init() {
 
   bindInventoryControls();
   initPhotoLightbox();
-  await Promise.all([loadInventory(), preloadPhotoCache(), hydrateUsedTireCustomerCart()]);
+  await Promise.all([loadInventory(), preloadPhotoCache()]);
   populateSearchOptions();
   setSearchReadyState();
+  renderMarkdownSection();
   startInventoryAutoRefresh();
+  hydrateUsedTireCustomerCart().catch((error) => {
+    console.warn('[EastCord inventory] Saved tire cart could not be loaded from the customer account.', error);
+  });
 }
 
 function startInventoryAutoRefresh() {
@@ -70,8 +74,9 @@ async function refreshInventoryAutomatically() {
   try {
     await loadInventory({ silent: true });
     const inventoryChanged = getInventoryVersion(inventory) !== previousVersion;
-    if (inventoryChanged && searchPerformed) {
-      runSearch();
+    if (inventoryChanged) {
+      renderMarkdownSection();
+      if (searchPerformed) runSearch();
     }
   } catch (error) {
     console.warn('[EastCord inventory] Automatic refresh failed.', error);
@@ -193,6 +198,9 @@ function getElements() {
     loadStatus: document.querySelector('[data-inventory-load-status]'),
     results: document.querySelector('[data-inventory-results]'),
     submit: document.querySelector('[data-inventory-submit]'),
+    markdownSection: document.querySelector('[data-markdown-section]'),
+    markdownList: document.querySelector('[data-markdown-list]'),
+    markdownCount: document.querySelector('[data-markdown-count]'),
   };
 }
 
@@ -276,10 +284,10 @@ function normalizeInventoryRow(row) {
   const rimSize = clean(row.rim_size);
   const isFlotation = parseBoolean(row.is_flotation);
   const parsedSize = parseTireSize(tireSizeRaw, rimSize, isFlotation);
-  const width = parsedSize?.width ?? null;
-  const profile = parsedSize?.profile ?? null;
-  const rim = parsedSize?.rim ?? null;
-  const size = formatTireSizeLabel(tireSizeRaw, { width, profile, rim: rim }, isFlotation) || tireSizeRaw;
+  const width = parsedSize?.width || clean(row.width) || null;
+  const profile = parsedSize?.profile || clean(row.profile) || null;
+  const rim = parsedSize?.rim || clean(row.wheel_size) || null;
+  const size = formatTireSizeLabel(tireSizeRaw, { width, profile, rim }, isFlotation) || clean(row.size_label) || tireSizeRaw;
   const season = clean(row.season) || clean(row.type);
   const title = [brand, size].filter(Boolean).join(' ');
 
@@ -468,6 +476,18 @@ function bindInventoryControls() {
     if (brand.value) runSearch();
   });
 
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-tire-cart-action]');
+    if (!button) return;
+    handleTireCartAction(button);
+  });
+
+  document.addEventListener('change', (event) => {
+    const select = event.target.closest('.used-tire-card-qty');
+    if (!select) return;
+    updateTireCardSetTotal(select);
+  });
+
   document.querySelector('[data-inventory-refresh]')?.addEventListener('click', async (event) => {
     event.preventDefault();
     inventoryLoaded = false;
@@ -477,6 +497,7 @@ function bindInventoryControls() {
     await loadInventory();
     populateSearchOptions();
     setSearchReadyState();
+    renderMarkdownSection();
   });
 }
 
@@ -541,6 +562,30 @@ function uniqueRims(widthValue = '', profileValue = '', items = inventory) {
 
 function isInStock(item) {
   return (Number(item?.stock) || 0) > 0;
+}
+
+function getPricing() {
+  return window.EastCordUsedTirePricing || {
+    MARKDOWN_RATE: 0.2,
+    isMarkdownStock(stock) {
+      const count = Math.max(0, Number(stock) || 0);
+      return count > 0 && count < 4;
+    },
+    getUsedTireUnitPrice(listPrice, stock) {
+      const price = Number(listPrice);
+      if (!Number.isFinite(price) || price <= 0) return null;
+      const rounded = Math.round(price * 100) / 100;
+      return this.isMarkdownStock(stock) ? Math.round(price * 0.8 * 100) / 100 : rounded;
+    },
+  };
+}
+
+function isMarkdownTire(item) {
+  return getPricing().isMarkdownStock(item?.stock);
+}
+
+function getTireSalePrice(item) {
+  return getPricing().getUsedTireUnitPrice(item?.price, item?.stock);
 }
 
 function brandsMatch(left, right) {
@@ -759,34 +804,64 @@ function renderResults(products, summary = formatSearchSummary(getSearchFilters(
 
   if (!list) return;
 
-  list.innerHTML = products.map((item) => renderUsedTireCard(item)).join('');
-  bindTireCardQtyControls(list);
-  bindTirePurchaseControls(list);
+  list.innerHTML = products.map((item, index) => renderUsedTireCard(item, index)).join('');
   updateUsedTireCartCount();
   hydrateTireCardPhotos(list);
 }
 
-function renderUsedTireCard(item) {
+function renderMarkdownSection() {
+  const { markdownSection, markdownList, markdownCount } = getElements();
+  if (!markdownSection || !markdownList) return;
+
+  const markdownTires = inventory.filter(isMarkdownTire).sort((left, right) => {
+    const stockDelta = (Number(left.stock) || 0) - (Number(right.stock) || 0);
+    if (stockDelta !== 0) return stockDelta;
+    return String(left.brand || '').localeCompare(String(right.brand || ''));
+  });
+
+  markdownSection.hidden = !markdownTires.length;
+  if (markdownCount) {
+    markdownCount.textContent = markdownTires.length
+      ? `${markdownTires.length} tire${markdownTires.length === 1 ? '' : 's'} marked down 20%`
+      : '';
+  }
+  if (!markdownTires.length) {
+    markdownList.innerHTML = '';
+    return;
+  }
+
+  markdownList.innerHTML = markdownTires
+    .map((item, index) => renderUsedTireCard(item, index, { idPrefix: 'sale-' }))
+    .join('');
+  hydrateTireCardPhotos(markdownList);
+}
+
+function renderUsedTireCard(item, cardIndex = 0, options = {}) {
+  const idPrefix = options.idPrefix || '';
   const brandLabel = formatBrandLabel(item.brand);
   const brandSlug = getBrandLogoSlug(item.brand);
   const brandLogo = getBrandLogoPath(item.brand);
   const seasonLabel = formatSeasonLabel(item.season);
   const stockCount = Math.max(0, Number(item.stock) || 0);
   const maxQty = Math.max(1, Math.min(stockCount || 1, 4));
-  const unitPrice = item.price;
+  const listPrice = item.price;
+  const unitPrice = getTireSalePrice(item);
+  const markdown = isMarkdownTire(item) && unitPrice !== null;
   const defaultQty = Math.min(4, maxQty);
   const setTotal = unitPrice === null ? null : unitPrice * defaultQty;
   const photoLink = isPhotoLink(item.details) ? item.details : '';
+  const qtyId = `used-tire-qty-${idPrefix}${item.id}`;
 
   const qtyOptions = Array.from({ length: maxQty }, (_, index) => {
     const value = index + 1;
     const selected = value === defaultQty ? ' selected' : '';
     return `<option value="${value}"${selected}>${value}</option>`;
   }).join('');
-  const stockAlert = renderStockAlert(stockCount);
+  const stockAlert = renderStockAlert(stockCount, markdown);
 
   return `
-    <article class="used-tire-card${stockCount ? '' : ' is-sold-out'}">
+    <article class="used-tire-card${stockCount ? '' : ' is-sold-out'}${markdown ? ' is-markdown' : ''}">
+      ${markdown ? '<p class="used-tire-card-sale-badge">20% off</p>' : ''}
       <div class="used-tire-card-brand">
         ${brandLogo
     ? `<img src="${escapeHtml(brandLogo)}" alt="${escapeHtml(brandLabel)}" data-brand="${escapeHtml(brandSlug)}" loading="lazy" />`
@@ -795,7 +870,7 @@ function renderUsedTireCard(item) {
 
       ${stockAlert}
 
-      ${renderTirePhotoGallery(item, photoLink)}
+      ${renderTirePhotoGallery(item, photoLink, cardIndex)}
 
       <div class="used-tire-card-heading">
         <p class="used-tire-card-type">${escapeHtml(item.type || 'Used')}</p>
@@ -828,9 +903,9 @@ function renderUsedTireCard(item) {
 
       <div class="used-tire-card-pricing">
         <div class="used-tire-card-qty-row">
-          <label class="used-tire-card-qty-label" for="used-tire-qty-${escapeHtml(item.id)}">Qty</label>
+          <label class="used-tire-card-qty-label" for="${escapeHtml(qtyId)}">Qty</label>
           <select
-            id="used-tire-qty-${escapeHtml(item.id)}"
+            id="${escapeHtml(qtyId)}"
             class="used-tire-card-qty"
             data-unit-price="${unitPrice ?? ''}"
             ${stockCount ? '' : 'disabled'}
@@ -839,8 +914,11 @@ function renderUsedTireCard(item) {
           </select>
         </div>
         <div class="used-tire-card-price-block">
-          <span class="used-tire-card-price-label">Per tire</span>
+          <span class="used-tire-card-price-label">${markdown ? 'Sale price' : 'Per tire'}</span>
           <strong class="used-tire-card-price">${escapeHtml(formatPrice(unitPrice))}</strong>
+          ${markdown && listPrice !== null
+    ? `<p class="used-tire-card-list-price">Was ${escapeHtml(formatPrice(listPrice))}</p>`
+    : ''}
           ${setTotal !== null
     ? `<p class="used-tire-card-set-total"><span data-set-label>Set of ${defaultQty}</span>: <span data-set-total>${escapeHtml(formatPrice(setTotal))}</span></p>`
     : ''}
@@ -868,6 +946,10 @@ function renderUsedTireCard(item) {
   `;
 }
 
+function sameTireId(left, right) {
+  return String(left ?? '') === String(right ?? '');
+}
+
 function getUsedTireCart() {
   try {
     const stored = JSON.parse(localStorage.getItem(USED_TIRE_CART_KEY) || '[]');
@@ -884,9 +966,13 @@ function getUsedTireCart() {
 }
 
 function saveUsedTireCart(cart) {
-  localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(cart));
+  const normalized = window.EastCordAccount?.normalizeUsedTireCartItems
+    ? window.EastCordAccount.normalizeUsedTireCartItems(cart)
+    : (Array.isArray(cart) ? cart : []);
+  localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(normalized));
   updateUsedTireCartCount();
-  window.EastCordAccount?.saveCustomerCart?.('used_tire', cart).catch((error) => {
+  window.EastCordAccount?.notifyUsedTireCartChanged?.(normalized);
+  window.EastCordAccount?.saveCustomerCart?.('used_tire', normalized).catch((error) => {
     console.warn('[EastCord inventory] Used tire cart account sync failed.', error);
   });
 }
@@ -895,16 +981,31 @@ async function hydrateUsedTireCustomerCart() {
   if (!window.EastCordAccount?.loadCustomerCart) return;
   try {
     const mergedCart = await window.EastCordAccount.loadCustomerCart('used_tire', getUsedTireCart());
-    localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(mergedCart));
+    const normalizedCart = window.EastCordAccount.normalizeUsedTireCartItems
+      ? window.EastCordAccount.normalizeUsedTireCartItems([
+        ...(Array.isArray(mergedCart) ? mergedCart : []),
+        ...getUsedTireCart(),
+      ])
+      : mergedCart;
+    if (normalizedCart.length) {
+      localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(normalizedCart));
+    }
     updateUsedTireCartCount();
+    window.EastCordAccount?.notifyUsedTireCartChanged?.(getUsedTireCart());
   } catch (error) {
     console.warn('[EastCord inventory] Saved tire cart could not be loaded from the customer account.', error);
   }
 }
 
 function updateUsedTireCartCount() {
+  if (window.EastCordAccount?.updateCartCount) {
+    window.EastCordAccount.updateCartCount();
+    return;
+  }
   const count = getUsedTireCart().reduce((total, item) => total + (Number(item.qty) || 0), 0);
-  document.querySelectorAll('[data-cart-count]').forEach((element) => {
+  document.querySelectorAll('[data-tire-cart-count], [data-cart-count]').forEach((element) => {
+    const href = element.closest('a')?.getAttribute('href') || '';
+    if (href && !/tire-cart/.test(href) && element.matches('[data-cart-count]')) return;
     element.textContent = count ? ` (${count})` : '';
   });
 }
@@ -912,21 +1013,26 @@ function updateUsedTireCartCount() {
 function addUsedTireToCart(item, qty) {
   const stock = Math.max(0, Number(item.stock) || 0);
   const requestedQty = Math.max(1, Number(qty) || 1);
+  const salePrice = getTireSalePrice(item);
   const cart = getUsedTireCart();
-  const existing = cart.find((entry) => Number(entry.inventoryId) === Number(item.id));
+  const existing = cart.find((entry) => sameTireId(entry.inventoryId, item.id));
 
   if (existing) {
-    existing.qty = Math.min(stock, (Number(existing.qty) || 0) + requestedQty);
+    existing.qty = Math.min(4, stock, (Number(existing.qty) || 0) + requestedQty);
     existing.maxStock = stock;
-    existing.unitPrice = item.price;
+    existing.listPrice = item.price;
+    existing.unitPrice = salePrice;
+    existing.markdown = isMarkdownTire(item);
   } else {
     cart.push({
       id: `used-tire-${item.id}`,
       type: 'used_tire',
-      inventoryId: Number(item.id),
-      qty: Math.min(stock, requestedQty),
+      inventoryId: Number(item.id) || item.id,
+      qty: Math.min(4, stock, requestedQty),
       maxStock: stock,
-      unitPrice: item.price,
+      listPrice: item.price,
+      unitPrice: salePrice,
+      markdown: isMarkdownTire(item),
       title: item.title,
       brand: item.brand,
       size: item.size,
@@ -937,37 +1043,47 @@ function addUsedTireToCart(item, qty) {
   saveUsedTireCart(cart);
 }
 
-function bindTirePurchaseControls(list) {
-  list.querySelectorAll('[data-tire-cart-action]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const item = inventory.find(
-        (entry) => Number(entry.id) === Number(button.dataset.inventoryId),
-      );
-      const card = button.closest('.used-tire-card');
-      const qty = card?.querySelector('.used-tire-card-qty')?.value || 1;
-      const status = card?.querySelector('[data-tire-cart-status]');
+function handleTireCartAction(button) {
+  const item = inventory.find((entry) => sameTireId(entry.id, button.dataset.inventoryId));
+  const card = button.closest('.used-tire-card');
+  const qty = card?.querySelector('.used-tire-card-qty')?.value || 1;
+  const status = card?.querySelector('[data-tire-cart-status]');
 
-      if (!item || !isInStock(item) || item.price === null) {
-        if (status) status.textContent = 'This tire is not currently available to reserve.';
-        return;
-      }
+  if (!item || !isInStock(item) || getTireSalePrice(item) === null) {
+    if (status) status.textContent = 'This tire is not currently available to reserve.';
+    return;
+  }
 
-      addUsedTireToCart(item, qty);
+  addUsedTireToCart(item, qty);
 
-      if (button.dataset.tireCartAction === 'reserve') {
-        window.location.href = '/tire-cart';
-        return;
-      }
+  if (button.dataset.tireCartAction === 'reserve') {
+    window.location.href = '/tire-cart.html';
+    return;
+  }
 
-      if (status) {
-        status.innerHTML = `Added to cart. <a href="/tire-cart">View tire cart</a>`;
-      }
-    });
-  });
+  if (status) {
+    status.innerHTML = `Added to cart. <a href="/tire-cart.html">View tire cart</a>`;
+  }
+}
+
+function updateTireCardSetTotal(select) {
+  const card = select.closest('.used-tire-card');
+  const setTotalEl = card?.querySelector('[data-set-total]');
+  const setLabelEl = card?.querySelector('[data-set-label]');
+  const unitPrice = Number(select.dataset.unitPrice);
+  const qty = Number(select.value);
+
+  if (!setTotalEl || !Number.isFinite(unitPrice)) return;
+
+  setTotalEl.textContent = formatPrice(unitPrice * qty);
+  if (setLabelEl) {
+    setLabelEl.textContent = `Set of ${qty}`;
+  }
 }
 
 const drivePhotoCache = new Map();
 let photoCacheByFolder = null;
+let photoGalleryObserver = null;
 const PHOTO_CACHE_URLS = ['/assets/tire-photo-cache.json', '/assets/drive-photo-cache.json'];
 const PHOTO_LIST_ENDPOINTS = [
   '/.netlify/functions/get-tire-photos',
@@ -977,6 +1093,9 @@ const PHOTO_PROXY_ENDPOINTS = [
   '/.netlify/functions/get-tire-image',
   '/.netlify/functions/get-drive-photo',
 ];
+const CARD_PHOTO_PIXELS = 800;
+const ZOOM_PHOTO_PIXELS = 1600;
+const EAGER_PHOTO_CARDS = 4;
 const IMAGE_NAME_PATTERN = /\.(jpe?g|png|webp|gif|heic|bmp)$/i;
 const IMAGE_MIME_PREFIX = 'image/';
 
@@ -998,31 +1117,32 @@ function renderPhotoControlsBar() {
   `;
 }
 
-function renderTirePhotoGallery(item, photoLink) {
+function renderTirePhotoGallery(item, photoLink, cardIndex = 0) {
   if (!photoLink) return '';
 
   const driveRef = parseDriveLink(photoLink);
   if (!driveRef) return '';
 
+  const eager = cardIndex < EAGER_PHOTO_CARDS;
+
   if (driveRef.type === 'file') {
-    const url = buildPhotoProxyUrl(driveRef.id, 'w1000');
-    return `
-      <div class="used-tire-card-photos" data-tire-photos data-drive-url="${escapeHtml(photoLink)}">
-        <div class="used-tire-card-photo-track">
-          <div class="used-tire-card-photo-slide is-active">
-            <img
-              src="${escapeHtml(url)}"
-              data-photo-id="${escapeHtml(driveRef.id)}"
-              alt="${escapeHtml(item.title)} photo"
-              loading="lazy"
-              decoding="async"
-              referrerpolicy="no-referrer"
-            />
-          </div>
-        </div>
-        ${renderPhotoControlsBar()}
-      </div>
-    `;
+    return renderPhotoGalleryMarkup({
+      photos: [toPhotoEntry({ id: driveRef.id, name: `${item.title} photo` })],
+      driveUrl: photoLink,
+      eager,
+      label: item.title,
+    });
+  }
+
+  const cached = getPhotosFromCacheFolder(driveRef.id);
+  if (cached.length) {
+    return renderPhotoGalleryMarkup({
+      photos: cached,
+      folderId: driveRef.id,
+      driveUrl: photoLink,
+      eager,
+      label: item.title,
+    });
   }
 
   return `
@@ -1043,20 +1163,81 @@ function renderTirePhotoGallery(item, photoLink) {
   `;
 }
 
-async function hydrateTireCardPhotos(list) {
-  const galleries = [...list.querySelectorAll('[data-tire-photos][data-folder-id]')];
-  await Promise.all(galleries.map((gallery) => loadCardPhotos(gallery)));
+function renderPhotoGalleryMarkup({ photos, folderId = '', driveUrl, eager = false, label = 'Tire' }) {
+  const folderAttr = folderId ? ` data-folder-id="${escapeHtml(folderId)}"` : '';
+  return `
+    <div
+      class="used-tire-card-photos"
+      data-tire-photos
+      data-photos-ready="true"
+      ${folderAttr}
+      data-drive-url="${escapeHtml(driveUrl)}"
+      aria-label="Photos for ${escapeHtml(label)}"
+    >
+      <div class="used-tire-card-photo-track">
+        ${renderPhotoSlides(photos, eager)}
+      </div>
+      ${renderPhotoControlsBar()}
+    </div>
+  `;
+}
 
-  list.querySelectorAll('[data-tire-photos]:not([data-folder-id]) .used-tire-card-photo-controls').forEach((controls) => {
-    controls.hidden = false;
+function hydrateTireCardPhotos(list) {
+  list.querySelectorAll('[data-tire-photos][data-photos-ready="true"]').forEach((gallery) => {
+    finishGallerySetup(gallery);
   });
+
+  const pending = [...list.querySelectorAll('[data-tire-photos].is-loading[data-folder-id]')];
+  if (!pending.length) return;
+
+  if (!('IntersectionObserver' in window)) {
+    pending.forEach((gallery) => loadCardPhotos(gallery));
+    return;
+  }
+
+  if (photoGalleryObserver) {
+    photoGalleryObserver.disconnect();
+  }
+
+  photoGalleryObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      photoGalleryObserver.unobserve(entry.target);
+      loadCardPhotos(entry.target);
+    });
+  }, { rootMargin: '400px 0px', threshold: 0.01 });
+
+  pending.forEach((gallery) => photoGalleryObserver.observe(gallery));
+}
+
+function finishGallerySetup(gallery) {
+  if (!gallery || gallery.dataset.photosBound === 'true') return;
+
+  const track = gallery.querySelector('.used-tire-card-photo-track');
+  const controls = gallery.querySelector('.used-tire-card-photo-controls');
+  const slides = [...(track?.querySelectorAll('.used-tire-card-photo-slide') || [])];
+  if (!track || !slides.length) return;
+
+  gallery.dataset.photosBound = 'true';
+  bindPhotoImages(track);
+  gallery.classList.toggle('has-multiple-photos', slides.length > 1);
+
+  if (controls) {
+    controls.hidden = false;
+    if (slides.length > 1) {
+      bindPhotoGalleryControls(gallery, slides.length);
+    }
+  }
 }
 
 async function loadCardPhotos(gallery) {
+  if (!gallery || gallery.dataset.photosReady === 'true') return;
+
   const folderId = gallery.dataset.folderId;
   const track = gallery.querySelector('.used-tire-card-photo-track');
-  const controls = gallery.querySelector('.used-tire-card-photo-controls');
   if (!folderId || !track) return;
+
+  gallery.dataset.photosReady = 'true';
 
   try {
     const photos = await fetchDrivePhotos(folderId);
@@ -1067,17 +1248,12 @@ async function loadCardPhotos(gallery) {
       return;
     }
 
-    track.innerHTML = renderPhotoSlides(photos);
-    bindPhotoImages(track);
-
-    gallery.classList.toggle('has-multiple-photos', photos.length > 1);
-
-    if (controls) {
-      controls.hidden = false;
-      if (photos.length > 1) {
-        bindPhotoGalleryControls(gallery, photos.length);
-      }
-    }
+    const card = gallery.closest('.used-tire-card');
+    const cardIndex = card
+      ? [...(card.parentElement?.children || [])].indexOf(card)
+      : EAGER_PHOTO_CARDS;
+    track.innerHTML = renderPhotoSlides(photos, cardIndex < EAGER_PHOTO_CARDS);
+    finishGallerySetup(gallery);
   } catch (error) {
     console.warn('[EastCord inventory] Could not load tire photos.', error);
     hidePhotoGallery(gallery);
@@ -1096,7 +1272,17 @@ function isImageFile(file) {
   return IMAGE_NAME_PATTERN.test(file.name || '');
 }
 
-function buildPhotoProxyUrl(photoId, size = 'w1000', endpointIndex = 0) {
+function buildGoogleThumbUrl(photoId, pixels = CARD_PHOTO_PIXELS) {
+  if (!photoId) return '';
+  return `https://lh3.googleusercontent.com/d/${photoId}=s${pixels}`;
+}
+
+function buildDriveThumbUrl(photoId, pixels = CARD_PHOTO_PIXELS) {
+  if (!photoId) return '';
+  return `https://drive.google.com/thumbnail?id=${photoId}&sz=w${pixels}`;
+}
+
+function buildPhotoProxyUrl(photoId, size = `w${CARD_PHOTO_PIXELS}`, endpointIndex = 0) {
   if (!photoId) return '';
   const endpoint = PHOTO_PROXY_ENDPOINTS[endpointIndex] || PHOTO_PROXY_ENDPOINTS[0];
   const params = new URLSearchParams({
@@ -1109,49 +1295,56 @@ function buildPhotoProxyUrl(photoId, size = 'w1000', endpointIndex = 0) {
 function toPhotoEntry(file) {
   const id = file.id;
   const name = file.name || 'Tire photo';
-  const proxyCard = buildPhotoProxyUrl(id, 'w1000');
-  const proxyZoom = buildPhotoProxyUrl(id, 'w2400');
-  const thumbUrl = `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
-  const viewUrl = `https://drive.google.com/uc?export=view&id=${id}`;
-  const sources = [proxyCard, thumbUrl, viewUrl].filter(Boolean);
+  const cardUrl = buildGoogleThumbUrl(id, CARD_PHOTO_PIXELS);
+  const zoomUrl = buildGoogleThumbUrl(id, ZOOM_PHOTO_PIXELS);
 
   return {
     id,
     name,
-    url: proxyCard,
-    sources: [...new Set(sources)],
-    zoomUrl: proxyZoom,
+    url: cardUrl,
+    sources: buildCardPhotoSources({ id, url: cardUrl }),
+    zoomUrl,
     viewUrl: `https://drive.google.com/file/d/${id}/view`,
   };
 }
 
-function buildPhotoSources(photo) {
+function buildCardPhotoSources(photo) {
   const id = photo.id;
-  const sources = [
+  return [...new Set([
     photo.url,
-    photo.zoomUrl,
-    ...(photo.sources || []),
-    buildPhotoProxyUrl(id, 'w1000', 0),
-    buildPhotoProxyUrl(id, 'w2400', 0),
-    buildPhotoProxyUrl(id, 'w1000', 1),
-    buildPhotoProxyUrl(id, 'w2400', 1),
-    `https://drive.google.com/thumbnail?id=${id}&sz=w1000`,
-    `https://drive.google.com/uc?export=view&id=${id}`,
-  ].filter(Boolean);
-  return [...new Set(sources)];
+    buildGoogleThumbUrl(id, CARD_PHOTO_PIXELS),
+    buildDriveThumbUrl(id, CARD_PHOTO_PIXELS),
+    buildPhotoProxyUrl(id, `w${CARD_PHOTO_PIXELS}`, 0),
+    buildPhotoProxyUrl(id, `w${CARD_PHOTO_PIXELS}`, 1),
+  ].filter(Boolean))];
 }
 
-function renderPhotoSlides(photos) {
+function buildZoomSources(photoId) {
+  return [
+    buildGoogleThumbUrl(photoId, ZOOM_PHOTO_PIXELS),
+    buildDriveThumbUrl(photoId, ZOOM_PHOTO_PIXELS),
+    buildPhotoProxyUrl(photoId, `w${ZOOM_PHOTO_PIXELS}`, 0),
+    buildPhotoProxyUrl(photoId, `w${ZOOM_PHOTO_PIXELS}`, 1),
+  ].filter(Boolean);
+}
+
+function renderPhotoSlides(photos, eager = false) {
   return photos.map((photo, index) => {
-    const sources = buildPhotoSources(photo);
-    const activeClass = index === 0 ? ' is-active' : '';
+    const sources = buildCardPhotoSources(photo);
+    const isFirst = index === 0;
+    const srcAttr = isFirst ? `src="${escapeHtml(sources[0])}"` : '';
+    const loading = isFirst && eager ? 'eager' : 'lazy';
+    const fetchPriority = isFirst && eager ? 'high' : 'low';
+    const activeClass = isFirst ? ' is-active' : '';
     return `
       <div class="used-tire-card-photo-slide${activeClass}">
         <img
-          src="${escapeHtml(sources[0])}"
+          ${srcAttr}
           data-photo-id="${escapeHtml(photo.id)}"
+          data-photo-src="${escapeHtml(sources[0])}"
           alt="${escapeHtml(photo.name)}"
-          loading="lazy"
+          loading="${loading}"
+          fetchpriority="${fetchPriority}"
           decoding="async"
           referrerpolicy="no-referrer"
         />
@@ -1166,14 +1359,20 @@ function hidePhotoGallery(gallery) {
   gallery.hidden = true;
 }
 
+function ensureSlideImageLoaded(slide) {
+  const img = slide?.querySelector('img[data-photo-src]');
+  if (!img || img.getAttribute('src')) return;
+  img.src = img.dataset.photoSrc;
+}
+
 function bindPhotoImages(track) {
   track.querySelectorAll('img[data-photo-id]').forEach((img) => {
     const photoId = img.dataset.photoId;
-    const sources = buildPhotoSources({
+    const sources = buildCardPhotoSources({
       id: photoId,
-      url: img.getAttribute('src') || '',
+      url: img.dataset.photoSrc || img.getAttribute('src') || '',
     });
-    let attempt = 0;
+    let attempt = Math.max(0, sources.indexOf(img.getAttribute('src') || img.dataset.photoSrc || ''));
 
     img.addEventListener('error', () => {
       attempt += 1;
@@ -1187,13 +1386,15 @@ function bindPhotoImages(track) {
       if (!slide) return;
       slide.remove();
 
-      const remaining = gallery?.querySelectorAll('.used-tire-card-photo-slide img') || [];
-      if (!remaining.length) {
+      const remainingSlides = [...(gallery?.querySelectorAll('.used-tire-card-photo-slide') || [])];
+      if (!remainingSlides.length) {
         hidePhotoGallery(gallery);
         return;
       }
 
-      remaining[0].closest('.used-tire-card-photo-slide')?.classList.add('is-active');
+      const nextSlide = remainingSlides[0];
+      nextSlide.classList.add('is-active');
+      ensureSlideImageLoaded(nextSlide);
     });
   });
 }
@@ -1403,11 +1604,11 @@ function ensurePhotoLightbox() {
 
 function buildZoomUrl(photoId, fallbackSrc = '') {
   if (photoId) {
-    return buildPhotoProxyUrl(photoId, 'w2400');
+    return buildGoogleThumbUrl(photoId, ZOOM_PHOTO_PIXELS);
   }
-  const idMatch = String(fallbackSrc).match(/[?&]id=([^&]+)/);
+  const idMatch = String(fallbackSrc).match(/[?&]id=([^&]+)|\/d\/([^=/?&]+)/);
   if (idMatch) {
-    return buildPhotoProxyUrl(decodeURIComponent(idMatch[1]), 'w2400');
+    return buildGoogleThumbUrl(decodeURIComponent(idMatch[1] || idMatch[2]), ZOOM_PHOTO_PIXELS);
   }
   return fallbackSrc;
 }
@@ -1415,7 +1616,8 @@ function buildZoomUrl(photoId, fallbackSrc = '') {
 function collectGalleryZoomItems(gallery) {
   return [...gallery.querySelectorAll('.used-tire-card-photo-slide img')]
     .map((img) => ({
-      zoomUrl: buildZoomUrl(img.dataset.photoId, img.src),
+      photoId: img.dataset.photoId || '',
+      zoomUrl: buildZoomUrl(img.dataset.photoId, img.src || img.dataset.photoSrc),
       alt: img.alt || 'Tire photo',
     }))
     .filter((item) => item.zoomUrl);
@@ -1459,7 +1661,15 @@ function renderPhotoLightboxSlide() {
   const hasMultiple = photoLightboxItems.length > 1;
 
   if (image) {
-    image.src = item.zoomUrl;
+    const sources = item.photoId ? buildZoomSources(item.photoId) : [item.zoomUrl].filter(Boolean);
+    let attempt = 0;
+    image.onerror = () => {
+      attempt += 1;
+      if (attempt < sources.length) {
+        image.src = sources[attempt];
+      }
+    };
+    image.src = sources[0] || item.zoomUrl;
     image.alt = item.alt;
   }
 
@@ -1494,6 +1704,7 @@ function bindPhotoGalleryControls(gallery, totalPhotos) {
     slides.forEach((slide, slideIndex) => {
       slide.classList.toggle('is-active', slideIndex === activeIndex);
     });
+    ensureSlideImageLoaded(slides[activeIndex]);
     countEl.textContent = `${activeIndex + 1} / ${totalPhotos}`;
     prevButton.disabled = activeIndex <= 0;
     nextButton.disabled = activeIndex >= totalPhotos - 1;
@@ -1520,25 +1731,6 @@ function parseDriveLink(url) {
   }
 
   return null;
-}
-
-function bindTireCardQtyControls(list) {
-  list.querySelectorAll('.used-tire-card-qty').forEach((select) => {
-    select.addEventListener('change', () => {
-      const card = select.closest('.used-tire-card');
-      const setTotalEl = card?.querySelector('[data-set-total]');
-      const setLabelEl = card?.querySelector('[data-set-label]');
-      const unitPrice = Number(select.dataset.unitPrice);
-      const qty = Number(select.value);
-
-      if (!setTotalEl || !Number.isFinite(unitPrice)) return;
-
-      setTotalEl.textContent = formatPrice(unitPrice * qty);
-      if (setLabelEl) {
-        setLabelEl.textContent = `Set of ${qty}`;
-      }
-    });
-  });
 }
 
 function formatBrandLabel(brand) {
@@ -1582,9 +1774,12 @@ function isPhotoLink(value) {
   return /^https?:\/\//i.test(link);
 }
 
-function renderStockAlert(stockCount) {
+function renderStockAlert(stockCount, markdown = false) {
   if (stockCount <= 0) {
     return `<p class="used-tire-card-stock-alert is-sold-out">Sold out — contact EastCord Tires for availability.</p>`;
+  }
+  if (markdown) {
+    return `<p class="used-tire-card-stock-alert is-markdown">Marked down 20% — only ${stockCount} left.</p>`;
   }
   if (stockCount <= LOW_STOCK_THRESHOLD) {
     return `<p class="used-tire-card-stock-alert is-low">Only ${stockCount} left in stock — order soon.</p>`;

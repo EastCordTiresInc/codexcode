@@ -116,3 +116,32 @@
   to = "/appointment-cancelled.html"
   status = 301
   force = true
+
+[[redirects]]
+  from = "/local-installers"
+  to = "/local-installers.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/local-installers/"
+  to = "/local-installers.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/installer-application"
+  to = "/installer-application.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/installer-application/"
+  to = "/installer-application.html"
+  status = 301
+  force = true
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

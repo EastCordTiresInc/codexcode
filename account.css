@@ -147,6 +147,20 @@
   display: none !important;
 }
 
+.auth-account-link {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.auth-account-link small {
+  color: #6b7280;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
 .auth-link-button {
   border: 0;
   padding: 0;

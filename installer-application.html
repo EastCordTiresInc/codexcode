@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Submit a tire technician application to receive EastCord Tires mobile service-call jobs."
+    />
+    <title>Tire Installer Application | EastCord Tires</title>
+    <link rel="stylesheet" href="styles.css?v=6" />
+    <link rel="stylesheet" href="heading-balance.css" />
+    <link rel="stylesheet" href="footer-section.css?v=5" />
+    <link rel="stylesheet" href="auth.css" />
+    <link rel="stylesheet" href="appointment.css?v=23" />
+    <link rel="stylesheet" href="local-installers.css?v=4" />
+  </head>
+  <body class="appointment-page installer-application-page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="nav-shell">
+        <a class="brand brand-logo" href="/" aria-label="EastCord Tires home">
+          <img src="/assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" aria-label="Open navigation menu">
+          <span></span><span></span><span></span>
+        </button>
+        <nav class="main-nav" id="primary-navigation" aria-label="Main navigation">
+          <a href="/">Home</a>
+          <div class="nav-dropdown">
+            <button class="nav-dropdown-toggle" type="button" aria-expanded="false" aria-haspopup="true">Tires</button>
+            <div class="nav-dropdown-menu">
+              <a href="/used-tires">Used Tires</a>
+              <a href="/new-tires">New Tires</a>
+            </div>
+          </div>
+          <a href="/appointment">Appointment</a>
+          <a href="/local-installers" aria-current="page">Local Installers</a>
+          <a href="/#contact">Contact</a>
+          <span class="nav-carts" aria-label="Shopping carts">
+            <a href="/tire-cart">Tire Cart<span data-tire-cart-count></span></a>
+            <a href="/cart">Appointment Cart<span data-appointment-cart-count></span></a>
+          </span>
+          <span class="auth-nav-group" data-auth-logged-out>
+            <a href="/signup">Sign Up</a>
+            <a href="/login">Log In</a>
+          </span>
+          <span class="auth-nav-group" data-auth-logged-in hidden>
+            <a class="auth-account-link" href="/account">
+              <span data-account-name>My Account</span>
+              <small data-account-email></small>
+            </a>
+            <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
+          </span>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="section zoho-form-section" aria-labelledby="application-title">
+        <div class="shell zoho-form-shell">
+          <p class="zoho-back-row">
+            <a class="zoho-back-link" href="/local-installers">← Back to Local Installers</a>
+          </p>
+          <form
+            class="zoho-form"
+            name="eastcord-installer-application"
+            method="POST"
+            action="/thank-you.html"
+            data-netlify="true"
+            netlify-honeypot="bot-field"
+            data-installer-form
+          >
+            <input type="hidden" name="form-name" value="eastcord-installer-application" />
+            <input type="hidden" name="subject" value="New EastCord tire technician submission" />
+            <input type="hidden" name="Work Types" value="Service calls" />
+            <p class="installer-honeypot" aria-hidden="true">
+              <label>Do not fill this out <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
+            </p>
+
+            <header class="zoho-form-header">
+              <p class="zoho-form-kicker">EastCord Tires</p>
+              <h1 id="application-title">Tire Technician Submission Form</h1>
+              <p>Complete this form if you are a personal technician who can go on EastCord service calls. Required fields are marked with <span class="zoho-required">*</span>.</p>
+            </header>
+
+            <section class="zoho-section">
+              <div class="zoho-section-heading">
+                <h2>1. Technician Information</h2>
+                <p>Your personal contact details for service-call assignments.</p>
+              </div>
+              <div class="zoho-grid">
+                <label class="zoho-field">
+                  <span>Full name <span class="zoho-required">*</span></span>
+                  <input name="Full Name" type="text" autocomplete="name" required />
+                </label>
+                <label class="zoho-field">
+                  <span>Email <span class="zoho-required">*</span></span>
+                  <input name="Email" type="email" autocomplete="email" required />
+                </label>
+                <label class="zoho-field">
+                  <span>Phone <span class="zoho-required">*</span></span>
+                  <input name="Phone" type="tel" autocomplete="tel" required />
+                </label>
+                <label class="zoho-field">
+                  <span>Alternate phone</span>
+                  <input name="Alternate Phone" type="tel" autocomplete="tel" />
+                </label>
+                <label class="zoho-field">
+                  <span>Years of tire service experience <span class="zoho-required">*</span></span>
+                  <select name="Years of Experience" required>
+                    <option value="">-Select-</option>
+                    <option value="Less than 1 year">Less than 1 year</option>
+                    <option value="1-2 years">1-2 years</option>
+                    <option value="3-5 years">3-5 years</option>
+                    <option value="6-10 years">6-10 years</option>
+                    <option value="10+ years">10+ years</option>
+                  </select>
+                </label>
+                <label class="zoho-field">
+                  <span>Licensed / Red Seal technician <span class="zoho-required">*</span></span>
+                  <select name="Licensed Technician" required>
+                    <option value="">-Select-</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </label>
+                <label class="zoho-field">
+                  <span>GST / HST number</span>
+                  <input name="GST HST Number" type="text" />
+                </label>
+              </div>
+            </section>
+
+            <section class="zoho-section">
+              <div class="zoho-section-heading">
+                <h2>2. Starting Location</h2>
+                <p>The city you travel from for service calls.</p>
+              </div>
+              <div class="zoho-grid">
+                <label class="zoho-field">
+                  <span>City <span class="zoho-required">*</span></span>
+                  <input name="City" type="text" autocomplete="address-level2" required />
+                </label>
+                <label class="zoho-field">
+                  <span>Province <span class="zoho-required">*</span></span>
+                  <select name="Province" required>
+                    <option value="Ontario" selected>Ontario</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </label>
+                <label class="zoho-field">
+                  <span>Postal code <span class="zoho-required">*</span></span>
+                  <input name="Postal Code" type="text" autocomplete="postal-code" required />
+                </label>
+              </div>
+            </section>
+
+            <section class="zoho-section">
+              <div class="zoho-section-heading">
+                <h2>3. Service-Call Work You Can Do</h2>
+                <p>Select the mobile tire work you can complete at the customer’s location.</p>
+              </div>
+              <fieldset class="zoho-options">
+                <legend>Services you can perform</legend>
+                <label><input type="checkbox" name="Services" value="Seasonal changeover" /> Seasonal changeover / swap</label>
+                <label><input type="checkbox" name="Services" value="Mount and balance" /> Mount and balance</label>
+                <label><input type="checkbox" name="Services" value="TPMS" /> TPMS service</label>
+                <label><input type="checkbox" name="Services" value="Tire repair" /> Tire repair / patch</label>
+                <label><input type="checkbox" name="Services" value="New tire install" /> New tire installation</label>
+                <label><input type="checkbox" name="Services" value="Used tire install" /> Used tire installation</label>
+              </fieldset>
+              <fieldset class="zoho-options">
+                <legend>Vehicles you can service</legend>
+                <label><input type="checkbox" name="Vehicles" value="Passenger" /> Passenger cars</label>
+                <label><input type="checkbox" name="Vehicles" value="CUV SUV" /> CUV / SUV</label>
+                <label><input type="checkbox" name="Vehicles" value="Light truck" /> Light truck</label>
+              </fieldset>
+            </section>
+
+            <section class="zoho-section">
+              <div class="zoho-section-heading">
+                <h2>4. Mobile Equipment</h2>
+                <p>What you can bring with you on a service call.</p>
+              </div>
+              <fieldset class="zoho-options">
+                <legend>Equipment you travel with</legend>
+                <label><input type="checkbox" name="Equipment" value="Service vehicle" /> Service vehicle / van</label>
+                <label><input type="checkbox" name="Equipment" value="Jack and stands" /> Jack and stands</label>
+                <label><input type="checkbox" name="Equipment" value="Torque wrench" /> Torque wrench</label>
+                <label><input type="checkbox" name="Equipment" value="Impact gun" /> Impact gun</label>
+                <label><input type="checkbox" name="Equipment" value="TPMS tool" /> TPMS tool</label>
+                <label><input type="checkbox" name="Equipment" value="Portable balancer" /> Portable balancer</label>
+              </fieldset>
+              <div class="zoho-grid">
+                <label class="zoho-field">
+                  <span>Jobs you can take per week <span class="zoho-required">*</span></span>
+                  <select name="Jobs Per Week" required>
+                    <option value="">-Select-</option>
+                    <option value="1-5">1-5</option>
+                    <option value="6-10">6-10</option>
+                    <option value="11-20">11-20</option>
+                    <option value="20+">20+</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <section class="zoho-section">
+              <div class="zoho-section-heading">
+                <h2>5. Coverage &amp; Hours</h2>
+                <p>Where you can travel for service calls and when you are available.</p>
+              </div>
+              <div class="zoho-grid">
+                <label class="zoho-field zoho-field-full">
+                  <span>Cities / areas you can cover <span class="zoho-required">*</span></span>
+                  <input name="Service Area" type="text" placeholder="Milton, Oakville, Brampton, Mississauga" required />
+                </label>
+                <label class="zoho-field">
+                  <span>Travel radius for service calls</span>
+                  <select name="Travel Radius">
+                    <option value="">-Select-</option>
+                    <option value="Up to 15 km">Up to 15 km</option>
+                    <option value="15-30 km">15-30 km</option>
+                    <option value="30-50 km">30-50 km</option>
+                    <option value="50+ km">50+ km</option>
+                  </select>
+                </label>
+                <label class="zoho-field">
+                  <span>Weekday hours <span class="zoho-required">*</span></span>
+                  <input name="Weekday Hours" type="text" placeholder="Mon-Fri, 8:00 AM - 6:00 PM" required />
+                </label>
+                <label class="zoho-field">
+                  <span>Saturday hours</span>
+                  <input name="Saturday Hours" type="text" placeholder="Closed or 9:00 AM - 3:00 PM" />
+                </label>
+                <label class="zoho-field">
+                  <span>Sunday hours</span>
+                  <input name="Sunday Hours" type="text" placeholder="Closed" />
+                </label>
+                <label class="zoho-field">
+                  <span>Same-day / after-hours jobs <span class="zoho-required">*</span></span>
+                  <select name="After Hours Availability" required>
+                    <option value="">-Select-</option>
+                    <option value="Yes">Yes</option>
+                    <option value="Limited">Limited</option>
+                    <option value="No">No</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <section class="zoho-section">
+              <div class="zoho-section-heading">
+                <h2>6. Insurance &amp; Compliance</h2>
+                <p>EastCord requires basic coverage before assigning customer jobs.</p>
+              </div>
+              <div class="zoho-grid">
+                <label class="zoho-field">
+                  <span>Commercial liability insurance <span class="zoho-required">*</span></span>
+                  <select name="Liability Insurance" required>
+                    <option value="">-Select-</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </label>
+                <label class="zoho-field">
+                  <span>Liability coverage amount</span>
+                  <select name="Liability Coverage Amount">
+                    <option value="">-Select-</option>
+                    <option value="Under $1 million">Under $1 million</option>
+                    <option value="$1 million">$1 million</option>
+                    <option value="$2 million+">$2 million+</option>
+                    <option value="Not sure">Not sure</option>
+                  </select>
+                </label>
+                <label class="zoho-field">
+                  <span>WSIB coverage <span class="zoho-required">*</span></span>
+                  <select name="WSIB Coverage" required>
+                    <option value="">-Select-</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                    <option value="Not applicable">Not applicable</option>
+                  </select>
+                </label>
+                <label class="zoho-field">
+                  <span>How did you hear about EastCord?</span>
+                  <select name="Referral Source">
+                    <option value="">-Select-</option>
+                    <option value="EastCord website">EastCord website</option>
+                    <option value="Social media">Social media</option>
+                    <option value="Referral">Referral</option>
+                    <option value="EastCord contacted me">EastCord contacted me</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </label>
+                <label class="zoho-field zoho-field-full">
+                  <span>Additional notes</span>
+                  <textarea name="Notes" rows="5" placeholder="Certifications, fleet experience, languages, or anything else EastCord should know."></textarea>
+                </label>
+              </div>
+            </section>
+
+            <div class="zoho-form-footer">
+              <p class="zoho-privacy">
+                By submitting, you agree that EastCord Tires may use this information to review your application and contact you about assigned jobs.
+              </p>
+              <p class="zoho-error" data-installer-status hidden></p>
+              <button class="zoho-submit" type="submit" data-installer-submit>Submit</button>
+            </div>
+          </form>
+
+          <div class="zoho-form installer-success-card" data-installer-success hidden>
+            <header class="zoho-form-header">
+              <p class="zoho-form-kicker">EastCord Tires</p>
+              <h2>Submission received</h2>
+              <p>Thank you. EastCord will review your technician submission and follow up if we can assign you service-call jobs.</p>
+            </header>
+            <div class="zoho-form-footer">
+              <a class="zoho-submit zoho-submit-link" href="/local-installers">Back to Local Installers</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <div>
+          <img src="/assets/eastcord-logo-footer.svg" alt="EastCord Tires" class="footer-logo" />
+          <p>Used tires, new tires, and changeover services.</p>
+        </div>
+        <div class="footer-social">
+          <h3>Follow Us</h3>
+          <div class="footer-social-links" aria-label="EastCord Tires social media links">
+            <a href="https://www.youtube.com/@EastCordTires" target="_blank" rel="noopener noreferrer">YouTube</a>
+            <a href="https://www.instagram.com/eastcordtires" target="_blank" rel="noopener noreferrer">Instagram</a>
+            <a href="https://www.facebook.com/share/14cUJxJDSWD/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer">Facebook</a>
+            <a href="https://www.tiktok.com/@eastcordtires?_r=1&_t=ZS-985mxkvGCzE" target="_blank" rel="noopener noreferrer">TikTok</a>
+          </div>
+        </div>
+        <div class="footer-info">
+          <h3>Tire Information</h3>
+          <div class="footer-info-links" aria-label="EastCord Tires tire information links">
+            <a href="/used-tires">Used Tires</a>
+            <a href="/new-tires">New Tires</a>
+            <a href="/tire-size-guide">Tire Size Guide</a>
+            <a href="/tire-season-guide">Tire Season Guide</a>
+            <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
+            <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
+            <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
+            <a href="/appointment">Changeover / Swap Service</a>
+            <a href="/local-installers">Local Installers</a>
+            <a href="/#contact">Contact EastCord</a>
+          </div>
+        </div>
+        <div>
+          <h3>Quick Links</h3>
+          <a href="/used-tires">Used Tires</a>
+          <a href="/new-tires">New Tires</a>
+          <a href="/appointment">Appointment</a>
+          <a href="/local-installers">Local Installers</a>
+          <a href="/#warranty">Warranty</a>
+          <a href="/#contact">Contact</a>
+        </div>
+      </div>
+      <div class="shell footer-bottom">
+        <p class="footer-legal">
+          <span>© 2026 EastCord Tires</span>
+          <span class="footer-legal-separator">|</span>
+          <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+          <span class="footer-legal-separator">|</span>
+          <a href="/privacy-policy">Privacy Policy</a>
+          <span class="footer-legal-separator">|</span>
+          <a href="/cookie-policy">Cookie Policy</a>
+          <span class="footer-legal-separator">|</span>
+          <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Warranty Policy</a>
+        </p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js?v=3"></script>
+    <script src="account.js?v=30"></script>
+    <script src="local-installers.js?v=3"></script>
+    <script src="mobile-menu.js?v=2" defer></script>
+  </body>
+</html>

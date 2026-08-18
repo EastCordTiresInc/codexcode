@@ -4,7 +4,7 @@ const chatThread = document.querySelector('[data-chat-thread]');
 const chatOptions = document.querySelector('[data-chat-options]');
 
 const inventoryLink = '/used-tires';
-const appointmentLink = 'https://hosted.miocommerce.com/io/eastcord-tires/booking/b95731f5-cadb-4849-877c-6238425fd25c';
+const appointmentLink = '/appointment.html';
 const warrantyLink = 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf';
 const inquiryFormName = 'eastcord-inquiry';
 
@@ -143,7 +143,7 @@ function showChangeover() {
   addMessage('customer', 'Tire Changeover / Swap');
   addMessage('bot', 'Yes, customers can book tire changeover/swap service through our appointment booking page.');
   renderActions(addBackToMain([
-    { label: 'Book Appointment', href: appointmentLink, external: true },
+    { label: 'Book Appointment', href: appointmentLink },
   ]));
 }
 
@@ -435,22 +435,6 @@ function renderFooterLegalLinks() {
   `;
 }
 
-function ensureHomepageAccountLinks() {
-  const nav = document.querySelector('.main-nav');
-  if (!nav || nav.querySelector('[data-homepage-account-links]')) return;
-
-  const links = document.createElement('span');
-  links.className = 'auth-nav-group';
-  links.dataset.homepageAccountLinks = 'true';
-  links.innerHTML = `
-    <a href="/signup.html">Sign Up</a>
-    <a href="/login.html">Log In</a>
-    <a href="/cart.html">Cart</a>
-  `;
-
-  nav.appendChild(links);
-}
-
 chatOptions?.addEventListener('click', (event) => {
   const actionButton = event.target.closest('[data-chat-action]');
   if (!actionButton) return;
@@ -471,5 +455,4 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') setChatOpen(false);
 });
 
-ensureHomepageAccountLinks();
 renderFooterLegalLinks();

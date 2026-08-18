@@ -253,9 +253,15 @@ function hardClearCartStorage() {
   if (window.EastCordAccount?.saveCart) {
     window.EastCordAccount.saveCart([]);
   } else {
-    document.querySelectorAll('[data-cart-count]').forEach((element) => {
-      element.textContent = '';
-    });
+    if (window.EastCordAccount?.updateCartCount) {
+      window.EastCordAccount.updateCartCount();
+    } else {
+      document.querySelectorAll('[data-appointment-cart-count], [data-cart-count]').forEach((element) => {
+        const href = element.closest('a')?.getAttribute('href') || '';
+        if (/tire-cart/.test(href)) return;
+        element.textContent = '';
+      });
+    }
   }
 
   console.info('[EastCord appointment automation] Cart storage hard cleared.', {
@@ -266,7 +272,16 @@ function hardClearCartStorage() {
 }
 
 function updateVisibleCartCount(count) {
+  if (window.EastCordAccount?.updateCartCount) {
+    window.EastCordAccount.updateCartCount();
+    return;
+  }
+  document.querySelectorAll('[data-appointment-cart-count]').forEach((element) => {
+    element.textContent = count ? ` (${count})` : '';
+  });
   document.querySelectorAll('[data-cart-count]').forEach((element) => {
+    const href = element.closest('a')?.getAttribute('href') || '';
+    if (/tire-cart/.test(href)) return;
     element.textContent = count ? ` (${count})` : '';
   });
 }
@@ -616,8 +631,16 @@ async function hydrateCartProfile() {
   if (profile && !accountCartHydrated) {
     try {
       const mergedCart = await window.EastCordAccount.loadCustomerCart('appointment', getCartFromKnownStorage());
-      localStorage.setItem(ACTIVE_CART_KEY, JSON.stringify(mergedCart));
+      const displayableCart = normalizeCartCollection(mergedCart).filter((item) => (
+        isAppointmentLikeItem(item) && (item.serviceId || item.serviceName)
+      ));
+      localStorage.setItem(ACTIVE_CART_KEY, JSON.stringify(displayableCart));
       accountCartHydrated = true;
+      if (!displayableCart.length) {
+        window.EastCordAccount.clearCustomerCart?.('appointment').catch((error) => {
+          logDeveloperError('Empty appointment cart could not be cleared from the account.', error);
+        });
+      }
       renderCartItemsAndTotals();
     } catch (error) {
       logDeveloperError('Saved appointment cart could not be loaded from the customer account.', error);

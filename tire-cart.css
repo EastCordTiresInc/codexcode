@@ -99,6 +99,28 @@
   background: #fff4f4;
 }
 
+.tire-cart-item.is-markdown {
+  border-color: #efb8ba;
+}
+
+.tire-cart-markdown {
+  margin: 0 0 8px;
+  color: var(--red);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tire-cart-was {
+  display: block;
+  margin-top: 2px;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: line-through;
+}
+
 .tire-cart-item .tire-cart-unavailable {
   color: #9f1d20;
   font-weight: 800;
@@ -281,6 +303,17 @@
 }
 
 .tire-checkout-auth[hidden] {
+  display: none;
+}
+
+.tire-signed-in {
+  margin: 0 0 12px;
+  color: #237146;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.tire-signed-in[hidden] {
   display: none;
 }
 

@@ -191,7 +191,7 @@ function jsonResponse(statusCode, body) {
     statusCode,
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=300',
+      'Cache-Control': 'public, max-age=3600',
     },
     body: JSON.stringify(body),
   };

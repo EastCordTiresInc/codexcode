@@ -4,13 +4,15 @@ exports.handler = async function getDrivePhoto(event) {
   }
 
   const id = event.queryStringParameters?.id?.trim() || '';
-  const size = event.queryStringParameters?.sz?.trim() || 'w1000';
+  const size = normalizePhotoSize(event.queryStringParameters?.sz?.trim());
 
   if (!id) {
     return textResponse(400, 'id is required.');
   }
 
+  const pixels = size.replace(/^w/, '');
   const candidates = [
+    `https://lh3.googleusercontent.com/d/${encodeURIComponent(id)}=s${pixels}`,
     `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=${encodeURIComponent(size)}`,
     `https://drive.google.com/uc?export=view&id=${encodeURIComponent(id)}`,
   ];
@@ -35,7 +37,8 @@ exports.handler = async function getDrivePhoto(event) {
         statusCode: 200,
         headers: {
           'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=86400',
+          'Cache-Control': 'public, max-age=2592000, immutable',
+          'Netlify-CDN-Cache-Control': 'public, max-age=31536000, durable',
         },
         body: buffer.toString('base64'),
         isBase64Encoded: true,
@@ -47,6 +50,18 @@ exports.handler = async function getDrivePhoto(event) {
 
   return textResponse(404, 'Photo not available.');
 };
+
+function normalizePhotoSize(size) {
+  const allowed = {
+    w400: 'w400',
+    w600: 'w600',
+    w800: 'w800',
+    w1000: 'w800',
+    w1600: 'w1600',
+    w2400: 'w1600',
+  };
+  return allowed[size] || 'w800';
+}
 
 function textResponse(statusCode, message) {
   return {
