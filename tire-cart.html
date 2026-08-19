@@ -65,7 +65,7 @@
         </section>
 
         <aside class="tire-cart-panel tire-reservation-panel" aria-labelledby="reservation-title">
-          <h2 id="reservation-title">Secure Checkout</h2>
+          <h2 id="reservation-title">Reservation request</h2>
           <div class="tire-cart-total">
             <span>Tire subtotal</span>
             <strong data-tire-cart-total>$0.00</strong>
@@ -75,11 +75,11 @@
             <strong data-tire-cart-hst>$0.00</strong>
           </div>
           <div class="tire-cart-total">
-            <span>Total due today</span>
+            <span>Estimated total</span>
             <strong data-tire-cart-grand-total>$0.00</strong>
           </div>
           <p class="tire-reservation-notice">
-            Payment is taken securely through Stripe. Stock is checked again at checkout. Pickup or installation details are confirmed after payment.
+            Payment is not taken on the website yet. Send this reservation request and EastCord Tires will confirm stock, pickup, or installation.
           </p>
 
           <form data-tire-reservation-form>
@@ -114,22 +114,17 @@
               <a class="button button-secondary" href="/appointment" target="_blank" rel="noopener">Open Appointment Page</a>
             </div>
 
-            <div class="tire-checkout-auth" data-tire-checkout-auth hidden>
-              <strong>Customer account required</strong>
-              <p>Please sign up or log in before buying tires. Your tire cart will remain saved.</p>
-              <div class="tire-cart-actions">
-                <a class="button button-primary" href="/signup?redirect=/tire-cart">Sign Up</a>
-                <a class="button button-secondary" href="/login?redirect=/tire-cart">Log In</a>
-              </div>
-            </div>
             <p class="tire-signed-in" data-signed-in-identity hidden>
-              Checking out as <strong data-account-name>My Account</strong>
+              Requesting as <strong data-account-name>My Account</strong>
             </p>
 
             <p class="tire-cart-message" data-tire-cart-message aria-live="polite"></p>
             <button class="button button-primary tire-reservation-submit" type="submit" data-tire-reservation-submit>
-              Pay with Stripe
+              Email reservation request
             </button>
+            <a class="button button-secondary" href="/demo-payment" data-demo-payment-link hidden>
+              Open demo payment
+            </a>
           </form>
         </aside>
       </div>
@@ -194,7 +189,7 @@
     <script src="auth-config.js?v=3"></script>
     <script src="used-tire-pricing.js?v=1"></script>
     <script src="account.js?v=30"></script>
-    <script src="tire-cart.js?v=18"></script>
+    <script src="tire-cart.js?v=20"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

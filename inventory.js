@@ -939,7 +939,7 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
           data-tire-cart-action="reserve"
           data-inventory-id="${escapeHtml(item.id)}"
           ${stockCount && unitPrice !== null ? '' : 'disabled'}
-        >Buy Now</button>
+        >Reserve</button>
       </div>
       <p class="used-tire-card-cart-status" data-tire-cart-status aria-live="polite"></p>
     </article>

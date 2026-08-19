@@ -1,0 +1,24 @@
+.demo-payment-page .demo-card-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.demo-result-list {
+  margin: 0 0 16px;
+  padding-left: 1.2rem;
+}
+
+.demo-result-list li {
+  margin: 0 0 8px;
+}
+
+.demo-sheet-ok {
+  color: #157347;
+  font-weight: 700;
+}
+
+.demo-sheet-fail {
+  color: var(--red);
+  font-weight: 700;
+}

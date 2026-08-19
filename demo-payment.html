@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="description" content="Local demo payment page for testing inventory sheet sync. No real charge." />
+    <title>Demo Payment | EastCord Tires</title>
+    <link rel="stylesheet" href="styles.css?v=6" />
+    <link rel="stylesheet" href="tire-cart.css?v=9" />
+    <link rel="stylesheet" href="demo-payment.css?v=1" />
+    <link rel="stylesheet" href="/footer-section.css?v=5" />
+  </head>
+  <body class="tire-cart-page demo-payment-page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="site-header">
+      <div class="nav-shell">
+        <a class="brand brand-logo" href="/" aria-label="EastCord Tires home">
+          <img src="/assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" aria-label="Open navigation menu">
+          <span></span><span></span><span></span>
+        </button>
+        <nav class="main-nav" id="primary-navigation" aria-label="Main navigation">
+          <a href="/">Home</a>
+          <div class="nav-dropdown">
+            <button class="nav-dropdown-toggle" type="button" aria-expanded="false" aria-haspopup="true">Tires</button>
+            <div class="nav-dropdown-menu">
+              <a href="/used-tires">Used Tires</a>
+              <a href="/new-tires">New Tires</a>
+            </div>
+          </div>
+          <a href="/appointment">Appointment</a>
+          <a href="/local-installers">Local Installers</a>
+          <a href="/#contact">Contact</a>
+          <span class="nav-carts" aria-label="Shopping carts">
+            <a href="/tire-cart">Tire Cart<span data-tire-cart-count></span></a>
+            <a href="/cart">Appointment Cart<span data-appointment-cart-count></span></a>
+          </span>
+        </nav>
+      </div>
+    </header>
+
+    <main class="section" id="main-content">
+      <div class="shell tire-cart-layout">
+        <section class="tire-cart-panel">
+          <p class="tire-cart-eyebrow">Local demo only</p>
+          <h1>Demo payment</h1>
+          <p>This is not Stripe and it does not take money. Confirming the demo sale lowers website stock and tries to write the same change to the inventory Google Sheet.</p>
+          <div class="demo-items" data-demo-items></div>
+          <p class="tire-cart-message" data-demo-empty hidden>Your tire cart is empty. Add a used tire first.</p>
+          <div class="tire-cart-actions">
+            <a class="button button-secondary" href="/tire-cart">Back to tire cart</a>
+            <a class="button button-secondary" href="/used-tires">Used tires</a>
+          </div>
+        </section>
+
+        <aside class="tire-cart-panel" data-demo-checkout>
+          <h2>Fake card</h2>
+          <div class="tire-cart-total"><span>Tire subtotal</span><strong data-demo-subtotal>$0.00</strong></div>
+          <div class="tire-cart-total"><span>HST 13%</span><strong data-demo-hst>$0.00</strong></div>
+          <div class="tire-cart-total"><span>Demo total</span><strong data-demo-total>$0.00</strong></div>
+
+          <form data-demo-form>
+            <label class="tire-reservation-field">
+              <span>Full name *</span>
+              <input type="text" name="name" value="Test Customer" autocomplete="name" />
+            </label>
+            <label class="tire-reservation-field">
+              <span>Email for receipt *</span>
+              <input type="email" name="email" placeholder="you@example.com" autocomplete="email" />
+            </label>
+            <label class="tire-reservation-field">
+              <span>Phone number</span>
+              <input type="tel" name="phone" autocomplete="tel" />
+            </label>
+            <label class="tire-reservation-field">
+              <span>Name on card</span>
+              <input type="text" name="cardName" value="Test User" autocomplete="off" />
+            </label>
+            <label class="tire-reservation-field">
+              <span>Card number</span>
+              <input type="text" name="cardNumber" value="ACCT-000015" autocomplete="off" readonly />
+            </label>
+            <div class="demo-card-row">
+              <label class="tire-reservation-field">
+                <span>Expiry</span>
+                <input type="text" name="cardExpiry" value="12 / 28" autocomplete="off" readonly />
+              </label>
+              <label class="tire-reservation-field">
+                <span>CVC</span>
+                <input type="text" name="cardCvc" value="123" autocomplete="off" readonly />
+              </label>
+            </div>
+            <p class="tire-reservation-notice">Card fields are display-only. Nothing is sent to Stripe.</p>
+            <p class="tire-cart-message" data-demo-message aria-live="polite">Enter your email, then click Confirm demo sale.</p>
+            <button class="button button-primary" type="button" data-demo-submit>
+              Confirm demo sale
+            </button>
+          </form>
+        </aside>
+
+        <aside class="tire-cart-panel" data-demo-thanks hidden>
+          <p class="tire-cart-eyebrow">Payment received</p>
+          <h2>Thank you for your payment</h2>
+          <p data-demo-thanks-copy>Your demo sale was recorded. No real card was charged.</p>
+          <p data-demo-email-status></p>
+          <div data-demo-receipt></div>
+          <p class="tire-cart-message" data-demo-sheet-status></p>
+          <div class="tire-cart-actions">
+            <a class="button button-primary" href="/used-tires">Check used tires</a>
+            <button class="button button-secondary" type="button" data-demo-restore>Restore stock</button>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js?v=3"></script>
+    <script src="used-tire-pricing.js?v=1"></script>
+    <script src="demo-payment.js?v=3"></script>
+    <script src="account.js?v=30"></script>
+    <script src="mobile-menu.js?v=2" defer></script>
+  </body>
+</html>
