@@ -6,7 +6,7 @@
     <meta name="description" content="Review used tires and send a reservation request to EastCord Tires." />
     <title>Used Tire Cart | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=6" />
-    <link rel="stylesheet" href="tire-cart.css?v=9" />
+    <link rel="stylesheet" href="tire-cart.css?v=10" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
   </head>
   <body class="tire-cart-page">
@@ -122,6 +122,18 @@
             <button class="button button-primary tire-reservation-submit" type="submit" data-tire-reservation-submit>
               Email reservation request
             </button>
+            <div class="tire-reservation-fallback" data-reservation-fallback hidden>
+              <p data-reservation-fallback-status></p>
+              <div class="tire-reservation-fallback-actions">
+                <a class="button button-secondary" data-reservation-mailto>Open email app</a>
+                <a class="button button-secondary" data-reservation-gmail target="_blank" rel="noopener">Open Gmail</a>
+                <button class="button button-secondary" type="button" data-reservation-copy>Copy message</button>
+              </div>
+              <label class="tire-reservation-field">
+                <span>Message to EastCord</span>
+                <textarea data-reservation-body rows="8" readonly></textarea>
+              </label>
+            </div>
             <a class="button button-secondary" href="/demo-payment" data-demo-payment-link hidden>
               Open demo payment
             </a>
@@ -187,9 +199,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=3"></script>
-    <script src="used-tire-pricing.js?v=1"></script>
+    <script src="used-tire-pricing.js?v=2"></script>
     <script src="account.js?v=30"></script>
-    <script src="tire-cart.js?v=20"></script>
+    <script src="tire-cart.js?v=22"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

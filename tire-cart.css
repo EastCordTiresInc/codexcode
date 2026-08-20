@@ -353,6 +353,35 @@
   justify-content: center;
 }
 
+.tire-reservation-fallback {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #d8dade;
+}
+
+.tire-reservation-fallback[hidden] {
+  display: none;
+}
+
+.tire-reservation-fallback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tire-reservation-fallback textarea {
+  width: 100%;
+  min-height: 160px;
+  padding: 10px 12px;
+  border: 1px solid #c9ccd1;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
 .tire-reservation-submit.is-signed-out,
 .tire-reservation-submit.is-signed-out:disabled {
   border-color: #8a8f98;

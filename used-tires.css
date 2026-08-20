@@ -40,6 +40,96 @@
   text-transform: uppercase;
 }
 
+.used-markdown-prompt {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--red);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.used-markdown-prompt:hover {
+  text-decoration: underline;
+}
+
+.used-markdown-close {
+  margin-top: 12px;
+}
+
+.used-markdown-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 18px;
+  max-width: 1180px;
+  margin: 18px auto 0;
+  padding: 16px 18px;
+  border: 1px solid #efb8ba;
+  border-left: 6px solid var(--red);
+  background: #fff;
+}
+
+.used-markdown-banner[hidden] {
+  display: none;
+}
+
+.used-markdown-banner-badge {
+  margin: 0;
+  padding: 6px 10px;
+  background: var(--red);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.used-markdown-banner-copy {
+  flex: 1 1 220px;
+}
+
+.used-markdown-banner-copy strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.used-markdown-banner-copy p {
+  margin: 4px 0 0;
+  color: #4f5663;
+  font-size: 0.9rem;
+}
+
+.used-markdown-banner-cta {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--red);
+  color: #fff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.used-markdown-banner-cta:hover {
+  background: var(--red-dark);
+}
+
+.used-markdown-banner.is-open .used-markdown-banner-cta {
+  border: 1px solid var(--red);
+  background: #fff;
+  color: var(--red);
+}
+
 .used-search-body {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
@@ -264,14 +354,15 @@
 .used-markdown-section {
   max-width: 1180px;
   margin: 28px auto 0;
-  padding: 22px 20px 24px;
-  border: 1px solid #efb8ba;
-  border-radius: 6px;
-  background: #fff8f8;
+  padding: 22px 20px 16px;
+  border: 1px solid #d8dade;
+  border-top: 3px solid var(--red);
+  border-radius: 4px;
+  background: #fff;
 }
 
 .used-markdown-header {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .used-markdown-eyebrow {
@@ -299,6 +390,249 @@
   color: #8b1e1e;
   font-size: 0.82rem;
   font-weight: 800;
+}
+
+.used-markdown-filter {
+  display: grid;
+  gap: 6px;
+  max-width: 360px;
+  margin-top: 14px;
+}
+
+.used-markdown-filter span {
+  color: #4f5663;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.used-markdown-filter input {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid #c9ccd1;
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+}
+
+.used-markdown-filter input:focus {
+  outline: 2px solid var(--red);
+  outline-offset: 1px;
+}
+
+.used-markdown-board {
+  display: grid;
+  gap: 28px;
+}
+
+.used-markdown-group {
+  padding-bottom: 8px;
+  border: 1px solid #e4e5e7;
+  background: #fff;
+}
+
+.used-markdown-group + .used-markdown-group {
+  margin-top: 0;
+}
+
+.used-markdown-group-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 16px 16px 14px;
+  border-bottom: 2px solid var(--red);
+  background: #f7f7f6;
+}
+
+.used-markdown-group-header h3 {
+  margin: 0;
+  color: #111214;
+  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.used-markdown-group-header p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.used-markdown-board-head,
+.used-markdown-row {
+  display: grid;
+  grid-template-columns: 76px minmax(7.5rem, 1.3fr) minmax(5rem, 0.8fr) 4.8rem 5.6rem 5.6rem 5.6rem minmax(13.5rem, 1.2fr);
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.used-markdown-board-head {
+  padding: 10px 8px 8px;
+  color: #6b7280;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.used-markdown-row {
+  position: relative;
+  padding: 12px 8px;
+  border-top: 1px solid #eceef0;
+}
+
+.used-markdown-row-photo {
+  width: 76px;
+}
+
+.used-markdown-photo-empty,
+.used-tire-card-photos.is-compact {
+  width: 76px;
+  height: 58px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #eef0f2;
+}
+
+.used-markdown-photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8b9098;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 6px;
+}
+
+.used-tire-card-photos.is-compact {
+  cursor: zoom-in;
+}
+
+.used-tire-card-photos.is-compact.is-empty,
+.used-tire-card-photos.is-compact.is-loading {
+  cursor: default;
+}
+
+.used-tire-card-photos.is-compact .used-tire-card-photo-track {
+  aspect-ratio: auto;
+  height: 58px;
+}
+
+.used-tire-card-photos.is-compact .used-tire-card-photo-controls {
+  display: none;
+}
+
+.used-tire-card-photos.is-compact .used-tire-card-photo-status {
+  font-size: 0.62rem;
+  padding: 0 6px;
+}
+
+.used-markdown-row-size {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.used-markdown-row-size strong {
+  font-size: 0.98rem;
+  letter-spacing: -0.02em;
+}
+
+.used-markdown-row-size span {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.used-markdown-row-brand,
+.used-markdown-row-stock,
+.used-markdown-row-was,
+.used-markdown-row-now,
+.used-markdown-row-save {
+  margin: 0;
+}
+
+.used-markdown-row-brand {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.used-markdown-row-stock {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.used-markdown-row-stock.is-last {
+  color: #8b1e1e;
+}
+
+.used-markdown-row-was {
+  color: #6b7280;
+  font-size: 0.8rem;
+  text-decoration: line-through;
+}
+
+.used-markdown-row-now {
+  color: var(--red);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.used-markdown-row-save {
+  color: #166534;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.used-markdown-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.used-markdown-row .used-tire-card-qty {
+  min-width: 52px;
+  min-height: 38px;
+}
+
+.used-tire-card-cta.is-compact {
+  width: auto;
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 0.72rem;
+}
+
+.used-markdown-row .used-tire-card-cart-status {
+  grid-column: 1 / -1;
+  text-align: right;
+  min-height: 0;
+}
+
+.used-markdown-empty {
+  margin: 0;
+  padding: 18px 8px;
+  color: #4f5663;
+  font-size: 0.92rem;
+}
+
+@media (min-width: 901px) {
+  .used-markdown-board {
+    overflow-x: auto;
+  }
+
+  .used-markdown-board-head,
+  .used-markdown-row {
+    min-width: 860px;
+  }
 }
 
 .used-inventory-results-header {
@@ -343,11 +677,51 @@
   color: #237146;
 }
 
-.used-inventory-results .inventory-list,
-.used-markdown-section .inventory-list {
+.used-inventory-results .inventory-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.used-inventory-results .inventory-list:has(.used-inventory-group + .used-inventory-group) {
+  grid-template-columns: minmax(0, 1fr) 280px;
+}
+
+.used-inventory-group .inventory-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 18px;
+}
+
+.used-inventory-group.is-leftover .inventory-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.used-inventory-group {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.used-inventory-group + .used-inventory-group {
+  padding-left: 22px;
+  border-left: 1px solid #e4e5e7;
+}
+
+.used-inventory-group-header h3 {
+  margin: 0 0 4px;
+  font-size: 1.15rem;
+}
+
+.used-inventory-group-header p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.88rem;
+}
+
+.used-inventory-group.is-leftover .used-inventory-group-header h3 {
+  color: var(--red);
 }
 
 .used-tire-card {
@@ -725,6 +1099,13 @@
   text-decoration: line-through;
 }
 
+.used-tire-card-save {
+  margin: 4px 0 0;
+  color: #166534;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .used-tire-card-set-total {
   margin: 4px 0 0;
   color: #111214;
@@ -896,6 +1277,18 @@
 }
 
 @media (max-width: 900px) {
+  .used-inventory-results .inventory-list:has(.used-inventory-group + .used-inventory-group) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .used-inventory-group + .used-inventory-group {
+    padding-left: 0;
+    border-left: 0;
+    margin-top: 8px;
+    padding-top: 22px;
+    border-top: 1px solid #e4e5e7;
+  }
+
   .used-search-body {
     grid-template-columns: 1fr;
   }
@@ -903,6 +1296,41 @@
   .used-search-guide {
     border-left: 0;
     border-top: 1px solid #d8dade;
+  }
+
+  .used-markdown-board-head {
+    display: none;
+  }
+
+  .used-markdown-row {
+    grid-template-columns: 76px 1fr auto;
+    padding: 14px 4px 12px;
+  }
+
+  .used-markdown-row-photo {
+    grid-row: 1 / span 5;
+    align-self: start;
+  }
+
+  .used-markdown-row-size,
+  .used-markdown-row-save,
+  .used-markdown-row-actions,
+  .used-markdown-row .used-tire-card-cart-status {
+    grid-column: 2 / -1;
+  }
+
+  .used-markdown-row-stock,
+  .used-markdown-row-now {
+    justify-self: end;
+    text-align: right;
+  }
+
+  .used-markdown-row-actions {
+    justify-content: flex-start;
+  }
+
+  .used-markdown-row .used-tire-card-cart-status {
+    text-align: left;
   }
 }
 

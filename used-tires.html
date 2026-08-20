@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
-    <link rel="stylesheet" href="used-tires.css?v=24" />
+    <link rel="stylesheet" href="used-tires.css?v=33" />
   </head>
   <body class="used-tires-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -147,14 +147,37 @@
             </div>
           </div>
 
+          <aside class="used-markdown-banner" data-markdown-banner hidden>
+            <p class="used-markdown-banner-badge">15% off</p>
+            <div class="used-markdown-banner-copy">
+              <strong data-markdown-banner-title>Markdown used tires</strong>
+              <p>Tires with fewer than 4 left. Search still finds them by size or brand.</p>
+            </div>
+            <button class="used-markdown-banner-cta" type="button" data-markdown-prompt>
+              Browse markdowns
+            </button>
+          </aside>
+
           <section class="used-markdown-section" aria-labelledby="markdown-tires-title" data-markdown-section hidden>
             <div class="used-markdown-header">
-              <p class="used-markdown-eyebrow">Limited stock</p>
-              <h2 id="markdown-tires-title">Marked down tires</h2>
-              <p>Tires with fewer than 4 left are 20% off while they last.</p>
+              <p class="used-markdown-eyebrow">15% off markdowns</p>
+              <h2 id="markdown-tires-title">Markdown used tires</h2>
+              <p>Tires with fewer than 4 in stock. Scan by size — these go first. Matching markdowns also appear when you search a size or brand.</p>
               <p class="used-markdown-count" data-markdown-count></p>
+              <label class="used-markdown-filter">
+                <span>Find a size or brand</span>
+                <input
+                  type="search"
+                  data-markdown-filter
+                  placeholder="e.g. 205/75 or Toyo"
+                  autocomplete="off"
+                />
+              </label>
+              <button class="text-button used-markdown-close" type="button" data-markdown-close>
+                Hide markdown tires
+              </button>
             </div>
-            <div class="inventory-list" data-markdown-list aria-live="polite"></div>
+            <div class="used-markdown-board" data-markdown-list aria-live="polite"></div>
           </section>
 
           <section class="used-inventory-results" aria-labelledby="inventory-results-title" hidden data-inventory-results>
@@ -228,7 +251,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=3"></script>
-    <script src="used-tire-pricing.js?v=1"></script>
+    <script src="used-tire-pricing.js?v=2"></script>
     <script src="account.js?v=30"></script>
     <script>
       (function () {
@@ -244,7 +267,7 @@
         });
       })();
     </script>
-    <script src="inventory.js?v=48"></script>
+    <script src="inventory.js?v=58"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

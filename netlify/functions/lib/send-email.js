@@ -68,7 +68,7 @@ async function sendEmail(email) {
     body: {
       from: config.from,
       to: email.to,
-      reply_to: config.replyTo,
+      reply_to: email.replyTo || config.replyTo,
       subject: email.subject,
       html: email.html,
       text: email.text,

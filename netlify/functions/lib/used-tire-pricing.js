@@ -1,5 +1,6 @@
 const MARKDOWN_STOCK_LIMIT = 4;
-const MARKDOWN_RATE = 0.2;
+const MARKDOWN_RATE = 0.15;
+const MARKDOWN_PERCENT = Math.round(MARKDOWN_RATE * 100);
 
 function roundMoney(value) {
   const amount = Number(value);
@@ -21,6 +22,7 @@ function getUsedTireUnitPrice(listPrice, stock) {
 module.exports = {
   MARKDOWN_STOCK_LIMIT,
   MARKDOWN_RATE,
+  MARKDOWN_PERCENT,
   roundMoney,
   isMarkdownStock,
   getUsedTireUnitPrice,

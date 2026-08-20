@@ -157,6 +157,8 @@ function renderQuantityOptions(item) {
 
 function getPricing() {
   return window.EastCordUsedTirePricing || {
+    MARKDOWN_RATE: 0.15,
+    MARKDOWN_PERCENT: 15,
     isMarkdownStock(stock) {
       const count = Math.max(0, Number(stock) || 0);
       return count > 0 && count < 4;
@@ -165,7 +167,7 @@ function getPricing() {
       const price = Number(listPrice);
       if (!Number.isFinite(price) || price <= 0) return null;
       const rounded = Math.round(price * 100) / 100;
-      return this.isMarkdownStock(stock) ? Math.round(price * 0.8 * 100) / 100 : rounded;
+      return this.isMarkdownStock(stock) ? Math.round(price * 0.85 * 100) / 100 : rounded;
     },
   };
 }
@@ -178,7 +180,7 @@ function renderTireCartItem(item) {
     ? '<p class="tire-cart-unavailable">Currently unavailable — remove this tire before submitting.</p>'
     : '';
   const markdownNote = markdown && !item.unavailable
-    ? '<p class="tire-cart-markdown">20% off low-stock tire</p>'
+    ? '<p class="tire-cart-markdown">15% off low-stock tire</p>'
     : '';
 
   return `
@@ -358,12 +360,40 @@ function setCartMessage(message) {
   if (messageEl) messageEl.textContent = message;
 }
 
+function openMailApp(mailto) {
+  const link = document.createElement('a');
+  link.href = mailto;
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function showReservationFallback({ mailto, gmail, body, emailed }) {
+  const fallback = document.querySelector('[data-reservation-fallback]');
+  const status = document.querySelector('[data-reservation-fallback-status]');
+  const mailtoLink = document.querySelector('[data-reservation-mailto]');
+  const gmailLink = document.querySelector('[data-reservation-gmail]');
+  const bodyEl = document.querySelector('[data-reservation-body]');
+  if (!fallback) return;
+
+  fallback.hidden = false;
+  if (status) {
+    status.textContent = emailed
+      ? 'EastCord Tires has received this request. You can still copy it for your records.'
+      : 'This computer has no email app set as default. Open Gmail or copy the message and send it to info@eastcordtires.ca.';
+  }
+  if (mailtoLink) mailtoLink.href = mailto;
+  if (gmailLink) gmailLink.href = gmail;
+  if (bodyEl) bodyEl.value = `To: info@eastcordtires.ca\nSubject: Used tire reservation request\n\n${body}`;
+}
+
 function sameCartItemId(left, right) {
   return String(left ?? '') === String(right ?? '');
 }
 
 function bindCartEvents() {
-  reservationForm()?.addEventListener('submit', (event) => {
+  reservationForm()?.addEventListener('submit', async (event) => {
     event.preventDefault();
 
     if (!tireCart.length || tireCart.some((item) => item.unavailable)) {
@@ -402,16 +432,65 @@ function bindCartEvents() {
       `Estimated total: ${formatMoney(totals.totalWithHst)}`,
     ].join('\n');
 
+    const subject = 'Used tire reservation request';
     const mailto = [
       'mailto:info@eastcordtires.ca',
       '?subject=',
-      encodeURIComponent('Used tire reservation request'),
+      encodeURIComponent(subject),
+      '&body=',
+      encodeURIComponent(body),
+    ].join('');
+    const gmail = [
+      'https://mail.google.com/mail/?view=cm&fs=1&tf=1',
+      '&to=',
+      encodeURIComponent('info@eastcordtires.ca'),
+      '&su=',
+      encodeURIComponent(subject),
       '&body=',
       encodeURIComponent(body),
     ].join('');
 
-    setCartMessage('Opening your email app with the reservation details.');
-    window.location.href = mailto;
+    const submit = reservationSubmit();
+    if (submit) {
+      submit.disabled = true;
+      submit.textContent = 'Sending request...';
+    }
+
+    let emailed = false;
+    try {
+      const response = await fetch('/.netlify/functions/request-used-tire-reservation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer,
+          fulfillment: getFormValue('Fulfillment Preference') || 'Pickup',
+          items: tireCart,
+          totals: {
+            subtotal: formatMoney(totals.subtotal),
+            hst: formatMoney(totals.hstAmount),
+            total: formatMoney(totals.totalWithHst),
+          },
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      emailed = Boolean(response.ok && data.emailed);
+    } catch (error) {
+      emailed = false;
+    }
+
+    showReservationFallback({ mailto, gmail, body, emailed });
+    if (!emailed) {
+      openMailApp(mailto);
+    }
+    setCartMessage(emailed
+      ? 'Reservation request sent to EastCord Tires.'
+      : 'If your email app did not open, use Gmail or copy the message below.');
+
+    if (submit) {
+      submit.disabled = !tireCart.length;
+      submit.textContent = 'Email reservation request';
+    }
+    renderTireCart();
   });
 
   cartItemsEl()?.addEventListener('change', (event) => {
@@ -445,6 +524,19 @@ function bindCartEvents() {
     if (event.target.name !== 'Fulfillment Preference') return;
     const directions = installationDirections();
     if (directions) directions.hidden = event.target.value !== 'Installation';
+  });
+
+  document.querySelector('[data-reservation-copy]')?.addEventListener('click', async () => {
+    const bodyEl = document.querySelector('[data-reservation-body]');
+    const text = bodyEl?.value || '';
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCartMessage('Message copied. Paste it into an email to info@eastcordtires.ca.');
+    } catch (error) {
+      bodyEl?.select();
+      setCartMessage('Select the message and copy it, then email info@eastcordtires.ca.');
+    }
   });
 }
 

@@ -1,7 +1,7 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { calculateTax, roundMoney } = require('./lib/used-tire-order');
-const { getUsedTireUnitPrice, isMarkdownStock } = require('./lib/used-tire-pricing');
+const { getUsedTireUnitPrice, isMarkdownStock, MARKDOWN_PERCENT } = require('./lib/used-tire-pricing');
 
 function json(statusCode, payload) {
   return {
@@ -164,7 +164,7 @@ exports.handler = async (event) => {
           price_data: {
             currency: 'cad',
             product_data: {
-              name: `${item.brand} ${item.size} used tire${item.markdown ? ' — 20% off' : ''}`,
+              name: `${item.brand} ${item.size} used tire${item.markdown ? ` — ${MARKDOWN_PERCENT}% off` : ''}`,
               description: `Quantity ${item.qty}${item.markdown ? ' · low-stock markdown' : ''}`,
             },
             unit_amount: Math.round(item.unitPrice * 100),

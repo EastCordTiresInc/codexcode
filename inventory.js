@@ -17,6 +17,7 @@ let searchPerformed = false;
 let lastResults = [];
 let inventoryAutoRefreshInProgress = false;
 let inventoryAutoRefreshTimer = null;
+let markdownOpen = false;
 
 bootInventory();
 
@@ -198,9 +199,14 @@ function getElements() {
     loadStatus: document.querySelector('[data-inventory-load-status]'),
     results: document.querySelector('[data-inventory-results]'),
     submit: document.querySelector('[data-inventory-submit]'),
+    markdownPrompt: document.querySelector('[data-markdown-prompt]'),
+    markdownBanner: document.querySelector('[data-markdown-banner]'),
+    markdownBannerTitle: document.querySelector('[data-markdown-banner-title]'),
+    markdownClose: document.querySelector('[data-markdown-close]'),
     markdownSection: document.querySelector('[data-markdown-section]'),
     markdownList: document.querySelector('[data-markdown-list]'),
     markdownCount: document.querySelector('[data-markdown-count]'),
+    markdownFilter: document.querySelector('[data-markdown-filter]'),
   };
 }
 
@@ -460,6 +466,15 @@ function bindInventoryControls() {
     runSearch();
   });
 
+  getElements().markdownPrompt?.addEventListener('click', () => {
+    toggleMarkdownSection();
+  });
+
+  getElements().markdownClose?.addEventListener('click', () => {
+    markdownOpen = false;
+    renderMarkdownSection();
+  });
+
   width?.addEventListener('change', () => {
     refreshDependentOptions('width');
   });
@@ -480,6 +495,10 @@ function bindInventoryControls() {
     const button = event.target.closest('[data-tire-cart-action]');
     if (!button) return;
     handleTireCartAction(button);
+  });
+
+  getElements().markdownFilter?.addEventListener('input', () => {
+    renderMarkdownRows();
   });
 
   document.addEventListener('change', (event) => {
@@ -566,7 +585,8 @@ function isInStock(item) {
 
 function getPricing() {
   return window.EastCordUsedTirePricing || {
-    MARKDOWN_RATE: 0.2,
+    MARKDOWN_RATE: 0.15,
+    MARKDOWN_PERCENT: 15,
     isMarkdownStock(stock) {
       const count = Math.max(0, Number(stock) || 0);
       return count > 0 && count < 4;
@@ -575,9 +595,14 @@ function getPricing() {
       const price = Number(listPrice);
       if (!Number.isFinite(price) || price <= 0) return null;
       const rounded = Math.round(price * 100) / 100;
-      return this.isMarkdownStock(stock) ? Math.round(price * 0.8 * 100) / 100 : rounded;
+      return this.isMarkdownStock(stock) ? Math.round(price * (1 - this.MARKDOWN_RATE) * 100) / 100 : rounded;
     },
   };
+}
+
+function markdownOffLabel() {
+  const percent = Number(getPricing().MARKDOWN_PERCENT);
+  return `${Number.isFinite(percent) ? percent : 15}% off`;
 }
 
 function isMarkdownTire(item) {
@@ -691,6 +716,11 @@ function runSearch() {
     ? selected
     : { ...selected, width: '', profile: '', rim: '' };
 
+  if (markdownOpen) {
+    markdownOpen = false;
+    renderMarkdownSection();
+  }
+
   if (!completeSize && !filters.brand) {
     showResultsSection();
     renderSearchMessage('Please select a brand, or choose width, profile, and wheel size to search.');
@@ -704,12 +734,29 @@ function runSearch() {
   const matching = inventory.filter((item) => matchesSearchFilters(item, filters));
   lastResults = matching.filter(isInStock);
 
+  if (completeSize) {
+    lastResults = mergeSameSizeLeftovers(lastResults, filters);
+  }
+
   if (!lastResults.length && matching.some((item) => !isInStock(item))) {
     renderSoldOutMessage(summary);
     return;
   }
 
   renderResults(lastResults, summary);
+}
+
+function mergeSameSizeLeftovers(results, filters) {
+  const seen = new Set(results.map((item) => String(item.id)));
+  const extra = inventory.filter((item) => {
+    if (seen.has(String(item.id))) return false;
+    if (!isInStock(item) || !isMarkdownTire(item)) return false;
+    if (item.width !== filters.width || item.profile !== filters.profile || item.rim !== filters.rim) {
+      return false;
+    }
+    return true;
+  });
+  return extra.length ? results.concat(extra) : results;
 }
 
 function renderSoldOutMessage(summary) {
@@ -797,43 +844,271 @@ function renderResults(products, summary = formatSearchSummary(getSearchFilters(
     return;
   }
 
+  const fullSets = products.filter((item) => !isMarkdownTire(item));
+  const leftovers = products.filter(isMarkdownTire);
+
   if (status) {
-    status.textContent = `${products.length} match${products.length === 1 ? '' : 'es'} for ${summary}.`;
+    status.textContent = formatSplitSearchStatus(fullSets.length, leftovers.length, summary);
     status.dataset.statusType = 'success';
   }
 
   if (!list) return;
 
-  list.innerHTML = products.map((item, index) => renderUsedTireCard(item, index)).join('');
+  let photoIndex = 0;
+  const sections = [];
+
+  if (fullSets.length) {
+    sections.push(renderSearchGroup({
+      title: 'Full sets',
+      note: '4 or more in stock',
+      items: fullSets,
+      startIndex: photoIndex,
+    }));
+    photoIndex += fullSets.length;
+  }
+
+  if (leftovers.length) {
+    sections.push(renderSearchGroup({
+      title: `Markdowns — ${markdownOffLabel()}`,
+      note: leftovers.length === 1
+        ? 'Fewer than 4 left of this size'
+        : 'Fewer than 4 left — priced to move',
+      items: leftovers,
+      startIndex: photoIndex,
+      leftover: true,
+    }));
+  }
+
+  list.innerHTML = sections.join('');
   updateUsedTireCartCount();
   hydrateTireCardPhotos(list);
 }
 
+function formatSplitSearchStatus(setCount, leftoverCount, summary) {
+  const parts = [];
+  if (setCount) {
+    parts.push(`${setCount} full set${setCount === 1 ? '' : 's'}`);
+  }
+  if (leftoverCount) {
+    parts.push(`${leftoverCount} markdown${leftoverCount === 1 ? '' : 's'} at ${markdownOffLabel()}`);
+  }
+  return `${parts.join(' and ')} for ${summary}.`;
+}
+
+function renderSearchGroup({ title, note, items, startIndex = 0, leftover = false }) {
+  return `
+    <section class="used-inventory-group${leftover ? ' is-leftover' : ''}">
+      <div class="used-inventory-group-header">
+        <h3>${escapeHtml(title)}</h3>
+        <p>${escapeHtml(note)}</p>
+      </div>
+      <div class="inventory-list">
+        ${items.map((item, index) => renderUsedTireCard(item, startIndex + index)).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function getSortedMarkdownTires() {
+  return inventory.filter(isMarkdownTire).sort(compareMarkdownTires);
+}
+
+function compareMarkdownTires(left, right) {
+  const widthDelta = (Number(left.width) || 0) - (Number(right.width) || 0);
+  if (widthDelta !== 0) return widthDelta;
+  const profileDelta = (Number(left.profile) || 0) - (Number(right.profile) || 0);
+  if (profileDelta !== 0) return profileDelta;
+  const rimDelta = (Number(left.rim) || 0) - (Number(right.rim) || 0);
+  if (rimDelta !== 0) return rimDelta;
+  return String(left.brand || '').localeCompare(String(right.brand || ''), undefined, { sensitivity: 'base' });
+}
+
+function matchesMarkdownFilter(item, query) {
+  if (!query) return true;
+  const haystack = [item.size, item.brand, item.title, item.season]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(query);
+}
+
+function toggleMarkdownSection() {
+  const markdownTires = getSortedMarkdownTires();
+  if (!markdownTires.length) return;
+  markdownOpen = !markdownOpen;
+  renderMarkdownSection();
+  if (markdownOpen) {
+    getElements().markdownSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function updateMarkdownPrompt(count) {
+  const { markdownPrompt, markdownBanner, markdownBannerTitle } = getElements();
+  if (markdownBanner) {
+    markdownBanner.hidden = count < 1;
+    markdownBanner.classList.toggle('is-open', markdownOpen && count > 0);
+  }
+  if (markdownBannerTitle) {
+    markdownBannerTitle.textContent = count
+      ? `${count} markdown used tire${count === 1 ? '' : 's'}`
+      : 'Markdown used tires';
+  }
+  if (!markdownPrompt) return;
+
+  markdownPrompt.setAttribute('aria-expanded', markdownOpen ? 'true' : 'false');
+  markdownPrompt.textContent = markdownOpen
+    ? 'Hide markdown list'
+    : `Browse ${count} markdown${count === 1 ? '' : 's'}`;
+}
+
 function renderMarkdownSection() {
-  const { markdownSection, markdownList, markdownCount } = getElements();
+  const { markdownSection, markdownList, markdownCount, markdownFilter } = getElements();
   if (!markdownSection || !markdownList) return;
 
-  const markdownTires = inventory.filter(isMarkdownTire).sort((left, right) => {
-    const stockDelta = (Number(left.stock) || 0) - (Number(right.stock) || 0);
-    if (stockDelta !== 0) return stockDelta;
-    return String(left.brand || '').localeCompare(String(right.brand || ''));
-  });
+  const markdownTires = getSortedMarkdownTires();
+  if (!markdownTires.length) {
+    markdownOpen = false;
+  }
 
-  markdownSection.hidden = !markdownTires.length;
+  updateMarkdownPrompt(markdownTires.length);
+  markdownSection.hidden = !markdownOpen || !markdownTires.length;
+
   if (markdownCount) {
     markdownCount.textContent = markdownTires.length
-      ? `${markdownTires.length} tire${markdownTires.length === 1 ? '' : 's'} marked down 20%`
+      ? `${markdownTires.length} markdown size${markdownTires.length === 1 ? '' : 's'} — ${markdownOffLabel()}`
       : '';
   }
-  if (!markdownTires.length) {
+
+  if (!markdownOpen || !markdownTires.length) {
     markdownList.innerHTML = '';
+    if (markdownFilter && !markdownTires.length) markdownFilter.value = '';
     return;
   }
 
-  markdownList.innerHTML = markdownTires
-    .map((item, index) => renderUsedTireCard(item, index, { idPrefix: 'sale-' }))
+  renderMarkdownRows();
+}
+
+function leftoverGroupLabel(stock) {
+  if (stock >= 3) return { key: 3, title: 'Sets of 3', note: '3 matching tires left' };
+  if (stock === 2) return { key: 2, title: 'Pairs', note: '2 matching tires left' };
+  return { key: 1, title: 'Sets of 1', note: '1 left' };
+}
+
+function renderMarkdownRows() {
+  const { markdownList, markdownFilter } = getElements();
+  if (!markdownList) return;
+
+  const query = clean(markdownFilter?.value).toLowerCase();
+  const visible = getSortedMarkdownTires().filter((item) => matchesMarkdownFilter(item, query));
+
+  if (!visible.length) {
+    const typed = clean(markdownFilter?.value);
+    markdownList.innerHTML = `<p class="used-markdown-empty">No markdown tires match “${escapeHtml(typed)}”. Try a size like 205 or a brand like Toyo.</p>`;
+    return;
+  }
+
+  const grouped = new Map();
+  visible.forEach((item) => {
+    const group = leftoverGroupLabel(Math.max(0, Number(item.stock) || 0));
+    if (!grouped.has(group.key)) grouped.set(group.key, { ...group, items: [] });
+    grouped.get(group.key).items.push(item);
+  });
+
+  const boardHead = `
+    <div class="used-markdown-board-head">
+      <span class="visually-hidden">Photo</span>
+      <span>Size</span>
+      <span>Brand</span>
+      <span>Left</span>
+      <span>Was</span>
+      <span>Now</span>
+      <span>Save</span>
+      <span class="visually-hidden">Reserve</span>
+    </div>
+  `;
+
+  markdownList.innerHTML = [3, 2, 1]
+    .filter((key) => grouped.has(key))
+    .map((key) => {
+      const group = grouped.get(key);
+      return `
+        <section class="used-markdown-group">
+          <div class="used-markdown-group-header">
+            <h3>${escapeHtml(group.title)}</h3>
+            <p>${escapeHtml(group.note)} · ${group.items.length} size${group.items.length === 1 ? '' : 's'}</p>
+          </div>
+          ${boardHead}
+          ${group.items.map((item) => renderMarkdownRow(item)).join('')}
+        </section>
+      `;
+    })
     .join('');
   hydrateTireCardPhotos(markdownList);
+}
+
+function renderMarkdownRow(item) {
+  const brandLabel = formatBrandLabel(item.brand);
+  const seasonLabel = formatSeasonLabel(item.season);
+  const stockCount = Math.max(0, Number(item.stock) || 0);
+  const maxQty = Math.max(1, Math.min(stockCount || 1, 4));
+  const listPrice = item.price;
+  const unitPrice = getTireSalePrice(item);
+  const savings = listPrice !== null && unitPrice !== null
+    ? Math.max(0, Math.round((listPrice - unitPrice) * 100) / 100)
+    : null;
+  const qtyId = `used-tire-qty-sale-${item.id}`;
+  const qtyOptions = Array.from({ length: maxQty }, (_, index) => {
+    const value = index + 1;
+    return `<option value="${value}"${value === 1 ? ' selected' : ''}>${value}</option>`;
+  }).join('');
+  const lastClass = stockCount === 1 ? ' is-last' : '';
+  const canBuy = stockCount > 0 && unitPrice !== null;
+  const photoLink = isPhotoLink(item.details) ? item.details : '';
+
+  return `
+    <article class="used-markdown-row">
+      <div class="used-markdown-row-photo">
+        ${photoLink
+    ? renderTirePhotoGallery(item, photoLink, EAGER_PHOTO_CARDS, { compact: true })
+    : '<div class="used-markdown-photo-empty">No photo</div>'}
+      </div>
+      <div class="used-markdown-row-size">
+        <strong>${escapeHtml(item.size || 'N/A')}</strong>
+        <span>${escapeHtml(seasonLabel)}</span>
+      </div>
+      <p class="used-markdown-row-brand">${escapeHtml(brandLabel)}</p>
+      <p class="used-markdown-row-stock${lastClass}">${escapeHtml(stockCount ? `${stockCount} left` : 'Sold out')}</p>
+      <p class="used-markdown-row-was">${listPrice !== null ? `Was ${escapeHtml(formatPrice(listPrice))}` : ''}</p>
+      <p class="used-markdown-row-now">${escapeHtml(formatPrice(unitPrice))}</p>
+      <p class="used-markdown-row-save">${savings !== null ? `Save ${escapeHtml(formatPrice(savings))}` : ''}</p>
+      <div class="used-markdown-row-actions">
+        <label class="visually-hidden" for="${escapeHtml(qtyId)}">Quantity</label>
+        <select
+          id="${escapeHtml(qtyId)}"
+          class="used-tire-card-qty"
+          data-unit-price="${unitPrice ?? ''}"
+          ${canBuy ? '' : 'disabled'}
+        >
+          ${qtyOptions}
+        </select>
+        <button
+          class="used-tire-card-cta is-secondary is-compact"
+          type="button"
+          data-tire-cart-action="add"
+          data-inventory-id="${escapeHtml(item.id)}"
+          ${canBuy ? '' : 'disabled'}
+        >Add</button>
+        <button
+          class="used-tire-card-cta is-compact"
+          type="button"
+          data-tire-cart-action="reserve"
+          data-inventory-id="${escapeHtml(item.id)}"
+          ${canBuy ? '' : 'disabled'}
+        >Reserve</button>
+      </div>
+      <p class="used-tire-card-cart-status" data-tire-cart-status aria-live="polite"></p>
+    </article>
+  `;
 }
 
 function renderUsedTireCard(item, cardIndex = 0, options = {}) {
@@ -861,7 +1136,7 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
 
   return `
     <article class="used-tire-card${stockCount ? '' : ' is-sold-out'}${markdown ? ' is-markdown' : ''}">
-      ${markdown ? '<p class="used-tire-card-sale-badge">20% off</p>' : ''}
+      ${markdown ? `<p class="used-tire-card-sale-badge">${escapeHtml(markdownOffLabel())}</p>` : ''}
       <div class="used-tire-card-brand">
         ${brandLogo
     ? `<img src="${escapeHtml(brandLogo)}" alt="${escapeHtml(brandLabel)}" data-brand="${escapeHtml(brandSlug)}" loading="lazy" />`
@@ -914,10 +1189,13 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
           </select>
         </div>
         <div class="used-tire-card-price-block">
-          <span class="used-tire-card-price-label">${markdown ? 'Sale price' : 'Per tire'}</span>
-          <strong class="used-tire-card-price">${escapeHtml(formatPrice(unitPrice))}</strong>
+          <span class="used-tire-card-price-label">Per tire</span>
           ${markdown && listPrice !== null
     ? `<p class="used-tire-card-list-price">Was ${escapeHtml(formatPrice(listPrice))}</p>`
+    : ''}
+          <strong class="used-tire-card-price">${escapeHtml(formatPrice(unitPrice))}</strong>
+          ${markdown && listPrice !== null && unitPrice !== null
+    ? `<p class="used-tire-card-save">You save ${escapeHtml(formatPrice(Math.max(0, Math.round((listPrice - unitPrice) * 100) / 100)))}</p>`
     : ''}
           ${setTotal !== null
     ? `<p class="used-tire-card-set-total"><span data-set-label>Set of ${defaultQty}</span>: <span data-set-total>${escapeHtml(formatPrice(setTotal))}</span></p>`
@@ -1045,7 +1323,7 @@ function addUsedTireToCart(item, qty) {
 
 function handleTireCartAction(button) {
   const item = inventory.find((entry) => sameTireId(entry.id, button.dataset.inventoryId));
-  const card = button.closest('.used-tire-card');
+  const card = button.closest('.used-tire-card, .used-markdown-row');
   const qty = card?.querySelector('.used-tire-card-qty')?.value || 1;
   const status = card?.querySelector('[data-tire-cart-status]');
 
@@ -1117,13 +1395,14 @@ function renderPhotoControlsBar() {
   `;
 }
 
-function renderTirePhotoGallery(item, photoLink, cardIndex = 0) {
+function renderTirePhotoGallery(item, photoLink, cardIndex = 0, options = {}) {
   if (!photoLink) return '';
 
   const driveRef = parseDriveLink(photoLink);
   if (!driveRef) return '';
 
   const eager = cardIndex < EAGER_PHOTO_CARDS;
+  const compact = Boolean(options.compact);
 
   if (driveRef.type === 'file') {
     return renderPhotoGalleryMarkup({
@@ -1131,6 +1410,7 @@ function renderTirePhotoGallery(item, photoLink, cardIndex = 0) {
       driveUrl: photoLink,
       eager,
       label: item.title,
+      compact,
     });
   }
 
@@ -1142,12 +1422,13 @@ function renderTirePhotoGallery(item, photoLink, cardIndex = 0) {
       driveUrl: photoLink,
       eager,
       label: item.title,
+      compact,
     });
   }
 
   return `
     <div
-      class="used-tire-card-photos is-loading"
+      class="used-tire-card-photos is-loading${compact ? ' is-compact' : ''}"
       data-tire-photos
       data-folder-id="${escapeHtml(driveRef.id)}"
       data-drive-url="${escapeHtml(photoLink)}"
@@ -1163,11 +1444,11 @@ function renderTirePhotoGallery(item, photoLink, cardIndex = 0) {
   `;
 }
 
-function renderPhotoGalleryMarkup({ photos, folderId = '', driveUrl, eager = false, label = 'Tire' }) {
+function renderPhotoGalleryMarkup({ photos, folderId = '', driveUrl, eager = false, label = 'Tire', compact = false }) {
   const folderAttr = folderId ? ` data-folder-id="${escapeHtml(folderId)}"` : '';
   return `
     <div
-      class="used-tire-card-photos"
+      class="used-tire-card-photos${compact ? ' is-compact' : ''}"
       data-tire-photos
       data-photos-ready="true"
       ${folderAttr}
@@ -1183,6 +1464,8 @@ function renderPhotoGalleryMarkup({ photos, folderId = '', driveUrl, eager = fal
 }
 
 function hydrateTireCardPhotos(list) {
+  if (!list) return;
+
   list.querySelectorAll('[data-tire-photos][data-photos-ready="true"]').forEach((gallery) => {
     finishGallerySetup(gallery);
   });
@@ -1195,17 +1478,15 @@ function hydrateTireCardPhotos(list) {
     return;
   }
 
-  if (photoGalleryObserver) {
-    photoGalleryObserver.disconnect();
+  if (!photoGalleryObserver) {
+    photoGalleryObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        photoGalleryObserver.unobserve(entry.target);
+        loadCardPhotos(entry.target);
+      });
+    }, { rootMargin: '400px 0px', threshold: 0.01 });
   }
-
-  photoGalleryObserver = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      photoGalleryObserver.unobserve(entry.target);
-      loadCardPhotos(entry.target);
-    });
-  }, { rootMargin: '400px 0px', threshold: 0.01 });
 
   pending.forEach((gallery) => photoGalleryObserver.observe(gallery));
 }
@@ -1223,9 +1504,13 @@ function finishGallerySetup(gallery) {
   gallery.classList.toggle('has-multiple-photos', slides.length > 1);
 
   if (controls) {
-    controls.hidden = false;
-    if (slides.length > 1) {
-      bindPhotoGalleryControls(gallery, slides.length);
+    if (gallery.classList.contains('is-compact')) {
+      controls.hidden = true;
+    } else {
+      controls.hidden = false;
+      if (slides.length > 1) {
+        bindPhotoGalleryControls(gallery, slides.length);
+      }
     }
   }
 }
@@ -1356,6 +1641,20 @@ function renderPhotoSlides(photos, eager = false) {
 function hidePhotoGallery(gallery) {
   if (!gallery) return;
   gallery.classList.remove('is-loading');
+  if (gallery.classList.contains('is-compact')) {
+    gallery.classList.add('is-empty');
+    const track = gallery.querySelector('.used-tire-card-photo-track');
+    if (track) {
+      track.innerHTML = `
+        <div class="used-tire-card-photo-slide is-placeholder is-active">
+          <span class="used-tire-card-photo-status">No photo</span>
+        </div>
+      `;
+    }
+    const controls = gallery.querySelector('.used-tire-card-photo-controls');
+    if (controls) controls.hidden = true;
+    return;
+  }
   gallery.hidden = true;
 }
 
@@ -1541,15 +1840,15 @@ let photoLightboxItems = [];
 let photoLightboxIndex = 0;
 
 function initPhotoLightbox() {
-  const list = document.querySelector('#inventory-list');
-  if (!list || list.dataset.photoZoomBound) return;
-  list.dataset.photoZoomBound = 'true';
+  if (document.body.dataset.photoZoomBound) return;
+  document.body.dataset.photoZoomBound = 'true';
 
-  list.addEventListener('click', (event) => {
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('.used-tire-card-photo-nav')) return;
+
     const zoomTrigger = event.target.closest('.used-tire-card-photo-zoom-btn');
-    if (!zoomTrigger) return;
-
-    const gallery = zoomTrigger.closest('[data-tire-photos]');
+    const compactGallery = event.target.closest('.used-tire-card-photos.is-compact:not(.is-empty)');
+    const gallery = zoomTrigger?.closest('[data-tire-photos]') || compactGallery;
     const img = gallery?.querySelector('.used-tire-card-photo-slide.is-active img');
     if (!gallery || !img) return;
 
@@ -1779,7 +2078,7 @@ function renderStockAlert(stockCount, markdown = false) {
     return `<p class="used-tire-card-stock-alert is-sold-out">Sold out — contact EastCord Tires for availability.</p>`;
   }
   if (markdown) {
-    return `<p class="used-tire-card-stock-alert is-markdown">Marked down 20% — only ${stockCount} left.</p>`;
+    return `<p class="used-tire-card-stock-alert is-markdown">Only ${stockCount} left</p>`;
   }
   if (stockCount <= LOW_STOCK_THRESHOLD) {
     return `<p class="used-tire-card-stock-alert is-low">Only ${stockCount} left in stock — order soon.</p>`;
