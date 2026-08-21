@@ -196,6 +196,74 @@ label:has(input[name="bot-field"]) {
   max-width: 760px;
 }
 
+.appointment-service-menu {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.appointment-service-menu legend {
+  margin: 0 0 12px;
+  color: #34363a;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.appointment-service-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.appointment-service-option {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  min-height: 108px;
+  padding: 16px 18px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 16px;
+  background: #ffffff;
+  color: #111317;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.appointment-service-option strong {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.appointment-service-option span {
+  color: #4f5663;
+  font-size: 0.88rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.appointment-service-option em {
+  margin-top: auto;
+  color: var(--red, #df1f2d);
+  font-size: 0.92rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.appointment-service-option:hover,
+.appointment-service-option:focus-visible {
+  border-color: #df1f2d;
+  box-shadow: 0 0 0 4px rgba(223, 31, 45, 0.1);
+}
+
+.appointment-service-option.is-selected {
+  border-color: #df1f2d;
+  background: #fff7f7;
+  box-shadow: 0 0 0 4px rgba(223, 31, 45, 0.1);
+}
+
 .appointment-field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -449,7 +517,8 @@ label:has(input[name="bot-field"]) {
   .appointment-field-grid,
   .appointment-price-summary,
   .appointment-review-grid,
-  .appointment-cart-links { grid-template-columns: 1fr; }
+  .appointment-cart-links,
+  .appointment-service-options { grid-template-columns: 1fr; }
   .appointment-status-card,
   .appointment-info-card,
   .appointment-form-card { border-radius: 22px; }

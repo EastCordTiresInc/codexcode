@@ -69,6 +69,7 @@
     els.depositPrice = document.querySelector('[data-deposit-price]');
     els.balancePrice = document.querySelector('[data-balance-price]');
     els.serviceSelect = document.getElementById('service-select');
+    els.serviceOptions = document.querySelector('[data-service-options]');
     els.rimsField = document.querySelector('[data-rims-field]');
     els.tireCountField = document.querySelector('[data-tire-count-field]');
     els.serviceIdField = document.querySelector('[data-hidden-service-id]');
@@ -106,8 +107,17 @@
     els.primaryNavigation = document.querySelector('#primary-navigation');
   }
 
+  function syncServiceOptionButtons(serviceId = els.serviceSelect?.value) {
+    els.serviceOptions?.querySelectorAll('[data-service-id]').forEach((button) => {
+      const selected = button.dataset.serviceId === serviceId;
+      button.classList.toggle('is-selected', selected);
+      button.setAttribute('aria-selected', selected ? 'true' : 'false');
+    });
+  }
+
   function setSelectedService(serviceId) {
     if (els.serviceSelect && serviceId) els.serviceSelect.value = serviceId;
+    syncServiceOptionButtons(serviceId);
   }
 
   function getCurrentService() {
@@ -256,6 +266,7 @@
   function updateFromSelectedService() {
     const service = getCurrentService();
     console.log('[EastCord appointment automation] Service changed:', service);
+    syncServiceOptionButtons(service?.id);
     updateServicePricing(service);
     if (isMountBalanceService(service)) applySelectedTiresToForm();
     showAppointmentMessage('', 'info');
@@ -1080,6 +1091,17 @@
     console.log('[EastCord appointment automation] Service select found:', Boolean(els.serviceSelect));
 
     els.serviceSelect?.addEventListener('change', updateFromSelectedService);
+    els.serviceOptions?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-service-id]');
+      if (!button || !els.serviceSelect) return;
+      const serviceId = button.dataset.serviceId;
+      if (!serviceId || els.serviceSelect.value === serviceId) {
+        syncServiceOptionButtons(els.serviceSelect.value);
+        return;
+      }
+      els.serviceSelect.value = serviceId;
+      els.serviceSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    });
 
     els.menuToggle?.addEventListener('click', () => {
       const isOpen = els.menuToggle.getAttribute('aria-expanded') === 'true';

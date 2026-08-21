@@ -220,21 +220,35 @@ button {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  gap: 14px;
+  gap: 8px;
   margin-left: auto;
-  padding: 7px 12px;
-  border: 1px solid #d8dade;
-  border-radius: 999px;
-  background: #f7f7f6;
+  padding: 0;
+  border: 0;
+  background: transparent;
   white-space: nowrap;
 }
 
 .nav-carts a {
+  min-height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d8dade;
+  border-radius: 999px;
+  background: #f7f7f6;
   font-size: 0.8rem;
+}
+
+.nav-carts a:hover,
+.nav-carts a:focus-visible {
+  border-color: rgba(229, 36, 42, 0.35);
+  background: #fff;
 }
 
 .nav-carts a[aria-current="page"] {
   color: var(--red);
+  border-color: var(--red);
+  background: #fff4f4;
 }
 
 .main-nav a,
@@ -1179,8 +1193,7 @@ h3 {
   }
 
   .nav-carts {
-    gap: 10px;
-    padding: 6px 10px;
+    gap: 8px;
   }
 }
 
@@ -1274,15 +1287,17 @@ h3 {
 
   .nav-carts {
     display: grid;
-    gap: 0;
+    gap: 8px;
     margin: 8px 0 4px;
-    padding: 8px 10px;
-    border-radius: 12px;
+    padding: 0;
     white-space: normal;
   }
 
   .nav-carts a {
-    padding: 10px 4px;
+    width: 100%;
+    min-height: 44px;
+    padding: 0 14px;
+    justify-content: flex-start;
     font-size: 1rem;
   }
 

@@ -1,5 +1,5 @@
 const USED_TIRE_CART_KEY = 'eastcord_used_tire_cart_v1';
-const TIRE_CART_TAX_RATE = 0.13;
+const TIRE_CART_TAX_RATE = 0;
 
 let tireCart = [];
 let currentProfile = null;
@@ -428,8 +428,7 @@ function bindCartEvents() {
       ...itemLines,
       '',
       `Subtotal: ${formatMoney(totals.subtotal)}`,
-      `HST: ${formatMoney(totals.hstAmount)}`,
-      `Estimated total: ${formatMoney(totals.totalWithHst)}`,
+      `Total: ${formatMoney(totals.totalWithHst)}`,
     ].join('\n');
 
     const subject = 'Used tire reservation request';

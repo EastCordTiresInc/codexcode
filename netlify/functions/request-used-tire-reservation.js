@@ -61,8 +61,7 @@ exports.handler = async function requestUsedTireReservation(event) {
     ...itemLines,
     '',
     `Subtotal: ${clean(totals.subtotal) || ''}`,
-    `HST: ${clean(totals.hst) || ''}`,
-    `Estimated total: ${clean(totals.total) || ''}`,
+    `Total: ${clean(totals.total) || ''}`,
   ].join('\n');
 
   const config = getEmailConfig();
