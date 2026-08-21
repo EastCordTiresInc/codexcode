@@ -19,6 +19,14 @@ desktop.ini
 *.log
 npm-debug.log*
 
+# Local-only demo checkout (not for the live website)
+demo-payment.html
+demo-payment.js
+demo-payment.css
+demo-payment-success.html
+demo-payment-success.js
+netlify/functions/demo-used-tire-payment.js
+
 # Python cache (inventory scripts)
 __pycache__/
 *.pyc

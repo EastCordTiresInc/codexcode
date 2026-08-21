@@ -1265,7 +1265,8 @@ async function hydrateUsedTireCustomerCart() {
         ...getUsedTireCart(),
       ])
       : mergedCart;
-    if (normalizedCart.length) {
+    const latestLocal = getUsedTireCart();
+    if (normalizedCart.length >= latestLocal.length) {
       localStorage.setItem(USED_TIRE_CART_KEY, JSON.stringify(normalizedCart));
     }
     updateUsedTireCartCount();
@@ -1280,8 +1281,9 @@ function updateUsedTireCartCount() {
     window.EastCordAccount.updateCartCount();
     return;
   }
-  document.querySelectorAll('[data-tire-cart-count], [data-cart-count]').forEach((element) => {
-    element.textContent = '';
+  const count = getUsedTireCart().reduce((total, item) => total + (Number(item.qty) || 0), 0);
+  document.querySelectorAll('[data-tire-cart-count]').forEach((element) => {
+    element.textContent = count ? ` (${count})` : '';
   });
 }
 
@@ -1336,8 +1338,9 @@ function handleTireCartAction(button) {
     return;
   }
 
+  button.textContent = 'Added';
   if (status) {
-    status.innerHTML = `Added to cart. <a href="/tire-cart.html">View tire cart</a>`;
+    status.innerHTML = `Added to tire cart. <a href="/tire-cart.html">View tire cart</a>`;
   }
 }
 

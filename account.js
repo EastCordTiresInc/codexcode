@@ -907,12 +907,21 @@ function getUsedTireCartCount() {
 
 function setCartCountText(selector, count) {
   document.querySelectorAll(selector).forEach((element) => {
-    element.textContent = '';
+    element.textContent = count ? ` (${count})` : '';
   });
 }
 
 function updateCartCount() {
-  document.querySelectorAll('[data-appointment-cart-count], [data-tire-cart-count], [data-cart-count]').forEach((element) => {
+  setCartCountText('[data-tire-cart-count]', getUsedTireCartCount());
+  document.querySelectorAll('[data-appointment-cart-count]').forEach((element) => {
+    element.textContent = '';
+  });
+  document.querySelectorAll('[data-cart-count]').forEach((element) => {
+    const href = element.closest('a')?.getAttribute('href') || '';
+    if (/tire-cart/.test(href)) {
+      element.textContent = getUsedTireCartCount() ? ` (${getUsedTireCartCount()})` : '';
+      return;
+    }
     element.textContent = '';
   });
 }
@@ -1179,17 +1188,18 @@ async function hydrateSignedInCarts() {
       loadCustomerCart('appointment', getCart()),
       loadCustomerCart('used_tire', getLocalUsedTireCart()),
     ]);
+    const latestLocalTireCart = getLocalUsedTireCart();
     const normalizedTireCart = mergeCustomerCartItems(
       'used_tire',
       remoteTireCart,
-      getLocalUsedTireCart(),
+      latestLocalTireCart,
     );
 
     const normalizedAppointmentCart = normalizeCartCollection(appointmentCart)
       .filter((item) => item.serviceId || item.serviceName);
 
     localStorage.setItem(CART_KEY, JSON.stringify(normalizedAppointmentCart));
-    if (normalizedTireCart.length || !getLocalUsedTireCart().length) {
+    if (normalizedTireCart.length >= latestLocalTireCart.length) {
       localStorage.setItem(ACCOUNT_USED_TIRE_CART_KEY, JSON.stringify(normalizedTireCart));
     }
     accountCartsHydrated = true;

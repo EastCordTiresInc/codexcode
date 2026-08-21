@@ -14,5 +14,13 @@ README.md
 # Debug and test utilities
 cart-debug.js
 
+# Local-only demo checkout — keep on this machine, never publish
+demo-payment.html
+demo-payment.js
+demo-payment.css
+demo-payment-success.html
+demo-payment-success.js
+netlify/functions/demo-used-tire-payment.js
+
 # Duplicate of signup.html (_redirects already points /signup -> signup.html)
 signup

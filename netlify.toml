@@ -94,30 +94,6 @@
   force = true
 
 [[redirects]]
-  from = "/demo-payment"
-  to = "/demo-payment.html"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/demo-payment/"
-  to = "/demo-payment.html"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/demo-payment-success"
-  to = "/demo-payment-success.html"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/demo-payment-success/"
-  to = "/demo-payment-success.html"
-  status = 301
-  force = true
-
-[[redirects]]
   from = "/appointment-success"
   to = "/appointment-success.html"
   status = 301

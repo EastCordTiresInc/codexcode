@@ -66,7 +66,9 @@ function countTireCart(items = tireCart) {
 
 function adoptStoredTireCart() {
   const stored = readTireCart();
-  if (!tireCart.length && stored.length) {
+  if (stored.length >= tireCart.length) {
+    tireCart = stored;
+  } else if (!tireCart.length && stored.length) {
     tireCart = stored;
   }
   return tireCart;
@@ -103,7 +105,11 @@ function updateCartCount() {
     window.EastCordAccount.updateCartCount();
     return;
   }
-  document.querySelectorAll('[data-tire-cart-count], [data-appointment-cart-count], [data-cart-count]').forEach((element) => {
+  const count = countTireCart(adoptStoredTireCart());
+  document.querySelectorAll('[data-tire-cart-count]').forEach((element) => {
+    element.textContent = count ? ` (${count})` : '';
+  });
+  document.querySelectorAll('[data-appointment-cart-count]').forEach((element) => {
     element.textContent = '';
   });
 }
