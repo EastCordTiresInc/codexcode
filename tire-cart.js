@@ -99,12 +99,12 @@ function saveTireCart() {
 }
 
 function updateCartCount() {
-  const count = countTireCart(adoptStoredTireCart());
   if (window.EastCordAccount?.updateCartCount) {
     window.EastCordAccount.updateCartCount();
+    return;
   }
-  document.querySelectorAll('[data-tire-cart-count]').forEach((element) => {
-    element.textContent = count ? ` (${count})` : '';
+  document.querySelectorAll('[data-tire-cart-count], [data-appointment-cart-count], [data-cart-count]').forEach((element) => {
+    element.textContent = '';
   });
 }
 

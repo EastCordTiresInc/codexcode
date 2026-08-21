@@ -1280,11 +1280,8 @@ function updateUsedTireCartCount() {
     window.EastCordAccount.updateCartCount();
     return;
   }
-  const count = getUsedTireCart().reduce((total, item) => total + (Number(item.qty) || 0), 0);
   document.querySelectorAll('[data-tire-cart-count], [data-cart-count]').forEach((element) => {
-    const href = element.closest('a')?.getAttribute('href') || '';
-    if (href && !/tire-cart/.test(href) && element.matches('[data-cart-count]')) return;
-    element.textContent = count ? ` (${count})` : '';
+    element.textContent = '';
   });
 }
 

@@ -907,19 +907,13 @@ function getUsedTireCartCount() {
 
 function setCartCountText(selector, count) {
   document.querySelectorAll(selector).forEach((element) => {
-    element.textContent = count ? ` (${count})` : '';
+    element.textContent = '';
   });
 }
 
 function updateCartCount() {
-  const appointmentCount = getAppointmentCartCount();
-  const tireCount = getUsedTireCartCount();
-  setCartCountText('[data-appointment-cart-count]', appointmentCount);
-  setCartCountText('[data-tire-cart-count]', tireCount);
-  document.querySelectorAll('[data-cart-count]').forEach((element) => {
-    const href = element.closest('a')?.getAttribute('href') || '';
-    const count = /tire-cart/.test(href) ? tireCount : appointmentCount;
-    element.textContent = count ? ` (${count})` : '';
+  document.querySelectorAll('[data-appointment-cart-count], [data-tire-cart-count], [data-cart-count]').forEach((element) => {
+    element.textContent = '';
   });
 }
 

@@ -101,13 +101,8 @@
       window.EastCordAccount.updateCartCount();
       return;
     }
-    document.querySelectorAll('[data-appointment-cart-count]').forEach((element) => {
-      element.textContent = count ? ` (${count})` : '';
-    });
-    document.querySelectorAll('[data-cart-count]').forEach((element) => {
-      const href = element.closest('a')?.getAttribute('href') || '';
-      if (/tire-cart/.test(href)) return;
-      element.textContent = count ? ` (${count})` : '';
+    document.querySelectorAll('[data-appointment-cart-count], [data-cart-count]').forEach((element) => {
+      element.textContent = '';
     });
   }
 
