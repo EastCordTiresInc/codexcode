@@ -1,6 +1,6 @@
 const { applyWebsiteSalesToSheet } = require('./google-sheets-inventory');
 
-const TAX_RATE = 0.13;
+const TAX_RATE = 0;
 
 function roundMoney(value) {
   const amount = Number(value);

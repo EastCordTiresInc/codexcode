@@ -100,6 +100,7 @@ function unwrapCartItem(item) {
 function isAppointmentLikeItem(item) {
   const source = unwrapCartItem(item);
   if (!source || typeof source !== 'object') return false;
+  if (source.type === 'used_tire' || source.inventoryId || source.inventory_id) return false;
   return source.type === 'appointment'
     || Boolean(source.serviceId || source.service_id)
     || Boolean(source.serviceName || source.service_name)
@@ -546,20 +547,9 @@ function renderCartItem(item, index) {
       <span>Vehicle ${index + 1} appointment</span>
       <strong>${escapeHtml(item.serviceName || 'Appointment service')}</strong>
       ${detailLine('Vehicle', vehicle.vehicle)}
-      ${detailLine('Plate Number', vehicle.plate)}
-      ${detailLine('Colour', vehicle.colour)}
-      ${detailLine('Tire Size', vehicle.tireSize)}
-      ${detailLine('Tires', vehicle.tireCount)}
-      ${detailLine('Address', item.fullServiceAddress)}
-      ${detailLine('City/Postal', cityPostal)}
       ${detailLine('Date', item.preferredDate)}
       ${detailLine('Time', item.preferredTimeWindow)}
-      ${detailLine('Service Subtotal', formatMoney(item.serviceSubtotal))}
-      ${detailLine('HST 13%', formatMoney(item.hstAmount))}
-      ${detailLine('Total Including HST', formatMoney(item.totalWithHst))}
-      ${detailLine('Deposit Due Today', formatMoney(item.depositAmount))}
-      ${detailLine('Remaining On-Site', formatMoney(item.remainingBalance))}
-      <p>Your appointment will be confirmed automatically after successful deposit payment.</p>
+      ${detailLine('Address', [item.fullServiceAddress, cityPostal].filter(Boolean).join(', '))}
       <div class="account-actions cart-line-actions">
         <button class="button button-secondary" type="button" data-remove-cart-item="${escapeHtml(item.id || '')}" data-remove-cart-index="${escapeHtml(item.cartIndex)}">Remove this appointment</button>
       </div>

@@ -171,16 +171,6 @@ exports.handler = async (event) => {
           },
           quantity: item.qty,
         })),
-        {
-          price_data: {
-            currency: 'cad',
-            product_data: {
-              name: 'HST 13%',
-            },
-            unit_amount: Math.round(amounts.hstAmount * 100),
-          },
-          quantity: 1,
-        },
       ],
       success_url: `${siteUrl}/tire-reservation-success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/tire-cart.html`,

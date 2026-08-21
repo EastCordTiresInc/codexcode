@@ -100,8 +100,6 @@
     els.tireSelector = document.querySelector('[data-appointment-tire-selector]');
     els.linkedTireHint = document.querySelector('[data-linked-tire-hint]');
     els.tireOptions = document.querySelector('[data-appointment-tire-options]');
-    els.appointmentCartSummary = document.querySelector('[data-appointment-cart-summary]');
-    els.tireCartSummary = document.querySelector('[data-tire-cart-summary]');
     els.loginRequiredBlock = document.querySelector('[data-login-required-block]');
     els.menuToggle = document.querySelector('.menu-toggle');
     els.primaryNavigation = document.querySelector('#primary-navigation');
@@ -424,17 +422,6 @@
     }).join('');
   }
 
-  function updateCartLinkSummaries() {
-    const appointmentCount = getCartAppointmentItems().length;
-    const tireCount = state.savedTires.reduce((total, item) => total + (Number(item.qty) || 0), 0);
-    if (els.appointmentCartSummary) {
-      els.appointmentCartSummary.textContent = `${appointmentCount} appointment${appointmentCount === 1 ? '' : 's'} saved`;
-    }
-    if (els.tireCartSummary) {
-      els.tireCartSummary.textContent = `${tireCount} tire${tireCount === 1 ? '' : 's'} saved`;
-    }
-  }
-
   async function hydrateCustomerTires() {
     let localTires = getLocalUsedTireCart();
     try {
@@ -453,7 +440,6 @@
     state.savedTires = localTires.filter((item) => !item.unavailable);
     syncSelectedTiresWithSavedCart();
     renderSavedTireOptions();
-    updateCartLinkSummaries();
     updateReviewSummary(state.currentService || getCurrentService());
   }
 

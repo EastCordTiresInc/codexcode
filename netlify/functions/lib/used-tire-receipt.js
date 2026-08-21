@@ -64,7 +64,6 @@ function buildUsedTireReceipt({ customer, items, demo = false, websiteUpdates = 
       'Receipt',
       itemText,
       `Subtotal: ${formatMoney(totals.subtotal)}`,
-      `HST 13%: ${formatMoney(totals.hstAmount)}`,
       `Total: ${formatMoney(totals.totalWithHst)}`,
       stockLines.length ? `\nInventory update:\n${stockLines.join('\n')}` : '',
       '',
@@ -81,7 +80,6 @@ function buildUsedTireReceipt({ customer, items, demo = false, websiteUpdates = 
         <table style="width:100%;border-collapse:collapse;">${itemHtml}</table>
         <p>
           <strong>Subtotal:</strong> ${escapeHtml(formatMoney(totals.subtotal))}<br />
-          <strong>HST 13%:</strong> ${escapeHtml(formatMoney(totals.hstAmount))}<br />
           <strong>Total:</strong> ${escapeHtml(formatMoney(totals.totalWithHst))}
         </p>
         ${stockLines.length ? `<p><strong>Inventory update</strong><br />${stockLines.map(escapeHtml).join('<br />')}</p>` : ''}

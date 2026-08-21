@@ -190,10 +190,6 @@ function renderTireCartItem(item) {
         ${markdownNote}
         <dl class="tire-cart-item-summary">
           <div>
-            <dt>Stock</dt>
-            <dd>${escapeHtml(item.maxStock)} available</dd>
-          </div>
-          <div>
             <dt>Per tire</dt>
             <dd>
               ${escapeHtml(formatMoney(item.unitPrice))}
@@ -249,12 +245,6 @@ function renderTireCart() {
     submit.disabled = !tireCart.length || tireCart.some((item) => item.unavailable);
   }
   updateCartCount();
-}
-
-function showDemoPaymentLink() {
-  const link = document.querySelector('[data-demo-payment-link]');
-  if (!link) return;
-  link.hidden = !/localhost|127\.0\.0\.1/i.test(window.location.hostname);
 }
 
 function fillCustomerFields(profile) {
@@ -541,7 +531,6 @@ function bindCartEvents() {
 
 async function initTireCart() {
   bindCartEvents();
-  showDemoPaymentLink();
   tireCart = readTireCart();
   renderTireCart();
   await hydrateCustomerAccount();

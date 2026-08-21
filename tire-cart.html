@@ -6,7 +6,7 @@
     <meta name="description" content="Review used tires and send a reservation request to EastCord Tires." />
     <title>Used Tire Cart | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=7" />
-    <link rel="stylesheet" href="tire-cart.css?v=10" />
+    <link rel="stylesheet" href="tire-cart.css?v=11" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
   </head>
   <body class="tire-cart-page">
@@ -54,9 +54,8 @@
     <main class="section" id="main-content">
       <div class="shell tire-cart-layout">
         <section class="tire-cart-panel" aria-labelledby="tire-cart-title">
-          <p class="tire-cart-eyebrow">Used tire reservation</p>
           <h1 id="tire-cart-title">Your Tire Cart</h1>
-          <p>Review quantities before sending your request.</p>
+          <p>Review quantities, then send a reservation request.</p>
           <div class="tire-cart-items" data-tire-cart-items></div>
           <div class="tire-cart-actions">
             <a class="button button-secondary" href="/used-tires">Continue Shopping</a>
@@ -67,15 +66,11 @@
         <aside class="tire-cart-panel tire-reservation-panel" aria-labelledby="reservation-title">
           <h2 id="reservation-title">Reservation request</h2>
           <div class="tire-cart-total">
-            <span>Tire subtotal</span>
-            <strong data-tire-cart-total>$0.00</strong>
-          </div>
-          <div class="tire-cart-total">
             <span>Total</span>
             <strong data-tire-cart-grand-total>$0.00</strong>
           </div>
           <p class="tire-reservation-notice">
-            Payment is not taken on the website yet. Send this reservation request and EastCord Tires will confirm stock, pickup, or installation.
+            Payment is not taken here. Send this request and EastCord Tires will confirm stock, pickup, or installation.
           </p>
 
           <form data-tire-reservation-form>
@@ -130,9 +125,6 @@
                 <textarea data-reservation-body rows="8" readonly></textarea>
               </label>
             </div>
-            <a class="button button-secondary" href="/demo-payment" data-demo-payment-link hidden>
-              Open demo payment
-            </a>
           </form>
         </aside>
       </div>
@@ -197,7 +189,7 @@
     <script src="auth-config.js?v=3"></script>
     <script src="used-tire-pricing.js?v=2"></script>
     <script src="account.js?v=30"></script>
-    <script src="tire-cart.js?v=23"></script>
+    <script src="tire-cart.js?v=24"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>
