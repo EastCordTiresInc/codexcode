@@ -13,9 +13,10 @@
 
 .appointment-hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(18px, 3vw, 40px);
   align-items: center;
+  max-width: 760px;
 }
 
 .appointment-hero h1 {
