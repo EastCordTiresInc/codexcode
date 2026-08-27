@@ -56,6 +56,9 @@ exports.handler = async function requestUsedTireReservation(event) {
     `Email: ${customer.email}`,
     `Phone: ${customer.phone}`,
     `Fulfillment: ${fulfillment}`,
+    fulfillment === 'Installation'
+      ? 'When the tires are in, send the customer this booking link: https://eastcordtires.ca/appointment'
+      : 'Confirm with the customer when the order is ready for pickup. No appointment is required.',
     '',
     'Tires:',
     ...itemLines,

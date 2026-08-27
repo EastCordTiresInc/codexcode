@@ -69,8 +69,13 @@
             </div>
           </div>
           <div class="account-history">
+            <h2>Purchased Tires</h2>
+            <p>Used tires paid with Stripe, and new tires paid in the tire search, are saved to your profile. If you chose installation, wait until EastCord sends your booking link after the tires are ready.</p>
+            <div class="cart-items" data-purchased-tires></div>
+          </div>
+          <div class="account-history">
             <h2>Appointment History</h2>
-            <p>Bookings shown here are saved in Supabase and stay connected to your customer account.</p>
+            <p>Paid appointments appear here after the deposit is completed. Unpaid Pending Confirmation checkouts stay in your cart until you pay.</p>
             <div class="cart-items" data-booking-history></div>
           </div>
           <div class="account-actions">
@@ -107,6 +112,7 @@
             <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
             <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
             <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
+            <a href="/proudly-canadian">Proudly Canadian</a>
             <a href="/appointment">Changeover / Swap Service</a>
             <a href="/local-installers">Local Installers</a>
             <a href="/#contact">Contact EastCord</a>
@@ -139,7 +145,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=32"></script>
+    <script src="account.js?v=40"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

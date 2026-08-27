@@ -525,3 +525,197 @@ label:has(input[name="bot-field"]) {
   .appointment-form-card { border-radius: 22px; }
   .appointment-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+.appointment-success-page {
+  background: #f5f6f8;
+}
+
+.appointment-success-page .section {
+  padding: 28px 0 56px;
+}
+
+.appointment-success-page .confirmation-card {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px 24px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(17, 18, 20, 0.06);
+}
+
+.confirmation-heading {
+  text-align: left;
+  margin-bottom: 22px;
+}
+
+.confirmation-heading h1 {
+  margin: 0 0 8px;
+  color: #111317;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.15;
+}
+
+.confirmation-heading p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.95rem;
+}
+
+.confirmation-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.confirmation-empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed #cfd3d8;
+  border-radius: 8px;
+  color: #626a76;
+}
+
+.confirmation-item {
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-left: 3px solid #e5242a;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.confirmation-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.confirmation-item-top strong {
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.confirmation-item-top span {
+  flex-shrink: 0;
+  color: #15803d;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.confirmation-meta {
+  margin: 4px 0 10px;
+  color: #555d68;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.confirmation-facts {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.confirmation-facts > div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.confirmation-facts dt {
+  margin: 0;
+  color: #626a76;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.confirmation-facts dd {
+  margin: 0;
+  color: #111317;
+  font-size: 0.88rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.confirmation-receipt {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: #fbfbfc;
+}
+
+.confirmation-receipt h2 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+.confirmation-receipt dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.confirmation-receipt dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.confirmation-receipt dt {
+  margin: 0;
+  color: #626a76;
+  font-size: 0.86rem;
+}
+
+.confirmation-receipt dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.confirmation-receipt-due {
+  margin-top: 2px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f0fdf4;
+}
+
+.confirmation-receipt-due dt,
+.confirmation-receipt-due dd {
+  color: #15803d;
+}
+
+.confirmation-receipt-remaining {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  color: #626a76;
+  font-size: 0.82rem;
+}
+
+.confirmation-receipt-remaining strong {
+  color: #111317;
+}
+
+.confirmation-actions {
+  justify-content: flex-start;
+  margin-top: 18px;
+}
+
+@media (max-width: 560px) {
+  .confirmation-item-top {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .confirmation-facts > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

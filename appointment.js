@@ -191,6 +191,10 @@
     if (els.rimsField) els.rimsField.hidden = true;
   }
 
+  function getTireLinkId(item) {
+    return String(item?.linkId || item?.inventoryId || '');
+  }
+
   function isMountBalanceService(service = getCurrentService()) {
     return String(service?.id || '').startsWith('mount-balance');
   }
@@ -201,7 +205,8 @@
   }
 
   function updateTireSelectorVisibility(service = getCurrentService()) {
-    const canLinkTires = isMountBalanceService(service);
+    const hasTiresToLink = state.savedTires.length > 0;
+    const canLinkTires = isMountBalanceService(service) || hasTiresToLink;
     if (els.tireSelector) els.tireSelector.hidden = !canLinkTires;
     if (els.reviewTiresCard) els.reviewTiresCard.hidden = !canLinkTires;
     updateLinkedTireHint(service);
@@ -209,21 +214,25 @@
     if (!canLinkTires && state.selectedTireIds.size) {
       state.selectedTireIds.clear();
       renderSavedTireOptions();
-    } else if (canLinkTires) {
+    } else if (isMountBalanceService(service)) {
       pruneSelectedTiresToService(service);
     }
   }
 
   function getSelectedTireQuantity(selectedIds = state.selectedTireIds) {
     return state.savedTires
-      .filter((item) => selectedIds.has(String(item.inventoryId)))
+      .filter((item) => selectedIds.has(getTireLinkId(item)))
       .reduce((sum, item) => sum + (Number(item.qty) || 1), 0);
   }
 
   function updateLinkedTireHint(service = getCurrentService()) {
-    if (!els.linkedTireHint || !isMountBalanceService(service)) return;
-    const count = getServiceTireCount(service);
-    els.linkedTireHint.textContent = `If you link tires from your cart, select a total of ${count} tire${count === 1 ? '' : 's'} to match this appointment.`;
+    if (!els.linkedTireHint) return;
+    if (isMountBalanceService(service)) {
+      const count = getServiceTireCount(service);
+      els.linkedTireHint.textContent = `Link purchased tires from your profile, or tires still in your cart. Select a total of ${count} tire${count === 1 ? '' : 's'} to match this appointment.`;
+      return;
+    }
+    els.linkedTireHint.textContent = 'Link the tires you already paid for so this appointment is connected to your purchase.';
   }
 
   function pruneSelectedTiresToService(service = getCurrentService()) {
@@ -233,10 +242,11 @@
     const nextSelection = new Set();
     let runningQty = 0;
     state.savedTires.forEach((item) => {
-      if (!state.selectedTireIds.has(String(item.inventoryId))) return;
+      const linkId = getTireLinkId(item);
+      if (!state.selectedTireIds.has(linkId)) return;
       const qty = Number(item.qty) || 1;
       if (runningQty + qty > limit) return;
-      nextSelection.add(String(item.inventoryId));
+      nextSelection.add(linkId);
       runningQty += qty;
     });
     state.selectedTireIds = nextSelection;
@@ -266,7 +276,7 @@
     console.log('[EastCord appointment automation] Service changed:', service);
     syncServiceOptionButtons(service?.id);
     updateServicePricing(service);
-    if (isMountBalanceService(service)) applySelectedTiresToForm();
+    if (getSelectedTires().length) applySelectedTiresToForm();
     showAppointmentMessage('', 'info');
   }
 
@@ -372,21 +382,32 @@
   }
 
   function getSelectedTires() {
-    if (!isMountBalanceService()) return [];
-    return state.savedTires.filter((item) => state.selectedTireIds.has(String(item.inventoryId)));
+    return state.savedTires.filter((item) => state.selectedTireIds.has(getTireLinkId(item)));
   }
 
   function formatSavedTireLabel(item) {
     const qty = Math.max(1, Number(item.qty) || 1);
-    return `${item.brand || 'Tire'} ${item.size || ''}`.trim() + ` × ${qty}`;
+    const kind = item.type === 'new_tire' ? 'New' : '';
+    return `${[kind, item.brand, item.model, item.size].filter(Boolean).join(' ')} × ${qty}`.trim();
+  }
+
+  function formatPaidDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
   function getSelectedTiresSummary() {
     const selected = getSelectedTires();
     const needed = getServiceTireCount();
-    if (!selected.length) return `No saved tires selected. This appointment is for ${needed} tire${needed === 1 ? '' : 's'}.`;
+    if (!selected.length) {
+      return isMountBalanceService()
+        ? `No tires selected. This appointment is for ${needed} tire${needed === 1 ? '' : 's'}.`
+        : 'No purchased tires selected.';
+    }
     const selectedQty = getSelectedTireQuantity();
-    if (selectedQty === needed) return selected.map(formatSavedTireLabel).join(', ');
+    if (!isMountBalanceService() || selectedQty === needed) return selected.map(formatSavedTireLabel).join(', ');
     return `${selected.map(formatSavedTireLabel).join(', ')} — ${selectedQty} of ${needed} tires selected`;
   }
 
@@ -403,48 +424,73 @@
     if (!els.tireOptions) return;
 
     if (!state.savedTires.length) {
-      els.tireOptions.innerHTML = '<p>No saved tires found. Add tires to your tire cart, then return here to book installation.</p>';
+      els.tireOptions.innerHTML = '<p>No purchased tires found. After you pay for used or new tires with Stripe, they are saved to your profile so you can link them here. You can also add used tires to your cart first.</p>';
       return;
     }
 
     els.tireOptions.innerHTML = state.savedTires.map((item) => {
-      const id = String(item.inventoryId);
+      const id = getTireLinkId(item);
       const checked = state.selectedTireIds.has(id) ? ' checked' : '';
+      const sourceLabel = item.source === 'purchased'
+        ? `Purchased${item.paidAt ? ` ${formatPaidDate(item.paidAt)}` : ''}`
+        : 'In tire cart';
       return `
         <label class="appointment-tire-option">
           <input type="checkbox" data-appointment-tire-id="${escapeHtml(id)}"${checked} />
           <span>
             <strong>${escapeHtml(formatSavedTireLabel(item))}</strong>
-            <small>${escapeHtml(item.season || 'Used tire')} · ${escapeHtml(window.EastCordAccount?.money?.(item.unitPrice) || '')}</small>
+            <small>${escapeHtml(sourceLabel)}${item.unitPrice ? ` · ${escapeHtml(window.EastCordAccount?.money?.(item.unitPrice) || '')}` : ''}</small>
           </span>
         </label>
       `;
     }).join('');
   }
 
+  function normalizeCartTires(items) {
+    return (Array.isArray(items) ? items : [])
+      .filter((item) => item && !item.unavailable && (item.inventoryId || item.inventory_id))
+      .map((item) => ({
+        ...item,
+        source: 'cart',
+        inventoryId: String(item.inventoryId || item.inventory_id).replace(/^used-tire-/i, ''),
+        linkId: `cart:${String(item.inventoryId || item.inventory_id).replace(/^used-tire-/i, '')}`,
+      }));
+  }
+
   async function hydrateCustomerTires() {
-    let localTires = getLocalUsedTireCart();
+    let paidTires = [];
+    let cartTires = normalizeCartTires(getLocalUsedTireCart());
+
+    try {
+      if (window.EastCordAccount?.getPaidUsedTires) {
+        paidTires = await window.EastCordAccount.getPaidUsedTires();
+      }
+    } catch (error) {
+      logDeveloperError('Paid tires could not be loaded for appointment booking.', error);
+    }
+
     try {
       if (window.EastCordAccount?.loadCustomerCart) {
-        const [usedTires, appointmentCart] = await Promise.all([
-          window.EastCordAccount.loadCustomerCart('used_tire', localTires),
-          window.EastCordAccount.loadCustomerCart('appointment', window.EastCordAccount.getCart?.() || []),
-        ]);
-        localTires = usedTires;
-        localStorage.setItem('eastcord_cart_v1', JSON.stringify(appointmentCart));
+        cartTires = normalizeCartTires(await window.EastCordAccount.loadCustomerCart('used_tire', cartTires));
+        window.EastCordAccount.updateCartCount?.();
       }
     } catch (error) {
       logDeveloperError('Saved tire cart could not be loaded for appointment booking.', error);
     }
 
-    state.savedTires = localTires.filter((item) => !item.unavailable);
+    const paidIds = new Set(paidTires.map((item) => String(item.inventoryId)));
+    state.savedTires = [
+      ...paidTires,
+      ...cartTires.filter((item) => !paidIds.has(String(item.inventoryId))),
+    ];
     syncSelectedTiresWithSavedCart();
     renderSavedTireOptions();
+    updateTireSelectorVisibility(state.currentService || getCurrentService());
     updateReviewSummary(state.currentService || getCurrentService());
   }
 
   function syncSelectedTiresWithSavedCart() {
-    const validIds = new Set(state.savedTires.map((item) => String(item.inventoryId)));
+    const validIds = new Set(state.savedTires.map((item) => getTireLinkId(item)));
     state.selectedTireIds = new Set([...state.selectedTireIds].filter((id) => validIds.has(id)));
   }
 
@@ -948,7 +994,7 @@
 
     const selectedTires = getSelectedTires();
     const linkedTireNotes = selectedTires.length
-      ? `Linked tire cart items: ${selectedTires.map((item) => `${item.brand || 'Tire'} ${item.size || ''} x${item.qty || 1} (ID ${item.inventoryId})`).join('; ')}`
+      ? `Linked ${selectedTires.some((item) => item.source === 'purchased') ? 'paid' : 'cart'} tires: ${selectedTires.map((item) => `${item.brand || 'Tire'} ${item.size || ''} x${item.qty || 1} (ID ${item.inventoryId}${item.orderId ? `, order ${item.orderId}` : ''})`).join('; ')}`
       : '';
     const additionalNotes = [getFieldValue('Additional Notes'), linkedTireNotes].filter(Boolean).join('\n');
 
@@ -1049,7 +1095,11 @@
       const cart = window.EastCordAccount.getCart();
       cart.push(appointmentItem);
       window.EastCordAccount.saveCart(cart);
-      await window.EastCordAccount.saveCustomerCart('appointment', cart);
+      const storedCart = window.EastCordAccount.getCart();
+      if (!storedCart.length) {
+        throw new Error('Your appointment could not be added to the cart. Please try again.');
+      }
+      await window.EastCordAccount.saveCustomerCart('appointment', storedCart);
       clearPendingAppointmentDraft();
       window.location.href = '/cart.html';
     } catch (error) {
@@ -1116,11 +1166,6 @@
     els.tireOptions?.addEventListener('change', (event) => {
       const checkbox = event.target.closest('[data-appointment-tire-id]');
       if (!checkbox) return;
-      if (!isMountBalanceService()) {
-        checkbox.checked = false;
-        updateTireSelectorVisibility();
-        return;
-      }
 
       const tireId = String(checkbox.dataset.appointmentTireId);
       if (checkbox.checked) {
@@ -1128,9 +1173,9 @@
         nextSelection.add(tireId);
         const needed = getServiceTireCount();
         const nextQty = getSelectedTireQuantity(nextSelection);
-        if (needed && nextQty > needed) {
+        if (isMountBalanceService() && needed && nextQty > needed) {
           checkbox.checked = false;
-          showAppointmentMessage(`This appointment is for ${needed} tire${needed === 1 ? '' : 's'}. Linked cart tires must match that number.`, 'error');
+          showAppointmentMessage(`This appointment is for ${needed} tire${needed === 1 ? '' : 's'}. Linked tires must match that number.`, 'error');
           return;
         }
         state.selectedTireIds.add(tireId);

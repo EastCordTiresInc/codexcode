@@ -67,7 +67,8 @@ function buildUsedTireReceipt({ customer, items, demo = false, websiteUpdates = 
       `Total: ${formatMoney(totals.totalWithHst)}`,
       stockLines.length ? `\nInventory update:\n${stockLines.join('\n')}` : '',
       '',
-      'EastCord Tires will confirm pickup or installation.',
+      'If you chose pickup, EastCord Tires will confirm when your order is ready.',
+      'If you chose installation, wait until your tires arrive. We will send you a booking link then. Do not book an appointment yet.',
       'info@eastcordtires.ca · 365-822-5553',
     ].filter((line) => line !== undefined).join('\n'),
     html: `
@@ -83,7 +84,7 @@ function buildUsedTireReceipt({ customer, items, demo = false, websiteUpdates = 
           <strong>Total:</strong> ${escapeHtml(formatMoney(totals.totalWithHst))}
         </p>
         ${stockLines.length ? `<p><strong>Inventory update</strong><br />${stockLines.map(escapeHtml).join('<br />')}</p>` : ''}
-        <p>EastCord Tires will confirm pickup or installation.<br />info@eastcordtires.ca · 365-822-5553</p>
+        <p>If you chose pickup, EastCord Tires will confirm when your order is ready.<br />If you chose installation, wait until your tires arrive. We will send you a booking link then. Do not book an appointment yet.<br />info@eastcordtires.ca · 365-822-5553</p>
       </div>
     `,
     totals,

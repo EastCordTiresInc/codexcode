@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/generate-auth-config.js",
+    "predev": "node scripts/generate-auth-config.js && node scripts/generate-tireconnect-config.js",
     "dev": "node scripts/run-dev.js",
     "cache-photos": "node scripts/build-drive-photo-cache.js",
     "build": "node scripts/generate-auth-config.js && node scripts/generate-tireconnect-config.js && node scripts/build-brand-cards.js && node scripts/link-appointment-page.js && echo \"Static EastCord Tires site\""

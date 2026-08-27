@@ -6,10 +6,10 @@
     <title>Cart | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=7" />
     <link rel="stylesheet" href="appointment.css?v=4" />
-    <link rel="stylesheet" href="account.css?v=3" />
+    <link rel="stylesheet" href="account.css?v=8" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
   </head>
-  <body class="account-page">
+  <body class="account-page appointment-cart-page">
     <header class="site-header">
       <div class="nav-shell">
         <a class="brand brand-logo" href="/" aria-label="EastCord Tires home">
@@ -48,60 +48,72 @@
 
     <main class="section">
       <div class="shell cart-layout">
-        <section class="account-card" aria-labelledby="cart-title">
-          <h1 id="cart-title">Appointment Cart</h1>
-          <p>Review your appointment before paying the 20% deposit.</p>
-          <div class="cart-items" data-cart-items></div>
-          <div class="account-actions">
-            <a class="button button-secondary" href="/appointment.html">Add Another Appointment</a>
-            <button class="button button-secondary" type="button" data-clear-cart>Clear Cart</button>
+        <section class="account-card cart-panel" aria-labelledby="cart-title">
+          <h1 id="cart-title">Appointment cart</h1>
+          <p>Review your appointment, then pay the 20% deposit.</p>
+          <div class="cart-items" data-cart-items>
+            <p class="empty-cart">Your cart is empty. Add an appointment to continue.</p>
+          </div>
+          <div class="cart-text-actions">
+            <a href="/appointment.html">Add another</a>
+            <button type="button" data-clear-cart>Clear cart</button>
           </div>
         </section>
 
-        <aside class="account-card cart-summary" aria-label="Cart summary">
-          <h2>Checkout Summary</h2>
-          <div class="cart-summary-card">
-            <span>Customer profile</span>
-            <strong data-cart-customer>Please sign up or log in before checkout.</strong>
-          </div>
-          <div class="cart-summary-card">
-            <span>Subtotal</span>
-            <strong data-cart-subtotal>$0.00</strong>
-          </div>
-          <div class="cart-summary-card">
-            <span>HST 13%</span>
-            <strong data-cart-hst>$0.00</strong>
-          </div>
-          <div class="cart-summary-card">
-            <span>Total including HST</span>
-            <strong data-cart-total>$0.00</strong>
-          </div>
-          <div class="cart-summary-card">
-            <span>Deposit due today</span>
-            <strong data-cart-deposit>$0.00</strong>
-          </div>
-          <div class="cart-summary-card">
-            <span>Remaining on-site</span>
-            <strong data-cart-balance>$0.00 due on-site after service</strong>
-          </div>
-          <div class="checkout-block" data-checkout-auth-block>
-            <strong>Please sign up or log in before checkout.</strong>
+        <aside class="account-card cart-summary" aria-label="Pay 20% deposit">
+          <h2>Pay 20% deposit</h2>
+          <dl class="cart-receipt">
+            <div>
+              <dt>Subtotal</dt>
+              <dd data-cart-subtotal>$0.00</dd>
+            </div>
+            <div>
+              <dt>HST 13%</dt>
+              <dd data-cart-hst>$0.00</dd>
+            </div>
+            <div>
+              <dt>Total</dt>
+              <dd data-cart-total>$0.00</dd>
+            </div>
+            <div class="cart-receipt-due">
+              <dt>Due today</dt>
+              <dd data-cart-deposit>$0.00</dd>
+            </div>
+          </dl>
+          <p class="cart-receipt-remaining">Pay on-site after service <strong data-cart-balance>$0.00</strong></p>
+          <p class="cart-receipt-note">20% deposit online, including HST. Balance is due after service.</p>
+          <div class="appointment-pay-auth" data-appointment-pay-auth hidden>
+            <strong>Please sign up or log in before paying.</strong>
             <div class="account-actions">
               <a class="button button-primary" href="/login.html?redirect=/cart.html">Log In</a>
               <a class="button button-secondary" href="/signup.html?redirect=/cart.html">Create Account</a>
             </div>
           </div>
-          <div class="checkout-agreement" data-checkout-agreement>
-            <p>Please review and accept the Mobile Service Agreement before checkout.</p>
-            <label class="agreement-checkbox">
-              <input type="checkbox" data-agreement-checkbox />
-              <span>I have read, understood, and agree to EastCord Tires' Mobile Service Agreement, including the 100 km wheel re-torque requirement, service location requirements, deposit terms, limitation of liability, and Used Tire Warranty Policy.</span>
+          <form class="appointment-pay-form" data-appointment-pay-form hidden>
+            <p class="cart-contact-heading">Contact</p>
+            <label class="form-field">
+              <span>Full name</span>
+              <input type="text" name="Full Name" autocomplete="name" required />
             </label>
-            <button class="agreement-link" type="button" data-agreement-open>View Mobile Service Agreement</button>
-          </div>
-          <p class="appointment-payment-note">Pay the 20% deposit online, including HST. The remaining balance, including HST, is paid on-site after service.</p>
-          <p class="account-message" data-cart-message></p>
-          <button class="button button-primary" type="button" data-checkout-button disabled>Secure Checkout</button>
+            <label class="form-field">
+              <span>Email address</span>
+              <input type="email" name="Email Address" autocomplete="email" required />
+            </label>
+            <label class="form-field">
+              <span>Phone number</span>
+              <input type="tel" name="Phone Number" autocomplete="tel" required />
+            </label>
+            <div class="checkout-agreement">
+              <label class="agreement-checkbox">
+                <input type="checkbox" data-agreement-checkbox required />
+                <span>I agree to the Mobile Service Agreement</span>
+              </label>
+              <button class="agreement-link" type="button" data-agreement-open>View agreement</button>
+            </div>
+            <p class="appointment-payment-note" data-stripe-test-note hidden>Stripe test mode is on. Use card 4242 4242 4242 4242, any future expiry, any CVC, and any postal code.</p>
+            <p class="account-message" data-appointment-pay-message></p>
+            <button class="button button-primary" type="submit" data-appointment-pay-button data-idle-label="Pay deposit">Pay deposit</button>
+          </form>
         </aside>
       </div>
     </main>
@@ -131,6 +143,7 @@
             <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
             <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
             <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
+            <a href="/proudly-canadian">Proudly Canadian</a>
             <a href="/appointment">Changeover / Swap Service</a>
             <a href="/local-installers">Local Installers</a>
             <a href="/#contact">Contact EastCord</a>
@@ -338,10 +351,13 @@
     </form>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="auth-config.js"></script>
-    <script src="account.js?v=32"></script>
-    <script src="cart.js?v=22"></script>
-    <script src="cart-checkout-state.js?v=5"></script>
+    <script src="auth-config.js?v=4"></script>
+    <script src="account.js?v=42"></script>
+    <script>
+      window.EastCordAccount?.updateCartCount?.();
+    </script>
+    <script src="cart.js?v=37"></script>
+    <script src="appointment-pay.js?v=3"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

@@ -1,5 +1,6 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
+const { isStripeTestMode } = require('./lib/stripe-mode');
 
 const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
@@ -35,11 +36,14 @@ function json(statusCode, payload) {
 
 function getSiteUrl(event) {
   const origin = event.headers.origin || event.headers.Origin;
-  const host = event.headers.host || event.headers.Host;
-  const configuredUrl = process.env.DEPLOY_PRIME_URL || process.env.URL;
   if (origin) return origin.replace(/\/$/, '');
+
+  const host = event.headers.host || event.headers.Host || '';
+  const isLocal = /localhost|127\.0\.0\.1/i.test(host);
+  if (host) return `${isLocal ? 'http' : 'https'}://${host}`.replace(/\/$/, '');
+
+  const configuredUrl = process.env.URL || process.env.DEPLOY_PRIME_URL;
   if (configuredUrl) return configuredUrl.replace(/\/$/, '');
-  if (host) return `https://${host}`.replace(/\/$/, '');
   return 'https://eastcordtires.ca';
 }
 
@@ -97,7 +101,7 @@ function normalizeBookingItems(payload) {
 }
 
 function getTimeWindowStartMinutes(value) {
-  const startText = String(value || '').split('-')[0].trim();
+  const startText = String(value || '').split(/\s*[-–—]\s*/)[0].trim();
   const match = startText.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (!match) return null;
 
@@ -148,13 +152,15 @@ function getAppointmentStartDate(booking) {
 
 function isPastAppointmentSlot(booking) {
   const startDate = getAppointmentStartDate(booking);
-  if (!startDate || Number.isNaN(startDate.getTime())) return true;
-  return startDate.getTime() <= Date.now();
+  if (startDate && !Number.isNaN(startDate.getTime())) {
+    return startDate.getTime() <= Date.now();
+  }
+  return false;
 }
 
 function isLessThanMinimumAdvance(booking) {
   const startDate = getAppointmentStartDate(booking);
-  if (!startDate || Number.isNaN(startDate.getTime())) return true;
+  if (!startDate || Number.isNaN(startDate.getTime())) return false;
   return startDate.getTime() - Date.now() < MIN_ADVANCE_MINUTES * 60 * 1000;
 }
 
@@ -325,34 +331,39 @@ async function getVerifiedUser(event, supabaseAdmin) {
 }
 
 async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifiedUser, service, amounts }) {
-  if (!supabaseAdmin || !verifiedUser) return { row: null, effectiveBookingId: booking.bookingId };
+  if (!supabaseAdmin || !verifiedUser) return { row: null, effectiveBookingId: booking.bookingId || '' };
 
-  const { data: row, error } = await supabaseAdmin
-    .from('appointment_bookings')
-    .select('id, customer_id, payment_status')
-    .eq('id', booking.bookingId)
-    .maybeSingle();
+  const existingBookingId = String(booking.bookingId || '').trim();
+  const canLookupExisting = existingBookingId && !existingBookingId.startsWith('pending-') && !existingBookingId.startsWith('appointment-') && !existingBookingId.startsWith('cart-item-');
 
-  if (error) {
-    const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError: error, rowFound: false, reason: 'supabase_lookup_error_checkout_allowed' });
-    logDeveloperError('Booking lookup by id was blocked before checkout; continuing because the authenticated user matches the checkout customer.', diagnostics);
-    return { row: null, effectiveBookingId: booking.bookingId, diagnostics };
-  }
+  if (canLookupExisting) {
+    const { data: row, error } = await supabaseAdmin
+      .from('appointment_bookings')
+      .select('id, customer_id, payment_status')
+      .eq('id', existingBookingId)
+      .maybeSingle();
 
-  if (row) {
-    if (row.customer_id !== verifiedUser.id) {
-      const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: true, reason: 'customer_mismatch' });
-      logDeveloperError('Booking row customer mismatch before checkout.', { ...diagnostics, rowCustomerId: row.customer_id });
-      return { errorResponse: json(403, { message: 'This booking does not match the logged-in customer.', diagnostics: { ...diagnostics, rowCustomerId: row.customer_id } }) };
+    if (error) {
+      const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError: error, rowFound: false, reason: 'supabase_lookup_error_checkout_allowed' });
+      logDeveloperError('Booking lookup by id was blocked before checkout; continuing because the authenticated user matches the checkout customer.', diagnostics);
+      return { row: null, effectiveBookingId: existingBookingId, diagnostics };
     }
 
-    console.log('[EastCord appointment automation] Booking row found before checkout.', {
-      bookingId: row.id,
-      customerMatches: true,
-      paymentStatus: row.payment_status,
-    });
+    if (row) {
+      if (row.customer_id !== verifiedUser.id) {
+        const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: true, reason: 'customer_mismatch' });
+        logDeveloperError('Booking row customer mismatch before checkout.', { ...diagnostics, rowCustomerId: row.customer_id });
+        return { errorResponse: json(403, { message: 'This booking does not match the logged-in customer.', diagnostics: { ...diagnostics, rowCustomerId: row.customer_id } }) };
+      }
 
-    return { row, effectiveBookingId: row.id };
+      console.log('[EastCord appointment automation] Booking row found before checkout.', {
+        bookingId: row.id,
+        customerMatches: true,
+        paymentStatus: row.payment_status,
+      });
+
+      return { row, effectiveBookingId: row.id };
+    }
   }
 
   const diagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, rowFound: false, reason: 'booking_id_not_found_repairing' });
@@ -379,38 +390,43 @@ async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifi
   return { row: repairedRow, effectiveBookingId: repairedRow.id };
 }
 
-function validateBookingFields(booking, customer) {
-  const requiredFields = [
-    customer.customerId,
-    customer.email,
-    customer.phone,
-    booking.bookingId,
-    booking.preferredDate,
-    booking.preferredTimeWindow,
-    booking.vehicleYear,
-    booking.vehicleMake,
-    booking.vehicleModel,
-    booking.vehiclePlateNumber,
-    booking.vehicleColour,
-    booking.tireSize,
-    booking.tiresAlreadyOnRims,
-    booking.numberOfTires,
-    booking.fullServiceAddress,
-    booking.city,
-    booking.postalCode,
-    booking.parkingAccessNotes,
-  ];
+function fieldValue(value) {
+  return String(value ?? '').trim();
+}
 
-  if (!requiredFields.every((value) => required(String(value || '')))) {
-    return 'Please complete all required booking and account fields.';
+function validateBookingFields(booking, customer) {
+  const city = fieldValue(booking.city);
+  const requiredFields = {
+    'account email': fieldValue(customer.email),
+    'phone number': fieldValue(customer.phone || booking.customerPhone),
+    'appointment date': fieldValue(booking.preferredDate),
+    'appointment time': fieldValue(booking.preferredTimeWindow),
+    'vehicle year': fieldValue(booking.vehicleYear),
+    'vehicle make': fieldValue(booking.vehicleMake),
+    'vehicle model': fieldValue(booking.vehicleModel),
+    'plate number': fieldValue(booking.vehiclePlateNumber),
+    'vehicle colour': fieldValue(booking.vehicleColour),
+    'tire size': fieldValue(booking.tireSize),
+    'tires on rims': fieldValue(booking.tiresAlreadyOnRims),
+    'number of tires': fieldValue(booking.numberOfTires),
+    'service address': fieldValue(booking.fullServiceAddress),
+    city,
+    'postal code': fieldValue(booking.postalCode),
+  };
+
+  const missing = Object.entries(requiredFields)
+    .filter(([, value]) => !value)
+    .map(([label]) => label);
+  if (missing.length) {
+    return `Please complete all required booking and account fields (${missing.join(', ')}).`;
   }
 
-  if (!SERVICE_AREA_CITIES.has(booking.city)) {
+  if (!SERVICE_AREA_CITIES.has(city)) {
     return 'EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.';
   }
 
   if (isPastAppointmentSlot(booking) || isLessThanMinimumAdvance(booking)) {
-    return 'Please choose a valid future appointment date and time window.';
+    return 'Please choose a valid future appointment date and time window at least 2 hours from now.';
   }
 
   return '';
@@ -439,6 +455,10 @@ exports.handler = async (event) => {
 
   const bookingItems = normalizeBookingItems(payload);
   const customer = payload.customer || bookingItems[0]?.customer || {};
+  customer.customerId = fieldValue(customer.customerId || customer.id);
+  customer.email = fieldValue(customer.email);
+  customer.phone = fieldValue(customer.phone || bookingItems[0]?.customerPhone);
+  customer.name = fieldValue(customer.name || bookingItems[0]?.customerName);
 
   console.info('[EastCord appointment automation] Checkout request diagnostics', {
     appointmentCount: bookingItems.length,
@@ -526,6 +546,7 @@ exports.handler = async (event) => {
       success_url: `${siteUrl}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/cart.html`,
       metadata: {
+        order_type: 'appointment',
         supabase_booking_id: String(bookingIds[0] || '').slice(0, 500),
         supabase_booking_ids: JSON.stringify(bookingIds).slice(0, 500),
         appointment_count: String(preparedItems.length),
@@ -584,7 +605,7 @@ exports.handler = async (event) => {
       totalRemaining,
     });
 
-    return json(200, { url: session.url });
+    return json(200, { url: session.url, testMode: isStripeTestMode() });
   } catch (error) {
     logDeveloperError('Stripe Checkout session creation failed.', {
       message: error.message,

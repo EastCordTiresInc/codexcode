@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payment Received | EastCord Tires</title>
+    <link rel="stylesheet" href="styles.css?v=7" />
+    <link rel="stylesheet" href="tire-cart.css?v=13" />
+    <link rel="stylesheet" href="/footer-section.css?v=5" />
+  </head>
+  <body class="tire-cart-page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="site-header">
+      <div class="nav-shell">
+        <a class="brand brand-logo" href="/" aria-label="EastCord Tires home">
+          <img src="/assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+        </a>
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="/">Home</a>
+          <div class="nav-dropdown">
+            <button class="nav-dropdown-toggle" type="button" aria-expanded="false" aria-haspopup="true">Tires</button>
+            <div class="nav-dropdown-menu">
+              <a href="/used-tires">Used Tires</a>
+              <a href="/new-tires">New Tires</a>
+            </div>
+          </div>
+          <a href="/appointment">Appointment</a>
+          <a href="/local-installers">Local Installers</a>
+          <a href="/#contact">Contact</a>
+          <span class="nav-carts" aria-label="Shopping carts">
+            <a href="/tire-cart">Tire Cart<span data-tire-cart-count></span></a>
+            <a href="/cart">Appointment Cart</a>
+          </span>
+          <span class="auth-nav-group" data-auth-logged-out>
+            <a href="/signup">Sign Up</a>
+            <a href="/login">Log In</a>
+          </span>
+          <span class="auth-nav-group" data-auth-logged-in hidden>
+            <a class="auth-account-link" href="/account">
+              <span data-account-name>My Account</span>
+              <small data-account-email></small>
+            </a>
+            <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
+          </span>
+        </nav>
+      </div>
+    </header>
+    <main class="section" id="main-content">
+      <div class="shell">
+        <section class="tire-cart-panel">
+          <p class="tire-cart-eyebrow">New tire order</p>
+          <h1 class="tire-order-success">Thank you</h1>
+          <p data-order-status>Confirming your Stripe payment...</p>
+          <div class="tire-cart-actions">
+            <a class="button button-primary" href="/new-tires">Return to New Tires</a>
+            <a class="button button-secondary" href="/account">View My Account</a>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <div>
+          <img src="/assets/eastcord-logo-footer.svg" alt="EastCord Tires" class="footer-logo" />
+          <p>Used tires, new tires, and changeover services.</p>
+        </div>
+        <div class="footer-social">
+          <h3>Follow Us</h3>
+          <div class="footer-social-links" aria-label="EastCord Tires social media links">
+            <a href="https://www.youtube.com/@EastCordTires" target="_blank" rel="noopener noreferrer">YouTube</a>
+            <a href="https://www.instagram.com/eastcordtires" target="_blank" rel="noopener noreferrer">Instagram</a>
+            <a href="https://www.facebook.com/share/14cUJxJDSWD/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer">Facebook</a>
+            <a href="https://www.tiktok.com/@eastcordtires?_r=1&_t=ZS-985mxkvGCzE" target="_blank" rel="noopener noreferrer">TikTok</a>
+          </div>
+        </div>
+        <div class="footer-info">
+          <h3>Tire Information</h3>
+          <div class="footer-info-links" aria-label="EastCord Tires tire information links">
+            <a href="/used-tires">Used Tires</a>
+            <a href="/new-tires">New Tires</a>
+            <a href="/tire-size-guide">Tire Size Guide</a>
+            <a href="/tire-season-guide">Tire Season Guide</a>
+            <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
+            <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
+            <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
+            <a href="/proudly-canadian">Proudly Canadian</a>
+            <a href="/appointment">Changeover / Swap Service</a>
+            <a href="/local-installers">Local Installers</a>
+            <a href="/#contact">Contact EastCord</a>
+          </div>
+        </div>
+        <div>
+          <h3>Quick Links</h3>
+          <a href="/used-tires">Used Tires</a>
+          <a href="/new-tires">New Tires</a>
+          <a href="/appointment">Appointment</a>
+          <a href="/local-installers">Local Installers</a>
+          <a href="/#warranty">Warranty</a>
+          <a href="/#contact">Contact</a>
+        </div>
+      </div>
+      <div class="shell footer-bottom">
+        <p class="footer-legal">
+          <span>© 2026 EastCord Tires</span>
+          <span class="footer-legal-separator">|</span>
+          <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+          <span class="footer-legal-separator">|</span>
+          <a href="/privacy-policy">Privacy Policy</a>
+          <span class="footer-legal-separator">|</span>
+          <a href="/cookie-policy">Cookie Policy</a>
+          <span class="footer-legal-separator">|</span>
+          <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Warranty Policy</a>
+        </p>
+      </div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js?v=4"></script>
+    <script src="account.js?v=39"></script>
+    <script>
+      (function () {
+        const status = document.querySelector('[data-order-status]');
+        const params = new URLSearchParams(window.location.search);
+        const sessionId = params.get('session_id') || '';
+
+        function clearQuote() {
+          try {
+            sessionStorage.removeItem('eastcord_new_tire_quote_v1');
+          } catch (error) {
+            /* ignore */
+          }
+        }
+
+        async function confirmPayment() {
+          if (!sessionId) {
+            if (status) status.textContent = 'Payment was received. If you just paid, your order is being saved to your account.';
+            clearQuote();
+            return;
+          }
+
+          try {
+            const response = await fetch('/.netlify/functions/confirm-new-tire-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: sessionId }),
+            });
+            const data = await response.json().catch(function () { return {}; });
+            if (!response.ok) {
+              throw new Error(data.message || 'Payment confirmation is still processing.');
+            }
+            if (status) {
+              status.textContent = 'Your new tire payment was received and saved to your account. If you chose pickup, we will confirm when the order is ready. If you chose installation, we will send a booking link after the tires arrive.';
+            }
+            clearQuote();
+          } catch (error) {
+            if (status) {
+              status.textContent = error.message || 'Your payment was sent. EastCord Tires will confirm the order shortly.';
+            }
+            clearQuote();
+          }
+        }
+
+        confirmPayment();
+      })();
+    </script>
+    <script src="mobile-menu.js?v=2" defer></script>
+  </body>
+</html>

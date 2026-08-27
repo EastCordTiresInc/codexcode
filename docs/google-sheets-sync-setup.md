@@ -104,8 +104,38 @@ increase if Current Stock is a formula.
 
 Add the same variables in **Netlify → Site configuration → Environment
 variables**, then deploy. `netlify.toml` schedules the function every 15
-minutes.
+minutes as a backup.
 
 `SYNC_DEACTIVATE_MISSING=false` is the safe default: the sync only inserts or
 updates sheet rows. Set it to `true` only if removing a row from the sheet should
 automatically set its Supabase stock to zero.
+
+## 6. Instant updates when the sheet changes
+
+The 15-minute schedule is a safety net. For staff edits to show on
+`/used-tires` within a few seconds, install the Apps Script in
+`scripts/google-apps-script/sheet-inventory-instant-sync.gs`.
+
+Google Sheets cannot push cell changes by itself. An **installable** edit
+trigger in the spreadsheet POSTs to the existing
+`sync-inventory-from-sheets` function. Rapid typing is debounced for 8
+seconds so one burst of edits becomes one sync.
+
+1. Open the inventory spreadsheet → **Extensions → Apps Script**.
+2. Paste the contents of `scripts/google-apps-script/sheet-inventory-instant-sync.gs`.
+3. **Project Settings → Script properties** and add:
+   - `INVENTORY_SYNC_URL` = `https://eastcordtires.ca/.netlify/functions/sync-inventory-from-sheets`
+   - `INVENTORY_SYNC_SECRET` = the same secret as Netlify `INVENTORY_SYNC_SECRET`
+4. Run `installEastCordInventorySync` once (authorize when Google asks).
+5. Confirm the **EastCord** menu appears. Use **Sync inventory to website now** for a manual push.
+
+After that:
+
+| Staff action | Website |
+| --- | --- |
+| Edit stock, price, or add a row on Sheet1 | Sync starts ~8 seconds after typing stops |
+| Customer already has `/used-tires` open | Search results refresh within about 15 seconds |
+| Apps Script is not installed | Backup sync still runs every 15 minutes |
+
+Do not point `INVENTORY_SYNC_URL` at localhost. Google cannot reach your
+computer; use the live Netlify URL.

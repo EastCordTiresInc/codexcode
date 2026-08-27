@@ -141,6 +141,18 @@
   status = 301
   force = true
 
+[[redirects]]
+  from = "/new-tire-order-success"
+  to = "/new-tire-order-success.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/new-tire-order-success/"
+  to = "/new-tire-order-success.html"
+  status = 301
+  force = true
+
 [[headers]]
   for = "/assets/*"
   [headers.values]

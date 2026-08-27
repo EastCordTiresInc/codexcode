@@ -682,6 +682,36 @@ exports.handler = async (event) => {
     return json(200, { received: true, orderType: 'used_tire', alreadyPaid: Boolean(result.alreadyPaid) });
   }
 
+  if (session.metadata?.order_type === 'new_tire') {
+    if (session.payment_status && session.payment_status !== 'paid') {
+      return json(200, { received: true, ignored: true, reason: 'payment_not_paid', paymentStatus: session.payment_status });
+    }
+    const { fulfillPaidNewTireOrder } = require('./lib/new-tire-order');
+    const result = await fulfillPaidNewTireOrder({ supabaseAdmin, session });
+    if (!result.ok) {
+      return json(result.statusCode || 500, {
+        message: result.message || 'New tire order could not be updated after payment.',
+      });
+    }
+    return json(200, { received: true, orderType: 'new_tire', alreadyPaid: Boolean(result.alreadyPaid) });
+  }
+
+  const result = await fulfillPaidAppointmentCheckout({ supabaseAdmin, session });
+  if (!result.ok) {
+    return json(result.statusCode || 500, {
+      message: result.message || 'Booking payment status could not be updated.',
+      results: result.results,
+    });
+  }
+
+  return json(200, {
+    received: true,
+    eventType: stripeEvent.type,
+    ...result,
+  });
+};
+
+async function fulfillPaidAppointmentCheckout({ supabaseAdmin, session }) {
   const bookingIds = getSessionBookingIds(session);
 
   console.log('[EastCord appointment automation] Stripe checkout.session.completed received.', {
@@ -696,12 +726,12 @@ exports.handler = async (event) => {
       sessionId: session.id,
       paymentStatus: session.payment_status,
     });
-    return json(200, { received: true, ignored: true, reason: 'payment_not_paid', paymentStatus: session.payment_status });
+    return { ok: true, ignored: true, reason: 'payment_not_paid', paymentStatus: session.payment_status };
   }
 
   if (!bookingIds.length) {
     console.error('[EastCord appointment automation] Missing Supabase booking id metadata on Stripe session.', { sessionId: session.id });
-    return json(400, { message: 'Missing Supabase booking id in Stripe metadata.' });
+    return { ok: false, statusCode: 400, message: 'Missing Supabase booking id in Stripe metadata.' };
   }
 
   const results = [];
@@ -711,10 +741,12 @@ exports.handler = async (event) => {
 
   const failed = results.filter((result) => !result.ok);
   if (failed.length) {
-    return json(failed[0].statusCode || 500, {
+    return {
+      ok: false,
+      statusCode: failed[0].statusCode || 500,
       message: 'Booking payment status could not be updated.',
       results,
-    });
+    };
   }
 
   const confirmedRows = results.map((result) => result.row).filter(Boolean);
@@ -737,13 +769,15 @@ exports.handler = async (event) => {
       return { error: error.message || 'email_step_failed' };
     });
 
-  return json(200, {
-    received: true,
-    eventType: stripeEvent.type,
+  return {
+    ok: true,
+    ignored: false,
     bookingIds: results.map((result) => result.bookingId),
     updatedCount: results.length,
     paymentStatus: 'paid_deposit',
     bookingStatus: 'Confirmed',
     emailResults,
-  });
-};
+  };
+}
+
+exports.fulfillPaidAppointmentCheckout = fulfillPaidAppointmentCheckout;

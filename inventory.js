@@ -7,7 +7,7 @@ const NO_MATCH_MESSAGE = 'No tires match that search. Try different options or c
 const SOLD_OUT_MESSAGE = 'Those tires are currently sold out. Please contact EastCord Tires to check availability or ask about similar tires.';
 const TIRE_CALCULATOR_URL = '/#tire-size-calculator';
 const LOW_STOCK_THRESHOLD = 2;
-const INVENTORY_AUTO_REFRESH_MS = 30000;
+const INVENTORY_AUTO_REFRESH_MS = 15000;
 const USED_TIRE_CART_KEY = 'eastcord_used_tire_cart_v1';
 
 let inventory = [];
@@ -350,7 +350,7 @@ function parseTireSize(size, rimSize = '', isFlotation = false) {
 
   const flotationText = value.match(/(\d{2})\s*[xX]\s*(\d{2}(?:\.\d+)?)\s*[rR]?\s*(\d{2})/);
   if (flotationText) {
-    return {
+  return {
       width: flotationText[1],
       profile: flotationText[2],
       rim: flotationText[3],
@@ -1151,13 +1151,13 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
         <p class="used-tire-card-type">${escapeHtml(item.type || 'Used')}</p>
         <h3>${escapeHtml(item.title)}</h3>
         <hr class="used-tire-card-divider" />
-      </div>
+        </div>
 
       <div class="used-tire-card-details">
         <div class="used-tire-card-season">
           ${renderSeasonIcon(item.seasonKey)}
           <span>${escapeHtml(seasonLabel)}</span>
-        </div>
+      </div>
         <p class="used-tire-card-line">
           <span class="used-tire-card-label">Size:</span>
           <span class="used-tire-card-size-value">${escapeHtml(item.size || 'N/A')}</span>

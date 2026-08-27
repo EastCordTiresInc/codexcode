@@ -41,6 +41,22 @@ function checkoutAuth() {
   return document.querySelector('[data-tire-checkout-auth]');
 }
 
+function checkoutButtonEl() {
+  return document.querySelector('[data-tire-checkout-button]');
+}
+
+function showStripeTestNote() {
+  const note = document.querySelector('[data-stripe-test-note]');
+  if (note) note.hidden = !window.EASTCORD_AUTH_CONFIG?.stripeTestMode;
+}
+
+function updateTireCheckoutButtonState() {
+  const button = checkoutButtonEl();
+  if (!button) return;
+  const cartReady = Boolean(tireCart.length) && !tireCart.some((item) => item.unavailable);
+  button.disabled = !currentProfile || !cartReady;
+}
+
 function readTireCart() {
   try {
     const stored = JSON.parse(localStorage.getItem(USED_TIRE_CART_KEY) || '[]');
@@ -250,6 +266,7 @@ function renderTireCart() {
   if (submit) {
     submit.disabled = !tireCart.length || tireCart.some((item) => item.unavailable);
   }
+  updateTireCheckoutButtonState();
   updateCartCount();
 }
 
@@ -297,6 +314,7 @@ async function hydrateCustomerAccount() {
 
   if (checkoutAuth()) checkoutAuth().hidden = Boolean(currentProfile);
   if (currentProfile) fillCustomerFields(currentProfile);
+  showStripeTestNote();
   renderTireCart();
 }
 
@@ -356,6 +374,73 @@ function setCartMessage(message) {
   if (messageEl) messageEl.textContent = message;
 }
 
+async function startTireStripeCheckout() {
+  if (!tireCart.length || tireCart.some((item) => item.unavailable)) {
+    setCartMessage(tireCart.length
+      ? 'Remove unavailable tires before paying.'
+      : 'Add at least one tire before paying.');
+    return;
+  }
+
+  if (!window.EastCordAccount?.isAuthConfigured?.()) {
+    setCartMessage(window.EastCordAccount?.setupMessage || 'Account system is being connected. Please check back soon.');
+    return;
+  }
+
+  const profile = currentProfile || await window.EastCordAccount.getCurrentProfile();
+  if (!profile) {
+    if (checkoutAuth()) checkoutAuth().hidden = false;
+    setCartMessage('Please sign up or log in before paying.');
+    return;
+  }
+
+  const customer = {
+    customerId: profile.customerId || profile.id || '',
+    name: getFormValue('Full Name') || profile.name || '',
+    email: getFormValue('Email Address') || profile.email || '',
+    phone: getFormValue('Phone Number') || profile.phone || '',
+  };
+
+  if (!customer.customerId || !customer.name || !customer.email || !customer.phone) {
+    setCartMessage('Please complete your name, email, and phone before paying.');
+    return;
+  }
+
+  const button = checkoutButtonEl();
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Preparing Stripe checkout...';
+  }
+  setCartMessage('Saving the order and opening Stripe test checkout...');
+
+  try {
+    const token = await window.EastCordAccount.getAccessToken();
+    const response = await fetch('/.netlify/functions/create-used-tire-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+      body: JSON.stringify({
+        customer,
+        items: tireCart,
+        fulfillmentPreference: getFormValue('Fulfillment Preference') || 'Pickup',
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.url) {
+      throw new Error(data.message || 'Stripe checkout could not be started.');
+    }
+    window.location.href = data.url;
+  } catch (error) {
+    setCartMessage(error.message || 'Stripe checkout could not be started.');
+    if (button) {
+      button.textContent = 'Pay with Stripe';
+      updateTireCheckoutButtonState();
+    }
+  }
+}
+
 function openMailApp(mailto) {
   const link = document.createElement('a');
   link.href = mailto;
@@ -389,6 +474,8 @@ function sameCartItemId(left, right) {
 }
 
 function bindCartEvents() {
+  checkoutButtonEl()?.addEventListener('click', startTireStripeCheckout);
+
   reservationForm()?.addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -537,6 +624,7 @@ function bindCartEvents() {
 
 async function initTireCart() {
   bindCartEvents();
+  showStripeTestNote();
   tireCart = readTireCart();
   renderTireCart();
   await hydrateCustomerAccount();

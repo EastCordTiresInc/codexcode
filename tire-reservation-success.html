@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Payment Received | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=7" />
-    <link rel="stylesheet" href="tire-cart.css?v=1" />
+    <link rel="stylesheet" href="tire-cart.css?v=13" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
   </head>
   <body class="tire-cart-page">
@@ -49,7 +49,7 @@
       <div class="shell">
         <section class="tire-cart-panel">
           <p class="tire-cart-eyebrow">Used tire order</p>
-          <h1>Thank you</h1>
+          <h1 class="tire-order-success">Thank you</h1>
           <p data-order-status>Confirming your Stripe payment...</p>
           <div class="tire-cart-actions">
             <a class="button button-primary" href="/used-tires">Return to Used Tires</a>
@@ -84,6 +84,7 @@
             <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
             <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
             <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
+            <a href="/proudly-canadian">Proudly Canadian</a>
             <a href="/appointment">Changeover / Swap Service</a>
             <a href="/local-installers">Local Installers</a>
             <a href="/#contact">Contact EastCord</a>
@@ -114,8 +115,8 @@
       </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="auth-config.js?v=3"></script>
-    <script src="account.js?v=32"></script>
+    <script src="auth-config.js?v=4"></script>
+    <script src="account.js?v=34"></script>
     <script>
       (function () {
         const status = document.querySelector('[data-order-status]');
@@ -147,7 +148,7 @@
               throw new Error(data.message || 'Payment confirmation is still processing.');
             }
             if (status) {
-              status.textContent = 'Your used tire payment was received. EastCord Tires will contact you about pickup or installation.';
+              status.textContent = 'Your used tire payment was received. If you chose pickup, we will confirm when the order is ready. If you chose installation, we will send a booking link after the tires arrive.';
             }
             clearCart();
           } catch (error) {

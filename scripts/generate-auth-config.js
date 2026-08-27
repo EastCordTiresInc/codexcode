@@ -68,6 +68,7 @@ const config = {
   supabaseUrl,
   supabaseAnonKey,
   stripePublishableKey: pickEnv('VITE_STRIPE_PUBLISHABLE_KEY', 'STRIPE_PUBLIC_KEY'),
+  stripeTestMode: String(pickEnv('STRIPE_SECRET_KEY')).startsWith('sk_test_'),
   googleApiKey: pickEnv('GOOGLE_API_KEY', 'VITE_GOOGLE_API_KEY'),
 };
 

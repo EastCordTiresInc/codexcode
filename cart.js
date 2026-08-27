@@ -1,14 +1,13 @@
-const cartItems = document.querySelector('[data-cart-items]');
 const cartCustomer = document.querySelector('[data-cart-customer]');
 const cartSubtotal = document.querySelector('[data-cart-subtotal]');
 const cartHst = document.querySelector('[data-cart-hst]');
 const cartTotal = document.querySelector('[data-cart-total]');
 const cartDeposit = document.querySelector('[data-cart-deposit]');
 const cartBalance = document.querySelector('[data-cart-balance]');
-const cartMessage = document.querySelector('[data-cart-message]');
+const cartMessage = document.querySelector('[data-cart-message], [data-appointment-pay-message]');
 const checkoutButton = document.querySelector('[data-checkout-button]');
 const clearCartButton = document.querySelector('[data-clear-cart]');
-const authBlock = document.querySelector('[data-checkout-auth-block]');
+const authBlock = document.querySelector('[data-checkout-auth-block], [data-appointment-pay-auth]');
 const agreementCheckbox = document.querySelector('[data-agreement-checkbox]');
 const agreementOpenButton = document.querySelector('[data-agreement-open]');
 const agreementModal = document.querySelector('[data-agreement-modal]');
@@ -38,6 +37,9 @@ const APPOINTMENT_DRAFT_STORAGE_KEYS = [
 ];
 const CART_RESET_STORAGE_KEYS = [...new Set([...CART_STORAGE_KEYS, ...APPOINTMENT_DRAFT_STORAGE_KEYS])];
 let accountCartHydrated = false;
+let lastKnownCartProfile = null;
+let lastRenderedCheckoutItems = [];
+let checkoutInProgress = false;
 
 const SERVICE_SUBTOTALS = {
   'seasonal-changeover-rims': 40,
@@ -90,19 +92,36 @@ function getFirstValue(item, names, fallback = '') {
 }
 
 function unwrapCartItem(item) {
-  if (!item || typeof item !== 'object') return item;
-  if (item.item && typeof item.item === 'object') return { ...item.item, cartIndex: item.cartIndex ?? item.item.cartIndex };
-  if (item.appointment && typeof item.appointment === 'object') return { ...item.appointment, cartIndex: item.cartIndex ?? item.appointment.cartIndex };
-  if (item.booking && typeof item.booking === 'object') return { ...item.booking, cartIndex: item.cartIndex ?? item.booking.cartIndex };
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+  if (
+    item.type === 'appointment'
+    || item.serviceId
+    || item.service_id
+    || item.serviceName
+    || item.service_name
+    || item.bookingId
+    || item.booking_id
+  ) {
+    return item;
+  }
+  if (item.item && typeof item.item === 'object' && !Array.isArray(item.item)) {
+    return { ...item.item, cartIndex: item.cartIndex ?? item.item.cartIndex };
+  }
+  if (item.appointment && typeof item.appointment === 'object' && !Array.isArray(item.appointment)) {
+    return { ...item.appointment, cartIndex: item.cartIndex ?? item.appointment.cartIndex };
+  }
+  if (item.booking && typeof item.booking === 'object' && !Array.isArray(item.booking)) {
+    return { ...item.booking, cartIndex: item.cartIndex ?? item.booking.cartIndex };
+  }
   return item;
 }
 
 function isAppointmentLikeItem(item) {
   const source = unwrapCartItem(item);
   if (!source || typeof source !== 'object') return false;
+  if (source.type === 'appointment') return true;
   if (source.type === 'used_tire' || source.inventoryId || source.inventory_id) return false;
-  return source.type === 'appointment'
-    || Boolean(source.serviceId || source.service_id)
+  return Boolean(source.serviceId || source.service_id)
     || Boolean(source.serviceName || source.service_name)
     || Boolean(source.bookingId || source.booking_id)
     || Boolean(source.preferredDate || source.preferred_date)
@@ -215,26 +234,40 @@ function getRawStorageItemCount() {
   }, 0);
 }
 
-function hasAppointmentLikeItems(items) {
-  return items.some((item) => isAppointmentLikeItem(item));
+function getCartItemsContainer() {
+  return document.querySelector('[data-cart-items]');
+}
+
+function readAccountCart() {
+  try {
+    const cart = window.EastCordAccount?.getCart?.();
+    return Array.isArray(cart) ? cart.filter((item) => item && typeof item === 'object' && !Array.isArray(item)) : [];
+  } catch (error) {
+    logDeveloperError('Shared appointment cart could not be read.', error);
+    return [];
+  }
 }
 
 function getCartFromKnownStorage() {
-  const activeCart = normalizeCartCollection(readStorageJson(localStorage, ACTIVE_CART_KEY));
-  if (hasAppointmentLikeItems(activeCart)) return activeCart;
+  if (window.EastCordAccount?.getCart) {
+    return readAccountCart();
+  }
 
-  const sharedCart = normalizeCartCollection(window.EastCordAccount?.getCart?.());
-  if (hasAppointmentLikeItems(sharedCart)) return sharedCart;
+  const candidates = [
+    normalizeCartCollection(readStorageJson(localStorage, ACTIVE_CART_KEY)),
+  ];
 
   const storageSources = [localStorage, sessionStorage];
   for (const storage of storageSources) {
     for (const key of CART_STORAGE_KEYS) {
-      const normalized = normalizeCartCollection(readStorageJson(storage, key));
-      if (hasAppointmentLikeItems(normalized)) return normalized;
+      candidates.push(normalizeCartCollection(readStorageJson(storage, key)));
     }
   }
 
-  return [];
+  return candidates.reduce((best, cart) => {
+    const appointmentCart = cart.filter((item) => isAppointmentLikeItem(item));
+    return appointmentCart.length > best.length ? appointmentCart : best;
+  }, []);
 }
 
 function hardClearCartStorage() {
@@ -278,7 +311,9 @@ function updateVisibleCartCount(count) {
     return;
   }
   document.querySelectorAll('[data-appointment-cart-count], [data-cart-count]').forEach((element) => {
-    element.textContent = '';
+    const href = element.closest('a')?.getAttribute('href') || '';
+    if (/tire-cart/.test(href)) return;
+    element.textContent = count ? ` (${count})` : '';
   });
 }
 
@@ -350,6 +385,7 @@ function showCartMessage(message, type = 'error') {
   if (!cartMessage) return;
   cartMessage.textContent = message;
   cartMessage.dataset.messageType = type;
+  if (message) cartMessage.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 function escapeHtml(value) {
@@ -408,17 +444,23 @@ function resetAgreement() {
 function getAppointmentItems() {
   const rawCart = getCartFromKnownStorage();
   const appointmentItems = rawCart
-    .map((item, cartIndex) => normalizeAppointmentItem(item, cartIndex))
-    .filter((item) => {
-      const isAppointment = isAppointmentLikeItem(item);
-      if (!isAppointment) {
-        logCartDiagnostic('Cart item skipped because it did not match appointment shape.', {
-          keys: item && typeof item === 'object' ? Object.keys(item) : [],
-        });
+    .map((item, cartIndex) => {
+      try {
+        const normalized = normalizeAppointmentItem(item, cartIndex) || item;
+        return withTaxBreakdown(normalized, normalized.cartIndex ?? cartIndex);
+      } catch (error) {
+        logDeveloperError('Cart item could not be normalized.', error);
+        return {
+          id: item?.id || `cart-item-${cartIndex}`,
+          type: 'appointment',
+          cartIndex,
+          serviceName: item?.serviceName || item?.service_name || 'Appointment',
+          isInvalidCartItem: true,
+          invalidReason: 'This appointment could not be displayed. Please remove it and add it again.',
+        };
       }
-      return isAppointment;
     })
-    .map((item, cartIndex) => withTaxBreakdown(item, item.cartIndex ?? cartIndex));
+    .filter(Boolean);
 
   logCartDiagnostic('Cart items loaded.', {
     rawCount: rawCart.length,
@@ -427,26 +469,54 @@ function getAppointmentItems() {
     rawItemKeys: rawCart.map((item) => (item && typeof item === 'object' ? Object.keys(item) : [])),
   });
 
-  if (getRawStorageItemCount() && !appointmentItems.length) {
-    logDeveloperError('Cart storage contains saved values, but none matched appointment item shape.', {
-      cartRelatedStorageKeys: [
-        ...getStorageKeys(localStorage).filter(isCartRelatedStorageKey),
-        ...getStorageKeys(sessionStorage).filter(isCartRelatedStorageKey),
-      ],
-    });
-  }
-
   return appointmentItems;
 }
 
+function getCheckoutItems() {
+  try {
+    const renderedItems = getAppointmentItems().filter((item) => item && !item.isInvalidCartItem);
+    if (renderedItems.length) return renderedItems;
+  } catch (error) {
+    logDeveloperError('Rendered appointment items could not be read for checkout.', error);
+  }
+
+  try {
+    const storedItems = (window.EastCordAccount?.getCart?.() || [])
+      .map((item, cartIndex) => {
+        const normalized = normalizeAppointmentItem(item, cartIndex) || item;
+        return withTaxBreakdown(normalized, cartIndex);
+      })
+      .filter((item) => item && (item.serviceId || item.serviceName) && !item.isInvalidCartItem);
+    if (storedItems.length) return storedItems;
+  } catch (error) {
+    logDeveloperError('Stored appointment cart could not be read for checkout.', error);
+  }
+
+  return lastRenderedCheckoutItems.filter((item) => item && !item.isInvalidCartItem);
+}
+
 function getValidAppointmentItems() {
-  return getAppointmentItems().filter((item) => !item.isInvalidCartItem);
+  return getCheckoutItems();
+}
+
+function setCheckoutBusy(isBusy, label = 'Secure Checkout') {
+  const button = document.querySelector('[data-checkout-button]') || checkoutButton;
+  if (!button) return button;
+  button.dataset.checkoutBusy = isBusy ? 'true' : 'false';
+  button.disabled = Boolean(isBusy);
+  button.toggleAttribute('disabled', Boolean(isBusy));
+  button.setAttribute('aria-disabled', String(Boolean(isBusy)));
+  button.textContent = isBusy ? 'Preparing secure checkout...' : label;
+  return button;
 }
 
 function updateCheckoutButtonState() {
-  if (!checkoutButton) return;
-  const hasValidItems = getValidAppointmentItems().length > 0;
-  checkoutButton.disabled = !isAgreementAccepted() || !hasValidItems;
+  const button = document.querySelector('[data-checkout-button]') || checkoutButton;
+  if (!button) return;
+  if (button.dataset.checkoutBusy === 'true') return;
+  button.disabled = false;
+  button.removeAttribute('disabled');
+  button.setAttribute('aria-disabled', 'false');
 }
 
 function openAgreementModal() {
@@ -464,7 +534,7 @@ function closeAgreementModal() {
 }
 
 function getTimeWindowStartMinutes(value) {
-  const startText = String(value || '').split('-')[0].trim();
+  const startText = String(value || '').split(/\s*[-–—]\s*/)[0].trim();
   const match = startText.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (!match) return null;
 
@@ -491,13 +561,13 @@ function getAppointmentStartDate(item) {
 
 function isPastAppointmentSlot(item) {
   const startDate = getAppointmentStartDate(item);
-  if (!startDate) return true;
+  if (!startDate) return false;
   return startDate.getTime() <= Date.now();
 }
 
 function isLessThanMinimumAdvance(item) {
   const startDate = getAppointmentStartDate(item);
-  if (!startDate) return true;
+  if (!startDate) return false;
   return startDate.getTime() - Date.now() < MIN_ADVANCE_MINUTES * 60 * 1000;
 }
 
@@ -505,6 +575,10 @@ function validateCartSlots(items) {
   const seenSlots = new Set();
 
   for (const item of items) {
+    if (item.preferredDate && item.preferredTimeWindow && !getAppointmentStartDate(item)) {
+      return 'Please choose a valid appointment date and time window.';
+    }
+
     if (isPastAppointmentSlot(item) || isLessThanMinimumAdvance(item)) {
       return SLOT_UNAVAILABLE_MESSAGE;
     }
@@ -519,34 +593,57 @@ function validateCartSlots(items) {
   return '';
 }
 
-function renderInvalidCartItem(item, index) {
+function formatAppointmentDate(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const date = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+}
+
+function formatTimeStart(value) {
+  return String(value || '').split(/\s*[-–—]\s*/)[0].trim();
+}
+
+function compactAppointmentMeta(item) {
+  const vehicle = getVehicleDetails(item).vehicle;
+  const date = formatAppointmentDate(item.preferredDate);
+  const time = formatTimeStart(item.preferredTimeWindow);
+  const place = String(item.city || '').trim();
+  return [vehicle, date, time, place].filter(Boolean).join(' · ');
+}
+
+function cartLineRemoveButton(item) {
+  return `<button class="cart-line-remove" type="button" data-remove-cart-item="${escapeHtml(item.id || '')}" data-remove-cart-index="${escapeHtml(item.cartIndex)}">Remove</button>`;
+}
+
+function renderInvalidCartItem(item) {
   return `
     <article class="cart-line cart-line-invalid">
-      <span>Vehicle ${index + 1} appointment</span>
-      <strong>${escapeHtml(item.serviceName || 'Appointment item needs attention')}</strong>
-      <p>${escapeHtml(item.invalidReason || 'This appointment item could not be read. Please remove it and add the appointment again.')}</p>
-      <div class="account-actions cart-line-actions">
-        <button class="button button-secondary" type="button" data-remove-cart-item="${escapeHtml(item.id || '')}" data-remove-cart-index="${escapeHtml(item.cartIndex)}">Remove this appointment</button>
+      <div class="cart-line-main">
+        <strong>${escapeHtml(item.serviceName || 'Appointment needs attention')}</strong>
+        <p class="cart-line-error">${escapeHtml(item.invalidReason || 'This appointment could not be read. Remove it and add it again.')}</p>
+      </div>
+      <div class="cart-line-side">
+        ${cartLineRemoveButton(item)}
       </div>
     </article>
   `;
 }
 
-function renderCartItem(item, index) {
-  if (item.isInvalidCartItem) return renderInvalidCartItem(item, index);
+function renderCartItem(item) {
+  if (item.isInvalidCartItem) return renderInvalidCartItem(item);
 
-  const vehicle = getVehicleDetails(item);
-  const cityPostal = [item.city, item.postalCode].filter(Boolean).join(', ');
+  const meta = compactAppointmentMeta(item);
   return `
     <article class="cart-line">
-      <span>Vehicle ${index + 1} appointment</span>
-      <strong>${escapeHtml(item.serviceName || 'Appointment service')}</strong>
-      ${detailLine('Vehicle', vehicle.vehicle)}
-      ${detailLine('Date', item.preferredDate)}
-      ${detailLine('Time', item.preferredTimeWindow)}
-      ${detailLine('Address', [item.fullServiceAddress, cityPostal].filter(Boolean).join(', '))}
-      <div class="account-actions cart-line-actions">
-        <button class="button button-secondary" type="button" data-remove-cart-item="${escapeHtml(item.id || '')}" data-remove-cart-index="${escapeHtml(item.cartIndex)}">Remove this appointment</button>
+      <div class="cart-line-main">
+        <strong>${escapeHtml(item.serviceName || 'Appointment service')}</strong>
+        ${meta ? `<p class="cart-line-meta">${escapeHtml(meta)}</p>` : ''}
+      </div>
+      <div class="cart-line-side">
+        <span class="cart-line-price">${escapeHtml(formatMoney(item.serviceSubtotal))}</span>
+        ${cartLineRemoveButton(item)}
       </div>
     </article>
   `;
@@ -564,30 +661,57 @@ function renderCartTotals(items) {
   if (cartHst) cartHst.textContent = formatMoney(hstTotal);
   if (cartTotal) cartTotal.textContent = formatMoney(totalWithHst);
   if (cartDeposit) cartDeposit.textContent = formatMoney(depositTotal);
-  if (cartBalance) cartBalance.textContent = `${formatMoney(balanceTotal)} due on-site after service`;
+  if (cartBalance) cartBalance.textContent = formatMoney(balanceTotal);
+
+  const payButton = document.querySelector('[data-appointment-pay-button]');
+  if (payButton && !payButton.disabled) {
+    const label = depositTotal > 0 ? `Pay ${formatMoney(depositTotal)} deposit` : 'Pay deposit';
+    payButton.dataset.idleLabel = label;
+    payButton.textContent = label;
+  }
 }
 
 function renderCartItemsAndTotals() {
-  const items = getAppointmentItems();
-  const rawStoredCount = getRawStorageItemCount();
+  const cartItems = getCartItemsContainer();
+  let items = [];
+  let rawStoredCount = 0;
+
+  try {
+    items = getAppointmentItems();
+  } catch (error) {
+    logDeveloperError('Appointment cart items could not be loaded.', error);
+  }
+
+  try {
+    rawStoredCount = getRawStorageItemCount();
+  } catch (error) {
+    logDeveloperError('Cart storage diagnostics could not be read.', error);
+  }
 
   if (cartItems) {
     if (items.length) {
       cartItems.innerHTML = items.map(renderCartItem).join('');
-    } else if (rawStoredCount) {
-      cartItems.innerHTML = '<p class="empty-cart">Some saved cart details could not be loaded. Please clear your cart and add your appointment again.</p>';
+    } else if (readAccountCart().length) {
+      logCartDiagnostic('Shared appointment cart still has items; waiting for the shared renderer.', {
+        sharedCartCount: readAccountCart().length,
+      });
     } else {
       cartItems.innerHTML = '<p class="empty-cart">Your cart is empty. Add an appointment to continue.</p>';
     }
   }
 
-  renderCartTotals(items);
+  if (items.length) lastRenderedCheckoutItems = items;
+
+  if (items.length || !(readAccountCart().length || cartItems?.querySelector('.cart-line'))) {
+    renderCartTotals(items);
+  }
   updateVisibleCartCount(items.length);
 
   const invalidCount = items.filter((item) => item.isInvalidCartItem).length;
+  const displayedCount = cartItems?.querySelectorAll('.cart-line').length || 0;
   if (invalidCount) {
     showCartMessage('One or more appointments in your cart needs attention. Please remove the item and add it again before checkout.');
-  } else if (rawStoredCount && !items.length) {
+  } else if (!items.length && !displayedCount && rawStoredCount) {
     showCartMessage('Some saved cart details could not be loaded. Please clear your cart and add your appointment again.');
   } else if (cartMessage?.textContent?.includes('needs attention') || cartMessage?.textContent?.includes('could not be loaded')) {
     showCartMessage('', 'info');
@@ -595,6 +719,22 @@ function renderCartItemsAndTotals() {
 
   updateCheckoutButtonState();
   return items;
+}
+
+function applyCartAuthState(profile, { allowSignedOut = false } = {}) {
+  if (profile) lastKnownCartProfile = profile;
+  else if (allowSignedOut) lastKnownCartProfile = null;
+
+  const activeProfile = profile || lastKnownCartProfile;
+  if (cartCustomer) {
+    cartCustomer.textContent = activeProfile
+      ? `${activeProfile.name || 'Customer'} - ${activeProfile.email}${activeProfile.phone ? ` - ${activeProfile.phone}` : ''}`
+      : 'Please sign up or log in before checkout.';
+  }
+    if (authBlock) {
+      authBlock.hidden = Boolean(activeProfile);
+      authBlock.classList.toggle('is-visible', !activeProfile);
+    }
 }
 
 async function hydrateCartProfile() {
@@ -606,26 +746,19 @@ async function hydrateCartProfile() {
     logDeveloperError('Cart profile lookup failed; cart items were still rendered.', error);
   }
 
-  if (cartCustomer) {
-    cartCustomer.textContent = profile
-      ? `${profile.name || 'Customer'} - ${profile.email}${profile.phone ? ` - ${profile.phone}` : ''}`
-      : 'Please sign up or log in before checkout.';
-  }
-  if (authBlock) authBlock.classList.toggle('is-visible', !profile);
+  applyCartAuthState(profile);
 
   if (profile && !accountCartHydrated) {
     try {
-      const mergedCart = await window.EastCordAccount.loadCustomerCart('appointment', getCartFromKnownStorage());
-      const displayableCart = normalizeCartCollection(mergedCart).filter((item) => (
-        isAppointmentLikeItem(item) && (item.serviceId || item.serviceName)
-      ));
-      localStorage.setItem(ACTIVE_CART_KEY, JSON.stringify(displayableCart));
-      accountCartHydrated = true;
-      if (!displayableCart.length) {
-        window.EastCordAccount.clearCustomerCart?.('appointment').catch((error) => {
-          logDeveloperError('Empty appointment cart could not be cleared from the account.', error);
-        });
+      const localBefore = getCartFromKnownStorage();
+      const mergedCart = normalizeCartCollection(
+        await window.EastCordAccount.loadCustomerCart('appointment', localBefore),
+      ).filter((item) => isAppointmentLikeItem(item));
+      const latestLocal = getCartFromKnownStorage();
+      if (!latestLocal.length && mergedCart.length) {
+        window.EastCordAccount.saveCart(mergedCart);
       }
+      accountCartHydrated = true;
       renderCartItemsAndTotals();
     } catch (error) {
       logDeveloperError('Saved appointment cart could not be loaded from the customer account.', error);
@@ -642,20 +775,47 @@ async function hydrateCartProfile() {
 }
 
 function renderCart() {
-  renderCartItemsAndTotals();
+  try {
+    renderCartItemsAndTotals();
+  } catch (error) {
+    logDeveloperError('Cart items could not be rendered.', error);
+    const cartItems = getCartItemsContainer();
+    if (cartItems && !cartItems.innerHTML.trim()) {
+      cartItems.innerHTML = '<p class="empty-cart">Your appointment is saved, but it could not be displayed. Please refresh this page.</p>';
+    }
+  }
   hydrateCartProfile();
 }
 
-window.addEventListener('eastcord:account-carts-hydrated', () => {
-  renderCartItemsAndTotals();
+window.addEventListener('eastcord:auth-changed', (event) => {
+  applyCartAuthState(event.detail?.profile || null, { allowSignedOut: !event.detail?.signedIn });
+  if (event.detail?.signedIn && !checkoutInProgress) hydrateCartProfile();
 });
 
+window.addEventListener('eastcord:account-carts-hydrated', () => {
+  renderCartItemsAndTotals();
+  updateVisibleCartCount();
+});
+
+window.addEventListener('eastcord:appointment-cart-changed', () => {
+  renderCartItemsAndTotals();
+  updateVisibleCartCount();
+});
+
+function sameAppointmentCartItem(item, itemId) {
+  const id = String(itemId || '').trim();
+  if (!id) return false;
+  return String(item?.id || '') === id
+    || String(item?.bookingId || item?.booking_id || '') === id
+    || String(item?.cartId || item?.cart_id || '') === id;
+}
+
 function removeCartItem(itemId, itemIndex) {
-  const currentCart = getCartFromKnownStorage();
+  const currentCart = window.EastCordAccount?.getCart?.() || getCartFromKnownStorage();
   const numericIndex = Number(itemIndex);
-  const hasMatchingId = Boolean(itemId) && currentCart.some((item) => item.id === itemId);
+  const hasMatchingId = currentCart.some((item) => sameAppointmentCartItem(item, itemId));
   const nextCart = currentCart.filter((item, index) => {
-    if (hasMatchingId) return item.id !== itemId;
+    if (hasMatchingId) return !sameAppointmentCartItem(item, itemId);
     return index !== numericIndex;
   });
 
@@ -737,66 +897,126 @@ async function ensureAllSupabaseBookings(items, profile) {
   return savedItems;
 }
 
-async function startCheckout() {
-  const items = getAppointmentItems();
-  const validItems = items.filter((item) => !item.isInvalidCartItem);
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error('Timed out')), ms);
+    promise.then((value) => {
+      window.clearTimeout(timer);
+      resolve(value);
+    }, (error) => {
+      window.clearTimeout(timer);
+      reject(error);
+    });
+  });
+}
 
-  if (!isAgreementAccepted()) {
-    showCartMessage('Please review and accept the Mobile Service Agreement before checkout.');
+function profileFromAccessToken(token) {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const customerId = payload.sub || '';
+    const email = payload.email || payload.user_metadata?.email || '';
+    if (!customerId && !email) return null;
+    return {
+      customerId,
+      email,
+      name: payload.user_metadata?.full_name || payload.user_metadata?.name || '',
+      phone: payload.user_metadata?.phone || '',
+    };
+  } catch (error) {
+    logDeveloperError('Checkout token could not be read.', error);
+    return null;
+  }
+}
+
+async function startCheckout(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+
+  const existingButton = document.querySelector('[data-checkout-button]') || checkoutButton;
+  if (existingButton?.dataset.checkoutBusy === 'true') return;
+
+  const button = setCheckoutBusy(true);
+  if (!button) {
+    showCartMessage('Checkout could not be started. Please refresh and try again.');
     return;
   }
 
-  if (!validItems.length) {
-    showCartMessage(items.length ? 'Please remove the invalid appointment item and add it again before checkout.' : 'Add an appointment service before checkout.');
-    return;
-  }
-
-  if (validItems.length !== items.length) {
-    showCartMessage('Please remove the invalid appointment item and add it again before checkout.');
-    return;
-  }
-
-  if (!window.EastCordAccount.isAuthConfigured()) {
-    showCartMessage(window.EastCordAccount.setupMessage || 'Account system is being connected. Please check back soon.');
-    logDeveloperError('Checkout attempted before Supabase env vars were configured.', window.EASTCORD_AUTH_CONFIG || {});
-    return;
-  }
-
-  const profile = await window.EastCordAccount.getCurrentProfile();
-
-  if (!profile) {
-    if (authBlock) authBlock.classList.add('is-visible');
-    showCartMessage('Please sign up or log in before checkout.');
-    return;
-  }
-
-  const cartSlotMessage = validateCartSlots(validItems);
-  if (cartSlotMessage) {
-    showCartMessage(cartSlotMessage);
-    return;
-  }
+  checkoutInProgress = true;
+  let redirectedToStripe = false;
+  const watchdog = window.setTimeout(() => {
+    if (redirectedToStripe) return;
+    checkoutInProgress = false;
+    setCheckoutBusy(false);
+    showCartMessage('Checkout is taking too long. Please try Secure Checkout again.');
+  }, 20000);
+  showCartMessage('Opening Stripe checkout...', 'info');
 
   try {
-    checkoutButton.disabled = true;
-    checkoutButton.textContent = 'Preparing secure checkout...';
-    showCartMessage('Saving booking details and preparing secure checkout...', 'info');
+    const items = getCheckoutItems();
+    const validItems = items.filter((item) => item && !item.isInvalidCartItem);
 
-    const bookingItems = await ensureAllSupabaseBookings(validItems, profile);
+    if (!validItems.length) {
+      throw new Error(items.length
+        ? 'Please remove the invalid appointment item and add it again before checkout.'
+        : 'Add an appointment service before checkout.');
+    }
 
-    bookingItems.forEach((bookingItem) => {
-      submitNetlifyFormBackup(buildNetlifyFormData(bookingItem, profile)).catch((error) => {
-        logDeveloperError('Netlify Forms backup failed after Supabase booking save.', error);
-      });
-    });
+    if (!isAgreementAccepted()) {
+      agreementCheckbox?.focus();
+      throw new Error('Please review and accept the Mobile Service Agreement before checkout.');
+    }
 
-    const token = await window.EastCordAccount.getAccessToken();
+    if (!window.EastCordAccount?.isAuthConfigured?.()) {
+      throw new Error(window.EastCordAccount?.setupMessage || 'Account system is being connected. Please check back soon.');
+    }
+
+    let token = '';
+    try {
+      token = await withTimeout(window.EastCordAccount.getAccessToken(), 4000);
+    } catch (error) {
+      logDeveloperError('Checkout access token lookup timed out.', error);
+    }
+
+    let profile = lastKnownCartProfile || profileFromAccessToken(token);
+    if (!profile) {
+      try {
+        profile = await withTimeout(window.EastCordAccount.getCurrentProfile(), 4000);
+      } catch (error) {
+        logDeveloperError('Checkout profile lookup timed out.', error);
+      }
+    }
+
+    if (!profile) {
+      if (authBlock) {
+        authBlock.hidden = false;
+        authBlock.classList.add('is-visible');
+      }
+      throw new Error('Please sign up or log in before checkout.');
+    }
+
+    applyCartAuthState(profile);
+
+    const customer = {
+      ...profile,
+      customerId: profile.customerId || profile.id || '',
+      name: profile.name || validItems[0].customerName || '',
+      email: profile.email || validItems[0].customerEmail || '',
+      phone: profile.phone || validItems[0].customerPhone || '',
+    };
+
+    const bookingItems = validItems.map((item) => ({
+      ...item,
+      bookingId: item.bookingId || item.id || `pending-${Date.now()}`,
+    }));
+
     const response = await fetch('/.netlify/functions/create-appointment-checkout-session', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: token ? `Bearer ${token}` : '',
       },
-      body: JSON.stringify({ items: bookingItems, customer: profile }),
+      body: JSON.stringify({ items: bookingItems, customer }),
     });
     const data = await response.json().catch(() => ({}));
 
@@ -808,27 +1028,26 @@ async function startCheckout() {
       throw new Error(data.message || 'Online checkout is being connected. Please check back soon.');
     }
 
+    redirectedToStripe = true;
+    window.clearTimeout(watchdog);
     window.location.href = data.url;
   } catch (error) {
     logDeveloperError('Checkout could not be started.', error);
     showCartMessage(error.message || 'Online checkout is being connected. Please check back soon.');
-    checkoutButton.textContent = 'Secure Checkout';
-    updateCheckoutButtonState();
+  } finally {
+    window.clearTimeout(watchdog);
+    checkoutInProgress = false;
+    if (!redirectedToStripe) setCheckoutBusy(false);
   }
 }
 
-cartItems?.addEventListener('click', (event) => {
-  const removeButton = event.target.closest('[data-remove-cart-item]');
-  if (!removeButton) return;
-  removeCartItem(removeButton.dataset.removeCartItem, removeButton.dataset.removeCartIndex);
-});
-agreementCheckbox?.addEventListener('change', updateCheckoutButtonState);
+window.getAppointmentItems = getAppointmentItems;
+window.renderCart = renderCart;
 agreementOpenButton?.addEventListener('click', openAgreementModal);
 agreementCloseButtons.forEach((button) => button.addEventListener('click', closeAgreementModal));
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && agreementModal && !agreementModal.hidden) closeAgreementModal();
 });
-checkoutButton?.addEventListener('click', startCheckout);
 clearCartButton?.addEventListener('click', () => {
   hardClearCartStorage();
   resetAgreement();
@@ -836,5 +1055,7 @@ clearCartButton?.addEventListener('click', () => {
   renderCart();
 });
 
-updateCheckoutButtonState();
 renderCart();
+document.addEventListener('DOMContentLoaded', () => {
+  renderCartItemsAndTotals();
+});

@@ -177,6 +177,9 @@
   }
 
   function showCheckoutReason(message, type = 'error') {
+    const checkoutButton = document.querySelector('[data-checkout-button]');
+    if (checkoutButton?.dataset.checkoutBusy === 'true') return;
+
     const messageElement = document.querySelector('[data-cart-message]');
     if (!messageElement) return;
 
@@ -199,44 +202,57 @@
     messageElement.dataset.messageType = type;
   }
 
-  async function getLoggedInState() {
+  function getLoggedInState() {
     try {
-      const profile = await window.EastCordAccount?.getCurrentProfile?.();
-      return Boolean(profile?.customerId || profile?.email || profile);
+      if (document.body.dataset.eastcordSignedIn === 'true') return true;
+      return Array.from(document.querySelectorAll('[data-auth-logged-in]'))
+        .some((element) => !element.hidden);
     } catch (error) {
-      console.info('[EastCord appointment automation] Checkout profile check failed.', { message: error.message });
       return false;
     }
   }
 
-  async function updateCheckoutButtonState() {
+  function getStoredAppointmentCount() {
+    try {
+      const cart = window.EastCordAccount?.getCart?.();
+      return Array.isArray(cart) ? cart.filter((item) => item && (item.serviceId || item.serviceName || item.type === 'appointment')).length : 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  function updateCheckoutButtonState() {
     const checkoutButton = document.querySelector('[data-checkout-button]');
     if (!checkoutButton) return;
+    if (checkoutButton.dataset.checkoutBusy === 'true') return;
 
-    const validCartItems = getVisibleValidCartItemCount();
-    const depositDueToday = getDepositDueToday();
-    const isLoggedIn = await getLoggedInState();
+    const validCartItems = Math.max(getVisibleValidCartItemCount(), getStoredAppointmentCount());
+    const isLoggedIn = getLoggedInState();
     const agreementAccepted = getAgreementAccepted();
-    let disabledReason = '';
+    let hint = '';
 
-    if (!validCartItems) disabledReason = 'Your cart is empty. Add an appointment to continue.';
-    else if (depositDueToday <= 0) disabledReason = 'Cart total could not be calculated. Please refresh or clear cart.';
-    else if (!isLoggedIn) disabledReason = 'Please log in before checkout.';
-    else if (!agreementAccepted) disabledReason = 'Please accept the Mobile Service Agreement before checkout.';
+    if (!validCartItems) hint = 'Your cart is empty. Add an appointment to continue.';
+    else if (!isLoggedIn) hint = 'Please log in before checkout.';
+    else if (!agreementAccepted) hint = 'Please accept the Mobile Service Agreement before checkout.';
 
-    const canCheckout = !disabledReason;
-    checkoutButton.disabled = !canCheckout;
-    checkoutButton.toggleAttribute('disabled', !canCheckout);
-    checkoutButton.setAttribute('aria-disabled', String(!canCheckout));
-    showCheckoutReason(disabledReason);
+    checkoutButton.disabled = false;
+    checkoutButton.removeAttribute('disabled');
+    checkoutButton.setAttribute('aria-disabled', 'false');
+    showCheckoutReason(hint, hint ? 'error' : 'info');
+
+    const authBlock = document.querySelector('[data-checkout-auth-block]');
+    if (authBlock) {
+      const showAuthPrompt = !isLoggedIn && validCartItems;
+      authBlock.classList.toggle('is-visible', showAuthPrompt);
+      authBlock.hidden = !showAuthPrompt;
+    }
 
     console.info(CHECKOUT_STATE_LOG_PREFIX, {
       isLoggedIn,
       agreementAccepted,
       validCartItems,
-      depositDueToday,
-      disabledReason: disabledReason || 'none',
-      buttonDisabled: !canCheckout,
+      hint: hint || 'none',
+      buttonDisabled: false,
     });
   }
 
@@ -259,6 +275,6 @@
   window.addEventListener('storage', scheduleCheckoutStateUpdate);
   window.addEventListener('eastcord:cart-cleared', scheduleCheckoutStateUpdate);
   window.addEventListener('eastcord:cart-updated', scheduleCheckoutStateUpdate);
+  window.addEventListener('eastcord:auth-changed', scheduleCheckoutStateUpdate);
   window.addEventListener('DOMContentLoaded', scheduleCheckoutStateUpdate);
-  window.setInterval(updateCheckoutButtonState, 1500);
 })();

@@ -145,10 +145,11 @@
               </fieldset>
               <fieldset class="appointment-tire-selector" data-appointment-tire-selector hidden>
                 <legend>Link your tires</legend>
-                <p data-linked-tire-hint>If you link tires from your cart, select the same number of tires as this Mount &amp; Balance appointment.</p>
+                <p data-linked-tire-hint>Link tires you already paid for, or tires still in your cart.</p>
                 <div class="appointment-tire-options" data-appointment-tire-options>
-                  <p>Checking your saved tire cart...</p>
+                  <p>Checking your purchased tires...</p>
                 </div>
+                <a href="/account.html">View purchased tires</a>
                 <a href="/tire-cart">View Tire Cart</a>
               </fieldset>
               <div class="appointment-price-summary" aria-live="polite">
@@ -219,7 +220,7 @@
                 <div class="appointment-review-card"><span>Vehicle</span><strong data-review-vehicle>Not entered yet</strong></div>
                 <div class="appointment-review-card"><span>Location</span><strong data-review-location>Not entered yet</strong></div>
                 <div class="appointment-review-card"><span>Date &amp; Time</span><strong data-review-date>Not entered yet</strong></div>
-                <div class="appointment-review-card" data-review-tires-card hidden><span>Linked Tires</span><strong data-review-tires>No saved tires selected</strong></div>
+                <div class="appointment-review-card" data-review-tires-card hidden><span>Linked Tires</span><strong data-review-tires>No tires selected</strong></div>
                 <div class="appointment-review-card"><span>Deposit</span><strong data-review-price>Due today: $9.04<br>Remaining on-site: $36.16</strong></div>
               </div>
               <div class="checkout-block" data-login-required-block hidden><strong>Please sign up or log in before adding this appointment to cart.</strong><div class="account-actions"><a class="button button-primary" href="/login.html">Log In</a><a class="button button-secondary" href="/signup.html">Create Account</a></div></div>
@@ -257,6 +258,7 @@
             <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
             <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
             <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
+            <a href="/proudly-canadian">Proudly Canadian</a>
             <a href="/appointment">Changeover / Swap Service</a>
             <a href="/local-installers">Local Installers</a>
             <a href="/#contact">Contact EastCord</a>
@@ -289,8 +291,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=32"></script>
-    <script src="appointment.js?v=44" defer></script>
+    <script src="account.js?v=39"></script>
+    <script src="appointment.js?v=48" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

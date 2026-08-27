@@ -119,9 +119,9 @@ function getFriendlySupabaseError(error, fallback = 'Signup could not be complet
 
 function isAppointmentLikeItem(item) {
   if (!item || typeof item !== 'object') return false;
+  if (item.type === 'appointment') return true;
   if (item.type === 'used_tire' || item.inventoryId) return false;
-  return item.type === 'appointment'
-    || Boolean(item.serviceId)
+  return Boolean(item.serviceId)
     || Boolean(item.serviceName)
     || Boolean(item.bookingId)
     || Boolean(item.preferredDate)
@@ -155,28 +155,64 @@ function readStorageJson(storage, key) {
   }
 }
 
+let lastWrittenAppointmentCart = null;
+let appointmentCartWriteGeneration = 0;
+
+function pickRichestAppointmentCart(carts) {
+  return carts.reduce((best, cart) => {
+    const normalized = normalizeCartCollection(cart);
+    return normalized.length > best.length ? normalized : best;
+  }, []);
+}
+
+function readStoredAppointmentCart(storage) {
+  return pickRichestAppointmentCart(
+    CART_STORAGE_KEYS.map((key) => readStorageJson(storage, key)),
+  );
+}
+
+function persistAppointmentCartToStorage(cart) {
+  const json = JSON.stringify(cart);
+  CART_STORAGE_KEYS.forEach((key) => {
+    localStorage.setItem(key, json);
+    try {
+      sessionStorage.setItem(key, json);
+    } catch (error) {
+      logDeveloperError('Appointment cart could not be copied to session storage.', error);
+    }
+  });
+}
+
+function readActiveAppointmentCart(storage) {
+  const raw = storage?.getItem?.(CART_KEY);
+  if (raw == null || raw === '') return null;
+  return normalizeCartCollection(readStorageJson(storage, CART_KEY));
+}
+
 function getCart() {
-  const rawActiveCart = readStorageJson(localStorage, CART_KEY);
-  if (rawActiveCart !== null) {
-    return normalizeCartCollection(rawActiveCart);
+  if (Array.isArray(lastWrittenAppointmentCart)) {
+    return normalizeCartCollection(lastWrittenAppointmentCart);
   }
 
-  for (const key of CART_STORAGE_KEYS) {
-    if (key === CART_KEY) continue;
-    const localCart = normalizeCartCollection(readStorageJson(localStorage, key));
-    if (localCart.length) {
-      localStorage.setItem(CART_KEY, JSON.stringify(localCart));
-      return localCart;
-    }
-
-    const sessionCart = normalizeCartCollection(readStorageJson(sessionStorage, key));
-    if (sessionCart.length) {
-      localStorage.setItem(CART_KEY, JSON.stringify(sessionCart));
-      return sessionCart;
-    }
+  const localActive = readActiveAppointmentCart(localStorage);
+  const sessionActive = readActiveAppointmentCart(sessionStorage);
+  if (localActive || sessionActive) {
+    const localCart = localActive || [];
+    const sessionCart = sessionActive || [];
+    return localCart.length >= sessionCart.length ? localCart : sessionCart;
   }
 
-  return [];
+  return pickRichestAppointmentCart([
+    readStoredAppointmentCart(localStorage),
+    readStoredAppointmentCart(sessionStorage),
+  ]);
+}
+
+function rememberAppointmentCart(cart) {
+  const normalizedCart = normalizeCartCollection(cart);
+  lastWrittenAppointmentCart = normalizedCart;
+  persistAppointmentCartToStorage(normalizedCart);
+  return normalizedCart;
 }
 
 function validateCustomerCartType(cartType) {
@@ -297,10 +333,14 @@ async function persistCustomerCart(cartType, items, options = {}) {
   const user = await getCurrentUser();
   const normalizedItems = normalizeCartItemsByType(cartType, items);
 
-  if (cartType === 'used_tire' && !normalizedItems.length && !options.allowEmpty) {
-    const latestLocal = getLocalUsedTireCart();
+  if (!normalizedItems.length && !options.allowEmpty) {
+    if (cartType === 'used_tire') {
+      const latestLocal = getLocalUsedTireCart();
+      if (latestLocal.length) return latestLocal;
+      return [];
+    }
+    const latestLocal = getCart();
     if (latestLocal.length) return latestLocal;
-    return [];
   }
 
   if (!client || !user) return normalizedItems;
@@ -357,19 +397,30 @@ async function loadCustomerCart(cartType, localItems = []) {
   const remoteItems = normalizeCartItemsByType(cartType, data?.items);
   const latestLocalItems = cartType === 'used_tire'
     ? mergeCustomerCartItems(cartType, snapshotLocalItems, getLocalUsedTireCart())
-    : snapshotLocalItems;
+    : mergeCustomerCartItems(cartType, snapshotLocalItems, getCart());
   const localCartOwner = localStorage.getItem(getCustomerCartOwnerKey(cartType));
   const belongsToOtherUser = Boolean(localCartOwner && localCartOwner !== user.id);
+
+  if (cartType === 'appointment' && Array.isArray(lastWrittenAppointmentCart)) {
+    const localTruth = normalizeCartCollection(lastWrittenAppointmentCart);
+    const shouldSave = JSON.stringify(localTruth) !== JSON.stringify(remoteItems);
+    if (shouldSave) {
+      await saveCustomerCart(cartType, localTruth, { allowEmpty: localTruth.length === 0 });
+    }
+    localStorage.setItem(getCustomerCartOwnerKey(cartType), user.id);
+    return localTruth;
+  }
+
   let mergedItems = belongsToOtherUser && !latestLocalItems.length
     ? remoteItems
     : mergeCustomerCartItems(cartType, remoteItems, latestLocalItems);
 
-  if (cartType === 'used_tire' && !mergedItems.length && latestLocalItems.length) {
+  if (!mergedItems.length && latestLocalItems.length) {
     mergedItems = latestLocalItems;
   }
 
   const shouldSave = !data || JSON.stringify(mergedItems) !== JSON.stringify(remoteItems);
-  if (shouldSave && (cartType !== 'used_tire' || mergedItems.length)) {
+  if (shouldSave && mergedItems.length) {
     await saveCustomerCart(cartType, mergedItems);
   }
   localStorage.setItem(getCustomerCartOwnerKey(cartType), user.id);
@@ -381,10 +432,13 @@ async function clearCustomerCart(cartType) {
 }
 
 function saveCart(cart) {
-  const normalizedCart = normalizeCartCollection(cart);
-  localStorage.setItem(CART_KEY, JSON.stringify(normalizedCart));
+  appointmentCartWriteGeneration += 1;
+  const normalizedCart = rememberAppointmentCart(cart);
   updateCartCount();
-  saveCustomerCart('appointment', normalizedCart).catch((error) => {
+  window.dispatchEvent(new CustomEvent('eastcord:appointment-cart-changed', {
+    detail: { appointmentCart: normalizedCart },
+  }));
+  saveCustomerCart('appointment', normalizedCart, { allowEmpty: normalizedCart.length === 0 }).catch((error) => {
     logDeveloperError('Appointment cart background sync failed.', error);
   });
 }
@@ -424,7 +478,13 @@ function clearCartStorage() {
 
   removeStorageKeys(localStorage, localKeysBefore);
   removeStorageKeys(sessionStorage, sessionKeysBefore);
+  lastWrittenAppointmentCart = [];
   localStorage.setItem(CART_KEY, '[]');
+  try {
+    sessionStorage.setItem(CART_KEY, '[]');
+  } catch (error) {
+    logDeveloperError('Appointment cart session storage could not be cleared.', error);
+  }
 
   console.info('[EastCord appointment automation] Cart storage cleared.', {
     localKeysAfter: getExistingStorageKeys(localStorage).filter(isCartRelatedStorageKey),
@@ -434,9 +494,13 @@ function clearCartStorage() {
 }
 
 function clearCart() {
+  appointmentCartWriteGeneration += 1;
   clearCartStorage();
   updateCartCount();
   window.dispatchEvent(new CustomEvent('eastcord:cart-cleared'));
+  saveCustomerCart('appointment', [], { allowEmpty: true }).catch((error) => {
+    logDeveloperError('Empty appointment cart could not be cleared from the account.', error);
+  });
 }
 
 function money(value) {
@@ -493,6 +557,13 @@ function escapeHtml(value) {
 async function getCurrentUser() {
   const client = getSupabaseClient();
   if (!client) return null;
+
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) {
+    logSupabaseError('Supabase session lookup failed.', sessionError);
+  }
+  if (sessionData?.session?.user) return sessionData.session.user;
+
   const { data, error } = await client.auth.getUser();
   if (error) {
     logSupabaseError('Supabase user lookup failed.', error);
@@ -782,6 +853,146 @@ async function getCustomerBookings() {
   return data || [];
 }
 
+function flattenPaidUsedTireItems(orders) {
+  const tires = [];
+  (orders || []).forEach((order) => {
+    const items = Array.isArray(order.items) ? order.items : [];
+    items.forEach((item, index) => {
+      const inventoryId = String(item.inventoryId || item.id || '').replace(/^used-tire-/i, '').trim();
+      if (!inventoryId) return;
+      tires.push({
+        linkId: `order:${order.id}:${inventoryId}:${index}`,
+        source: 'purchased',
+        orderId: order.id,
+        paidAt: order.paid_at || order.created_at || '',
+        fulfillmentPreference: order.fulfillment_preference || '',
+        inventoryId,
+        type: 'used_tire',
+        brand: item.brand || '',
+        size: item.size || item.tire_size || item.size_label || '',
+        qty: Math.max(1, Number(item.qty) || 1),
+        unitPrice: item.unitPrice ?? item.unit_price ?? item.price ?? null,
+        season: item.season || 'Used tire',
+      });
+    });
+  });
+  return tires;
+}
+
+function flattenPaidNewTireItems(orders) {
+  const tires = [];
+  (orders || []).forEach((order) => {
+    const items = Array.isArray(order.items) ? order.items : [];
+    items.forEach((item, index) => {
+      tires.push({
+        linkId: `new-order:${order.id}:${index}`,
+        source: 'purchased',
+        orderId: order.id,
+        paidAt: order.paid_at || order.created_at || '',
+        fulfillmentPreference: order.fulfillment_preference || '',
+        inventoryId: String(item.partNumber || `new-${order.id}-${index}`),
+        type: 'new_tire',
+        brand: item.brand || '',
+        model: item.model || '',
+        size: item.size || '',
+        qty: Math.max(1, Number(item.qty) || 1),
+        unitPrice: item.unitPrice ?? item.price ?? null,
+        season: 'New tire',
+      });
+    });
+  });
+  return tires;
+}
+
+async function getPaidUsedTireOrders() {
+  const client = getSupabaseClient();
+  const profile = await getCurrentProfile();
+  if (!client || !profile) return [];
+
+  const { data, error } = await client
+    .from('used_tire_orders')
+    .select('id, items, paid_at, created_at, payment_status, fulfillment_preference, total_with_hst')
+    .eq('customer_id', profile.customerId)
+    .eq('payment_status', 'paid')
+    .order('paid_at', { ascending: false });
+
+  if (error) {
+    logSupabaseError('used_tire_orders read failed.', error);
+    return [];
+  }
+  return (data || []).map((order) => ({ ...order, tireKind: 'Used' }));
+}
+
+async function getPaidNewTireOrders() {
+  const client = getSupabaseClient();
+  const profile = await getCurrentProfile();
+  if (!client || !profile) return [];
+
+  const { data, error } = await client
+    .from('new_tire_orders')
+    .select('id, items, paid_at, created_at, payment_status, fulfillment_preference, total_with_hst')
+    .eq('customer_id', profile.customerId)
+    .eq('payment_status', 'paid')
+    .order('paid_at', { ascending: false });
+
+  if (error) {
+    logSupabaseError('new_tire_orders read failed.', error);
+    return [];
+  }
+  return (data || []).map((order) => ({ ...order, tireKind: 'New' }));
+}
+
+async function getPaidTireOrders() {
+  const [used, neu] = await Promise.all([getPaidUsedTireOrders(), getPaidNewTireOrders()]);
+  return [...neu, ...used].sort((a, b) => {
+    const aDate = new Date(a.paid_at || a.created_at || 0).getTime();
+    const bDate = new Date(b.paid_at || b.created_at || 0).getTime();
+    return bDate - aDate;
+  });
+}
+
+async function getPaidUsedTires() {
+  const orders = await getPaidTireOrders();
+  return orders.flatMap((order) => (
+    order.tireKind === 'New' ? flattenPaidNewTireItems([order]) : flattenPaidUsedTireItems([order])
+  ));
+}
+
+function formatPaidDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function renderPurchasedTires(orders) {
+  if (!orders.length) {
+    return '<p class="empty-cart">No paid tires yet. After a used-tire Stripe payment or a new-tire widget order, those tires are saved here.</p>';
+  }
+
+  return orders.map((order) => {
+    const isNew = order.tireKind === 'New';
+    const tires = isNew ? flattenPaidNewTireItems([order]) : flattenPaidUsedTireItems([order]);
+    const paidLabel = formatPaidDate(order.paid_at || order.created_at);
+    const itemLines = tires.map((tire) => (
+      `<p>${escapeHtml([tire.brand, tire.model, tire.size].filter(Boolean).join(' ') || 'Tire')} × ${escapeHtml(tire.qty)}</p>`
+    )).join('');
+    const fulfillment = order.fulfillment_preference || 'Pickup';
+    const nextStep = fulfillment === 'Installation'
+      ? '<p>Installation: EastCord will send a booking link after these tires are ready. Do not book until you receive that link.</p>'
+      : '<p>Pickup: EastCord will confirm when this order is ready for pickup. No appointment is required.</p>';
+    return `
+      <article class="cart-line">
+        <span>${isNew ? 'New tires' : 'Used tires'} · Paid${paidLabel ? ` ${escapeHtml(paidLabel)}` : ''}</span>
+        <strong>${tires.length} purchased tire line${tires.length === 1 ? '' : 's'}</strong>
+        ${itemLines}
+        <p>Fulfillment: ${escapeHtml(fulfillment)} | Total: ${money(order.total_with_hst || 0)}</p>
+        ${nextStep}
+      </article>
+    `;
+  }).join('');
+}
+
 function getSignupEmailRedirectTo() {
   return new URL(getRedirectTarget('/account.html'), window.location.origin).toString();
 }
@@ -898,7 +1109,86 @@ async function signOutCustomer() {
 }
 
 function getAppointmentCartCount() {
-  return getCart().filter((item) => item.serviceId || item.serviceName).length;
+  return getCart().filter((item) => item.serviceId || item.serviceName || item.type === 'appointment').length;
+}
+
+function formatCartLineDate(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const date = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+}
+
+function formatCartLineMeta(item) {
+  const vehicle = [item.vehicleYear, item.vehicleMake, item.vehicleModel].filter(Boolean).join(' ');
+  const date = formatCartLineDate(item.preferredDate);
+  const time = String(item.preferredTimeWindow || '').split(/\s*[-–—]\s*/)[0].trim();
+  const city = String(item.city || '').trim();
+  return [vehicle, date, time, city].filter(Boolean).join(' · ');
+}
+
+function renderVisibleAppointmentCart(cart = getCart()) {
+  const root = document.querySelector('[data-cart-items]');
+  if (!root) return cart;
+
+  const items = normalizeCartCollection(cart);
+  if (!items.length) {
+    root.innerHTML = '<p class="empty-cart">Your cart is empty. Add an appointment to continue.</p>';
+    return items;
+  }
+
+  root.innerHTML = items.map((item, index) => {
+    const meta = formatCartLineMeta(item);
+    const price = item.serviceSubtotal ?? item.startingPrice ?? 0;
+    return `
+      <article class="cart-line">
+        <div class="cart-line-main">
+          <strong>${escapeHtml(item.serviceName || 'Appointment service')}</strong>
+          ${meta ? `<p class="cart-line-meta">${escapeHtml(meta)}</p>` : ''}
+        </div>
+        <div class="cart-line-side">
+          <span class="cart-line-price">${escapeHtml(money(price))}</span>
+          <button class="cart-line-remove" type="button" data-remove-cart-item="${escapeHtml(item.id || '')}" data-remove-cart-index="${index}">Remove</button>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  const totals = items.reduce((sum, item) => {
+    const tax = getBookingTaxDetails(item);
+    return {
+      serviceSubtotal: roundMoney(sum.serviceSubtotal + tax.serviceSubtotal),
+      hstAmount: roundMoney(sum.hstAmount + tax.hstAmount),
+      totalWithHst: roundMoney(sum.totalWithHst + tax.totalWithHst),
+      depositAmount: roundMoney(sum.depositAmount + tax.depositAmount),
+      remainingBalance: roundMoney(sum.remainingBalance + tax.remainingBalance),
+    };
+  }, {
+    serviceSubtotal: 0,
+    hstAmount: 0,
+    totalWithHst: 0,
+    depositAmount: 0,
+    remainingBalance: 0,
+  });
+
+  const setText = (selector, value) => {
+    document.querySelectorAll(selector).forEach((element) => {
+      element.textContent = value;
+    });
+  };
+  setText('[data-cart-subtotal]', money(totals.serviceSubtotal));
+  setText('[data-cart-hst]', money(totals.hstAmount));
+  setText('[data-cart-total]', money(totals.totalWithHst));
+  setText('[data-cart-deposit]', money(totals.depositAmount));
+  setText('[data-cart-balance]', money(totals.remainingBalance));
+  const payButton = document.querySelector('[data-appointment-pay-button]');
+  if (payButton && !payButton.disabled) {
+    const label = totals.depositAmount > 0 ? `Pay ${money(totals.depositAmount)} deposit` : 'Pay deposit';
+    payButton.dataset.idleLabel = label;
+    payButton.textContent = label;
+  }
+  return items;
 }
 
 function getUsedTireCartCount() {
@@ -911,19 +1201,35 @@ function setCartCountText(selector, count) {
   });
 }
 
-function updateCartCount() {
-  setCartCountText('[data-tire-cart-count]', getUsedTireCartCount());
-  document.querySelectorAll('[data-appointment-cart-count]').forEach((element) => {
-    element.textContent = '';
+function ensureAppointmentCartCountSlots() {
+  document.querySelectorAll('.nav-carts a[href="/cart"], .nav-carts a[href="/cart.html"]').forEach((link) => {
+    if (link.querySelector('[data-appointment-cart-count]')) return;
+    const span = document.createElement('span');
+    span.setAttribute('data-appointment-cart-count', '');
+    link.appendChild(span);
   });
+}
+
+function updateCartCount() {
+  ensureAppointmentCartCountSlots();
+  const appointmentCart = getCart();
+  const appointmentCount = appointmentCart.filter(isAppointmentLikeItem).length;
+  const tireCount = getUsedTireCartCount();
+  setCartCountText('[data-tire-cart-count]', tireCount);
+  setCartCountText('[data-appointment-cart-count]', appointmentCount);
   document.querySelectorAll('[data-cart-count]').forEach((element) => {
     const href = element.closest('a')?.getAttribute('href') || '';
     if (/tire-cart/.test(href)) {
-      element.textContent = getUsedTireCartCount() ? ` (${getUsedTireCartCount()})` : '';
+      element.textContent = tireCount ? ` (${tireCount})` : '';
+      return;
+    }
+    if (/\/cart/.test(href)) {
+      element.textContent = appointmentCount ? ` (${appointmentCount})` : '';
       return;
     }
     element.textContent = '';
   });
+  renderVisibleAppointmentCart(appointmentCart);
 }
 
 function displayNameFromProfile(profile) {
@@ -932,6 +1238,7 @@ function displayNameFromProfile(profile) {
 
 function applySignedInProfile(profile) {
   const signedIn = Boolean(profile);
+  document.body.dataset.eastcordSignedIn = signedIn ? 'true' : 'false';
 
   document.querySelectorAll('[data-auth-logged-out]').forEach((element) => {
     element.hidden = signedIn;
@@ -964,6 +1271,7 @@ function applySignedInProfile(profile) {
   });
 
   if (signedIn) fillKnownCustomerFields(profile);
+  window.dispatchEvent(new CustomEvent('eastcord:auth-changed', { detail: { profile, signedIn } }));
 }
 
 function fillKnownCustomerFields(profile) {
@@ -1008,6 +1316,11 @@ function bindAuthStateChanges() {
       || event === 'USER_UPDATED'
     ) {
       updateAuthNavigation();
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        hydrateSignedInCarts().catch((error) => {
+          logDeveloperError('Signed-in carts could not be loaded.', error);
+        });
+      }
     }
   });
 }
@@ -1139,24 +1452,31 @@ function bindAuthForms() {
   });
 }
 
+function isPaidAppointment(booking) {
+  const payment = String(booking.payment_status || '').toLowerCase();
+  const status = String(booking.booking_status || '').toLowerCase();
+  return payment === 'paid_deposit' || status === 'confirmed';
+}
+
 function renderBookingHistory(bookings) {
-  if (!bookings.length) {
-    return '<p class="empty-cart">No appointment bookings yet.</p>';
+  const paidBookings = bookings.filter(isPaidAppointment);
+  if (!paidBookings.length) {
+    return '<p class="empty-cart">No paid appointments yet. Incomplete checkouts stay in your appointment cart until the deposit is paid.</p>';
   }
 
-  return bookings.map((booking) => {
+  return paidBookings.map((booking) => {
     const vehicle = [booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(' ');
     const plate = booking.vehicle_plate_number ? ` | Plate: ${escapeHtml(booking.vehicle_plate_number)}` : '';
     const colour = booking.vehicle_colour ? ` | Colour: ${escapeHtml(booking.vehicle_colour)}` : '';
     return `
       <article class="cart-line">
-        <span>${escapeHtml(booking.booking_status || 'Pending Confirmation')}</span>
+        <span>${escapeHtml(booking.booking_status || 'Confirmed')}</span>
         <strong>${escapeHtml(booking.service_name)}</strong>
         <p>${escapeHtml(booking.preferred_date || '')}${booking.preferred_time_window ? ` at ${escapeHtml(booking.preferred_time_window)}` : ''}</p>
         <p>${escapeHtml(vehicle || 'Vehicle details submitted')}${plate}${colour}${booking.tire_size ? ` | ${escapeHtml(booking.tire_size)}` : ''}</p>
         <p>${escapeHtml(booking.city || '')}</p>
         <p>Service subtotal: ${money(booking.service_subtotal || 0)} | HST 13%: ${money(booking.hst_amount || 0)} | Total including HST: ${money(booking.total_with_hst || 0)}</p>
-        <p>Deposit: ${money(booking.deposit_amount)} | Remaining on-site: ${money(booking.remaining_balance)} | Payment: ${escapeHtml(booking.payment_status || 'pending_checkout')}</p>
+        <p>Deposit: ${money(booking.deposit_amount)} | Remaining on-site: ${money(booking.remaining_balance)} | Payment: ${escapeHtml(booking.payment_status || 'paid_deposit')}</p>
       </article>
     `;
   }).join('');
@@ -1174,10 +1494,15 @@ async function hydrateSignedInCarts() {
   if (accountCartHydratePromise) return accountCartHydratePromise;
 
   accountCartHydratePromise = (async () => {
+    const generationAtStart = appointmentCartWriteGeneration;
     const user = await getCurrentUser();
     if (!user) {
       accountCartHydratePromise = null;
       accountCartsHydrated = false;
+      updateCartCount();
+      window.dispatchEvent(new CustomEvent('eastcord:account-carts-hydrated', {
+        detail: { appointmentCart: getCart(), tireCart: getLocalUsedTireCart() },
+      }));
       return {
         appointmentCart: getCart(),
         tireCart: getLocalUsedTireCart(),
@@ -1189,25 +1514,36 @@ async function hydrateSignedInCarts() {
       loadCustomerCart('used_tire', getLocalUsedTireCart()),
     ]);
     const latestLocalTireCart = getLocalUsedTireCart();
+    const latestLocalAppointmentCart = getCart();
     const normalizedTireCart = mergeCustomerCartItems(
       'used_tire',
       remoteTireCart,
       latestLocalTireCart,
     );
 
-    const normalizedAppointmentCart = normalizeCartCollection(appointmentCart)
-      .filter((item) => item.serviceId || item.serviceName);
+    const normalizedAppointmentCart = mergeCustomerCartItems(
+      'appointment',
+      normalizeCartCollection(appointmentCart),
+      latestLocalAppointmentCart,
+    );
 
-    localStorage.setItem(CART_KEY, JSON.stringify(normalizedAppointmentCart));
+    if (
+      appointmentCartWriteGeneration === generationAtStart
+      && normalizedAppointmentCart.length
+      && normalizedAppointmentCart.length >= latestLocalAppointmentCart.length
+    ) {
+      rememberAppointmentCart(normalizedAppointmentCart);
+    }
     if (normalizedTireCart.length >= latestLocalTireCart.length) {
       localStorage.setItem(ACCOUNT_USED_TIRE_CART_KEY, JSON.stringify(normalizedTireCart));
     }
     accountCartsHydrated = true;
     notifyUsedTireCartChanged();
+    updateCartCount();
     window.dispatchEvent(new CustomEvent('eastcord:account-carts-hydrated', {
-      detail: { appointmentCart, tireCart: getLocalUsedTireCart() },
+      detail: { appointmentCart: getCart(), tireCart: getLocalUsedTireCart() },
     }));
-    return { appointmentCart, tireCart: getLocalUsedTireCart() };
+    return { appointmentCart: getCart(), tireCart: getLocalUsedTireCart() };
   })().catch((error) => {
     accountCartHydratePromise = null;
     accountCartsHydrated = false;
@@ -1222,13 +1558,11 @@ async function persistSignedInCarts() {
     const user = await getCurrentUser();
     if (!user) return;
 
-    if (!accountCartsHydrated) {
-      await hydrateSignedInCarts();
-    }
-
+    const appointmentCart = getCart();
+    const tireCart = getLocalUsedTireCart();
     await Promise.all([
-      saveCustomerCart('appointment', getCart()),
-      saveCustomerCart('used_tire', getLocalUsedTireCart()),
+      appointmentCart.length ? saveCustomerCart('appointment', appointmentCart) : Promise.resolve(),
+      tireCart.length ? saveCustomerCart('used_tire', tireCart) : Promise.resolve(),
     ]);
   } catch (error) {
     logDeveloperError('Signed-in carts could not be saved.', error);
@@ -1280,6 +1614,8 @@ async function hydrateAccountPage() {
   if (!isAuthConfigured()) {
     accountPanel.innerHTML = `<p>${ACCOUNT_SETUP_MESSAGE}</p>`;
     if (bookingPanel) bookingPanel.innerHTML = '';
+    const purchasedPanel = document.querySelector('[data-purchased-tires]');
+    if (purchasedPanel) purchasedPanel.innerHTML = '';
     return;
   }
 
@@ -1288,6 +1624,8 @@ async function hydrateAccountPage() {
     if (!profile) {
       accountPanel.innerHTML = '<p>Please log in to view your account.</p><p><a class="button button-primary" href="/login.html?redirect=/account.html">Log In</a></p>';
       if (bookingPanel) bookingPanel.innerHTML = '';
+      const purchasedPanel = document.querySelector('[data-purchased-tires]');
+      if (purchasedPanel) purchasedPanel.innerHTML = '';
       return;
     }
 
@@ -1297,6 +1635,11 @@ async function hydrateAccountPage() {
       <div class="account-detail"><span>Phone</span><strong>${escapeHtml(profile.phone || 'Not provided')}</strong></div>
     `;
 
+    const purchasedPanel = document.querySelector('[data-purchased-tires]');
+    if (purchasedPanel) {
+      const paidOrders = await getPaidTireOrders();
+      purchasedPanel.innerHTML = renderPurchasedTires(paidOrders);
+    }
     if (bookingPanel) {
       const bookings = await getCustomerBookings();
       bookingPanel.innerHTML = renderBookingHistory(bookings);
@@ -1314,6 +1657,58 @@ function bindLogoutButtons() {
     button.addEventListener('click', signOutCustomer);
   });
 }
+
+function appointmentItemMatchesId(item, itemId) {
+  const id = String(itemId || '').trim();
+  if (!id) return false;
+  return [item?.id, item?.bookingId, item?.booking_id, item?.cartId, item?.cart_id]
+    .some((value) => String(value || '') === id);
+}
+
+function removeAppointmentCartItem(itemId, itemIndex, row) {
+  const currentCart = getCart();
+  if (!currentCart.length) return currentCart;
+
+  let nextCart;
+  const ifMatch = currentCart.some((item) => appointmentItemMatchesId(item, itemId));
+  if (ifMatch) {
+    nextCart = currentCart.filter((item) => !appointmentItemMatchesId(item, itemId));
+  }
+
+  if (!nextCart) {
+    const rows = row?.parentElement
+      ? Array.from(row.parentElement.querySelectorAll('.cart-line'))
+      : [];
+    const rowIndex = row ? rows.indexOf(row) : -1;
+    const numericIndex = Number(itemIndex);
+    const removeAt = rowIndex >= 0 ? rowIndex : numericIndex;
+    if (!Number.isInteger(removeAt) || removeAt < 0 || removeAt >= currentCart.length) {
+      return currentCart;
+    }
+    nextCart = currentCart.filter((_, index) => index !== removeAt);
+  }
+
+  saveCart(nextCart);
+  return nextCart;
+}
+
+function bindCartRemoveButtons() {
+  document.addEventListener('click', (event) => {
+    const target = event.target?.nodeType === 1 ? event.target : event.target?.parentElement;
+    const button = target?.closest?.('[data-remove-cart-item]');
+    if (!button || !button.closest('[data-cart-items]')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const row = button.closest('.cart-line');
+    removeAppointmentCartItem(
+      button.getAttribute('data-remove-cart-item'),
+      button.getAttribute('data-remove-cart-index'),
+      row,
+    );
+  }, true);
+}
+
+bindCartRemoveButtons();
 
 function bindCartClearButtons() {
   document.addEventListener('click', (event) => {
@@ -1344,6 +1739,11 @@ window.EastCordAccount = {
   normalizeUsedTireCartItems,
   clearCart,
   clearCartStorage,
+  removeAppointmentCartItem,
+  getPaidUsedTires,
+  getPaidUsedTireOrders,
+  getPaidNewTireOrders,
+  getPaidTireOrders,
   saveAppointmentBooking,
   updateCartCount,
   money,

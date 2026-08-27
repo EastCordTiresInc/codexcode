@@ -30,6 +30,15 @@
   margin-top: 0;
 }
 
+.tire-order-success h1 {
+  margin: 0 0 14px;
+  max-width: none;
+  font-size: clamp(1.75rem, 3vw, 2.15rem);
+  line-height: 1.2;
+  letter-spacing: 0;
+  font-weight: 800;
+}
+
 .tire-cart-eyebrow {
   margin-bottom: 6px;
   color: var(--red);
@@ -204,6 +213,36 @@
   color: #4f5663;
   font-size: 0.84rem;
   line-height: 1.5;
+}
+
+.tire-stripe-test-note {
+  margin: 0 0 4px;
+  padding: 12px;
+  border: 1px solid #d8dade;
+  border-radius: 8px;
+  background: #f7f8fa;
+  color: #333840;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.tire-checkout-auth {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d8dade;
+  border-radius: 8px;
+  background: #fbfbfc;
+}
+
+.tire-checkout-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tire-checkout-submit {
+  width: 100%;
 }
 
 [data-tire-reservation-form] {

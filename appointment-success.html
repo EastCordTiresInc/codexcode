@@ -8,9 +8,9 @@
     <link rel="stylesheet" href="styles.css?v=7" />
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
-    <link rel="stylesheet" href="appointment.css" />
+    <link rel="stylesheet" href="appointment.css?v=25" />
   </head>
-  <body>
+  <body class="appointment-success-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="site-header">
       <div class="nav-shell">
@@ -50,22 +50,19 @@
     <main id="main-content" class="appointment-page">
       <section class="section">
         <div class="shell">
-          <div class="appointment-form-card" style="max-width: 920px; margin: 0 auto;">
-            <div class="appointment-form-heading" style="text-align: center;">
-              <h1>Appointment Confirmed</h1>
-              <p>Your deposit has been received and your appointment is confirmed.</p>
+          <div class="appointment-form-card confirmation-card">
+            <div class="appointment-form-heading confirmation-heading">
+              <h1>Appointment confirmed</h1>
+              <p>Your deposit has been received and your appointment is booked.</p>
             </div>
 
-            <div class="appointment-review-grid" data-confirmation-details aria-live="polite"></div>
+            <div class="confirmation-list" data-confirmation-details aria-live="polite"></div>
 
             <p class="appointment-payment-note">
-              Please remember that wheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service.
-            </p>
-            <p class="appointment-payment-note">
-              Your appointment is subject to EastCord Tires' Mobile Service Agreement and Used Tire Warranty Policy, where applicable.
+              Re-torque wheel nuts after about 100 km. This booking is covered by EastCord's Mobile Service Agreement and Used Tire Warranty Policy, where they apply.
             </p>
 
-            <div class="appointment-step-actions" style="justify-content: center;">
+            <div class="appointment-step-actions confirmation-actions">
               <a class="button button-primary appointment-submit" href="/">Back to Home</a>
               <a class="button button-secondary" href="/account.html">View My Account</a>
             </div>
@@ -99,6 +96,7 @@
             <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
             <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
             <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
+            <a href="/proudly-canadian">Proudly Canadian</a>
             <a href="/appointment">Changeover / Swap Service</a>
             <a href="/local-installers">Local Installers</a>
             <a href="/#contact">Contact EastCord</a>
@@ -129,8 +127,8 @@
       </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="auth-config.js?v=3"></script>
-    <script src="account.js?v=32"></script>
+    <script src="auth-config.js?v=4"></script>
+    <script src="account.js?v=42"></script>
     <script>
       (() => {
         const cartKey = 'eastcord_cart_v1';
@@ -142,6 +140,21 @@
           maximumFractionDigits: 2,
         });
         const details = document.querySelector('[data-confirmation-details]');
+        const params = new URLSearchParams(window.location.search);
+        const sessionId = params.get('session_id') || '';
+
+        async function confirmAppointmentPayment() {
+          if (!sessionId) return;
+          try {
+            await fetch('/.netlify/functions/confirm-appointment-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: sessionId }),
+            });
+          } catch (error) {
+            console.warn('[EastCord appointment automation] Payment confirmation request failed.', error);
+          }
+        }
         if (!details) return;
 
         function roundMoney(value) {
@@ -196,45 +209,99 @@
           return raw.toUpperCase();
         }
 
+        function formatDate(value) {
+          const raw = String(value || '').trim();
+          if (!raw) return '';
+          const date = new Date(`${raw}T00:00:00`);
+          if (Number.isNaN(date.getTime())) return raw;
+          return date.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        function formatTimeStart(value) {
+          return String(value || '').split(/\s*[-–—]\s*/)[0].trim();
+        }
+
         let appointments = [];
         try {
-          appointments = JSON.parse(localStorage.getItem(cartKey) || '[]').filter((item) => item.type === 'appointment');
+          appointments = JSON.parse(localStorage.getItem(cartKey) || '[]');
         } catch (error) {
           console.error('[EastCord appointment automation] Confirmation details could not be read.', error);
         }
+        if (!appointments.length) {
+          try {
+            appointments = window.EastCordAccount?.getCart?.() || [];
+          } catch (error) {
+            appointments = [];
+          }
+        }
+        appointments = (Array.isArray(appointments) ? appointments : []).filter((item) => (
+          item && (item.type === 'appointment' || item.serviceId || item.serviceName)
+        ));
+
+        confirmAppointmentPayment().finally(() => {
+          window.EastCordAccount?.clearCart?.();
+          window.EastCordAccount?.clearCustomerCart?.('appointment').catch(function (error) {
+            console.warn('[EastCord appointment automation] Account cart could not be cleared after checkout.', error);
+          });
+        });
 
         if (!appointments.length) {
-          details.innerHTML = '<div class="appointment-review-card"><span>Confirmation</span><strong>Your payment was completed successfully.</strong></div>';
+          details.innerHTML = '<p class="confirmation-empty">Your payment was completed successfully. Appointment details will also be in My Account.</p>';
           return;
         }
 
-        details.innerHTML = appointments.map((item, index) => {
+        const totals = appointments.reduce((sum, item) => {
           const tax = getTaxDetails(item);
-          const vehicle = [item.vehicleYear, titleCase(item.vehicleMake), titleCase(item.vehicleModel)].filter(Boolean).join(' ') || 'Vehicle details submitted';
-          const location = [item.fullServiceAddress, item.city, item.postalCode].filter(Boolean).join(', ') || 'Service location submitted';
+          return {
+            serviceSubtotal: roundMoney(sum.serviceSubtotal + tax.serviceSubtotal),
+            hstAmount: roundMoney(sum.hstAmount + tax.hstAmount),
+            totalWithHst: roundMoney(sum.totalWithHst + tax.totalWithHst),
+            depositAmount: roundMoney(sum.depositAmount + tax.depositAmount),
+            remainingBalance: roundMoney(sum.remainingBalance + tax.remainingBalance),
+          };
+        }, { serviceSubtotal: 0, hstAmount: 0, totalWithHst: 0, depositAmount: 0, remainingBalance: 0 });
+
+        const itemsHtml = appointments.map((item) => {
+          const tax = getTaxDetails(item);
+          const vehicle = [item.vehicleYear, titleCase(item.vehicleMake), titleCase(item.vehicleModel)].filter(Boolean).join(' ');
+          const plate = formatPlate(item.vehiclePlateNumber);
+          const date = formatDate(item.preferredDate);
+          const time = formatTimeStart(item.preferredTimeWindow) || item.preferredTimeWindow || '';
+          const city = item.city || '';
+          const meta = [vehicle, plate, date, time, city].filter(Boolean).join(' · ');
+          const location = [item.fullServiceAddress, item.city, item.postalCode].filter(Boolean).join(', ');
+          const tires = [formatTireSize(item.tireSize), item.numberOfTires ? `${item.numberOfTires} tires` : ''].filter(Boolean).join(' · ');
           return `
-            <div class="appointment-review-card"><span>Service ${index + 1}</span><strong>${escapeHtml(item.serviceName || 'Appointment service')}</strong></div>
-            <div class="appointment-review-card"><span>Vehicle</span><strong>${escapeHtml(vehicle)}</strong></div>
-            <div class="appointment-review-card"><span>Plate Number</span><strong>${escapeHtml(formatPlate(item.vehiclePlateNumber) || 'Plate submitted')}</strong></div>
-            <div class="appointment-review-card"><span>Colour</span><strong>${escapeHtml(titleCase(item.vehicleColour) || 'Colour submitted')}</strong></div>
-            <div class="appointment-review-card"><span>Tire Size</span><strong>${escapeHtml(formatTireSize(item.tireSize) || 'Tire size submitted')}</strong></div>
-            <div class="appointment-review-card"><span>Tires</span><strong>${escapeHtml(item.numberOfTires || 'Tire count submitted')}</strong></div>
-            <div class="appointment-review-card"><span>Date</span><strong>${escapeHtml(item.preferredDate || 'Date submitted')}</strong></div>
-            <div class="appointment-review-card"><span>Time</span><strong>${escapeHtml(item.preferredTimeWindow || 'Time submitted')}</strong></div>
-            <div class="appointment-review-card"><span>Service location</span><strong>${escapeHtml(location)}</strong></div>
-            <div class="appointment-review-card"><span>Service Subtotal</span><strong>${money.format(tax.serviceSubtotal)}</strong></div>
-            <div class="appointment-review-card"><span>HST 13%</span><strong>${money.format(tax.hstAmount)}</strong></div>
-            <div class="appointment-review-card"><span>Total Including HST</span><strong>${money.format(tax.totalWithHst)}</strong></div>
-            <div class="appointment-review-card"><span>Payment</span><strong>${money.format(tax.depositAmount)} deposit paid, ${money.format(tax.remainingBalance)} due at service</strong></div>
+            <article class="confirmation-item">
+              <div class="confirmation-item-top">
+                <strong>${escapeHtml(item.serviceName || 'Appointment service')}</strong>
+                <span>${money.format(tax.depositAmount)} paid</span>
+              </div>
+              ${meta ? `<p class="confirmation-meta">${escapeHtml(meta)}</p>` : ''}
+              <dl class="confirmation-facts">
+                ${item.vehicleColour ? `<div><dt>Colour</dt><dd>${escapeHtml(titleCase(item.vehicleColour))}</dd></div>` : ''}
+                ${tires ? `<div><dt>Tires</dt><dd>${escapeHtml(tires)}</dd></div>` : ''}
+                ${location ? `<div><dt>Address</dt><dd>${escapeHtml(location)}</dd></div>` : ''}
+                <div><dt>Pay on-site</dt><dd>${money.format(tax.remainingBalance)}</dd></div>
+              </dl>
+            </article>
           `;
         }).join('');
+
+        details.innerHTML = `
+          ${itemsHtml}
+          <aside class="confirmation-receipt" aria-label="Payment summary">
+            <h2>Payment</h2>
+            <dl>
+              <div><dt>Subtotal</dt><dd>${money.format(totals.serviceSubtotal)}</dd></div>
+              <div><dt>HST 13%</dt><dd>${money.format(totals.hstAmount)}</dd></div>
+              <div><dt>Total</dt><dd>${money.format(totals.totalWithHst)}</dd></div>
+              <div class="confirmation-receipt-due"><dt>Deposit paid</dt><dd>${money.format(totals.depositAmount)}</dd></div>
+            </dl>
+            <p class="confirmation-receipt-remaining">Pay on-site after service <strong>${money.format(totals.remainingBalance)}</strong></p>
+          </aside>
+        `;
       })();
-    </script>
-    <script>
-      window.EastCordAccount?.clearCart?.();
-      window.EastCordAccount?.clearCustomerCart?.('appointment').catch(function (error) {
-        console.warn('[EastCord appointment automation] Account cart could not be cleared after checkout.', error);
-      });
     </script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>

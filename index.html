@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="shopping-guides.css" />
     <link rel="stylesheet" href="tire-size-calculator.css" />
     <link rel="stylesheet" href="inspection-section.css" />
+    <link rel="stylesheet" href="proudly-canadian.css?v=5" />
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
@@ -353,12 +354,6 @@
             </div>
             <div class="inspection-visual" aria-hidden="true">
               <div class="inspection-visual-content">
-                <span class="inspection-visual-badge">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M12 3 5.5 5.7v5.2c0 4.1 2.6 7.8 6.5 9.1 3.9-1.3 6.5-5 6.5-9.1V5.7L12 3Z"></path>
-                    <path d="m8.8 12.1 2.1 2.1 4.4-4.6"></path>
-                  </svg>
-                </span>
                 <strong>Checked before sale</strong>
                 <ul class="inspection-checks">
                   <li>Visible condition</li>
@@ -366,6 +361,22 @@
                   <li>Leak check when applicable</li>
                 </ul>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="canadian-preview section" id="proudly-canadian" aria-labelledby="canadian-preview-title">
+        <div class="shell">
+          <div class="inspection-card">
+            <div class="inspection-copy">
+              <p class="eyebrow"><span></span> Proudly Canadian</p>
+              <h2 id="canadian-preview-title">A Canadian Tire Business for Local Drivers</h2>
+              <p>EastCord Tires is a Canadian-owned and operated business serving passenger vehicles with used tires, new tires, and mobile changeover service.</p>
+              <a class="button button-primary inspection-button" href="/proudly-canadian">Learn More <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="inspection-visual canadian-visual" aria-hidden="true">
+              <img class="canadian-visual-photo" src="/assets/proudly-canadian-hero.jpg" alt="" />
             </div>
           </div>
         </div>
@@ -454,6 +465,7 @@
             <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
             <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
             <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
+            <a href="/proudly-canadian">Proudly Canadian</a>
             <a href="/appointment">Changeover / Swap Service</a>
             <a href="/local-installers">Local Installers</a>
             <a href="/#contact">Contact EastCord</a>
@@ -526,7 +538,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=3"></script>
-    <script src="account.js?v=32"></script>
+    <script src="account.js?v=34"></script>
     <script type="module" src="auth.js"></script>
     <script src="tire-size-calculator.js" defer></script>
     <script src="chat.js?v=3" defer></script>

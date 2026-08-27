@@ -1,6 +1,7 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { calculateTax, roundMoney } = require('./lib/used-tire-order');
+const { isStripeTestMode } = require('./lib/stripe-mode');
 const { getUsedTireUnitPrice, isMarkdownStock, MARKDOWN_PERCENT } = require('./lib/used-tire-pricing');
 
 function json(statusCode, payload) {
@@ -189,7 +190,7 @@ exports.handler = async (event) => {
       })
       .eq('id', order.id);
 
-    return json(200, { url: session.url });
+    return json(200, { url: session.url, testMode: isStripeTestMode() });
   } catch (error) {
     console.error('[EastCord used tires] Stripe Checkout session creation failed.', error);
     return json(500, { message: error.message || 'Secure checkout could not be started.' });
