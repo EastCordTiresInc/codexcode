@@ -149,7 +149,9 @@
               throw new Error(data.message || 'Payment confirmation is still processing.');
             }
             if (status) {
-              status.textContent = 'Your new tire payment was received and saved to your account. If you chose pickup, we will confirm when the order is ready. If you chose installation, we will send a booking link after the tires arrive.';
+              status.textContent = data.fulfillment === 'Installation' && data.orderId
+                ? 'Your new tire payment was received and saved to your account. You can book installation now with this confirmed order.'
+                : 'Your new tire payment was received and saved to your account. If you chose pickup, we will confirm when the order is ready. If you chose installation, book from My Account using this order.';
             }
             clearQuote();
           } catch (error) {

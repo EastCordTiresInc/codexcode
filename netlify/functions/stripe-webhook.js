@@ -233,6 +233,9 @@ function getVehicle(row) {
 }
 
 function getLocation(row) {
+  if (String(row.install_location || '').trim() === 'shop' || String(row.city || '').trim() === 'EastCord shop') {
+    return 'EastCord Tires shop';
+  }
   return [row.full_service_address, row.city, row.postal_code].filter(Boolean).join(', ') || 'Service location provided';
 }
 

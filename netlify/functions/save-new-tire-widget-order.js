@@ -56,6 +56,14 @@ exports.handler = async (event) => {
     return json(400, { message: 'Name, email, and phone are required.' });
   }
 
+  console.log('[EastCord new tires] save-new-tire-widget-order', {
+    userId: authData.user.id,
+    orderNumber: payload.orderNumber || '',
+    recordedLocally: Boolean(payload.recordedLocally),
+    fulfillment: payload.fulfillment || '',
+    itemCount: Array.isArray(payload.items) ? payload.items.length : 0,
+  });
+
   const result = await recordWidgetNewTireOrder({
     supabaseAdmin,
     userId: authData.user.id,
@@ -67,6 +75,7 @@ exports.handler = async (event) => {
     orderNumber: payload.orderNumber,
     recordedLocally: Boolean(payload.recordedLocally),
     totals: payload.totals,
+    appointments: payload.appointments,
   });
 
   if (!result.ok) {
@@ -78,5 +87,7 @@ exports.handler = async (event) => {
     saved: true,
     alreadySaved: Boolean(result.alreadyPaid),
     orderId: result.order?.id || '',
+    appointmentIds: result.appointmentIds || [],
+    appointmentCount: result.appointmentCount || 0,
   });
 };

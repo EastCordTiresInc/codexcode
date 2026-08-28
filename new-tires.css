@@ -23,6 +23,7 @@
   display: grid;
   gap: 18px;
   align-items: start;
+  min-width: 0;
 }
 
 .new-tires-widget-card {
@@ -30,6 +31,7 @@
   gap: 16px;
   width: 100%;
   max-width: none;
+  min-width: 0;
   margin: 0;
   padding: clamp(16px, 2.4vw, 24px);
   border: 1px solid rgba(15, 23, 42, 0.1);
@@ -81,6 +83,49 @@
   overflow: visible;
 }
 
+#tireconnect iframe {
+  display: block;
+  width: 100%;
+  min-height: 720px;
+  border: 0;
+  visibility: visible;
+  opacity: 1;
+}
+
+#tireconnect button,
+#tireconnect a,
+#tireconnect [role="button"] {
+  visibility: visible;
+  opacity: 1;
+}
+
+.eastcord-summary-actions {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+#eastcord-native-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 220px;
+  min-height: 48px;
+  margin-left: auto;
+  padding: 12px 36px;
+  border: 0;
+  border-radius: 2px;
+  background: #e31c23;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 .tireconnect-shell {
   position: relative;
   border: 1px solid rgba(15, 23, 42, 0.08);
@@ -88,52 +133,9 @@
   background: #fbfbfc;
 }
 
-#eastcord-widget-order-bar {
-  display: none;
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 30;
-  justify-content: flex-end;
-  align-items: center;
-  min-height: 76px;
-  padding: 12px 18px 16px;
-  background: linear-gradient(180deg, rgba(251, 251, 252, 0) 0%, #fbfbfc 36%, #fbfbfc 100%);
-}
-
-#eastcord-widget-order-bar:not([hidden]) {
-  display: flex;
-}
-
-#eastcord-widget-order {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 168px;
-  min-height: 48px;
-  padding: 12px 28px;
-  border: 0;
-  border-radius: 2px;
-  background: #df1f2d;
-  color: #ffffff;
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-#eastcord-widget-order:disabled,
-[data-new-tire-local-order]:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-
 #eastcord-tire-highlight {
   position: fixed;
-  z-index: 400;
+  z-index: 2147483000;
   box-sizing: border-box;
   pointer-events: none;
   border: 4px solid #df1f2d;
@@ -142,8 +144,173 @@
   background: transparent;
 }
 
-#tireconnect [data-eastcord-hide-field="true"] {
+#eastcord-tire-highlight[hidden],
+#eastcord-widget-checkout[hidden] {
   display: none !important;
+}
+
+.eastcord-widget-checkout {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  overflow: auto;
+  padding: 22px 24px 28px;
+  background: #fff;
+  color: #222;
+}
+
+.eastcord-checkout-back {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #df1f2d;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.eastcord-widget-checkout h2 {
+  margin: 10px 0 18px;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+}
+
+.eastcord-checkout-grid {
+  display: grid;
+  gap: 28px;
+}
+
+.eastcord-checkout-summary {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid #e4e6ea;
+  background: #fafbfc;
+}
+
+.eastcord-checkout-summary div {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 8px;
+}
+
+.eastcord-checkout-summary dt {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.eastcord-checkout-summary dd {
+  margin: 0;
+  font-weight: 800;
+}
+
+.eastcord-checkout-pay h3 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+}
+
+.eastcord-checkout-gpay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  width: 100%;
+  max-width: 360px;
+  border: 0;
+  border-radius: 6px;
+  background: #000;
+  color: #fff;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.eastcord-checkout-gpay span {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: #fff;
+  color: #4285f4;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.eastcord-checkout-or {
+  margin: 14px 0 10px;
+  color: #6b7280;
+  font-size: 0.88rem;
+}
+
+.eastcord-checkout-form {
+  display: grid;
+  gap: 12px;
+  max-width: 360px;
+}
+
+.eastcord-checkout-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.eastcord-checkout-form span {
+  color: #333840;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.eastcord-checkout-form input {
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid #c9ccd1;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 1.02rem;
+}
+
+.eastcord-checkout-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.eastcord-checkout-place {
+  min-height: 52px;
+  border: 0;
+  border-radius: 2px;
+  background: #e31c23;
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.eastcord-checkout-hint {
+  max-width: 360px;
+  margin: 12px 0 0;
+  color: #5b616b;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+@media (min-width: 820px) {
+  .eastcord-checkout-grid {
+    grid-template-columns: minmax(240px, 1fr) minmax(280px, 360px);
+    align-items: start;
+  }
 }
 
 #tireconnect .eastcord-tire-card-selected {
@@ -173,6 +340,7 @@
 .new-tire-fulfillment {
   display: grid;
   gap: 14px;
+  min-width: 0;
   scroll-margin-top: 96px;
 }
 
@@ -190,59 +358,60 @@
 
 .new-tire-selected {
   display: grid;
-  gap: 8px;
+  gap: 12px;
   padding: 16px 18px;
-  border: 1px solid rgba(223, 31, 45, 0.25);
+  border: 4px solid #df1f2d;
   border-radius: 14px;
   background: #fff8f8;
+  box-shadow: 0 0 0 6px rgba(223, 31, 45, 0.22);
 }
 
 .new-tire-selected[hidden] {
   display: none;
 }
 
-.new-tire-selected span {
+.new-tire-selected > span {
   color: #8a2430;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.new-tire-selected strong {
-  color: #111317;
-  font-size: 1.25rem;
-  line-height: 1.35;
 }
 
 .new-tire-selected-facts {
   display: grid;
-  gap: 8px 16px;
+  gap: 10px;
   margin: 0;
+  padding: 10px 0 2px;
+  border-top: 1px solid rgba(223, 31, 45, 0.12);
 }
 
-.new-tire-selected-facts div {
+.new-tire-selected-row {
   display: grid;
-  grid-template-columns: 6.2rem 1fr;
-  gap: 8px;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 12px;
   align-items: baseline;
 }
 
 .new-tire-selected-facts dt {
   margin: 0;
   color: #8a2430;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .new-tire-selected-facts dd {
   margin: 0;
+  min-width: 0;
   color: #111317;
-  font-size: 1.15rem;
+  font-size: 1.02rem;
   font-weight: 800;
-  line-height: 1.35;
+  line-height: 1.3;
+  text-align: right;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .new-tire-change {
@@ -252,6 +421,7 @@
   background: none;
   color: #df1f2d;
   font: inherit;
+  font-size: 0.92rem;
   font-weight: 700;
   text-decoration: underline;
   cursor: pointer;
@@ -287,6 +457,43 @@
   position: relative;
 }
 
+.new-tire-choice-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.new-tire-choice-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1.5px solid #8a8f98;
+  border-radius: 50%;
+  background: #fff;
+  color: #5b616b;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-style: italic;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.new-tire-choice-card:has(input:checked) .new-tire-choice-info,
+.new-tire-choice-info[aria-expanded="true"] {
+  border-color: #df1f2d;
+  color: #df1f2d;
+}
+
+.new-tire-choice-tip {
+  color: #34363a;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
 .new-tire-choice-card input {
   position: absolute;
   top: 16px;
@@ -311,18 +518,159 @@
   font-size: 1.1rem;
 }
 
+.new-tire-datetime {
+  display: grid;
+  gap: 10px;
+}
+
+.new-tire-datetime-heading {
+  margin: 0;
+  color: #111317;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.new-tire-datetime-heading abbr {
+  color: #df1f2d;
+  text-decoration: none;
+}
+
+.new-tire-datetime-popover {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 12px 16px;
+  border: 1px solid #e4e6ea;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 18, 24, 0.18);
+}
+
+.new-tire-calendar-nav {
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+}
+
+.new-tire-calendar-nav strong {
+  text-align: center;
+  color: #222;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.new-tire-calendar-nav button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #4b4f57;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.new-tire-calendar {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.new-tire-calendar th {
+  padding: 6px 0;
+  color: #222;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.new-tire-calendar td {
+  padding: 0;
+  text-align: center;
+}
+
+.new-tire-calendar button {
+  width: 100%;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #222;
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.new-tire-calendar button.is-outside,
+.new-tire-calendar button:disabled {
+  color: #c5c8cd;
+  cursor: default;
+}
+
+.new-tire-calendar button.is-today,
+.new-tire-calendar button.is-today:disabled,
+.new-tire-calendar button.is-selected {
+  color: #fff;
+  background: #df1f2d;
+  border-radius: 4px;
+  font-weight: 800;
+  opacity: 1;
+}
+
+.new-tire-datetime-time {
+  display: grid;
+  gap: 8px;
+}
+
+.new-tire-datetime-time span {
+  color: #222;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.new-tire-datetime-time select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #c9ccd1;
+  border-radius: 4px;
+  background: #f3f4f6;
+  font: inherit;
+}
+
+.new-tire-datetime-done {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: 4px;
+  background: #df1f2d;
+  color: #fff;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 .new-tire-auth,
 .new-tire-fulfillment-form {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .new-tire-auth[hidden],
 .new-tire-submit[hidden],
 .new-tire-submit[hidden] + .new-tire-submit-hint,
 [data-new-tire-details-field][hidden],
-[data-new-tire-local-order][hidden],
-.new-tire-install-note[hidden],
+[data-new-tire-demo-order][hidden],
+.new-tire-datetime[hidden],
+[data-new-tire-datetime][hidden],
+.new-tire-datetime-popover[hidden],
+.new-tire-choice-tip[hidden],
 .new-tire-phone-field[hidden],
 .new-tire-fulfillment-message[hidden] {
   display: none;
@@ -338,7 +686,6 @@
   min-height: 52px;
 }
 
-.new-tire-install-note,
 .new-tire-fulfillment-message {
   margin: 0;
   padding: 14px;
@@ -350,9 +697,11 @@
 
 .new-tire-submit-hint {
   margin: 0;
+  max-width: 100%;
   color: #5b616b;
   font-size: 0.88rem;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .new-tire-phone-field {
@@ -390,7 +739,8 @@
     position: sticky;
     top: 92px;
     max-height: calc(100vh - 108px);
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 }
 

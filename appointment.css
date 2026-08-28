@@ -265,6 +265,16 @@ label:has(input[name="bot-field"]) {
   box-shadow: 0 0 0 4px rgba(223, 31, 45, 0.1);
 }
 
+[data-mobile-location-fields] {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+[data-mobile-location-fields][hidden] {
+  display: none;
+}
+
 .appointment-field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -469,6 +479,10 @@ label:has(input[name="bot-field"]) {
 }
 
 .appointment-status-message.success { color: #15803d; font-weight: 800; }
+
+[data-new-tire-order-gate][hidden] {
+  display: none;
+}
 
 .appointment-step-actions,
 .appointment-actions {

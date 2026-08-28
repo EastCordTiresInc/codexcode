@@ -11,6 +11,50 @@
   padding-top: clamp(28px, 4vw, 48px);
 }
 
+.used-coming-soon {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 48px);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.1);
+}
+
+.used-coming-soon-eyebrow {
+  margin: 0 0 10px;
+  color: #df1f2d;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.used-coming-soon h1 {
+  margin: 0 0 14px;
+  color: #111317;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1.05;
+}
+
+.used-coming-soon p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 1.08rem;
+  line-height: 1.6;
+}
+
+.used-coming-soon-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.used-tires-page .section {
+  padding-top: clamp(28px, 4vw, 48px);
+}
+
 .used-search-widget {
   max-width: 1180px;
   margin: 0 auto;

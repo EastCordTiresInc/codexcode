@@ -147,4 +147,8 @@ alter table public.appointment_bookings
   add column if not exists total_with_hst numeric(10,2),
   add column if not exists tax_rate numeric(6,4),
   add column if not exists vehicle_plate_number text,
-  add column if not exists vehicle_colour text;
+  add column if not exists vehicle_colour text,
+  add column if not exists linked_tires jsonb,
+  add column if not exists new_tire_order_id uuid,
+  add column if not exists new_tire_purchased_at timestamptz,
+  add column if not exists install_location text;

@@ -35,3 +35,45 @@ create index if not exists new_tire_orders_customer_id_idx
 
 create index if not exists new_tire_orders_stripe_session_id_idx
   on public.new_tire_orders (stripe_session_id);
+
+alter table public.appointment_bookings
+  add column if not exists new_tire_order_id uuid references public.new_tire_orders(id),
+  add column if not exists linked_tires jsonb,
+  add column if not exists new_tire_purchased_at timestamptz,
+  add column if not exists install_location text;
+
+create index if not exists appointment_bookings_new_tire_order_id_idx
+  on public.appointment_bookings (new_tire_order_id);
+
+create or replace function public.assert_new_tire_install_hold()
+returns trigger
+language plpgsql
+as $$
+declare
+  purchased date;
+begin
+  if new.new_tire_order_id is null or new.preferred_date is null then
+    return new;
+  end if;
+
+  select (timezone('America/Toronto', coalesce(paid_at, created_at)))::date
+    into purchased
+  from public.new_tire_orders
+  where id = new.new_tire_order_id;
+
+  if purchased is not null and new.preferred_date <= (purchased + 4) then
+    raise exception
+      'New tire installation cannot be booked until 4 days after the tire purchase date (%).',
+      purchased
+      using errcode = 'P0001';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists appointment_new_tire_install_hold on public.appointment_bookings;
+create trigger appointment_new_tire_install_hold
+before insert or update of preferred_date, new_tire_order_id
+on public.appointment_bookings
+for each row execute procedure public.assert_new_tire_install_hold();

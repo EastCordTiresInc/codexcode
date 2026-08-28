@@ -267,9 +267,11 @@
           const plate = formatPlate(item.vehiclePlateNumber);
           const date = formatDate(item.preferredDate);
           const time = formatTimeStart(item.preferredTimeWindow) || item.preferredTimeWindow || '';
-          const city = item.city || '';
+          const city = item.installLocation === 'shop' || item.city === 'EastCord shop' ? 'EastCord shop' : (item.city || '');
           const meta = [vehicle, plate, date, time, city].filter(Boolean).join(' · ');
-          const location = [item.fullServiceAddress, item.city, item.postalCode].filter(Boolean).join(', ');
+          const location = item.installLocation === 'shop' || item.city === 'EastCord shop'
+            ? 'EastCord Tires shop'
+            : [item.fullServiceAddress, item.city, item.postalCode].filter(Boolean).join(', ');
           const tires = [formatTireSize(item.tireSize), item.numberOfTires ? `${item.numberOfTires} tires` : ''].filter(Boolean).join(' · ');
           return `
             <article class="confirmation-item">

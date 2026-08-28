@@ -14,6 +14,9 @@ const agreementModal = document.querySelector('[data-agreement-modal]');
 const agreementCloseButtons = Array.from(document.querySelectorAll('[data-agreement-close]'));
 const agreementPanel = agreementModal?.querySelector('.agreement-modal-panel');
 const MIN_ADVANCE_MINUTES = 120;
+const NEW_TIRE_SHIPPING_DAYS = 4;
+const SERVICE_START_MINUTES = 8 * 60;
+const SERVICE_END_MINUTES = 20 * 60;
 const TAX_RATE = 0.13;
 const ACTIVE_CART_KEY = 'eastcord_cart_v1';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
@@ -571,6 +574,60 @@ function isLessThanMinimumAdvance(item) {
   return startDate.getTime() - Date.now() < MIN_ADVANCE_MINUTES * 60 * 1000;
 }
 
+function isNewTireInstallItem(item) {
+  if (String(item?.newTireOrderId || item?.new_tire_order_id || '').trim()) return true;
+  if (item?.awaitingNewTireOrder || item?.source === 'new-tires') return true;
+  const linked = Array.isArray(item?.linkedTires) ? item.linkedTires : [];
+  return linked.some((tire) => String(tire?.type || '') === 'new_tire' && String(tire.orderId || tire.order_id || '').trim());
+}
+
+function isOutsideServiceHours(item) {
+  const startMinutes = getTimeWindowStartMinutes(item.preferredTimeWindow);
+  if (startMinutes === null) return false;
+  return startMinutes < SERVICE_START_MINUTES || startMinutes >= SERVICE_END_MINUTES;
+}
+
+function torontoYmd(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Toronto',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function addDaysYmd(ymd, days) {
+  const [year, month, day] = String(ymd || '').split('-').map(Number);
+  if (!year || !month || !day) return '';
+  return new Date(Date.UTC(year, month - 1, day + Number(days || 0))).toISOString().slice(0, 10);
+}
+
+function purchaseIsoFromCartItem(item) {
+  const linked = Array.isArray(item?.linkedTires) ? item.linkedTires : [];
+  const fromTires = linked.find((tire) => String(tire?.type || '') === 'new_tire' && (tire.paidAt || tire.paid_at));
+  return item?.newTirePurchasedAt
+    || item?.new_tire_purchased_at
+    || fromTires?.paidAt
+    || fromTires?.paid_at
+    || '';
+}
+
+function earliestNewTireInstallYmd(item) {
+  const raw = purchaseIsoFromCartItem(item);
+  return addDaysYmd(raw ? torontoYmd(raw) : torontoYmd(), NEW_TIRE_SHIPPING_DAYS + 1);
+}
+
+function earliestNewTireInstallDate(item) {
+  return new Date(`${earliestNewTireInstallYmd(item)}T00:00:00`);
+}
+
+function isWithinNewTireShippingHold(item) {
+  if (!isNewTireInstallItem(item) || !item.preferredDate) return false;
+  return String(item.preferredDate) < earliestNewTireInstallYmd(item);
+}
+
 function validateCartSlots(items) {
   const seenSlots = new Set();
 
@@ -581,6 +638,12 @@ function validateCartSlots(items) {
 
     if (isPastAppointmentSlot(item) || isLessThanMinimumAdvance(item)) {
       return SLOT_UNAVAILABLE_MESSAGE;
+    }
+    if (isOutsideServiceHours(item)) {
+      return 'Installation hours are 8:00 AM to 8:00 PM. Please choose a time in that window.';
+    }
+    if (isWithinNewTireShippingHold(item)) {
+      return 'New tire installation cannot be booked for the next 4 days after your tire purchase. Please choose a later date.';
     }
 
     const slotKey = `${item.preferredDate}__${item.preferredTimeWindow}`;
@@ -609,7 +672,10 @@ function compactAppointmentMeta(item) {
   const vehicle = getVehicleDetails(item).vehicle;
   const date = formatAppointmentDate(item.preferredDate);
   const time = formatTimeStart(item.preferredTimeWindow);
-  const place = String(item.city || '').trim();
+  const place = String(item.installLocation || item.install_location || '').trim() === 'shop'
+    || String(item.city || '').trim() === 'EastCord shop'
+    ? 'EastCord shop'
+    : String(item.city || '').trim();
   return [vehicle, date, time, place].filter(Boolean).join(' · ');
 }
 

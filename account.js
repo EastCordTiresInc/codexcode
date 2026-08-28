@@ -772,7 +772,11 @@ function buildBookingRecord(item, profile) {
     city: item.city || '',
     postal_code: item.postalCode || '',
     parking_access_notes: item.parkingAccessNotes || '',
+    install_location: item.installLocation || null,
     additional_notes: item.additionalNotes || '',
+    linked_tires: Array.isArray(item.linkedTires) ? item.linkedTires : [],
+    new_tire_order_id: item.newTireOrderId || null,
+    new_tire_purchased_at: item.newTirePurchasedAt || null,
     service_area_status: item.serviceAreaStatus || 'In service area',
     booking_status: 'Pending Confirmation',
     payment_status: item.paymentStatus || 'pending_checkout',
@@ -879,6 +883,29 @@ function flattenPaidUsedTireItems(orders) {
   return tires;
 }
 
+function cleanNewTireField(value) {
+  const text = String(value || '')
+    .replace(/found\s+\d+\s+tires(?:\s+for:?\s*)?/ig, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[:\-–]+\s*/, '')
+    .trim();
+  if (!text) return '';
+  if (/^(tires for:?|price summary|add to cart|see out|revise search|warranty)$/i.test(text)) return '';
+  return text;
+}
+
+function cleanNewTireSize(value) {
+  const compact = String(value || '').replace(/\s+/g, '').toUpperCase();
+  const metric = compact.match(/(\d{3}\/\d{2}Z?R\d{2})/);
+  if (metric) return metric[1];
+  const flotation = compact.match(/(\d{2}X\d{2}(?:\.\d{1,2})?R\d{2})/);
+  if (flotation) return flotation[1];
+  const text = String(value || '').trim();
+  if (!text || /warranty|found\s+\d+\s+tires|tires for/i.test(text)) return '';
+  return text;
+}
+
 function flattenPaidNewTireItems(orders) {
   const tires = [];
   (orders || []).forEach((order) => {
@@ -892,9 +919,9 @@ function flattenPaidNewTireItems(orders) {
         fulfillmentPreference: order.fulfillment_preference || '',
         inventoryId: String(item.partNumber || `new-${order.id}-${index}`),
         type: 'new_tire',
-        brand: item.brand || '',
-        model: item.model || '',
-        size: item.size || '',
+        brand: cleanNewTireField(item.brand),
+        model: cleanNewTireField(item.model),
+        size: cleanNewTireSize(item.size),
         qty: Math.max(1, Number(item.qty) || 1),
         unitPrice: item.unitPrice ?? item.price ?? null,
         season: 'New tire',
@@ -930,7 +957,7 @@ async function getPaidNewTireOrders() {
 
   const { data, error } = await client
     .from('new_tire_orders')
-    .select('id, items, paid_at, created_at, payment_status, fulfillment_preference, total_with_hst')
+    .select('id, items, paid_at, created_at, payment_status, fulfillment_preference, total_with_hst, vehicle')
     .eq('customer_id', profile.customerId)
     .eq('payment_status', 'paid')
     .order('paid_at', { ascending: false });
@@ -979,7 +1006,7 @@ function renderPurchasedTires(orders) {
     )).join('');
     const fulfillment = order.fulfillment_preference || 'Pickup';
     const nextStep = fulfillment === 'Installation'
-      ? '<p>Installation: EastCord will send a booking link after these tires are ready. Do not book until you receive that link.</p>'
+      ? `<p>Installation: <a href="/appointment.html?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking">Book installation for these new tires</a>. Purchase date: ${escapeHtml(paidLabel || 'saved with this order')}. You cannot book for the next 4 days after that purchase. Hours are 8:00 AM to 8:00 PM.</p>`
       : '<p>Pickup: EastCord will confirm when this order is ready for pickup. No appointment is required.</p>';
     return `
       <article class="cart-line">
@@ -1124,7 +1151,10 @@ function formatCartLineMeta(item) {
   const vehicle = [item.vehicleYear, item.vehicleMake, item.vehicleModel].filter(Boolean).join(' ');
   const date = formatCartLineDate(item.preferredDate);
   const time = String(item.preferredTimeWindow || '').split(/\s*[-–—]\s*/)[0].trim();
-  const city = String(item.city || '').trim();
+  const city = String(item.installLocation || item.install_location || '').trim() === 'shop'
+    || String(item.city || '').trim() === 'EastCord shop'
+    ? 'EastCord shop'
+    : String(item.city || '').trim();
   return [vehicle, date, time, city].filter(Boolean).join(' · ');
 }
 
@@ -1474,7 +1504,7 @@ function renderBookingHistory(bookings) {
         <strong>${escapeHtml(booking.service_name)}</strong>
         <p>${escapeHtml(booking.preferred_date || '')}${booking.preferred_time_window ? ` at ${escapeHtml(booking.preferred_time_window)}` : ''}</p>
         <p>${escapeHtml(vehicle || 'Vehicle details submitted')}${plate}${colour}${booking.tire_size ? ` | ${escapeHtml(booking.tire_size)}` : ''}</p>
-        <p>${escapeHtml(booking.city || '')}</p>
+        <p>${escapeHtml(booking.install_location === 'shop' || booking.city === 'EastCord shop' ? 'EastCord Tires shop' : (booking.city || ''))}</p>
         <p>Service subtotal: ${money(booking.service_subtotal || 0)} | HST 13%: ${money(booking.hst_amount || 0)} | Total including HST: ${money(booking.total_with_hst || 0)}</p>
         <p>Deposit: ${money(booking.deposit_amount)} | Remaining on-site: ${money(booking.remaining_balance)} | Payment: ${escapeHtml(booking.payment_status || 'paid_deposit')}</p>
       </article>

@@ -1,10 +1,13 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { isStripeTestMode } = require('./lib/stripe-mode');
+const { isPreferredDateInShippingHold } = require('./lib/new-tire-shipping-hold');
 
 const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
 const MIN_ADVANCE_MINUTES = 120;
+const SERVICE_START_MINUTES = 8 * 60;
+const SERVICE_END_MINUTES = 20 * 60;
 const SERVICE_TIME_ZONE = 'America/Toronto';
 const TAX_RATE = 0.13;
 
@@ -164,16 +167,88 @@ function isLessThanMinimumAdvance(booking) {
   return startDate.getTime() - Date.now() < MIN_ADVANCE_MINUTES * 60 * 1000;
 }
 
+function linkedNewTireOrderIds(booking) {
+  const direct = String(booking.newTireOrderId || booking.new_tire_order_id || '').trim();
+  const linked = Array.isArray(booking.linkedTires) ? booking.linkedTires : [];
+  return [...new Set([
+    direct,
+    ...linked
+      .filter((tire) => String(tire?.type || '') === 'new_tire' && String(tire.orderId || tire.order_id || '').trim())
+      .map((tire) => String(tire.orderId || tire.order_id || '').trim()),
+  ].filter(Boolean))];
+}
+
+function purchaseIsoForBooking(booking, ordersById = {}) {
+  for (const id of linkedNewTireOrderIds(booking)) {
+    const order = ordersById[id];
+    if (order?.paid_at || order?.created_at) return order.paid_at || order.created_at;
+  }
+  const linked = Array.isArray(booking.linkedTires) ? booking.linkedTires : [];
+  const fromTire = linked.find((tire) => String(tire?.type || '') === 'new_tire' && (tire.paidAt || tire.paid_at));
+  return String(booking.newTirePurchasedAt || booking.new_tire_purchased_at || fromTire?.paidAt || fromTire?.paid_at || '').trim();
+}
+
+async function assertConfirmedNewTireOrders({ supabaseAdmin, userId, bookings }) {
+  const orderIds = [...new Set(bookings.flatMap(linkedNewTireOrderIds))];
+  const ordersById = {};
+  if (!orderIds.length) return { ok: true, ordersById };
+  if (!supabaseAdmin) return { ok: true, ordersById };
+  for (const orderId of orderIds) {
+    const { data: order, error } = await supabaseAdmin
+      .from('new_tire_orders')
+      .select('id, customer_id, payment_status, paid_at, created_at')
+      .eq('id', orderId)
+      .maybeSingle();
+    if (error || !order) {
+      return { ok: false, message: 'This installation booking needs a confirmed new tire order. Finish ORDER on New Tires first.' };
+    }
+    if (userId && order.customer_id !== userId) {
+      return { ok: false, message: 'That new tire order is not on this account.' };
+    }
+    if (order.payment_status !== 'paid') {
+      return { ok: false, message: 'Finish the tire order first. Installation can be booked only after that order is confirmed.' };
+    }
+    ordersById[orderId] = order;
+  }
+  return { ok: true, ordersById };
+}
+
+function isNewTireInstallBooking(booking) {
+  if (String(booking.newTireOrderId || booking.new_tire_order_id || '').trim()) return true;
+  if (booking.awaitingNewTireOrder || booking.source === 'new-tires') return true;
+  const linked = Array.isArray(booking.linkedTires) ? booking.linkedTires : [];
+  return linked.some((tire) => String(tire?.type || '') === 'new_tire' && String(tire.orderId || tire.order_id || '').trim());
+}
+
+function isOutsideServiceHours(booking) {
+  const startMinutes = getTimeWindowStartMinutes(booking.preferredTimeWindow);
+  if (startMinutes === null) return false;
+  return startMinutes < SERVICE_START_MINUTES || startMinutes >= SERVICE_END_MINUTES;
+}
+
+function isWithinNewTireShippingHold(booking, purchaseIso) {
+  if (!isNewTireInstallBooking(booking) || !booking.preferredDate) return false;
+  return isPreferredDateInShippingHold(booking.preferredDate, purchaseIso);
+}
+
 function getSlotKey(date, timeWindow) {
   return `${date || ''}__${timeWindow || ''}`;
 }
 
-function validateCartSlotAvailability(bookings) {
+function validateCartSlotAvailability(bookings, ordersById = {}) {
   const seenSlots = new Set();
 
   for (const booking of bookings) {
     if (isPastAppointmentSlot(booking)) {
       return { valid: false, reason: 'past_time', message: SLOT_UNAVAILABLE_MESSAGE };
+    }
+
+    if (isOutsideServiceHours(booking)) {
+      return { valid: false, reason: 'outside_service_hours', message: 'Installation hours are 8:00 AM to 8:00 PM. Please choose a time in that window.' };
+    }
+
+    if (isWithinNewTireShippingHold(booking, purchaseIsoForBooking(booking, ordersById))) {
+      return { valid: false, reason: 'shipping_hold', message: 'New tire installation cannot be booked for the next 4 days after your tire purchase. Please choose a later date.' };
     }
 
     if (isLessThanMinimumAdvance(booking)) {
@@ -271,7 +346,11 @@ function buildBookingRecord({ booking, customer, service, amounts, verifiedUser 
     city: booking.city || '',
     postal_code: booking.postalCode || '',
     parking_access_notes: booking.parkingAccessNotes || '',
+    install_location: booking.installLocation || booking.install_location || '',
     additional_notes: booking.additionalNotes || '',
+    linked_tires: Array.isArray(booking.linkedTires) ? booking.linkedTires : [],
+    new_tire_order_id: booking.newTireOrderId || booking.new_tire_order_id || null,
+    new_tire_purchased_at: booking.newTirePurchasedAt || booking.new_tire_purchased_at || null,
     service_area_status: booking.serviceAreaStatus || 'In service area',
     booking_status: 'Pending Confirmation',
     payment_status: 'pending_checkout',
@@ -394,8 +473,17 @@ function fieldValue(value) {
   return String(value ?? '').trim();
 }
 
-function validateBookingFields(booking, customer) {
+function isShopInstall(booking) {
+  const location = fieldValue(booking.installLocation || booking.install_location);
+  if (location === 'shop') return true;
+  const address = fieldValue(booking.fullServiceAddress || booking.full_service_address).toLowerCase();
+  const city = fieldValue(booking.city).toLowerCase();
+  return address === 'eastcord tires shop' || city === 'eastcord shop';
+}
+
+function validateBookingFields(booking, customer, ordersById = {}) {
   const city = fieldValue(booking.city);
+  const shop = isShopInstall(booking);
   const requiredFields = {
     'account email': fieldValue(customer.email),
     'phone number': fieldValue(customer.phone || booking.customerPhone),
@@ -409,10 +497,12 @@ function validateBookingFields(booking, customer) {
     'tire size': fieldValue(booking.tireSize),
     'tires on rims': fieldValue(booking.tiresAlreadyOnRims),
     'number of tires': fieldValue(booking.numberOfTires),
-    'service address': fieldValue(booking.fullServiceAddress),
-    city,
-    'postal code': fieldValue(booking.postalCode),
   };
+  if (!shop) {
+    requiredFields['service address'] = fieldValue(booking.fullServiceAddress);
+    requiredFields.city = city;
+    requiredFields['postal code'] = fieldValue(booking.postalCode);
+  }
 
   const missing = Object.entries(requiredFields)
     .filter(([, value]) => !value)
@@ -421,12 +511,20 @@ function validateBookingFields(booking, customer) {
     return `Please complete all required booking and account fields (${missing.join(', ')}).`;
   }
 
-  if (!SERVICE_AREA_CITIES.has(city)) {
+  if (!shop && !SERVICE_AREA_CITIES.has(city)) {
     return 'EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.';
   }
 
   if (isPastAppointmentSlot(booking) || isLessThanMinimumAdvance(booking)) {
     return 'Please choose a valid future appointment date and time window at least 2 hours from now.';
+  }
+
+  if (isOutsideServiceHours(booking)) {
+    return 'Installation hours are 8:00 AM to 8:00 PM. Please choose a time in that window.';
+  }
+
+  if (isWithinNewTireShippingHold(booking, purchaseIsoForBooking(booking, ordersById))) {
+    return 'New tire installation cannot be booked for the next 4 days after your tire purchase. Please choose a later date.';
   }
 
   return '';
@@ -472,17 +570,27 @@ exports.handler = async (event) => {
     return json(401, { message: 'Please log in before checkout.' });
   }
 
-  const cartSlotValidation = validateCartSlotAvailability(bookingItems);
-  if (!cartSlotValidation.valid) {
-    logDeveloperError('Checkout stopped because cart slot validation failed.', cartSlotValidation);
-    return json(409, { message: SLOT_UNAVAILABLE_MESSAGE, reason: cartSlotValidation.reason });
-  }
-
   const supabaseAdmin = getSupabaseAdmin();
   const verifiedUser = await getVerifiedUser(event, supabaseAdmin);
 
   if (verifiedUser && verifiedUser.id !== customer.customerId) {
     return json(403, { message: 'This cart does not match the logged-in customer.' });
+  }
+
+  const orderGate = await assertConfirmedNewTireOrders({
+    supabaseAdmin,
+    userId: verifiedUser?.id || customer.customerId,
+    bookings: bookingItems,
+  });
+  if (!orderGate.ok) return json(400, { message: orderGate.message });
+
+  const cartSlotValidation = validateCartSlotAvailability(bookingItems, orderGate.ordersById);
+  if (!cartSlotValidation.valid) {
+    logDeveloperError('Checkout stopped because cart slot validation failed.', cartSlotValidation);
+    return json(409, {
+      message: cartSlotValidation.message || SLOT_UNAVAILABLE_MESSAGE,
+      reason: cartSlotValidation.reason,
+    });
   }
 
   const preparedItems = [];
@@ -491,7 +599,7 @@ exports.handler = async (event) => {
     const service = SERVICES[booking.serviceId];
     if (!service) return json(400, { message: 'Please choose a valid tire service.' });
 
-    const validationMessage = validateBookingFields(booking, customer);
+    const validationMessage = validateBookingFields(booking, customer, orderGate.ordersById);
     if (validationMessage) return json(400, { message: validationMessage });
 
     const amounts = calculateServiceAmounts(service.startingPrice);

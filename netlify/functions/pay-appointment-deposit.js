@@ -1,8 +1,11 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { isStripeTestMode } = require('./lib/stripe-mode');
+const { isPreferredDateInShippingHold } = require('./lib/new-tire-shipping-hold');
 
 const TAX_RATE = 0.13;
+const SERVICE_START_MINUTES = 8 * 60;
+const SERVICE_END_MINUTES = 20 * 60;
 const SERVICES = {
   'seasonal-changeover-rims': { name: 'Seasonal Changeover - All 4 Tires Pre-Mounted on Rims', startingPrice: 40 },
   'seasonal-swap-not-mounted': { name: 'Seasonal Tire Swap - All 4 Tires Not Mounted on Rims', startingPrice: 80 },
@@ -77,6 +80,96 @@ function resolveService(item) {
   return match ? { id: match[0], ...match[1] } : null;
 }
 
+function linkedNewTireOrderIds(item) {
+  const direct = text(item.newTireOrderId || item.new_tire_order_id);
+  const linked = Array.isArray(item.linkedTires) ? item.linkedTires : [];
+  return [...new Set([
+    direct,
+    ...linked
+      .filter((tire) => String(tire?.type || '') === 'new_tire' && text(tire.orderId || tire.order_id))
+      .map((tire) => text(tire.orderId || tire.order_id)),
+  ].filter(Boolean))];
+}
+
+async function assertConfirmedNewTireOrders({ supabaseAdmin, userId, items }) {
+  const orderIds = [...new Set(items.flatMap(linkedNewTireOrderIds))];
+  const ordersById = {};
+  if (!orderIds.length) return { ok: true, ordersById };
+  for (const orderId of orderIds) {
+    const { data: order, error } = await supabaseAdmin
+      .from('new_tire_orders')
+      .select('id, customer_id, payment_status, paid_at, created_at')
+      .eq('id', orderId)
+      .maybeSingle();
+    if (error || !order) {
+      return { ok: false, message: 'This installation booking needs a confirmed new tire order. Finish ORDER on New Tires first.' };
+    }
+    if (order.customer_id !== userId) {
+      return { ok: false, message: 'That new tire order is not on this account.' };
+    }
+    if (order.payment_status !== 'paid') {
+      return { ok: false, message: 'Finish the tire order first. Installation can be booked only after that order is confirmed.' };
+    }
+    ordersById[orderId] = order;
+  }
+  return { ok: true, ordersById };
+}
+
+function purchaseIsoForItem(item, ordersById = {}) {
+  const ids = linkedNewTireOrderIds(item);
+  for (const id of ids) {
+    const order = ordersById[id];
+    if (order?.paid_at || order?.created_at) return order.paid_at || order.created_at;
+  }
+  const linked = Array.isArray(item.linkedTires) ? item.linkedTires : [];
+  const fromTire = linked.find((tire) => String(tire?.type || '') === 'new_tire' && (tire.paidAt || tire.paid_at));
+  return text(item.newTirePurchasedAt || item.new_tire_purchased_at || fromTire?.paidAt || fromTire?.paid_at);
+}
+
+function isWithinNewTireShippingHold(item, purchaseIso) {
+  if (!isNewTireInstallItem(item)) return false;
+  const dateValue = text(item.preferredDate || item.preferred_date);
+  if (!dateValue) return false;
+  return isPreferredDateInShippingHold(dateValue, purchaseIso);
+}
+
+function getTimeWindowStartMinutes(value) {
+  const startText = String(value || '').split('-')[0].trim();
+  const match = startText.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const period = match[3].toUpperCase();
+  if (period === 'AM' && hours === 12) hours = 0;
+  if (period === 'PM' && hours !== 12) hours += 12;
+  return (hours * 60) + minutes;
+}
+
+function isNewTireInstallItem(item) {
+  if (text(item.newTireOrderId || item.new_tire_order_id)) return true;
+  if (item.awaitingNewTireOrder || item.source === 'new-tires') return true;
+  const linked = Array.isArray(item.linkedTires) ? item.linkedTires : [];
+  return linked.some((tire) => String(tire?.type || '') === 'new_tire' && text(tire.orderId || tire.order_id));
+}
+
+function isOutsideServiceHours(item) {
+  const startMinutes = getTimeWindowStartMinutes(item.preferredTimeWindow || item.preferred_time_window);
+  if (startMinutes === null) return false;
+  return startMinutes < SERVICE_START_MINUTES || startMinutes >= SERVICE_END_MINUTES;
+}
+
+function validateInstallSlots(items, ordersById = {}) {
+  for (const item of items) {
+    if (isOutsideServiceHours(item)) {
+      return 'Installation hours are 8:00 AM to 8:00 PM. Please choose a time in that window.';
+    }
+    if (isWithinNewTireShippingHold(item, purchaseIsoForItem(item, ordersById))) {
+      return 'New tire installation cannot be booked for the next 4 days after your tire purchase. Please choose a later date.';
+    }
+  }
+  return '';
+}
+
 exports.handler = async (event) => {
   console.log('[EastCord appointment pay] invoked', { method: event.httpMethod });
   if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
@@ -106,6 +199,20 @@ exports.handler = async (event) => {
     if (!error) verifiedUser = data?.user || null;
   }
   if (!verifiedUser) return json(401, { message: 'Please log in before paying the appointment deposit.' });
+
+  if (supabaseAdmin) {
+    const orderGate = await assertConfirmedNewTireOrders({
+      supabaseAdmin,
+      userId: verifiedUser.id,
+      items,
+    });
+    if (!orderGate.ok) return json(400, { message: orderGate.message });
+    const slotMessage = validateInstallSlots(items, orderGate.ordersById);
+    if (slotMessage) return json(400, { message: slotMessage });
+  } else {
+    const slotMessage = validateInstallSlots(items);
+    if (slotMessage) return json(400, { message: slotMessage });
+  }
 
   const preparedItems = [];
   for (const item of items) {
@@ -144,9 +251,7 @@ exports.handler = async (event) => {
         continue;
       }
 
-      const { data, error } = await supabaseAdmin
-        .from('appointment_bookings')
-        .insert({
+      const bookingRow = {
           customer_id: verifiedUser.id,
           customer_name: text(customer.name),
           customer_email: text(customer.email),
@@ -174,13 +279,31 @@ exports.handler = async (event) => {
           city: text(booking.city),
           postal_code: text(booking.postalCode || booking.postal_code),
           parking_access_notes: text(booking.parkingAccessNotes || booking.parking_access_notes),
+          install_location: text(booking.installLocation || booking.install_location) || null,
           additional_notes: text(booking.additionalNotes || booking.additional_notes),
+          linked_tires: Array.isArray(booking.linkedTires) ? booking.linkedTires : [],
+          new_tire_order_id: text(booking.newTireOrderId || booking.new_tire_order_id) || null,
+          new_tire_purchased_at: text(booking.newTirePurchasedAt || booking.new_tire_purchased_at) || null,
           booking_status: 'Pending Confirmation',
           payment_status: 'pending_checkout',
           updated_at: new Date().toISOString(),
-        })
+      };
+      let { data, error } = await supabaseAdmin
+        .from('appointment_bookings')
+        .insert(bookingRow)
         .select('id')
         .single();
+      if (error && /(new_tire_order_id|linked_tires|new_tire_purchased_at|install_location)/i.test(String(error.message || ''))) {
+        delete bookingRow.new_tire_order_id;
+        delete bookingRow.linked_tires;
+        delete bookingRow.new_tire_purchased_at;
+        delete bookingRow.install_location;
+        ({ data, error } = await supabaseAdmin
+          .from('appointment_bookings')
+          .insert(bookingRow)
+          .select('id')
+          .single());
+      }
       if (error) {
         console.error('[EastCord appointment pay] Booking insert failed; continuing to Stripe.', error);
       } else if (data?.id) {

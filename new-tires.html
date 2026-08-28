@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
-    <link rel="stylesheet" href="new-tires.css?v=23" />
+    <link rel="stylesheet" href="new-tires.css?v=39" />
   </head>
   <body class="new-tires-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -70,19 +70,48 @@
             <div class="new-tires-widget-card">
               <div class="new-tires-intro">
                 <h1>Order new tires</h1>
-                <p class="new-tires-notice">Search and tap <strong>Place Order</strong> on a tire. Choose pickup or installation on the right. Log in so we can save the order to your account. Installation is booked later by email, not in this search.</p>
+                <p class="new-tires-notice">Search tires in the widget, then complete <strong>Order</strong> in that checkout. Choose pickup or installation on the right. If you choose installation, we save the tires to your account first, then take you to book installation.</p>
                 <ol class="new-tires-steps">
-                  <li>Tap <strong>Place Order</strong> on the tires you want.</li>
-                  <li>Choose <strong>pickup</strong> or <strong>installation</strong> beside the search.</li>
-                  <li>Log in. On this computer, tap the red <strong>ORDER</strong> button to save the order to the customer account. No card form is used locally.</li>
+                  <li>Select a tire in the search and continue to the widget price summary.</li>
+                  <li>Choose <strong>pickup</strong> or <strong>installation</strong> beside the search, then log in.</li>
+                  <li>Tap <strong>Order</strong> in the widget. Installation is booked after the purchase, and the next 4 days after that purchase date cannot be booked.</li>
                 </ol>
               </div>
               <p class="tireconnect-message" data-tireconnect-message hidden></p>
               <div class="tireconnect-shell" data-tireconnect-shell>
                 <div id="tireconnect"></div>
-                <div id="eastcord-widget-order-bar" hidden>
-                  <button id="eastcord-widget-order" type="button">ORDER</button>
-                </div>
+                <section id="eastcord-widget-checkout" class="eastcord-widget-checkout" hidden>
+                  <button class="eastcord-checkout-back" type="button" data-eastcord-checkout-back>← BACK TO SUMMARY</button>
+                  <h2>PLACE YOUR ORDER</h2>
+                  <div class="eastcord-checkout-grid">
+                    <dl class="eastcord-checkout-summary" data-eastcord-checkout-summary></dl>
+                    <div class="eastcord-checkout-pay">
+                      <h3>PAY WITH CREDIT CARD</h3>
+                      <button class="eastcord-checkout-gpay" type="button" data-eastcord-checkout-gpay>
+                        <span>G</span> Pay
+                      </button>
+                      <p class="eastcord-checkout-or">or enter a test card</p>
+                      <form class="eastcord-checkout-form" data-eastcord-checkout-form>
+                        <label>
+                          <span>Credit card number</span>
+                          <input name="card" inputmode="numeric" autocomplete="cc-number" placeholder="4242 4242 4242 4242" />
+                        </label>
+                        <div class="eastcord-checkout-row">
+                          <label>
+                            <span>Expiry</span>
+                            <input name="expiry" inputmode="numeric" autocomplete="cc-exp" placeholder="MM / YY" />
+                          </label>
+                          <label>
+                            <span>CVC</span>
+                            <input name="cvc" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4" />
+                          </label>
+                        </div>
+                        <button class="eastcord-checkout-place" type="submit">PLACE YOUR ORDER</button>
+                      </form>
+                      <p class="eastcord-checkout-hint">Use test card <strong>4242 4242 4242 4242</strong>, any future expiry, and any CVC. This local checkout saves the order to your account the same way the widget ORDER path does.</p>
+                    </div>
+                  </div>
+                </section>
               </div>
             </div>
 
@@ -91,7 +120,7 @@
               <h2>Place your order</h2>
             </div>
             <article class="new-tire-selected" data-new-tire-selected hidden>
-              <span>Your cart</span>
+              <span>Selected tire</span>
               <dl class="new-tire-selected-facts" data-new-tire-selected-label></dl>
               <button class="new-tire-change" type="button" data-new-tire-change>Wrong tire? Choose another in the search</button>
             </article>
@@ -100,18 +129,21 @@
                 <legend>How do you want this order?</legend>
                 <label class="new-tire-choice-card">
                   <input type="radio" name="Fulfillment Preference" value="Pickup" checked />
-                  <strong>Pickup</strong>
-                  <span>Order the tires now. We email you when they are ready to pick up. No appointment.</span>
+                  <span class="new-tire-choice-title">
+                    <strong>Pickup</strong>
+                    <button type="button" class="new-tire-choice-info" data-choice-info aria-expanded="false" aria-controls="pickup-choice-info" aria-label="Pickup details">i</button>
+                  </span>
+                  <span class="new-tire-choice-tip" id="pickup-choice-info" hidden>Order the tires now. We email you when they are ready to pick up. No appointment.</span>
                 </label>
                 <label class="new-tire-choice-card">
                   <input type="radio" name="Fulfillment Preference" value="Installation" />
-                  <strong>Installation</strong>
-                  <span>Order the tires now. After they arrive, we email a link to book installation.</span>
+                  <span class="new-tire-choice-title">
+                    <strong>Installation</strong>
+                    <button type="button" class="new-tire-choice-info" data-choice-info aria-expanded="false" aria-controls="install-choice-info" aria-label="Installation details">i</button>
+                  </span>
+                  <span class="new-tire-choice-tip" id="install-choice-info" hidden>After your tire order is saved, we take you to book installation. That booking is linked to these new tires and your purchase date. The next 4 days after purchase cannot be booked.</span>
                 </label>
               </fieldset>
-              <p class="new-tire-install-note" data-new-tire-install-note hidden>
-                Do not book yet. After the tires arrive, we email the appointment link.
-              </p>
               <label class="new-tire-phone-field" data-new-tire-details-field>
                 <span>If the tire above is blank, type brand, size, and quantity</span>
                 <input type="text" name="Tire Details" data-new-tire-details placeholder="Only if we could not copy it automatically" />
@@ -127,7 +159,8 @@
                 <span>Phone number</span>
                 <input type="tel" name="Phone Number" autocomplete="tel" />
               </label>
-              <button class="button button-primary new-tire-submit" type="button" data-new-tire-local-order hidden>ORDER</button>
+              <button class="button button-primary new-tire-submit" type="button" data-new-tire-demo-order hidden>Mock order</button>
+              <p class="new-tire-submit-hint" data-new-tire-demo-hint hidden>Saves these tires to your account. If you chose Installation, booking opens next. No card is charged.</p>
               <p class="new-tire-fulfillment-message" data-new-tire-fulfillment-message hidden></p>
             </form>
           </section>
@@ -194,10 +227,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=3"></script>
-    <script src="account.js?v=40"></script>
+    <script src="account.js?v=47"></script>
     <script src="tireconnect-config.js"></script>
     <script src="https://app.tireconnect.ca/js/widget.js" defer></script>
-    <script src="new-tires.js?v=34" defer></script>
+    <script src="new-tires.js?v=59" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>
