@@ -293,17 +293,63 @@ test('keeps Ovation as a real brand and strips FILTER RESULTS from it', () => {
   assert.strictEqual(item.size, '225/45R18');
 });
 
+const {
+  strongerBrand,
+  pickSummaryBrand,
+  headingBrandFrom,
+  knownBrandIn,
+} = require('../new-tire-brand.js');
+
+test('summary heading Mirage is not overwritten by leftover BFGoodrich filters', () => {
+  const summary = [
+    'SUMMARY',
+    'MIRAGE',
+    'MR-182',
+    'WARRANTY',
+    'N/A',
+    'CATEGORY',
+    'Performance Summer',
+    'SIZE',
+    '225/45R18 95W XL',
+    'QTY',
+    '4',
+    'PER TIRE',
+    '$95.40',
+    'CHANGE TIRE',
+  ].join('\n');
+  const widgetWithFilters = [
+    'FILTER RESULTS',
+    'BFGoodrich',
+    'Michelin',
+    'Ovation',
+    'FOUND 86 TIRES FOR:',
+    summary,
+  ].join('\n');
+
+  assert.strictEqual(pickSummaryBrand(summary), 'Mirage');
+  assert.strictEqual(headingBrandFrom(summary), 'Mirage');
+  assert.match(knownBrandIn(widgetWithFilters), /BF\s*Goodrich/i);
+  assert.strictEqual(strongerBrand('Mirage', 'BF Goodrich'), 'Mirage');
+  assert.strictEqual(strongerBrand('Mirage', 'BFGoodrich'), 'Mirage');
+  assert.notStrictEqual(pickSummaryBrand(summary), knownBrandIn(widgetWithFilters));
+});
+
 test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a login error', () => {
   const fs = require('fs');
   const path = require('path');
   const page = fs.readFileSync(path.join(__dirname, '..', 'new-tires.js'), 'utf8');
+  const brands = fs.readFileSync(path.join(__dirname, '..', 'new-tire-brand.js'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '..', 'new-tires.html'), 'utf8');
-  assert.match(page, /'Ovation'/);
-  assert.match(page, /filter\\s\*results:\?/);
+  assert.match(brands, /'Ovation'/);
+  assert.match(brands, /'Mirage'/);
+  assert.match(page, /pickSummaryBrand/);
+  assert.match(page, /summaryPanelText/);
+  assert.match(brands, /filter\\s\*results:\?/);
   assert.match(page, /onTireSearchResults/);
   assert.match(page, /brandFromCache/);
   assert.match(page, /Keep npm run dev running/);
   assert.doesNotMatch(page, /The demo order could not be saved\. Log in and try again/);
+  assert.match(html, /new-tire-brand\.js\?v=/);
   assert.match(html, /You cannot book on the purchase date or the following 4 days/);
   assert.doesNotMatch(html, /Search tires in the widget/);
 });

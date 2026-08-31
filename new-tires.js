@@ -22,6 +22,16 @@
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
 
+  const {
+    isWidgetChrome,
+    cleanTireField,
+    strongerBrand,
+    knownBrandIn,
+    brandFromLogoHint,
+    headingBrandFrom,
+    pickSummaryBrand,
+  } = window.EastCordNewTireBrand || {};
+
   let currentProfile = null;
   let selectedQuote = readStoredQuote();
   let didAutoScroll = false;
@@ -328,44 +338,6 @@
     }
   }
 
-  const TIRE_BRANDS = [
-    'BFGoodrich', 'BF Goodrich', 'Firestone', 'Bridgestone', 'Michelin', 'Goodyear',
-    'Continental', 'Pirelli', 'Toyo', 'Hankook', 'Kumho', 'Nexen', 'Falken',
-    'Yokohama', 'Cooper', 'General', 'Dunlop', 'Nitto', 'Ironman', 'GT Radial',
-    'Uniroyal', 'Kelly', 'Mastercraft', 'Nokian', 'Sailun', 'Maxxis', 'Kenda',
-    'Starfire', 'Achilles', 'Atturo', 'Vercelli', 'Thunderer', 'Primewell',
-    'Ovation', 'ROADBOSS', 'Roadboss', 'Lexani', 'Westlake', 'Triangle',
-    'Linglong', 'Hercules', 'Sumitomo', 'Giti', 'Laufenn', 'Federal',
-    'Landsail', 'Haida', 'Goodride', 'Antares',
-  ].slice().sort((a, b) => b.length - a.length);
-
-  function isWidgetChrome(value) {
-    const text = String(value || '')
-      .replace(/[^\p{L}\p{N}\s-]+/gu, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (!text) return true;
-    if (/^(summary|price summary|quote|order|cart|your cart|details?|done|pickup|installation|tires for|filter results)$/i.test(text)) return true;
-    return /^(revise search|change (tire|search|vehicle)|search by|search tires|price summary|see out|add to cart|place order|place your order|add to compare|powered by|tireconnect|qty|quantity|warranty|category|recommended|specs|features|reviews|sub-total|taxes|total price|per tire|touring|performance|winter|summer|all season|all weather|in stock|load more|show more|next|previous|filters?|filter results|sort by|best match|preferred date|how do you want)$/i.test(text);
-  }
-
-  function cleanTireField(value) {
-    if (value && typeof value === 'object') {
-      return cleanTireField(value.name || value.title || value.label || value.brand_name || '');
-    }
-    const text = String(value || '')
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/[\uE000-\uF8FF]/g, ' ')
-      .replace(/found\s+\d+\s+tires(?:\s+for:?\s*)?/ig, ' ')
-      .replace(/filter\s*results:?/ig, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/^[:\-–]+\s*|\s*[:\-–]+$/g, '')
-      .trim();
-    if (!text) return '';
-    return isWidgetChrome(text) ? '' : text;
-  }
-
   function tireSizeValue(value) {
     const compact = String(value || '').replace(/\s+/g, '').toUpperCase();
     const metric = compact.match(/(\d{3}\/\d{2}Z?R\d{2})/);
@@ -377,20 +349,6 @@
   function isUsableTire(tire) {
     if (!tire) return false;
     return Boolean(tireSizeValue(tire.size) || cleanTireField(tire.brand));
-  }
-
-  function isKnownBrandName(value) {
-    const text = cleanTireField(value);
-    if (!text) return false;
-    return TIRE_BRANDS.some((name) => name.toLowerCase() === text.toLowerCase()) || Boolean(knownBrandIn(text));
-  }
-
-  function strongerBrand(incoming, current) {
-    const next = cleanTireField(incoming);
-    const prev = cleanTireField(current);
-    if (isKnownBrandName(next)) return knownBrandIn(next) || next;
-    if (isKnownBrandName(prev) && !isKnownBrandName(next)) return prev;
-    return next || prev;
   }
 
   function mergeTire(current = {}, incoming = {}) {
@@ -1009,28 +967,11 @@
     return /\d{3}\s*\/\s*\d{2}\s*r\s*\d{2}/.test(text);
   }
 
-  function knownBrandIn(text) {
-    const haystack = String(text || '');
-    if (!haystack.trim()) return '';
-    return TIRE_BRANDS.find((name) => (
-      new RegExp(`(?:^|[^A-Za-z])${name.replace(/\s+/g, '[\\s_-]*')}(?:$|[^A-Za-z])`, 'i').test(haystack)
-    )) || '';
-  }
-
-  function brandFromLogoHint(text) {
-    const known = knownBrandIn(text);
-    if (known) return known;
-    const file = String(text || '').match(/(?:^|[\/._-])([a-z]{3,20})[-_]?(?:logo|brand)(?:[-_.]|\.|$)/i);
-    if (!file) return '';
-    const name = file[1];
-    if (/^(logo|brand|tire|tyre|icon|image|sprite|header|filter)$/i.test(name)) return '';
-    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-  }
-
   function brandFromElement(node) {
     if (!node) return '';
-    const hay = `${node.innerText || ''}\n${collectBrandHaystack(node)}`;
-    return knownBrandIn(hay) || brandFromLogoHint(hay);
+    const text = String(node.innerText || '');
+    const hay = `${text}\n${collectBrandHaystack(node)}`;
+    return headingBrandFrom(text) || knownBrandIn(text) || brandFromLogoHint(hay);
   }
 
   function qtyFromText(value) {
@@ -1065,8 +1006,8 @@
     const skip = /add to compare|size:|warranty|qty|per tire|add to cart|place order|specs|features|performance|all season|all weather|summer|winter|n\/a|km|see out|filter results/i;
     const hay = `${text}\n${collectBrandHaystack(card)}`;
     const part = String(text.match(/\b(?:part(?:\s*#| number)?|sku)[:\s]*([A-Za-z0-9-]{3,})/i)?.[1] || '').trim();
-    const brand = brandFromElement(card)
-      || knownBrandIn(hay)
+    const brand = headingBrandFrom(text)
+      || brandFromElement(card)
       || brandFromLogoHint(hay)
       || brandFromCache(hay, size, part)
       || String(text).split(/\n/).map((line) => cleanTireField(line)).find((line) => (
@@ -1310,14 +1251,27 @@
     const root = document.getElementById('tireconnect');
     const change = collectWidgetElements(root).find((el) => /change\s*tire/i.test(widgetButtonLabel(el)));
     let node = change;
+    let best = null;
     while (node && node !== root) {
       const text = String(node.innerText || '');
-      if (/change\s*tire/i.test(text) && /warranty|category|size:/i.test(text) && text.length < 4000) {
-        return node;
+      if (/change\s*tire/i.test(text) && /warranty|category|size:/i.test(text) && text.length < 2500) {
+        best = node;
       }
       node = node.parentElement || node.getRootNode?.()?.host;
     }
-    return root;
+    return best;
+  }
+
+  function summaryPanelText() {
+    const scoped = summaryBrandRoot();
+    if (scoped) {
+      const text = String(scoped.innerText || '');
+      if (pickSummaryBrand(text)) return text;
+    }
+    const full = widgetPlainText();
+    const idx = full.search(/change\s*tire/i);
+    if (idx < 0) return '';
+    return full.slice(Math.max(0, idx - 1500), idx);
   }
 
   function collectBrandHaystack(root) {
@@ -1346,12 +1300,8 @@
   }
 
   function scrapeBrand(text = '') {
-    const scoped = isWidgetSummaryPage() ? summaryBrandRoot() : document.getElementById('tireconnect');
-    return knownBrandIn(text)
-      || knownBrandIn(collectBrandHaystack(scoped))
-      || brandFromLogoHint(collectBrandHaystack(scoped))
-      || knownBrandIn(widgetPlainText())
-      || '';
+    if (isWidgetSummaryPage()) return pickSummaryBrand(summaryPanelText());
+    return headingBrandFrom(text) || '';
   }
 
   function refreshScrapedBrand() {
@@ -1365,16 +1315,17 @@
 
   function quoteFromWidget() {
     const text = widgetPlainText();
-    const fromCard = quoteFromCard(lastClickedCard || highlightedCard);
+    const fromCard = isWidgetSummaryPage() ? null : quoteFromCard(lastClickedCard || highlightedCard);
     const fromHash = quoteFromHash();
     if (!text.trim()) return fromCard || fromHash;
     const onQuotePage = /PRICE SUMMARY|CHANGE TIRE|PER TIRE/i.test(text)
       || /summary|quote/i.test(window.location.hash || '');
     if (!onQuotePage) return fromCard || fromHash;
-    const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
-    const size = tireSizeValue(text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
+    const panel = isWidgetSummaryPage() ? summaryPanelText() : text;
+    const lines = String(panel || text).split(/\n+/).map((line) => line.trim()).filter(Boolean);
+    const size = tireSizeValue(panel || text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
     const brand = isWidgetSummaryPage()
-      ? (scrapeBrand(text) || fromCard?.tires?.[0]?.brand || fromHash?.tires?.[0]?.brand || '')
+      ? scrapeBrand(panel)
       : (fromCard?.tires?.[0]?.brand || fromHash?.tires?.[0]?.brand || scrapeBrand(text) || '');
     const skip = /price summary|change tire|revise search|per tire|see out|add to cart|place order|qty|warranty|category|add to compare|recommended|specs|features|reviews|sub-total|taxes|total price|touring|performance|winter|summer|all season|powered by|tireconnect|search by|in stock|load more|sort by|best match|summary|found\s+\d+\s+tires|tires for|filter results/i;
     const model = lines.find((line) => {
@@ -1391,7 +1342,7 @@
       qty: Number(fromCard?.tires?.[0]?.qty) >= 1
         ? Number(fromCard.tires[0].qty)
         : (Number(fromHash?.tires?.[0]?.qty) >= 1 ? Number(fromHash.tires[0].qty) : 0),
-      price: scrapeUnitPrice(text) || fromCard?.tires?.[0]?.price || 0,
+      price: scrapeUnitPrice(panel || text) || fromCard?.tires?.[0]?.price || 0,
       partNumber: fromHash?.tires?.[0]?.partNumber || '',
     };
     const tire = mergeTire(fromCard?.tires?.[0] || fromHash?.tires?.[0] || {}, scraped);
@@ -1445,7 +1396,7 @@
   }
 
   function syncSelectedPanelFromWidget() {
-    const fromCard = quoteFromCard(lastClickedCard || highlightedCard);
+    const fromCard = isWidgetSummaryPage() ? null : quoteFromCard(lastClickedCard || highlightedCard);
     const scraped = fromCard || quoteFromWidget();
     if (!scraped?.tires?.length) return;
     if (hasCapturedTire()) {
@@ -2355,7 +2306,10 @@
     window.addEventListener('hashchange', () => {
       logFlow('widget.hashchange', window.location.hash);
       if (!isWidgetResultsPage()) hideHighlightOverlay();
-      applyCapturedQuote(quoteFromHash() || quoteFromWidget(), { scroll: /summary|quote|order/i.test(window.location.hash) });
+      applyCapturedQuote(
+        isWidgetSummaryPage() ? (quoteFromWidget() || quoteFromHash()) : (quoteFromHash() || quoteFromWidget()),
+        { scroll: /summary|quote|order/i.test(window.location.hash) },
+      );
     });
     const widget = document.getElementById('tireconnect');
     if (widget && typeof MutationObserver === 'function') {
