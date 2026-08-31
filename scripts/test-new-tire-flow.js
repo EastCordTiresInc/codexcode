@@ -32,6 +32,12 @@ test('strips TireConnect "FOUND 86 TIRES FOR" chrome from model', () => {
   assert.strictEqual(cleanWidgetText('BFGoodrich FOUND 86 TIRES FOR:'), 'BFGoodrich');
 });
 
+test('strips TireConnect "FILTER RESULTS" chrome from brand', () => {
+  assert.strictEqual(cleanWidgetText('FILTER RESULTS:'), '');
+  assert.strictEqual(cleanWidgetText('BFGoodrich FILTER RESULTS:'), 'BFGoodrich');
+  assert.strictEqual(cleanWidgetText(`BFGoodrich FILTER RESULTS:${String.fromCharCode(0xF105)}`), 'BFGoodrich');
+});
+
 test('extracts core metric size from concatenated widget size', () => {
   assert.strictEqual(cleanTireSize('185/65R1588HSLWARRANTY'), '185/65R15');
   assert.strictEqual(cleanTireSize('185/65R15'), '185/65R15');
@@ -106,6 +112,17 @@ test('appointment card title for the BFGoodrich screenshot row', () => {
   assert.strictEqual(label, 'New BFGoodrich 185/65R15 × 4');
 });
 
+test('appointment card title strips FILTER RESULTS glued onto brand', () => {
+  const label = formatSavedTireLabel({
+    type: 'new_tire',
+    brand: `BFGoodrich FILTER RESULTS:${String.fromCharCode(0xF105)}`,
+    model: '',
+    size: '225/45R18',
+    qty: 4,
+  });
+  assert.strictEqual(label, 'New BFGoodrich 225/45R18 × 4');
+});
+
 test('ROADBOSS row stays readable', () => {
   const label = formatSavedTireLabel({
     type: 'new_tire',
@@ -124,6 +141,7 @@ const widgetPayloads = [
   { brand: 'Pirelli', model: 'P7', size: 'P225/45R18 91V', qty: 4, price: 210 },
   { brand: 'Toyo', model: 'Celsius', size: '185/65R15', qty: 2, unitPrice: 61.43 },
   { brand: 'BFGoodrich', model: 'FOUND 86 TIRES FOR:', size: '185/65R1588HSLWARRANTY', qty: 4, unitPrice: 143.61 },
+  { brand: 'BFGoodrich FILTER RESULTS:', model: '', size: '225/45R18', qty: 4, unitPrice: 237.18 },
   { brand: 'Firestone', model: 'WeatherGrip', size: 'LT265/70R17', qty: 4, retail_price: 198.2 },
   { brand: 'Nitto', model: 'Ridge Grappler', size: '35X12.50R20', qty: 4, unitPrice: 399 },
   { brand: 'Cooper', model: 'Discoverer', size: '31X10.50R15', qty: 4, unitPrice: 221 },
@@ -171,7 +189,7 @@ const widgetPayloads = [
 ];
 
 test(`runs ${widgetPayloads.length} widget order payloads through the live save normalizer`, () => {
-  assert.strictEqual(widgetPayloads.length, 50);
+  assert.strictEqual(widgetPayloads.length, 51);
   const results = widgetPayloads.map((payload, index) => {
     const [item] = normalizeWidgetItems([payload]);
     return { index, payload, item };
@@ -185,6 +203,12 @@ test(`runs ${widgetPayloads.length} widget order payloads through the live save 
   assert.strictEqual(found86.item.model, '');
   assert.strictEqual(found86.item.brand, 'BFGoodrich');
   assert.strictEqual(found86.item.size, '185/65R15');
+
+  const filterResults = results.find((row) => /FILTER RESULTS/i.test(row.payload.brand || ''));
+  assert.ok(filterResults.item);
+  assert.strictEqual(filterResults.item.brand, 'BFGoodrich');
+  assert.strictEqual(filterResults.item.model, '');
+  assert.strictEqual(filterResults.item.size, '225/45R18');
 
   const alias = results.find((row) => row.payload.brand_name === 'Goodyear');
   assert.ok(alias.item);
@@ -253,6 +277,35 @@ test('booking hold covers month and year boundaries', () => {
       `${purchased} booking ${preferred} should ${blocked ? 'be blocked' : 'be allowed'}`,
     );
   });
+});
+
+test('keeps Ovation as a real brand and strips FILTER RESULTS from it', () => {
+  assert.strictEqual(cleanWidgetText('Ovation'), 'Ovation');
+  assert.strictEqual(cleanWidgetText('Ovation FILTER RESULTS:'), 'Ovation');
+  const [item] = normalizeWidgetItems([{
+    brand: 'Ovation FILTER RESULTS:',
+    model: '',
+    size: '225/45R18',
+    qty: 4,
+    unitPrice: 162.6,
+  }]);
+  assert.strictEqual(item.brand, 'Ovation');
+  assert.strictEqual(item.size, '225/45R18');
+});
+
+test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a login error', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const page = fs.readFileSync(path.join(__dirname, '..', 'new-tires.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'new-tires.html'), 'utf8');
+  assert.match(page, /'Ovation'/);
+  assert.match(page, /filter\\s\*results:\?/);
+  assert.match(page, /onTireSearchResults/);
+  assert.match(page, /brandFromCache/);
+  assert.match(page, /Keep npm run dev running/);
+  assert.doesNotMatch(page, /The demo order could not be saved\. Log in and try again/);
+  assert.match(html, /You cannot book on the purchase date or the following 4 days/);
+  assert.doesNotMatch(html, /Search tires in the widget/);
 });
 
 if (failed) {

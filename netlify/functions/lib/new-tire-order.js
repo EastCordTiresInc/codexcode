@@ -173,13 +173,15 @@ async function fulfillPaidNewTireOrder({ supabaseAdmin, session }) {
 function cleanWidgetText(value) {
   const text = String(value || '')
     .replace(/<[^>]*>/g, ' ')
+    .replace(/[\uE000-\uF8FF]/g, ' ')
     .replace(/found\s+\d+\s+tires(?:\s+for:?\s*)?/ig, ' ')
+    .replace(/filter\s*results:?/ig, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .replace(/^[:\-–]+\s*/, '')
+    .replace(/^[:\-–]+\s*|\s*[:\-–]+$/g, '')
     .trim();
   if (!text) return '';
-  if (/^(tires for:?|price summary|add to cart|see out|revise search|warranty)$/i.test(text)) return '';
+  if (/^(tires for:?|price summary|add to cart|see out|revise search|warranty|filter results)$/i.test(text)) return '';
   return text.slice(0, 80);
 }
 

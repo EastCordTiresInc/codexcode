@@ -37,11 +37,17 @@ exports.handler = async (event) => {
   if (!supabaseAdmin) return json(500, { message: 'Supabase admin configuration is missing.' });
 
   const token = getBearerToken(event);
-  if (!token) return json(401, { message: 'Please log in before placing this order.' });
+  if (!token) {
+    return json(401, {
+      message: 'Your login session could not be read. Log out, log in, then try again.',
+    });
+  }
 
   const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
   if (authError || !authData?.user) {
-    return json(401, { message: 'Please log in before placing this order.' });
+    return json(401, {
+      message: 'Your login session expired. Log out, log in, then try again.',
+    });
   }
 
   let payload;

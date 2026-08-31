@@ -47,11 +47,14 @@
     if (widgetShell) widgetShell.classList.add('is-unavailable');
   }
 
-  function eventPayload(event) {
-    if (!event || typeof event !== 'object') return {};
-    if (Array.isArray(event.tires) || event.tire || event.brand_name) return event;
-    if (event.data && typeof event.data === 'object') return event.data;
-    if (event.detail && typeof event.detail === 'object') return event.detail;
+  function eventPayload(event, depth = 0) {
+    if (!event || typeof event !== 'object' || depth > 5) return {};
+    if (typeof event.preventDefault === 'function') {
+      return eventPayload(event.detail || event.data || {}, depth + 1);
+    }
+    if (Array.isArray(event.tires) || event.tire || event.brand_name || event.brand) return event;
+    const nested = event.data || event.detail || event.payload || event.result;
+    if (nested && typeof nested === 'object' && nested !== event) return eventPayload(nested, depth + 1);
     return event;
   }
 
@@ -331,7 +334,10 @@
     'Yokohama', 'Cooper', 'General', 'Dunlop', 'Nitto', 'Ironman', 'GT Radial',
     'Uniroyal', 'Kelly', 'Mastercraft', 'Nokian', 'Sailun', 'Maxxis', 'Kenda',
     'Starfire', 'Achilles', 'Atturo', 'Vercelli', 'Thunderer', 'Primewell',
-  ];
+    'Ovation', 'ROADBOSS', 'Roadboss', 'Lexani', 'Westlake', 'Triangle',
+    'Linglong', 'Hercules', 'Sumitomo', 'Giti', 'Laufenn', 'Federal',
+    'Landsail', 'Haida', 'Goodride', 'Antares',
+  ].slice().sort((a, b) => b.length - a.length);
 
   function isWidgetChrome(value) {
     const text = String(value || '')
@@ -339,8 +345,8 @@
       .replace(/\s+/g, ' ')
       .trim();
     if (!text) return true;
-    if (/^(summary|price summary|quote|order|cart|your cart|details?|done|pickup|installation|tires for)$/i.test(text)) return true;
-    return /^(revise search|change (tire|search|vehicle)|search by|search tires|price summary|see out|add to cart|place order|place your order|add to compare|powered by|tireconnect|qty|quantity|warranty|category|recommended|specs|features|reviews|sub-total|taxes|total price|per tire|touring|performance|winter|summer|all season|all weather|in stock|load more|show more|next|previous|filters?|sort by|best match|preferred date|how do you want)$/i.test(text);
+    if (/^(summary|price summary|quote|order|cart|your cart|details?|done|pickup|installation|tires for|filter results)$/i.test(text)) return true;
+    return /^(revise search|change (tire|search|vehicle)|search by|search tires|price summary|see out|add to cart|place order|place your order|add to compare|powered by|tireconnect|qty|quantity|warranty|category|recommended|specs|features|reviews|sub-total|taxes|total price|per tire|touring|performance|winter|summer|all season|all weather|in stock|load more|show more|next|previous|filters?|filter results|sort by|best match|preferred date|how do you want)$/i.test(text);
   }
 
   function cleanTireField(value) {
@@ -349,10 +355,12 @@
     }
     const text = String(value || '')
       .replace(/<[^>]*>/g, ' ')
+      .replace(/[\uE000-\uF8FF]/g, ' ')
       .replace(/found\s+\d+\s+tires(?:\s+for:?\s*)?/ig, ' ')
+      .replace(/filter\s*results:?/ig, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .replace(/^[:\-–]+\s*/, '')
+      .replace(/^[:\-–]+\s*|\s*[:\-–]+$/g, '')
       .trim();
     if (!text) return '';
     return isWidgetChrome(text) ? '' : text;
@@ -371,12 +379,28 @@
     return Boolean(tireSizeValue(tire.size) || cleanTireField(tire.brand));
   }
 
+  function isKnownBrandName(value) {
+    const text = cleanTireField(value);
+    if (!text) return false;
+    return TIRE_BRANDS.some((name) => name.toLowerCase() === text.toLowerCase()) || Boolean(knownBrandIn(text));
+  }
+
+  function strongerBrand(incoming, current) {
+    const next = cleanTireField(incoming);
+    const prev = cleanTireField(current);
+    if (isKnownBrandName(next)) return knownBrandIn(next) || next;
+    if (isKnownBrandName(prev) && !isKnownBrandName(next)) return prev;
+    return next || prev;
+  }
+
   function mergeTire(current = {}, incoming = {}) {
     return {
-      brand: cleanTireField(incoming.brand) || cleanTireField(current.brand) || '',
+      brand: strongerBrand(incoming.brand, current.brand),
       model: cleanTireField(incoming.model) || cleanTireField(current.model) || '',
       size: tireSizeValue(incoming.size) || tireSizeValue(current.size) || '',
-      qty: incoming.qty || current.qty || 1,
+      qty: Number(incoming.qty) >= 1
+        ? Math.min(8, Number(incoming.qty))
+        : (Number(current.qty) >= 1 ? Number(current.qty) : 4),
       price: Number(incoming.price) > 0 ? Number(incoming.price) : (Number(current.price) || 0),
       partNumber: cleanTireField(incoming.partNumber) || cleanTireField(current.partNumber) || '',
     };
@@ -428,33 +452,106 @@
     return document.querySelector('[data-new-tire-details]');
   }
 
-  function extractTires(payload) {
+  const resultBrandCache = [];
+
+  function extractTires(payload, depth = 0) {
+    if (!payload || typeof payload !== 'object' || depth > 5) return [];
+    if (Array.isArray(payload)) {
+      const rows = payload.filter((item) => item && typeof item === 'object' && (
+        item.brand_name || item.brand || item.size || item.part_number || item.partNumber || item.model_name
+      ));
+      if (rows.length) return rows;
+      return payload.flatMap((item) => extractTires(item, depth + 1));
+    }
     if (Array.isArray(payload.tires) && payload.tires.length) return payload.tires;
     if (Array.isArray(payload.items) && payload.items.length) return payload.items;
     if (payload.tire && typeof payload.tire === 'object') return [payload.tire];
     if (Array.isArray(payload.quote?.tires) && payload.quote.tires.length) return payload.quote.tires;
     if (payload.brand_name || payload.brand || payload.model_name || payload.model || payload.size) return [payload];
+    for (const key of ['data', 'detail', 'payload', 'result', 'results', 'quote']) {
+      if (payload[key] && payload[key] !== payload) {
+        const found = extractTires(payload[key], depth + 1);
+        if (found.length) return found;
+      }
+    }
     return [];
+  }
+
+  function textFromUnknown(value, depth = 0) {
+    if (value == null || depth > 5) return '';
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    if (Array.isArray(value)) return value.map((item) => textFromUnknown(item, depth + 1)).filter(Boolean).join('\n');
+    if (typeof value !== 'object') return '';
+    return [
+      value.brand_name, value.brand, value.manufacturer_name, value.name, value.title,
+      value.make, value.vendor, value.tire_brand, value.brandLogo, value.brand_logo, value.logo,
+      textFromUnknown(value.manufacturer, depth + 1),
+      textFromUnknown(value.media, depth + 1),
+    ].map((item) => (typeof item === 'string' || typeof item === 'number' ? String(item) : '')).filter(Boolean).join('\n');
+  }
+
+  function brandValueFromTire(tire) {
+    if (!tire) return '';
+    if (typeof tire === 'string') return cleanTireField(tire);
+    const hay = textFromUnknown(tire);
+    return cleanTireField(tire.brand_name)
+      || cleanTireField(typeof tire.brand === 'string' ? tire.brand : '')
+      || cleanTireField(tire.manufacturer_name)
+      || cleanTireField(typeof tire.manufacturer === 'string' ? tire.manufacturer : tire.manufacturer?.name)
+      || knownBrandIn(hay)
+      || brandFromLogoHint(hay)
+      || cleanTireField(tire.tire_brand || tire.vendor || tire.make)
+      || '';
+  }
+
+  function rememberSearchTires(payload) {
+    extractTires(payload).forEach((tire) => {
+      const brand = brandValueFromTire(tire);
+      if (!brand) return;
+      resultBrandCache.unshift({
+        brand,
+        size: tireSizeValue(tire.size || tire.sizeShort || tire.size_short || tire.tire_size || tire.size_display),
+        part: String(tire.part_number || tire.partNumber || '').trim(),
+        model: cleanTireField(tire.model_name || tire.model || tire.product_name || tire.tire_model),
+      });
+      if (resultBrandCache.length > 250) resultBrandCache.pop();
+    });
+  }
+
+  function brandFromCache(cardText, size, part) {
+    const hay = String(cardText || '');
+    const partKey = String(part || '').trim();
+    if (partKey) {
+      const byPart = resultBrandCache.find((row) => row.part && row.part === partKey);
+      if (byPart) return byPart.brand;
+    }
+    const named = resultBrandCache.find((row) => {
+      if (!row.brand) return false;
+      const escaped = row.brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '[\\s_-]*');
+      return new RegExp(`(?:^|[^A-Za-z])${escaped}(?:$|[^A-Za-z])`, 'i').test(hay);
+    });
+    if (named) return named.brand;
+    const sizeKey = tireSizeValue(size);
+    const sizeMatches = resultBrandCache.filter((row) => sizeKey && row.size === sizeKey);
+    if (sizeMatches.length === 1) return sizeMatches[0].brand;
+    const withModel = sizeMatches.find((row) => row.model && hay.toLowerCase().includes(row.model.toLowerCase()));
+    return withModel?.brand || '';
   }
 
   function quoteFromSelectEvent(payload) {
     const tires = extractTires(payload);
     const vehicle = payload.vehicle || {};
     if (!tires.length) return null;
+    rememberSearchTires(payload);
     return {
       tires: tires.map((tire) => ({
-        brand: cleanTireField(
-          tire.brand_name
-          || tire.brand
-          || tire.manufacturer
-          || tire.manufacturer_name
-          || tire.tire_brand
-          || tire.vendor
-          || tire.make,
-        ),
+        brand: brandValueFromTire(tire),
         model: cleanTireField(tire.model_name || tire.model || tire.product_name || tire.tire_model),
         size: tireSizeValue(tire.size || tire.sizeShort || tire.size_short || tire.tire_size || tire.size_display),
-        qty: Math.max(1, Math.min(8, Number(tire.selectedQuantity ?? tire.selected_quantity ?? tire.quantity ?? tire.qty) || 4)),
+        qty: (() => {
+          const parsed = Number(tire.selectedQuantity ?? tire.selected_quantity ?? tire.quantity ?? tire.qty);
+          return parsed >= 1 && parsed <= 8 ? parsed : 0;
+        })(),
         price: Math.max(0, Number(tire.price || tire.unit_price || tire.unitPrice || tire.display_price || tire.price_per_tire || tire.retail_price) || 0),
         partNumber: String(tire.part_number || tire.partNumber || '').trim(),
       })),
@@ -920,28 +1017,58 @@
     )) || '';
   }
 
+  function brandFromLogoHint(text) {
+    const known = knownBrandIn(text);
+    if (known) return known;
+    const file = String(text || '').match(/(?:^|[\/._-])([a-z]{3,20})[-_]?(?:logo|brand)(?:[-_.]|\.|$)/i);
+    if (!file) return '';
+    const name = file[1];
+    if (/^(logo|brand|tire|tyre|icon|image|sprite|header|filter)$/i.test(name)) return '';
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  }
+
   function brandFromElement(node) {
     if (!node) return '';
-    const chunks = [String(node.innerText || ''), String(node.getAttribute?.('data-brand') || '')];
-    const collect = node.querySelectorAll ? node.querySelectorAll('img, [alt], [title], [data-brand], source') : [];
-    collect.forEach((el) => {
-      ['alt', 'title', 'aria-label', 'src', 'srcset', 'href', 'data-src', 'data-brand'].forEach((attr) => {
-        const value = el.getAttribute?.(attr);
-        if (value) chunks.push(value);
-      });
-      if (el.src) chunks.push(el.src);
-      if (el.currentSrc) chunks.push(el.currentSrc);
-    });
-    return knownBrandIn(chunks.join('\n'));
+    const hay = `${node.innerText || ''}\n${collectBrandHaystack(node)}`;
+    return knownBrandIn(hay) || brandFromLogoHint(hay);
+  }
+
+  function qtyFromText(value) {
+    const text = String(value || '');
+    const labeled = text.match(/(?:qty|quantity)[:\s]*(\d+)/i);
+    if (labeled) {
+      const qty = Number(labeled[1]);
+      if (qty >= 1 && qty <= 8) return qty;
+    }
+    return 0;
+  }
+
+  function qtyFromCard(card) {
+    if (!card) return 0;
+    const nodes = collectWidgetElements(card);
+    for (const el of nodes) {
+      if (!el || el.nodeType !== 1) continue;
+      const label = `${el.name || ''} ${el.id || ''} ${el.getAttribute?.('aria-label') || ''} ${el.className || ''}`;
+      const isQtyControl = el.tagName === 'SELECT'
+        || (el.tagName === 'INPUT' && (el.type === 'number' || /qty|quantity/i.test(label)));
+      if (!isQtyControl) continue;
+      const qty = Number(el.value);
+      if (qty >= 1 && qty <= 8) return qty;
+    }
+    return qtyFromText(card.innerText);
   }
 
   function quoteFromCard(card) {
     if (!card) return null;
     const text = String(card.innerText || '');
     const size = tireSizeValue(text);
-    const skip = /add to compare|size:|warranty|qty|per tire|add to cart|place order|specs|features|performance|all season|all weather|summer|winter|n\/a|km|see out/i;
+    const skip = /add to compare|size:|warranty|qty|per tire|add to cart|place order|specs|features|performance|all season|all weather|summer|winter|n\/a|km|see out|filter results/i;
+    const hay = `${text}\n${collectBrandHaystack(card)}`;
+    const part = String(text.match(/\b(?:part(?:\s*#| number)?|sku)[:\s]*([A-Za-z0-9-]{3,})/i)?.[1] || '').trim();
     const brand = brandFromElement(card)
-      || knownBrandIn(text)
+      || knownBrandIn(hay)
+      || brandFromLogoHint(hay)
+      || brandFromCache(hay, size, part)
       || String(text).split(/\n/).map((line) => cleanTireField(line)).find((line) => (
         line
         && !skip.test(line)
@@ -951,7 +1078,7 @@
         && line.length <= 32
         && /[A-Za-z]/.test(line)
       )) || '';
-    const qty = Math.max(1, Number(card.querySelector?.('select')?.value) || 4);
+    const qty = qtyFromCard(card);
     const price = Number(String(text.match(/\$([\d,.]+)/)?.[1] || '').replace(/,/g, '')) || 0;
     if (!brand && !size) return null;
     return {
@@ -1144,13 +1271,21 @@
       lastClickedCard = card;
       highlightedCard = card;
       const quote = quoteFromCard(card);
-      if (quote) applyCapturedQuote(quote, { replace: true, scroll: false });
+      if (quote) applyCapturedQuote(quote, { replace: false, scroll: false });
       holdTireHighlight();
       placeHighlightOverlay(card);
       window.setTimeout(highlightSelectedWidgetTires, 50);
       window.setTimeout(highlightSelectedWidgetTires, 250);
       window.setTimeout(highlightSelectedWidgetTires, 700);
       window.setTimeout(highlightSelectedWidgetTires, 1600);
+    }, true);
+    document.addEventListener('change', (event) => {
+      const root = document.getElementById('tireconnect');
+      const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
+      if (root && !path.includes(root) && !root.contains(event.target)) return;
+      const card = visualCardFrom(event.target);
+      if (card && isFullTireCard(card)) lastClickedCard = card;
+      syncSelectedPanelFromWidget();
     }, true);
     document.addEventListener('scroll', () => {
       placeHighlightOverlay(highlightedCard);
@@ -1214,6 +1349,7 @@
     const scoped = isWidgetSummaryPage() ? summaryBrandRoot() : document.getElementById('tireconnect');
     return knownBrandIn(text)
       || knownBrandIn(collectBrandHaystack(scoped))
+      || brandFromLogoHint(collectBrandHaystack(scoped))
       || knownBrandIn(widgetPlainText())
       || '';
   }
@@ -1240,7 +1376,7 @@
     const brand = isWidgetSummaryPage()
       ? (scrapeBrand(text) || fromCard?.tires?.[0]?.brand || fromHash?.tires?.[0]?.brand || '')
       : (fromCard?.tires?.[0]?.brand || fromHash?.tires?.[0]?.brand || scrapeBrand(text) || '');
-    const skip = /price summary|change tire|revise search|per tire|see out|add to cart|place order|qty|warranty|category|add to compare|recommended|specs|features|reviews|sub-total|taxes|total price|touring|performance|winter|summer|all season|powered by|tireconnect|search by|in stock|load more|sort by|best match|summary|found\s+\d+\s+tires|tires for/i;
+    const skip = /price summary|change tire|revise search|per tire|see out|add to cart|place order|qty|warranty|category|add to compare|recommended|specs|features|reviews|sub-total|taxes|total price|touring|performance|winter|summer|all season|powered by|tireconnect|search by|in stock|load more|sort by|best match|summary|found\s+\d+\s+tires|tires for|filter results/i;
     const model = lines.find((line) => {
       if (skip.test(line) || isWidgetChrome(line)) return false;
       if (brand && line.toLowerCase() === brand.toLowerCase()) return false;
@@ -1252,7 +1388,9 @@
       brand: cleanTireField(brand),
       model: cleanTireField(model),
       size,
-      qty: fromCard?.tires?.[0]?.qty || fromHash?.tires?.[0]?.qty || 4,
+      qty: Number(fromCard?.tires?.[0]?.qty) >= 1
+        ? Number(fromCard.tires[0].qty)
+        : (Number(fromHash?.tires?.[0]?.qty) >= 1 ? Number(fromHash.tires[0].qty) : 0),
       price: scrapeUnitPrice(text) || fromCard?.tires?.[0]?.price || 0,
       partNumber: fromHash?.tires?.[0]?.partNumber || '',
     };
@@ -1291,6 +1429,30 @@
       vehicle: {},
       hash: window.location.hash || '',
     };
+  }
+
+  function tireSignature(quote) {
+    const tire = quote?.tires?.[0];
+    if (!tire) return '';
+    return [
+      cleanTireField(tire.brand),
+      cleanTireField(tire.model),
+      tireSizeValue(tire.size),
+      Number(tire.qty) >= 1 ? Number(tire.qty) : '',
+      Number(tire.price) > 0 ? Number(tire.price) : '',
+      String(tire.partNumber || ''),
+    ].join('|');
+  }
+
+  function syncSelectedPanelFromWidget() {
+    const fromCard = quoteFromCard(lastClickedCard || highlightedCard);
+    const scraped = fromCard || quoteFromWidget();
+    if (!scraped?.tires?.length) return;
+    if (hasCapturedTire()) {
+      const merged = mergeTire(selectedQuote.tires[0], scraped.tires[0]);
+      if (tireSignature({ tires: [merged] }) === tireSignature(selectedQuote)) return;
+    }
+    applyCapturedQuote(scraped, { replace: false, scroll: false });
   }
 
   function hasCapturedTire(quote = selectedQuote) {
@@ -1523,7 +1685,7 @@
 
   function successMessage(fulfillment) {
     return fulfillment === 'Installation'
-      ? 'Tires saved to your account. Next we will open installation booking, linked to these new tires and your purchase date. The next 4 days after purchase cannot be booked.'
+      ? 'Tires saved to your account. Opening installation booking next. You cannot book on the purchase date or the following 4 days.'
       : 'Order placed. We will email you when your tires are ready for pickup. No appointment is needed.';
   }
 
@@ -1810,11 +1972,20 @@
     try {
       const token = await window.EastCordAccount?.getAccessToken?.();
       logFlow('supabase.submit.auth', { hasToken: Boolean(token) });
+      if (!token) {
+        setFulfillmentMessage(
+          currentProfile
+            ? 'The header still shows you as signed in, but EastCord could not read your login token. Log out, log in, then try Mock order again.'
+            : 'Please log in, then try again.',
+          true,
+        );
+        return { saved: false };
+      }
       const response = await fetch('/.netlify/functions/save-new-tire-widget-order', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
@@ -1824,7 +1995,7 @@
         setFulfillmentMessage(
           data.message
             || (payload.recordedLocally
-              ? 'The demo order could not be saved to your account. Log in and try again.'
+              ? 'The demo order could not be saved to your account.'
               : 'Checkout finished in the tire search. EastCord still needs to save this order to your account.'),
           true,
         );
@@ -1865,9 +2036,13 @@
       };
     } catch (error) {
       logFlow('supabase.submit.error', error);
+      const detail = String(error?.message || error || '');
+      const unreachable = /failed to fetch|networkerror|load failed|network request failed/i.test(detail);
       setFulfillmentMessage(
         payload.recordedLocally
-          ? 'The demo order could not be saved. Log in and try again.'
+          ? (unreachable
+            ? 'The demo order could not reach the local save function. Keep npm run dev running at http://localhost:8888, refresh this page, then try Mock order again.'
+            : `The demo order could not be saved. ${detail || 'Try again.'}`)
           : 'Checkout finished in the tire search. If it does not appear on My Account, contact info@eastcordtires.ca.',
         true,
       );
@@ -1889,6 +2064,10 @@
       });
     };
 
+    listen('onTireSearchResults', (event) => {
+      rememberSearchTires(eventPayload(event));
+      resolveWidgetEvent(event);
+    });
     listen('onTireSelect', (event) => {
       const fromEvent = quoteFromSelectEvent(eventPayload(event));
       const fromCard = quoteFromCard(lastClickedCard || highlightedCard);
@@ -2185,8 +2364,7 @@
         window.clearTimeout(timer);
         timer = window.setTimeout(() => {
           onWidgetDomChanged();
-          const scraped = quoteFromWidget();
-          if (scraped && !hasCapturedTire()) applyCapturedQuote(scraped, { scroll: false });
+          syncSelectedPanelFromWidget();
         }, 50);
       });
       observer.observe(widget, { childList: true, subtree: true, characterData: true });

@@ -8,7 +8,7 @@
   const SERVICE_END_MINUTES = 20 * 60;
   const TAX_RATE = 0.13;
   const MIN_ADVANCE_MESSAGE = 'Appointments must be booked at least 2 hours in advance to allow technician scheduling and travel time.';
-  const SHIPPING_HOLD_MESSAGE = 'New tire installation cannot be booked for the next 4 days after your tire purchase. Please choose a later date. Hours are 8:00 AM to 8:00 PM.';
+  const SHIPPING_HOLD_MESSAGE = 'You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.';
   const SERVICE_HOURS_MESSAGE = 'Installation hours are 8:00 AM to 8:00 PM. Please choose a time in that window.';
   const SHOP_LOCATION = {
     address: 'EastCord Tires shop',
@@ -424,9 +424,9 @@
   function newTireHoldCopy() {
     const purchased = formatPaidDate(state.requiredNewTireOrder?.paid_at || state.requiredNewTireOrder?.created_at);
     if (purchased) {
-      return `These are new tires. Purchase date: ${purchased}. This booking is linked to that order. You cannot book installation for the next 4 days after that purchase. Hours are 8:00 AM to 8:00 PM.`;
+      return `These are new tires. Purchase date: ${purchased}. This booking is linked to that order. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.`;
     }
-    return 'These are new tires. Installation cannot be booked for the next 4 days after your purchase date. Hours are 8:00 AM to 8:00 PM.';
+    return 'These are new tires. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.';
   }
 
   function updateDateNote() {
@@ -528,13 +528,15 @@
 
   function cleanSavedTireText(value) {
     const text = String(value || '')
+      .replace(/[\uE000-\uF8FF]/g, ' ')
       .replace(/found\s+\d+\s+tires(?:\s+for:?\s*)?/ig, ' ')
+      .replace(/filter\s*results:?/ig, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .replace(/^[:\-–]+\s*/, '')
+      .replace(/^[:\-–]+\s*|\s*[:\-–]+$/g, '')
       .trim();
     if (!text) return '';
-    if (/^(tires for:?|price summary|add to cart|see out|revise search|warranty)$/i.test(text)) return '';
+    if (/^(tires for:?|price summary|add to cart|see out|revise search|warranty|filter results)$/i.test(text)) return '';
     return text;
   }
 
@@ -591,7 +593,7 @@
     if (!els.tireOptions) return;
 
     if (!state.savedTires.length) {
-      els.tireOptions.innerHTML = '<p>No purchased tires found. After you pay for used or new tires with Stripe, they are saved to your profile so you can link them here. You can also add used tires to your cart first.</p>';
+      els.tireOptions.innerHTML = '<p>No purchased tires found. After you pay for used tires, or complete a new-tire order, they are saved to your profile so you can link them here. You can also add used tires to your cart first.</p>';
       return;
     }
 
@@ -662,7 +664,7 @@
       setSelectedService('mount-balance-4');
       updateFromSelectedService();
       setMinimumDate();
-      updateNewTireOrderGateMessage('Log in with the account that bought these new tires. Installation stays linked to that purchase date, and the next 4 days after purchase cannot be booked. Hours are 8:00 AM to 8:00 PM.');
+      updateNewTireOrderGateMessage('Log in with the account that bought these new tires. Installation stays linked to that purchase date. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.');
       showLoginRequiredBlock();
       return true;
     }
@@ -701,8 +703,8 @@
     const purchased = formatPaidDate(order.paid_at || order.created_at);
     updateNewTireOrderGateMessage(
       purchased
-        ? `These are new tires from your purchase on ${purchased}. This booking is linked to that order. You cannot book installation for the next 4 days after that purchase. Hours are 8:00 AM to 8:00 PM.`
-        : 'These are new tires linked to your confirmed order. You cannot book installation for the next 4 days after the purchase date. Hours are 8:00 AM to 8:00 PM.',
+        ? `These are new tires from your purchase on ${purchased}. This booking is linked to that order. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.`
+        : 'These are new tires linked to your confirmed order. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.',
     );
     return true;
   }

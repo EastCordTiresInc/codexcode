@@ -575,12 +575,24 @@ async function getCurrentUser() {
 async function getAccessToken() {
   const client = getSupabaseClient();
   if (!client) return '';
-  const { data, error } = await client.auth.getSession();
-  if (error) {
+  try {
+    const { data, error } = await client.auth.getSession();
+    if (error) {
+      logSupabaseError('Supabase session lookup failed.', error);
+    }
+    if (data?.session?.access_token) return data.session.access_token;
+    if (data?.session?.refresh_token) {
+      const { data: refreshed, error: refreshError } = await client.auth.refreshSession();
+      if (refreshError) {
+        logSupabaseError('Supabase session refresh failed.', refreshError);
+      }
+      return refreshed?.session?.access_token || '';
+    }
+    return '';
+  } catch (error) {
     logSupabaseError('Supabase session lookup failed.', error);
     return '';
   }
-  return data?.session?.access_token || '';
 }
 
 function profileFromUser(user) {
@@ -885,13 +897,15 @@ function flattenPaidUsedTireItems(orders) {
 
 function cleanNewTireField(value) {
   const text = String(value || '')
+    .replace(/[\uE000-\uF8FF]/g, ' ')
     .replace(/found\s+\d+\s+tires(?:\s+for:?\s*)?/ig, ' ')
+    .replace(/filter\s*results:?/ig, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .replace(/^[:\-–]+\s*/, '')
+    .replace(/^[:\-–]+\s*|\s*[:\-–]+$/g, '')
     .trim();
   if (!text) return '';
-  if (/^(tires for:?|price summary|add to cart|see out|revise search|warranty)$/i.test(text)) return '';
+  if (/^(tires for:?|price summary|add to cart|see out|revise search|warranty|filter results)$/i.test(text)) return '';
   return text;
 }
 
@@ -994,7 +1008,7 @@ function formatPaidDate(value) {
 
 function renderPurchasedTires(orders) {
   if (!orders.length) {
-    return '<p class="empty-cart">No paid tires yet. After a used-tire Stripe payment or a new-tire widget order, those tires are saved here.</p>';
+    return '<p class="empty-cart">No paid tires yet. After you pay for used tires or complete a new-tire order, those tires are saved here.</p>';
   }
 
   return orders.map((order) => {
@@ -1006,7 +1020,7 @@ function renderPurchasedTires(orders) {
     )).join('');
     const fulfillment = order.fulfillment_preference || 'Pickup';
     const nextStep = fulfillment === 'Installation'
-      ? `<p>Installation: <a href="/appointment.html?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking">Book installation for these new tires</a>. Purchase date: ${escapeHtml(paidLabel || 'saved with this order')}. You cannot book for the next 4 days after that purchase. Hours are 8:00 AM to 8:00 PM.</p>`
+      ? `<p>Installation: <a href="/appointment.html?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking">Book installation for these new tires</a>. Purchase date: ${escapeHtml(paidLabel || 'saved with this order')}. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.</p>`
       : '<p>Pickup: EastCord will confirm when this order is ready for pickup. No appointment is required.</p>';
     return `
       <article class="cart-line">
