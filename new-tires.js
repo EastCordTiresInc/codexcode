@@ -30,6 +30,9 @@
     brandFromLogoHint,
     headingBrandFrom,
     pickSummaryBrand,
+    scrapeQty,
+    scrapeQtyFromHash,
+    scrapeUnitPrice,
   } = window.EastCordNewTireBrand || {};
 
   let currentProfile = null;
@@ -974,16 +977,6 @@
     return headingBrandFrom(text) || knownBrandIn(text) || brandFromLogoHint(hay);
   }
 
-  function qtyFromText(value) {
-    const text = String(value || '');
-    const labeled = text.match(/(?:qty|quantity)[:\s]*(\d+)/i);
-    if (labeled) {
-      const qty = Number(labeled[1]);
-      if (qty >= 1 && qty <= 8) return qty;
-    }
-    return 0;
-  }
-
   function qtyFromCard(card) {
     if (!card) return 0;
     const nodes = collectWidgetElements(card);
@@ -993,10 +986,11 @@
       const isQtyControl = el.tagName === 'SELECT'
         || (el.tagName === 'INPUT' && (el.type === 'number' || /qty|quantity/i.test(label)));
       if (!isQtyControl) continue;
-      const qty = Number(el.value);
+      const selectedText = String(el.selectedOptions?.[0]?.textContent || el.value || el.getAttribute?.('aria-valuenow') || '');
+      const qty = Number(selectedText.match(/\d{1,2}/)?.[0] || selectedText);
       if (qty >= 1 && qty <= 8) return qty;
     }
-    return qtyFromText(card.innerText);
+    return scrapeQty(card.innerText);
   }
 
   function quoteFromCard(card) {
@@ -1019,8 +1013,8 @@
         && line.length <= 32
         && /[A-Za-z]/.test(line)
       )) || '';
-    const qty = qtyFromCard(card);
-    const price = Number(String(text.match(/\$([\d,.]+)/)?.[1] || '').replace(/,/g, '')) || 0;
+    const qty = qtyFromCard(card) || scrapeQty(text);
+    const price = scrapeUnitPrice(text) || Number(String(text.match(/\$([\d,.]+)/)?.[1] || '').replace(/,/g, '')) || 0;
     if (!brand && !size) return null;
     return {
       tires: [{ brand: cleanTireField(brand), model: '', size, qty, price, partNumber: '' }],
@@ -1236,15 +1230,58 @@
     });
   }
 
-  function scrapeUnitPrice(text) {
-    const perTire = String(text || '').match(/\$\s*([\d,]+\.\d{2})\s*per\s*tire/i);
-    if (perTire) return Number(perTire[1].replace(/,/g, '')) || 0;
-    const labeled = String(text || '').match(/(?:price each|unit price)[:\s]*\$\s*([\d,]+\.\d{2})/i);
-    if (labeled) return Number(labeled[1].replace(/,/g, '')) || 0;
-    const amounts = [...String(text || '').matchAll(/\$\s*([\d,]+\.\d{2})/g)]
-      .map((match) => Number(match[1].replace(/,/g, '')))
-      .filter((amount) => amount >= 40 && amount <= 900);
-    return amounts[0] || 0;
+  function refreshScrapedBrand() {
+    if (!isWidgetSummaryPage()) return;
+    const quote = quoteFromWidget();
+    if (!quote?.tires?.length) return;
+    const merged = mergeTire(selectedQuote?.tires?.[0] || {}, quote.tires[0]);
+    if (tireSignature({ tires: [merged] }) === tireSignature(selectedQuote)) return;
+    applyCapturedQuote(quote, { scroll: false });
+  }
+
+  function quoteFromWidget() {
+    const text = widgetPlainText();
+    const fromCard = isWidgetSummaryPage() ? null : quoteFromCard(lastClickedCard || highlightedCard);
+    const fromHash = quoteFromHash();
+    if (!text.trim()) return fromCard || fromHash;
+    const onQuotePage = /PRICE SUMMARY|CHANGE TIRE|PER TIRE/i.test(text)
+      || /summary|quote/i.test(window.location.hash || '');
+    if (!onQuotePage) return fromCard || fromHash;
+    const panel = isWidgetSummaryPage() ? summaryPanelText() : text;
+    const lines = String(panel || text).split(/\n+/).map((line) => line.trim()).filter(Boolean);
+    const size = tireSizeValue(panel || text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
+    const brand = isWidgetSummaryPage()
+      ? scrapeBrand(panel)
+      : (fromCard?.tires?.[0]?.brand || fromHash?.tires?.[0]?.brand || scrapeBrand(text) || '');
+    const skip = /price summary|change tire|revise search|per tire|see out|add to cart|place order|qty|warranty|category|add to compare|recommended|specs|features|reviews|sub-total|taxes|total price|touring|performance|winter|summer|all season|powered by|tireconnect|search by|in stock|load more|sort by|best match|summary|found\s+\d+\s+tires|tires for|filter results/i;
+    const model = lines.find((line) => {
+      if (skip.test(line) || isWidgetChrome(line)) return false;
+      if (brand && line.toLowerCase() === brand.toLowerCase()) return false;
+      if (size && line.replace(/\s+/g, '').toUpperCase().includes(size.replace(/\s+/g, '').toUpperCase())) return false;
+      if (line.length < 4 || line.length > 70) return false;
+      return /[A-Za-z]/.test(line);
+    }) || fromCard?.tires?.[0]?.model || fromHash?.tires?.[0]?.model || '';
+    const qty = isWidgetSummaryPage()
+      ? (scrapeQty(panel) || qtyFromCard(summaryBrandRoot()) || scrapeQtyFromHash(window.location.hash) || 0)
+      : (Number(fromCard?.tires?.[0]?.qty) >= 1
+        ? Number(fromCard.tires[0].qty)
+        : (Number(fromHash?.tires?.[0]?.qty) >= 1 ? Number(fromHash.tires[0].qty) : scrapeQty(panel || text)));
+    const price = scrapeUnitPrice(panel) || (isWidgetSummaryPage() ? 0 : (fromCard?.tires?.[0]?.price || 0));
+    const scraped = {
+      brand: cleanTireField(brand),
+      model: cleanTireField(model),
+      size,
+      qty,
+      price,
+      partNumber: fromHash?.tires?.[0]?.partNumber || '',
+    };
+    const tire = mergeTire(fromCard?.tires?.[0] || {}, scraped);
+    if (!isUsableTire(tire)) return fromCard || fromHash;
+    return {
+      tires: [tire],
+      vehicle: fromCard?.vehicle || fromHash?.vehicle || {},
+      hash: window.location.hash || '',
+    };
   }
 
   function summaryBrandRoot() {
@@ -1264,14 +1301,14 @@
 
   function summaryPanelText() {
     const scoped = summaryBrandRoot();
-    if (scoped) {
-      const text = String(scoped.innerText || '');
-      if (pickSummaryBrand(text)) return text;
-    }
+    const scopedText = scoped ? String(scoped.innerText || '') : '';
     const full = widgetPlainText();
     const idx = full.search(/change\s*tire/i);
-    if (idx < 0) return '';
-    return full.slice(Math.max(0, idx - 1500), idx);
+    const sliced = idx < 0 ? '' : full.slice(Math.max(0, idx - 1800), idx + 40);
+    const candidates = [scopedText, sliced].filter(Boolean);
+    const withFacts = candidates.find((text) => pickSummaryBrand(text) && scrapeQty(text) && scrapeUnitPrice(text));
+    if (withFacts) return withFacts;
+    return candidates.find((text) => pickSummaryBrand(text)) || sliced || scopedText;
   }
 
   function collectBrandHaystack(root) {
@@ -1304,61 +1341,10 @@
     return headingBrandFrom(text) || '';
   }
 
-  function refreshScrapedBrand() {
-    if (!isWidgetSummaryPage()) return;
-    const quote = quoteFromWidget();
-    const currentBrand = cleanTireField(selectedQuote?.tires?.[0]?.brand);
-    const scrapedBrand = cleanTireField(quote?.tires?.[0]?.brand);
-    if (!scrapedBrand || scrapedBrand === currentBrand) return;
-    applyCapturedQuote(quote || selectedQuote, { scroll: false });
-  }
-
-  function quoteFromWidget() {
-    const text = widgetPlainText();
-    const fromCard = isWidgetSummaryPage() ? null : quoteFromCard(lastClickedCard || highlightedCard);
-    const fromHash = quoteFromHash();
-    if (!text.trim()) return fromCard || fromHash;
-    const onQuotePage = /PRICE SUMMARY|CHANGE TIRE|PER TIRE/i.test(text)
-      || /summary|quote/i.test(window.location.hash || '');
-    if (!onQuotePage) return fromCard || fromHash;
-    const panel = isWidgetSummaryPage() ? summaryPanelText() : text;
-    const lines = String(panel || text).split(/\n+/).map((line) => line.trim()).filter(Boolean);
-    const size = tireSizeValue(panel || text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
-    const brand = isWidgetSummaryPage()
-      ? scrapeBrand(panel)
-      : (fromCard?.tires?.[0]?.brand || fromHash?.tires?.[0]?.brand || scrapeBrand(text) || '');
-    const skip = /price summary|change tire|revise search|per tire|see out|add to cart|place order|qty|warranty|category|add to compare|recommended|specs|features|reviews|sub-total|taxes|total price|touring|performance|winter|summer|all season|powered by|tireconnect|search by|in stock|load more|sort by|best match|summary|found\s+\d+\s+tires|tires for|filter results/i;
-    const model = lines.find((line) => {
-      if (skip.test(line) || isWidgetChrome(line)) return false;
-      if (brand && line.toLowerCase() === brand.toLowerCase()) return false;
-      if (size && line.replace(/\s+/g, '').toUpperCase().includes(size.replace(/\s+/g, '').toUpperCase())) return false;
-      if (line.length < 4 || line.length > 70) return false;
-      return /[A-Za-z]/.test(line);
-    }) || fromCard?.tires?.[0]?.model || fromHash?.tires?.[0]?.model || '';
-    const scraped = {
-      brand: cleanTireField(brand),
-      model: cleanTireField(model),
-      size,
-      qty: Number(fromCard?.tires?.[0]?.qty) >= 1
-        ? Number(fromCard.tires[0].qty)
-        : (Number(fromHash?.tires?.[0]?.qty) >= 1 ? Number(fromHash.tires[0].qty) : 0),
-      price: scrapeUnitPrice(panel || text) || fromCard?.tires?.[0]?.price || 0,
-      partNumber: fromHash?.tires?.[0]?.partNumber || '',
-    };
-    const tire = mergeTire(fromCard?.tires?.[0] || fromHash?.tires?.[0] || {}, scraped);
-    if (!isUsableTire(tire)) return fromCard || fromHash;
-    return {
-      tires: [tire],
-      vehicle: fromCard?.vehicle || fromHash?.vehicle || {},
-      hash: window.location.hash || '',
-    };
-  }
-
   function quoteFromHash() {
     const raw = decodeURIComponent(window.location.hash || '');
     if (!raw) return null;
-    const qtyMatch = raw.match(/quantities(?:\[|%5B)0(?:\]|%5D)=(\d+)/i);
-    const qty = Math.max(1, Number(qtyMatch?.[1]) || 0);
+    const qty = scrapeQtyFromHash(raw);
     const width = raw.match(/(?:width|t>width)[^0-9]{0,6}(\d{3})/i)?.[1];
     const height = raw.match(/(?:height|t>height)[^0-9]{0,6}(\d{2})/i)?.[1];
     const rim = raw.match(/(?:rim|t>rim)[^0-9]{0,6}(\d{2})/i)?.[1];
@@ -1370,7 +1356,7 @@
       brand: cleanTireField(decoded.brand),
       model: cleanTireField(decoded.model),
       size,
-      qty: qty || 4,
+      qty,
       price: 0,
       partNumber: decoded.partNumber || '',
     };

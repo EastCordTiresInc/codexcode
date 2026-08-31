@@ -298,6 +298,9 @@ const {
   pickSummaryBrand,
   headingBrandFrom,
   knownBrandIn,
+  scrapeQty,
+  scrapeQtyFromHash,
+  scrapeUnitPrice,
 } = require('../new-tire-brand.js');
 
 test('summary heading Mirage is not overwritten by leftover BFGoodrich filters', () => {
@@ -334,6 +337,38 @@ test('summary heading Mirage is not overwritten by leftover BFGoodrich filters',
   assert.notStrictEqual(pickSummaryBrand(summary), knownBrandIn(widgetWithFilters));
 });
 
+test('summary QTY and PER TIRE beat leftover search price and default quantity', () => {
+  const summary = [
+    'SUMMARY',
+    'MIRAGE',
+    'MR-182',
+    'QTY',
+    '4',
+    'PER TIRE',
+    '$95.40',
+    'Set of 4',
+    '$381.60',
+    'CHANGE TIRE',
+  ].join('\n');
+  const leftoverSearch = [
+    'BFGoodrich',
+    'QTY',
+    '2',
+    'PER TIRE',
+    '$237.18',
+    summary,
+  ].join('\n');
+
+  assert.strictEqual(scrapeQty(summary), 4);
+  assert.strictEqual(scrapeUnitPrice(summary), 95.4);
+  assert.notStrictEqual(scrapeUnitPrice(summary), 381.6);
+  assert.strictEqual(scrapeQty(leftoverSearch), 2);
+  assert.strictEqual(scrapeUnitPrice(leftoverSearch), 237.18);
+  assert.strictEqual(scrapeQtyFromHash('#!summary?t_qty=-4&t_width=-225'), 4);
+  assert.strictEqual(scrapeQtyFromHash('#!results'), 0);
+  assert.strictEqual(scrapeQty('QTY\n2\nPER TIRE\n$61.43'), 2);
+});
+
 test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a login error', () => {
   const fs = require('fs');
   const path = require('path');
@@ -344,6 +379,8 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(brands, /'Mirage'/);
   assert.match(page, /pickSummaryBrand/);
   assert.match(page, /summaryPanelText/);
+  assert.match(page, /scrapeQty\(panel\)/);
+  assert.match(brands, /scrapeQtyFromHash/);
   assert.match(brands, /filter\\s\*results:\?/);
   assert.match(page, /onTireSearchResults/);
   assert.match(page, /brandFromCache/);

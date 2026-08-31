@@ -121,6 +121,66 @@
     return headingBrandFrom(summaryText) || '';
   }
 
+  function scrapeQty(text) {
+    const raw = String(text || '');
+    const labeled = raw.match(/(?:qty|quantity)[:\s]*(\d{1,2})/i);
+    if (labeled) {
+      const qty = Number(labeled[1]);
+      if (qty >= 1 && qty <= 8) return qty;
+    }
+    const setOf = raw.match(/set of\s*(\d{1,2})/i);
+    if (setOf) {
+      const qty = Number(setOf[1]);
+      if (qty >= 1 && qty <= 8) return qty;
+    }
+    return 0;
+  }
+
+  function scrapeQtyFromHash(raw) {
+    const hash = String(raw || '');
+    const patterns = [
+      /quantities(?:\[|%5B)0(?:\]|%5D)=(\d+)/i,
+      /t_qty=-?(\d+)/i,
+      /t>qty=-?(\d+)/i,
+    ];
+    for (const pattern of patterns) {
+      const qty = Number(hash.match(pattern)?.[1]);
+      if (qty >= 1 && qty <= 8) return qty;
+    }
+    return 0;
+  }
+
+  function moneyAmount(value) {
+    return Number(String(value || '').replace(/,/g, '')) || 0;
+  }
+
+  function scrapeUnitPrice(text) {
+    const raw = String(text || '');
+    const perTireAfter = raw.match(/per\s*tire[:\s]*\$?\s*([\d,]+\.\d{2})/i);
+    if (perTireAfter) return moneyAmount(perTireAfter[1]);
+    const perTireBefore = raw.match(/\$\s*([\d,]+\.\d{2})\s*per\s*tire/i);
+    if (perTireBefore) return moneyAmount(perTireBefore[1]);
+    const labeled = raw.match(/(?:price each|unit price)[:\s]*\$\s*([\d,]+\.\d{2})/i);
+    if (labeled) return moneyAmount(labeled[1]);
+
+    const qty = scrapeQty(raw);
+    const amounts = [...raw.matchAll(/\$\s*([\d,]+\.\d{2})/g)]
+      .map((match) => moneyAmount(match[1]))
+      .filter((amount) => amount >= 20 && amount <= 1200);
+    if (qty >= 2 && amounts.length) {
+      const unit = amounts.find((value) => (
+        amounts.some((other) => other !== value && Math.abs(other - value * qty) < 0.06)
+      ));
+      if (unit) return unit;
+      const setTotal = raw.match(/set of\s*\d{1,2}[\s\S]{0,24}\$\s*([\d,]+\.\d{2})/i);
+      if (setTotal) {
+        const total = moneyAmount(setTotal[1]);
+        if (total > 0) return Math.round((total / qty) * 100) / 100;
+      }
+    }
+    return amounts.find((amount) => amount <= 900) || 0;
+  }
+
   return {
     TIRE_BRANDS,
     isWidgetChrome,
@@ -132,5 +192,8 @@
     strongerBrand,
     headingBrandFrom,
     pickSummaryBrand,
+    scrapeQty,
+    scrapeQtyFromHash,
+    scrapeUnitPrice,
   };
 });
