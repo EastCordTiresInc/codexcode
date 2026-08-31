@@ -339,13 +339,22 @@
       .replace(/\s+/g, ' ')
       .trim();
     if (!text) return true;
-    if (/^(summary|price summary|quote|order|cart|your cart|details?|done|pickup|installation)$/i.test(text)) return true;
-    return /^(revise search|change (tire|search|vehicle)|search by|search tires|price summary|see out|add to cart|place order|place your order|add to compare|powered by|tireconnect|qty|quantity|warranty|category|recommended|specs|features|reviews|sub-total|taxes|total price|per tire|touring|performance|winter|summer|all season|all weather|in stock|load more|show more|next|previous|filters?|sort by|best match|preferred date|how do you want)$/i.test(text)
-      || /revise search|powered by|add to compare|price summary|found\s+\d+\s+tires|tires for:/i.test(text);
+    if (/^(summary|price summary|quote|order|cart|your cart|details?|done|pickup|installation|tires for)$/i.test(text)) return true;
+    return /^(revise search|change (tire|search|vehicle)|search by|search tires|price summary|see out|add to cart|place order|place your order|add to compare|powered by|tireconnect|qty|quantity|warranty|category|recommended|specs|features|reviews|sub-total|taxes|total price|per tire|touring|performance|winter|summer|all season|all weather|in stock|load more|show more|next|previous|filters?|sort by|best match|preferred date|how do you want)$/i.test(text);
   }
 
   function cleanTireField(value) {
-    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (value && typeof value === 'object') {
+      return cleanTireField(value.name || value.title || value.label || value.brand_name || '');
+    }
+    const text = String(value || '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/found\s+\d+\s+tires(?:\s+for:?\s*)?/ig, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^[:\-–]+\s*/, '')
+      .trim();
+    if (!text) return '';
     return isWidgetChrome(text) ? '' : text;
   }
 
@@ -434,7 +443,15 @@
     if (!tires.length) return null;
     return {
       tires: tires.map((tire) => ({
-        brand: cleanTireField(tire.brand_name || tire.brand || tire.manufacturer || tire.tire_brand || tire.make),
+        brand: cleanTireField(
+          tire.brand_name
+          || tire.brand
+          || tire.manufacturer
+          || tire.manufacturer_name
+          || tire.tire_brand
+          || tire.vendor
+          || tire.make,
+        ),
         model: cleanTireField(tire.model_name || tire.model || tire.product_name || tire.tire_model),
         size: tireSizeValue(tire.size || tire.sizeShort || tire.size_short || tire.tire_size || tire.size_display),
         qty: Math.max(1, Math.min(8, Number(tire.selectedQuantity ?? tire.selected_quantity ?? tire.quantity ?? tire.qty) || 4)),
@@ -532,7 +549,7 @@
     if (/(summary|quote)/i.test(hash) && !/results/i.test(hash)) return true;
     const text = widgetPlainText();
     if (/BACK TO SUMMARY|CREDIT CARD NUMBER|PAY WITH CREDIT CARD/i.test(text)) return false;
-    return /CHANGE TIRE/i.test(text) && /PRICE SUMMARY|SUB-TOTAL/i.test(text);
+    return /CHANGE\s*TIRE/i.test(text) && /warranty|category|size:|price summary|sub-total|summary/i.test(text);
   }
 
   function isWidgetCheckoutPage() {
@@ -552,6 +569,7 @@
     bindNativeOrderFallback();
     highlightSelectedWidgetTires();
     syncDemoOrderButton();
+    refreshScrapedBrand();
   }
 
   function isLocalCheckoutOpen() {
@@ -875,13 +893,14 @@
 
   function cardMatchesTire(card, tire) {
     const text = String(card.innerText || '');
-    const compact = text.replace(/\s+/g, '').toLowerCase();
+    const hay = `${text}\n${collectBrandHaystack(card)}`;
+    const compact = `${text}${hay}`.replace(/\s+/g, '').toLowerCase();
     const sizeKey = String(tire.size || '').match(/(\d{3}\s*\/\s*\d{2}\s*R\s*\d{2})/i)?.[1]?.replace(/\s+/g, '').toLowerCase();
     const brand = String(tire.brand || '').replace(/tires?$/i, '').replace(/\s+/g, ' ').trim();
-    if (!sizeKey || !brand || brand.length < 3) return false;
-    if (!compact.includes(sizeKey)) return false;
+    if (!sizeKey || !compact.includes(sizeKey)) return false;
+    if (!brand || brand.length < 3) return true;
     const escaped = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-    return new RegExp(`(?:^|[^A-Za-z])${escaped}(?:$|[^A-Za-z])`, 'i').test(text);
+    return new RegExp(`(?:^|[^A-Za-z])${escaped}(?:$|[^A-Za-z])`, 'i').test(hay);
   }
 
   function isFullTireCard(el) {
@@ -893,20 +912,45 @@
     return /\d{3}\s*\/\s*\d{2}\s*r\s*\d{2}/.test(text);
   }
 
+  function knownBrandIn(text) {
+    const haystack = String(text || '');
+    if (!haystack.trim()) return '';
+    return TIRE_BRANDS.find((name) => (
+      new RegExp(`(?:^|[^A-Za-z])${name.replace(/\s+/g, '[\\s_-]*')}(?:$|[^A-Za-z])`, 'i').test(haystack)
+    )) || '';
+  }
+
+  function brandFromElement(node) {
+    if (!node) return '';
+    const chunks = [String(node.innerText || ''), String(node.getAttribute?.('data-brand') || '')];
+    const collect = node.querySelectorAll ? node.querySelectorAll('img, [alt], [title], [data-brand], source') : [];
+    collect.forEach((el) => {
+      ['alt', 'title', 'aria-label', 'src', 'srcset', 'href', 'data-src', 'data-brand'].forEach((attr) => {
+        const value = el.getAttribute?.(attr);
+        if (value) chunks.push(value);
+      });
+      if (el.src) chunks.push(el.src);
+      if (el.currentSrc) chunks.push(el.currentSrc);
+    });
+    return knownBrandIn(chunks.join('\n'));
+  }
+
   function quoteFromCard(card) {
     if (!card) return null;
     const text = String(card.innerText || '');
     const size = tireSizeValue(text);
-    const known = TIRE_BRANDS.find((name) => new RegExp(name.replace(/\s+/g, '\\s*'), 'i').test(text));
-    const skip = /add to compare|size:|warranty|qty|per tire|add to cart|place order|specs|features|performance|all season|all weather|summer|winter|n\/a|km|see out|found\s+\d+\s+tires|tires for/i;
-    const brand = known || String(text).split(/\n/).map((line) => line.trim()).find((line) => (
-      line
-      && !skip.test(line)
-      && !/\d{3}\/\d{2}/.test(line)
-      && line.length >= 2
-      && line.length <= 32
-      && /[A-Za-z]/.test(line)
-    )) || '';
+    const skip = /add to compare|size:|warranty|qty|per tire|add to cart|place order|specs|features|performance|all season|all weather|summer|winter|n\/a|km|see out/i;
+    const brand = brandFromElement(card)
+      || knownBrandIn(text)
+      || String(text).split(/\n/).map((line) => cleanTireField(line)).find((line) => (
+        line
+        && !skip.test(line)
+        && !tireSizeValue(line)
+        && !/\$/.test(line)
+        && line.length >= 2
+        && line.length <= 32
+        && /[A-Za-z]/.test(line)
+      )) || '';
     const qty = Math.max(1, Number(card.querySelector?.('select')?.value) || 4);
     const price = Number(String(text.match(/\$([\d,.]+)/)?.[1] || '').replace(/,/g, '')) || 0;
     if (!brand && !size) return null;
@@ -941,15 +985,8 @@
   }
 
   function applyCardHighlightStyles(card) {
-    if (!card) return;
+    if (!card || card.id === 'tireconnect') return;
     card.setAttribute('data-eastcord-tire-card', 'true');
-    card.classList?.add('eastcord-tire-card-selected');
-    card.style.setProperty('border', '4px solid #df1f2d', 'important');
-    card.style.setProperty('box-shadow', '0 0 0 6px rgba(223, 31, 45, 0.22)', 'important');
-    card.style.setProperty('background-color', '#fff5f5', 'important');
-    card.style.setProperty('outline', '4px solid #df1f2d', 'important');
-    card.style.setProperty('outline-offset', '2px', 'important');
-    card.style.setProperty('border-radius', '12px', 'important');
   }
 
   function clearCardHighlightStyles(card) {
@@ -959,6 +996,17 @@
     ['border', 'box-shadow', 'background-color', 'outline', 'outline-offset', 'border-radius'].forEach((prop) => {
       card.style.removeProperty(prop);
     });
+  }
+
+  function isHighlightableCard(card) {
+    if (!card?.isConnected || card.id === 'tireconnect') return false;
+    const rect = card.getBoundingClientRect();
+    const root = document.getElementById('tireconnect');
+    const rootRect = root?.getBoundingClientRect?.();
+    if (rect.width < 140 || rect.height < 140) return false;
+    if (rect.width > 520 || rect.height > 760) return false;
+    if (rootRect && (rect.width > rootRect.width * 0.7 || rect.height > rootRect.height * 0.82)) return false;
+    return true;
   }
 
   function ensureHighlightOverlay() {
@@ -972,6 +1020,8 @@
   }
 
   function hideHighlightOverlay() {
+    window.clearInterval(highlightPulseTimer);
+    highlightHoldUntil = 0;
     const overlay = document.getElementById('eastcord-tire-highlight');
     if (overlay) overlay.hidden = true;
     highlightedCard = null;
@@ -979,41 +1029,32 @@
     const root = document.getElementById('tireconnect');
     collectWidgetElements(root).forEach((el) => {
       if (el.nodeType !== 1) return;
-      if (el.getAttribute?.('data-eastcord-tire-card') === 'true') clearCardHighlightStyles(el);
+      if (el.getAttribute?.('data-eastcord-tire-card') === 'true' || el.classList?.contains('eastcord-tire-card-selected')) {
+        clearCardHighlightStyles(el);
+      }
     });
   }
 
   function placeHighlightOverlay(card) {
     const overlay = ensureHighlightOverlay();
-    if (card?.isConnected && card.getBoundingClientRect) {
-      const rect = card.getBoundingClientRect();
-      applyCardHighlightStyles(card);
-      if (rect.width >= 120 && rect.height >= 120) {
-        highlightedCard = card;
-        lastClickedCard = card;
-        lastHighlightRect = {
-          left: rect.left,
-          top: rect.top,
-          width: rect.width,
-          height: rect.height,
-        };
-        overlay.hidden = false;
-        overlay.style.left = `${Math.round(rect.left - 4)}px`;
-        overlay.style.top = `${Math.round(rect.top - 4)}px`;
-        overlay.style.width = `${Math.round(rect.width + 8)}px`;
-        overlay.style.height = `${Math.round(rect.height + 8)}px`;
-        return;
-      }
-    }
-    if (Date.now() < highlightHoldUntil && lastHighlightRect) {
-      overlay.hidden = false;
-      overlay.style.left = `${Math.round(lastHighlightRect.left - 4)}px`;
-      overlay.style.top = `${Math.round(lastHighlightRect.top - 4)}px`;
-      overlay.style.width = `${Math.round(lastHighlightRect.width + 8)}px`;
-      overlay.style.height = `${Math.round(lastHighlightRect.height + 8)}px`;
+    if (!isHighlightableCard(card)) {
+      overlay.hidden = true;
       return;
     }
-    overlay.hidden = true;
+    const rect = card.getBoundingClientRect();
+    highlightedCard = card;
+    lastClickedCard = card;
+    lastHighlightRect = {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+    overlay.hidden = false;
+    overlay.style.left = `${Math.round(rect.left - 4)}px`;
+    overlay.style.top = `${Math.round(rect.top - 4)}px`;
+    overlay.style.width = `${Math.round(rect.width + 8)}px`;
+    overlay.style.height = `${Math.round(rect.height + 8)}px`;
   }
 
   function findMatchingCards() {
@@ -1056,22 +1097,19 @@
   }
 
   function isWidgetResultsPage() {
-    return findSelectButtons(document.getElementById('tireconnect')).length > 0;
+    const root = document.getElementById('tireconnect');
+    return collectWidgetElements(root).some((el) => isFullTireCard(el));
   }
 
   function highlightSelectedWidgetTires() {
     syncSummaryLayout();
-    if (isLocalCheckoutOpen() || isWidgetCheckoutPage() || isWidgetSummaryPage()) {
+    if (isLocalCheckoutOpen() || isWidgetCheckoutPage() || isWidgetSummaryPage() || !isWidgetResultsPage()) {
       hideHighlightOverlay();
       return;
     }
-    if (!isWidgetResultsPage()) {
-      hideHighlightOverlay();
-      return;
-    }
-    let matches = findMatchingCards();
-    if (!matches.length && lastClickedCard?.isConnected) {
-      matches = [visualCardFrom(lastClickedCard) || lastClickedCard];
+    let matches = findMatchingCards().filter(isHighlightableCard);
+    if (!matches.length && isHighlightableCard(lastClickedCard)) {
+      matches = [visualCardFrom(lastClickedCard) || lastClickedCard].filter(isHighlightableCard);
     }
     const root = document.getElementById('tireconnect');
     collectWidgetElements(root).forEach((el) => {
@@ -1084,7 +1122,6 @@
       hideHighlightOverlay();
       return;
     }
-    matches.forEach(applyCardHighlightStyles);
     const visible = matches.find((card) => {
       const rect = card.getBoundingClientRect();
       return rect.bottom > 90 && rect.top < window.innerHeight - 20;
@@ -1134,24 +1171,60 @@
     return amounts[0] || 0;
   }
 
-  function scrapeBrand(text = '') {
-    const chunks = [String(text || '')];
+  function summaryBrandRoot() {
     const root = document.getElementById('tireconnect');
+    const change = collectWidgetElements(root).find((el) => /change\s*tire/i.test(widgetButtonLabel(el)));
+    let node = change;
+    while (node && node !== root) {
+      const text = String(node.innerText || '');
+      if (/change\s*tire/i.test(text) && /warranty|category|size:/i.test(text) && text.length < 4000) {
+        return node;
+      }
+      node = node.parentElement || node.getRootNode?.()?.host;
+    }
+    return root;
+  }
+
+  function collectBrandHaystack(root) {
+    const chunks = [];
     collectWidgetElements(root).forEach((el) => {
       if (!el || el.nodeType !== 1) return;
-      ['alt', 'title', 'aria-label', 'src', 'srcset', 'href', 'data-src', 'data-brand'].forEach((attr) => {
+      chunks.push(String(el.className || ''), String(el.id || ''));
+      ['alt', 'title', 'aria-label', 'src', 'srcset', 'href', 'data-src', 'data-brand', 'data-srcset'].forEach((attr) => {
         const value = el.getAttribute?.(attr);
         if (value) chunks.push(value);
       });
       if (el.src) chunks.push(el.src);
       if (el.currentSrc) chunks.push(el.currentSrc);
-      const bg = el.style?.backgroundImage || '';
-      if (bg) chunks.push(bg);
+      if (el.tagName === 'SVG' || el.tagName === 'IMG' || el.tagName === 'USE' || el.tagName === 'IMAGE') {
+        try { chunks.push(el.outerHTML || ''); } catch (error) { /* ignore */ }
+      }
+      try {
+        const bg = el.ownerDocument?.defaultView?.getComputedStyle?.(el)?.backgroundImage || '';
+        if (bg && bg !== 'none') chunks.push(bg);
+      } catch (error) {
+        /* ignore */
+      }
     });
-    const haystack = chunks.join('\n');
-    return TIRE_BRANDS.find((name) => (
-      new RegExp(`(?:^|[^A-Za-z])${name.replace(/\s+/g, '[\\s_-]*')}(?:$|[^A-Za-z])`, 'i').test(haystack)
-    )) || '';
+    try { chunks.push(root?.outerHTML || ''); } catch (error) { /* ignore */ }
+    return chunks.join('\n');
+  }
+
+  function scrapeBrand(text = '') {
+    const scoped = isWidgetSummaryPage() ? summaryBrandRoot() : document.getElementById('tireconnect');
+    return knownBrandIn(text)
+      || knownBrandIn(collectBrandHaystack(scoped))
+      || knownBrandIn(widgetPlainText())
+      || '';
+  }
+
+  function refreshScrapedBrand() {
+    if (!isWidgetSummaryPage()) return;
+    const quote = quoteFromWidget();
+    const currentBrand = cleanTireField(selectedQuote?.tires?.[0]?.brand);
+    const scrapedBrand = cleanTireField(quote?.tires?.[0]?.brand);
+    if (!scrapedBrand || scrapedBrand === currentBrand) return;
+    applyCapturedQuote(quote || selectedQuote, { scroll: false });
   }
 
   function quoteFromWidget() {
@@ -1164,10 +1237,9 @@
     if (!onQuotePage) return fromCard || fromHash;
     const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
     const size = tireSizeValue(text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
-    const brand = scrapeBrand(text)
-      || fromCard?.tires?.[0]?.brand
-      || fromHash?.tires?.[0]?.brand
-      || '';
+    const brand = isWidgetSummaryPage()
+      ? (scrapeBrand(text) || fromCard?.tires?.[0]?.brand || fromHash?.tires?.[0]?.brand || '')
+      : (fromCard?.tires?.[0]?.brand || fromHash?.tires?.[0]?.brand || scrapeBrand(text) || '');
     const skip = /price summary|change tire|revise search|per tire|see out|add to cart|place order|qty|warranty|category|add to compare|recommended|specs|features|reviews|sub-total|taxes|total price|touring|performance|winter|summer|all season|powered by|tireconnect|search by|in stock|load more|sort by|best match|summary|found\s+\d+\s+tires|tires for/i;
     const model = lines.find((line) => {
       if (skip.test(line) || isWidgetChrome(line)) return false;
@@ -1818,7 +1890,10 @@
     };
 
     listen('onTireSelect', (event) => {
-      applyCapturedQuote(quoteFromSelectEvent(eventPayload(event)), { replace: true });
+      const fromEvent = quoteFromSelectEvent(eventPayload(event));
+      const fromCard = quoteFromCard(lastClickedCard || highlightedCard);
+      applyCapturedQuote(fromEvent || fromCard, { replace: false });
+      if (fromCard) applyCapturedQuote(fromCard, { replace: false, scroll: false });
       holdTireHighlight();
       window.setTimeout(highlightSelectedWidgetTires, 50);
       window.setTimeout(highlightSelectedWidgetTires, 400);
@@ -1842,10 +1917,12 @@
     });
     listen('onResultsReviseClick', (event) => {
       didAutoScroll = false;
+      hideHighlightOverlay();
       resolveWidgetEvent(event);
     });
     listen('onResultsReviseClicked', (event) => {
       didAutoScroll = false;
+      hideHighlightOverlay();
       resolveWidgetEvent(event);
     });
     listen('onAppointmentClick', (event) => {
@@ -2098,6 +2175,7 @@
     });
     window.addEventListener('hashchange', () => {
       logFlow('widget.hashchange', window.location.hash);
+      if (!isWidgetResultsPage()) hideHighlightOverlay();
       applyCapturedQuote(quoteFromHash() || quoteFromWidget(), { scroll: /summary|quote|order/i.test(window.location.hash) });
     });
     const widget = document.getElementById('tireconnect');
