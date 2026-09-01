@@ -297,12 +297,33 @@ const {
   strongerBrand,
   pickSummaryBrand,
   headingBrandFrom,
+  headingModelFrom,
   knownBrandIn,
   scrapeQty,
   scrapeQtyFromHash,
   scrapeUnitPrice,
   looksLikeBrand,
+  sanitizeBrand,
+  isBadBrandCandidate,
 } = require('../new-tire-brand.js');
+
+function logoSummary(model, category = 'Performance Summer', extra = {}) {
+  return [
+    'SUMMARY',
+    model,
+    'WARRANTY',
+    extra.warranty || 'N/A',
+    'CATEGORY',
+    category,
+    'SIZE',
+    extra.size || '225/45R18 95W XL',
+    'QTY',
+    String(extra.qty || 4),
+    'PER TIRE',
+    extra.price || '$101.40',
+    'CHANGE TIRE',
+  ].join('\n');
+}
 
 test('summary heading Mirage is not overwritten by leftover BFGoodrich filters', () => {
   const summary = [
@@ -365,6 +386,24 @@ test('Ovation logo-only summary is not captured as CATEGORY Performance', () => 
   assert.strictEqual(strongerBrand('Ovation', 'CATEGORY Performance'), 'Ovation');
 });
 
+test('logo-only Triangle, Westlake, Rovelo, and Ironman skip CATEGORY chrome', () => {
+  const cases = [
+    ['EFFEX SPORT TH202', 'https://cdn.tireconnect.ca/brands/triangle-logo.png', 'Triangle', 'Performance Summer'],
+    ['SW608', 'https://cdn.tireconnect.ca/brands/westlake-logo.png alt="Westlake Tires"', 'Westlake', 'Winter'],
+    ['INSTINCT UHP AS HP01', 'https://cdn.tireconnect.ca/brands/rovelo-logo.png', 'Rovelo', 'Performance Summer'],
+    ['IMOVE GEN2 AS', 'https://cdn.tireconnect.ca/brands/ironman-logo.png', 'Ironman', 'All Season'],
+  ];
+
+  cases.forEach(([model, logoHay, brand, category]) => {
+    const summary = logoSummary(model, category);
+    assert.equal(isBadBrandCandidate('CATEGORY Perform'), true, `${brand} glued category`);
+    assert.equal(isBadBrandCandidate('CATEGORY Win'), true, `${brand} glued category`);
+    assert.strictEqual(pickSummaryBrand(summary, logoHay), brand, `${brand} logo brand`);
+    assert.strictEqual(headingModelFrom(`${summary}\nOrder By`, brand), model, `${brand} model`);
+    assert.strictEqual(strongerBrand('CATEGORY Perform', brand), brand, `${brand} keeps known brand`);
+  });
+});
+
 test('summary QTY and PER TIRE beat leftover search price and default quantity', () => {
   const summary = [
     'SUMMARY',
@@ -411,7 +450,8 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(brands, /scrapeQtyFromHash/);
   assert.match(brands, /filter\\s\*results:\?/);
   assert.match(page, /onTireSearchResults/);
-  assert.match(page, /brandFromCache/);
+  assert.match(page, /applyCardHighlightStyles/);
+  assert.match(page, /eastcord-tire-card-selected/);
   assert.match(page, /Keep npm run dev running/);
   assert.doesNotMatch(page, /The demo order could not be saved\. Log in and try again/);
   assert.match(html, /new-tire-brand\.js\?v=/);

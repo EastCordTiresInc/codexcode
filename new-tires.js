@@ -29,7 +29,10 @@
     knownBrandIn,
     brandFromLogoHint,
     headingBrandFrom,
+    headingModelFrom,
     pickSummaryBrand,
+    isBadBrandCandidate,
+    sanitizeBrand,
     scrapeQty,
     scrapeQtyFromHash,
     scrapeUnitPrice,
@@ -905,7 +908,7 @@
 
   function isSelectCtaText(value) {
     const text = String(value || '').replace(/\s+/g, ' ').trim();
-    return isOutTheDoorLabel(text) || /add to cart|place order/i.test(text);
+    return isOutTheDoorLabel(text) || /add to cart|place order|select tire|view details/i.test(text);
   }
 
   function collectWidgetElements(root, list = []) {
@@ -948,8 +951,13 @@
     const hay = `${text}\n${collectBrandHaystack(card)}`;
     const compact = `${text}${hay}`.replace(/\s+/g, '').toLowerCase();
     const sizeKey = String(tire.size || '').match(/(\d{3}\s*\/\s*\d{2}\s*R\s*\d{2})/i)?.[1]?.replace(/\s+/g, '').toLowerCase();
-    const brand = String(tire.brand || '').replace(/tires?$/i, '').replace(/\s+/g, ' ').trim();
     if (!sizeKey || !compact.includes(sizeKey)) return false;
+    const model = String(tire.model || '').replace(/\s+/g, ' ').trim();
+    if (model.length >= 3) {
+      const modelEscaped = model.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+      if (new RegExp(modelEscaped, 'i').test(hay)) return true;
+    }
+    const brand = sanitizeBrand(tire.brand || '');
     if (!brand || brand.length < 3) return true;
     const escaped = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
     return new RegExp(`(?:^|[^A-Za-z])${escaped}(?:$|[^A-Za-z])`, 'i').test(hay);
@@ -958,10 +966,10 @@
   function isFullTireCard(el) {
     if (!el || el.nodeType !== 1) return false;
     const text = String(el.innerText || '').replace(/\s+/g, ' ').toLowerCase();
-    const ctaCount = (text.match(/add to cart|place order|see out/g) || []).length;
-    if (ctaCount < 1 || ctaCount > 3) return false;
-    if (!/per tire/.test(text)) return false;
-    return /\d{3}\s*\/\s*\d{2}\s*r\s*\d{2}/.test(text);
+    const ctaCount = (text.match(/add to cart|place order|see out|select tire|view details/i) || []).length;
+    if (ctaCount < 1 || ctaCount > 4) return false;
+    if (!/\d{3}\s*\/\s*\d{2}\s*r\s*\d{2}/.test(text)) return false;
+    return /per tire|\$[\d,.]+\.\d{2}/.test(text);
   }
 
   function brandFromElement(node) {
@@ -1043,6 +1051,13 @@
   function applyCardHighlightStyles(card) {
     if (!card || card.id === 'tireconnect') return;
     card.setAttribute('data-eastcord-tire-card', 'true');
+    card.classList?.add('eastcord-tire-card-selected');
+    card.style.setProperty('border', '4px solid #df1f2d', 'important');
+    card.style.setProperty('outline', '4px solid #df1f2d', 'important');
+    card.style.setProperty('outline-offset', '2px', 'important');
+    card.style.setProperty('box-shadow', '0 0 0 6px rgba(223, 31, 45, 0.22)', 'important');
+    card.style.setProperty('background-color', '#fff5f5', 'important');
+    card.style.setProperty('border-radius', '12px', 'important');
   }
 
   function clearCardHighlightStyles(card) {
@@ -1100,6 +1115,7 @@
     const rect = card.getBoundingClientRect();
     highlightedCard = card;
     lastClickedCard = card;
+    applyCardHighlightStyles(card);
     lastHighlightRect = {
       left: rect.left,
       top: rect.top,
@@ -1159,7 +1175,16 @@
 
   function highlightSelectedWidgetTires() {
     syncSummaryLayout();
-    if (isLocalCheckoutOpen() || isWidgetCheckoutPage() || isWidgetSummaryPage() || !isWidgetResultsPage()) {
+    if (isLocalCheckoutOpen() || isWidgetCheckoutPage() || isWidgetSummaryPage()) {
+      hideHighlightOverlay();
+      return;
+    }
+    if (!isWidgetResultsPage()) {
+      const heldCard = lastClickedCard?.isConnected ? (visualCardFrom(lastClickedCard) || lastClickedCard) : null;
+      if (Date.now() < highlightHoldUntil && isHighlightableCard(heldCard)) {
+        placeHighlightOverlay(heldCard);
+        return;
+      }
       hideHighlightOverlay();
       return;
     }
@@ -1175,6 +1200,10 @@
       }
     });
     if (!matches.length) {
+      if (Date.now() < highlightHoldUntil && isHighlightableCard(lastClickedCard)) {
+        placeHighlightOverlay(visualCardFrom(lastClickedCard) || lastClickedCard);
+        return;
+      }
       hideHighlightOverlay();
       return;
     }
@@ -1242,19 +1271,17 @@
       || /summary|quote/i.test(window.location.hash || '');
     if (!onQuotePage) return fromCard || fromHash;
     const panel = isWidgetSummaryPage() ? summaryPanelText() : text;
-    const lines = String(panel || text).split(/\n+/).map((line) => line.trim()).filter(Boolean);
-    const size = tireSizeValue(panel || text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
+    const summaryHay = isWidgetSummaryPage() && summaryBrandRoot()
+      ? collectBrandHaystack(summaryBrandRoot())
+      : '';
     const brand = isWidgetSummaryPage()
-      ? scrapeBrand(panel)
-      : (fromCard?.tires?.[0]?.brand || fromHash?.tires?.[0]?.brand || scrapeBrand(text) || '');
-    const skip = /price summary|change tire|revise search|per tire|see out|add to cart|place order|qty|warranty|category|add to compare|recommended|specs|features|reviews|sub-total|taxes|total price|touring|performance|winter|summer|all season|powered by|tireconnect|search by|in stock|load more|sort by|best match|summary|found\s+\d+\s+tires|tires for|filter results/i;
-    const model = lines.find((line) => {
-      if (skip.test(line) || isWidgetChrome(line)) return false;
-      if (brand && line.toLowerCase() === brand.toLowerCase()) return false;
-      if (size && line.replace(/\s+/g, '').toUpperCase().includes(size.replace(/\s+/g, '').toUpperCase())) return false;
-      if (line.length < 4 || line.length > 70) return false;
-      return /[A-Za-z]/.test(line);
-    }) || fromCard?.tires?.[0]?.model || fromHash?.tires?.[0]?.model || '';
+      ? pickSummaryBrand(panel, summaryHay)
+      : (sanitizeBrand(fromCard?.tires?.[0]?.brand) || sanitizeBrand(fromHash?.tires?.[0]?.brand) || scrapeBrand(text) || '');
+    const model = headingModelFrom(panel || text, brand)
+      || cleanTireField(fromCard?.tires?.[0]?.model)
+      || cleanTireField(fromHash?.tires?.[0]?.model)
+      || '';
+    const size = tireSizeValue(panel || text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
     const qty = isWidgetSummaryPage()
       ? (scrapeQty(panel) || qtyFromCard(summaryBrandRoot()) || scrapeQtyFromHash(window.location.hash) || 0)
       : (Number(fromCard?.tires?.[0]?.qty) >= 1
@@ -1262,7 +1289,7 @@
         : (Number(fromHash?.tires?.[0]?.qty) >= 1 ? Number(fromHash.tires[0].qty) : scrapeQty(panel || text)));
     const price = scrapeUnitPrice(panel) || (isWidgetSummaryPage() ? 0 : (fromCard?.tires?.[0]?.price || 0));
     const scraped = {
-      brand: cleanTireField(brand),
+      brand: sanitizeBrand(brand),
       model: cleanTireField(model),
       size,
       qty,
@@ -1296,13 +1323,16 @@
   function summaryPanelText() {
     const scoped = summaryBrandRoot();
     const scopedText = scoped ? String(scoped.innerText || '') : '';
+    const summaryHay = scoped ? collectBrandHaystack(scoped) : '';
     const full = widgetPlainText();
     const idx = full.search(/change\s*tire/i);
     const sliced = idx < 0 ? '' : full.slice(Math.max(0, idx - 1800), idx + 40);
     const candidates = [scopedText, sliced].filter(Boolean);
-    const withFacts = candidates.find((text) => pickSummaryBrand(text) && scrapeQty(text) && scrapeUnitPrice(text));
+    const withFacts = candidates.find((text) => (
+      pickSummaryBrand(text, summaryHay) && scrapeQty(text) && scrapeUnitPrice(text)
+    ));
     if (withFacts) return withFacts;
-    return candidates.find((text) => pickSummaryBrand(text)) || sliced || scopedText;
+    return candidates.find((text) => pickSummaryBrand(text, summaryHay)) || sliced || scopedText;
   }
 
   function collectBrandHaystack(root) {
@@ -1419,7 +1449,7 @@
     return (quote?.tires || []).map((tire) => {
       const model = cleanTireField(tire.model);
       const rows = [
-        ['Brand', cleanTireField(tire.brand) || '—'],
+        ['Brand', sanitizeBrand(tire.brand) || '—'],
         ...(model ? [['Model', model]] : []),
         ['Size', tireSizeValue(tire.size) || '—'],
         ['Quantity', Number(tire.qty) >= 1 ? String(tire.qty) : '—'],
