@@ -450,8 +450,10 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(brands, /scrapeQtyFromHash/);
   assert.match(brands, /filter\\s\*results:\?/);
   assert.match(page, /onTireSearchResults/);
-  assert.match(page, /applyCardHighlightStyles/);
-  assert.match(page, /eastcord-tire-card-selected/);
+  assert.match(page, /cardFromClickPath/);
+  assert.match(page, /lastWidgetPointerRect/);
+  assert.match(page, /placeHighlightRect/);
+  assert.match(page, /scheduleHighlightRefresh/);
   assert.match(page, /Keep npm run dev running/);
   assert.doesNotMatch(page, /The demo order could not be saved\. Log in and try again/);
   assert.match(html, /new-tire-brand\.js\?v=/);

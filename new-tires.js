@@ -46,6 +46,7 @@
   let lastHighlightRect = null;
   let highlightHoldUntil = 0;
   let highlightPulseTimer = 0;
+  let lastWidgetPointerRect = null;
   let widgetApi = null;
   let lastNotifiedOrderKey = '';
   let lastSavedOrder = readConfirmedOrder();
@@ -400,7 +401,7 @@
       selectedQuote = null;
     }
     lastClickedCard = null;
-    hideHighlightOverlay();
+    hideHighlightOverlay({ clearHold: true });
     syncFulfillmentUi();
   }
 
@@ -675,6 +676,14 @@
       style.id = 'eastcord-show-native-order';
       style.textContent = [
         '[data-eastcord-hide-field="true"]{display:revert!important;visibility:visible!important;opacity:1!important}',
+        '[data-eastcord-tire-card="true"],.eastcord-tire-card-selected{',
+        'border:4px solid #df1f2d!important;',
+        'outline:4px solid #df1f2d!important;',
+        'outline-offset:2px!important;',
+        'box-shadow:0 0 0 6px rgba(223,31,45,.22)!important;',
+        'background-color:#fff5f5!important;',
+        'border-radius:12px!important;',
+        '}',
       ].join('');
       doc.head.appendChild(style);
     });
@@ -792,7 +801,7 @@
     if (!overlay) return;
     logFlow('checkout.localOverlay.open');
     highlightHoldUntil = 0;
-    hideHighlightOverlay();
+    hideHighlightOverlay({ clearHold: true });
     fillCheckoutSummary();
     overlay.hidden = false;
     overlay.scrollTop = 0;
@@ -1074,10 +1083,60 @@
     const rect = card.getBoundingClientRect();
     const root = document.getElementById('tireconnect');
     const rootRect = root?.getBoundingClientRect?.();
-    if (rect.width < 140 || rect.height < 140) return false;
-    if (rect.width > 520 || rect.height > 760) return false;
-    if (rootRect && (rect.width > rootRect.width * 0.7 || rect.height > rootRect.height * 0.82)) return false;
+    if (rect.width < 100 || rect.height < 100) return false;
+    if (rect.width > 620 || rect.height > 900) return false;
+    if (rootRect && (rect.width > rootRect.width * 0.85 || rect.height > rootRect.height * 0.9)) return false;
     return true;
+  }
+
+  function rememberWidgetPointer(clientX, clientY) {
+    const frame = document.querySelector('#tireconnect iframe');
+    const root = document.getElementById('tireconnect');
+    const bounds = (frame || root)?.getBoundingClientRect?.();
+    if (!bounds) return;
+    if (clientX < bounds.left || clientX > bounds.right || clientY < bounds.top || clientY > bounds.bottom) return;
+    const width = Math.min(340, Math.max(200, bounds.width * 0.44));
+    const height = Math.min(440, Math.max(240, bounds.height * 0.36));
+    const left = Math.min(Math.max(bounds.left + 8, clientX - (width / 2)), bounds.right - width - 8);
+    const top = Math.min(Math.max(bounds.top + 8, clientY - (height / 3)), bounds.bottom - height - 8);
+    lastWidgetPointerRect = { left, top, width, height };
+  }
+
+  function placeHighlightRect(rect) {
+    if (!rect || rect.width < 80 || rect.height < 80) return false;
+    const overlay = ensureHighlightOverlay();
+    lastHighlightRect = { ...rect };
+    overlay.hidden = false;
+    overlay.style.left = `${Math.round(rect.left - 4)}px`;
+    overlay.style.top = `${Math.round(rect.top - 4)}px`;
+    overlay.style.width = `${Math.round(rect.width + 8)}px`;
+    overlay.style.height = `${Math.round(rect.height + 8)}px`;
+    return true;
+  }
+
+  function showTireHighlight(card) {
+    if (card && isHighlightableCard(card)) {
+      placeHighlightOverlay(card);
+      return true;
+    }
+    if (lastWidgetPointerRect) return placeHighlightRect(lastWidgetPointerRect);
+    return false;
+  }
+
+  function cardFromClickPath(path) {
+    for (const node of path) {
+      if (!node || node.nodeType !== 1) continue;
+      const card = visualCardFrom(node);
+      if (isFullTireCard(card) || isHighlightableCard(card)) return card;
+    }
+    return null;
+  }
+
+  function scheduleHighlightRefresh() {
+    holdTireHighlight();
+    [0, 50, 150, 400, 900, 1600, 2800].forEach((delay) => {
+      window.setTimeout(highlightSelectedWidgetTires, delay);
+    });
   }
 
   function ensureHighlightOverlay() {
@@ -1090,14 +1149,18 @@
     return overlay;
   }
 
-  function hideHighlightOverlay() {
+  function hideHighlightOverlay({ clearHold = false } = {}) {
     window.clearInterval(highlightPulseTimer);
-    highlightHoldUntil = 0;
+    if (clearHold) {
+      highlightHoldUntil = 0;
+      lastWidgetPointerRect = null;
+      highlightedCard = null;
+      lastHighlightRect = null;
+    }
     const overlay = document.getElementById('eastcord-tire-highlight');
     if (overlay) overlay.hidden = true;
-    highlightedCard = null;
-    lastHighlightRect = null;
     const root = document.getElementById('tireconnect');
+    if (!clearHold) return;
     collectWidgetElements(root).forEach((el) => {
       if (el.nodeType !== 1) return;
       if (el.getAttribute?.('data-eastcord-tire-card') === 'true' || el.classList?.contains('eastcord-tire-card-selected')) {
@@ -1176,16 +1239,14 @@
   function highlightSelectedWidgetTires() {
     syncSummaryLayout();
     if (isLocalCheckoutOpen() || isWidgetCheckoutPage() || isWidgetSummaryPage()) {
-      hideHighlightOverlay();
+      hideHighlightOverlay({ clearHold: true });
       return;
     }
+    const holding = Date.now() < highlightHoldUntil;
     if (!isWidgetResultsPage()) {
       const heldCard = lastClickedCard?.isConnected ? (visualCardFrom(lastClickedCard) || lastClickedCard) : null;
-      if (Date.now() < highlightHoldUntil && isHighlightableCard(heldCard)) {
-        placeHighlightOverlay(heldCard);
-        return;
-      }
-      hideHighlightOverlay();
+      if (holding && showTireHighlight(heldCard)) return;
+      if (!holding) hideHighlightOverlay({ clearHold: true });
       return;
     }
     let matches = findMatchingCards().filter(isHighlightableCard);
@@ -1200,11 +1261,9 @@
       }
     });
     if (!matches.length) {
-      if (Date.now() < highlightHoldUntil && isHighlightableCard(lastClickedCard)) {
-        placeHighlightOverlay(visualCardFrom(lastClickedCard) || lastClickedCard);
-        return;
-      }
-      hideHighlightOverlay();
+      const heldCard = lastClickedCard?.isConnected ? (visualCardFrom(lastClickedCard) || lastClickedCard) : null;
+      if (holding && showTireHighlight(heldCard)) return;
+      if (!holding) hideHighlightOverlay({ clearHold: true });
       return;
     }
     const visible = matches.find((card) => {
@@ -1218,24 +1277,27 @@
   function bindWidgetHighlightClicks() {
     if (document.body.dataset.eastcordHighlightBound === 'true') return;
     document.body.dataset.eastcordHighlightBound = 'true';
+    document.addEventListener('mousedown', (event) => {
+      rememberWidgetPointer(event.clientX, event.clientY);
+    }, true);
     document.addEventListener('click', (event) => {
       const root = document.getElementById('tireconnect');
       const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
-      if (root && !path.includes(root) && !root.contains(event.target)) return;
+      const frame = root?.querySelector('iframe');
+      const inWidget = Boolean(
+        root && (path.includes(root) || root.contains(event.target) || event.target === frame),
+      );
+      if (!inWidget) return;
       if (path.some((node) => node && node.nodeType === 1 && (isNativeOrderAction(node) || node.id === 'eastcord-native-order'))) return;
       const cta = path.find((node) => node && node.nodeType === 1 && isSelectCtaText(node.textContent || node.value));
-      if (!cta) return;
-      const card = visualCardFrom(cta);
+      const card = cardFromClickPath(path) || visualCardFrom(cta);
+      if (!card) return;
       lastClickedCard = card;
       highlightedCard = card;
       const quote = quoteFromCard(card);
       if (quote) applyCapturedQuote(quote, { replace: false, scroll: false });
-      holdTireHighlight();
-      placeHighlightOverlay(card);
-      window.setTimeout(highlightSelectedWidgetTires, 50);
-      window.setTimeout(highlightSelectedWidgetTires, 250);
-      window.setTimeout(highlightSelectedWidgetTires, 700);
-      window.setTimeout(highlightSelectedWidgetTires, 1600);
+      scheduleHighlightRefresh();
+      showTireHighlight(card);
     }, true);
     document.addEventListener('change', (event) => {
       const root = document.getElementById('tireconnect');
@@ -2035,9 +2097,7 @@
       const fromCard = quoteFromCard(lastClickedCard || highlightedCard);
       applyCapturedQuote(fromEvent || fromCard, { replace: false });
       if (fromCard) applyCapturedQuote(fromCard, { replace: false, scroll: false });
-      holdTireHighlight();
-      window.setTimeout(highlightSelectedWidgetTires, 50);
-      window.setTimeout(highlightSelectedWidgetTires, 400);
+      scheduleHighlightRefresh();
       pushCustomerIntoWidget();
       resolveWidgetEvent(event);
     });
@@ -2058,12 +2118,12 @@
     });
     listen('onResultsReviseClick', (event) => {
       didAutoScroll = false;
-      hideHighlightOverlay();
+      hideHighlightOverlay({ clearHold: true });
       resolveWidgetEvent(event);
     });
     listen('onResultsReviseClicked', (event) => {
       didAutoScroll = false;
-      hideHighlightOverlay();
+      hideHighlightOverlay({ clearHold: true });
       resolveWidgetEvent(event);
     });
     listen('onAppointmentClick', (event) => {
@@ -2316,7 +2376,7 @@
     });
     window.addEventListener('hashchange', () => {
       logFlow('widget.hashchange', window.location.hash);
-      if (!isWidgetResultsPage()) hideHighlightOverlay();
+      if (!isWidgetResultsPage()) hideHighlightOverlay({ clearHold: true });
       applyCapturedQuote(
         isWidgetSummaryPage() ? (quoteFromWidget() || quoteFromHash()) : (quoteFromHash() || quoteFromWidget()),
         { scroll: /summary|quote|order/i.test(window.location.hash) },
