@@ -30,6 +30,7 @@
     brandFromLogoHint,
     headingBrandFrom,
     headingModelFrom,
+    sanitizeModel,
     pickSummaryBrand,
     isBadBrandCandidate,
     sanitizeBrand,
@@ -47,6 +48,7 @@
   let highlightHoldUntil = 0;
   let highlightPulseTimer = 0;
   let lastWidgetPointerRect = null;
+  let summarySyncTimer = 0;
   let widgetApi = null;
   let lastNotifiedOrderKey = '';
   let lastSavedOrder = readConfirmedOrder();
@@ -335,7 +337,7 @@
       quote.tires[0] = {
         ...tire,
         brand: sanitizeBrand(tire.brand),
-        model: cleanTireField(tire.model),
+        model: sanitizeModel(tire.model, tire.brand),
         size: tireSizeValue(tire.size),
       };
       if (!isUsableTire(quote.tires[0])) return null;
@@ -359,9 +361,10 @@
   }
 
   function mergeTire(current = {}, incoming = {}) {
+    const brand = strongerBrand(incoming.brand, current.brand);
     return {
-      brand: strongerBrand(incoming.brand, current.brand),
-      model: cleanTireField(incoming.model) || cleanTireField(current.model) || '',
+      brand,
+      model: sanitizeModel(incoming.model, brand) || sanitizeModel(current.model, brand) || '',
       size: tireSizeValue(incoming.size) || tireSizeValue(current.size) || '',
       qty: Number(incoming.qty) >= 1
         ? Math.min(8, Number(incoming.qty))
@@ -471,7 +474,7 @@
         brand,
         size: tireSizeValue(tire.size || tire.sizeShort || tire.size_short || tire.tire_size || tire.size_display),
         part: String(tire.part_number || tire.partNumber || '').trim(),
-        model: cleanTireField(tire.model_name || tire.model || tire.product_name || tire.tire_model),
+        model: sanitizeModel(tire.model_name || tire.model || tire.product_name || tire.tire_model, brand),
       });
       if (resultBrandCache.length > 250) resultBrandCache.pop();
     });
@@ -505,7 +508,10 @@
     return {
       tires: tires.map((tire) => ({
         brand: brandValueFromTire(tire),
-        model: cleanTireField(tire.model_name || tire.model || tire.product_name || tire.tire_model),
+        model: sanitizeModel(
+          tire.model_name || tire.model || tire.product_name || tire.tire_model,
+          brandValueFromTire(tire),
+        ),
         size: tireSizeValue(tire.size || tire.sizeShort || tire.size_short || tire.tire_size || tire.size_display),
         qty: (() => {
           const parsed = Number(tire.selectedQuantity ?? tire.selected_quantity ?? tire.quantity ?? tire.qty);
@@ -1315,6 +1321,7 @@
         root && (path.includes(root) || root.contains(event.target) || event.target === frame),
       );
       if (!inWidget) return;
+      scheduleSelectedPanelSync();
       if (path.some((node) => node && node.nodeType === 1 && (isNativeOrderAction(node) || node.id === 'eastcord-native-order'))) return;
       const cta = path.find((node) => node && node.nodeType === 1 && isSelectCtaText(node.textContent || node.value));
       const card = cardFromClickPath(path) || visualCardFrom(cta);
@@ -1332,6 +1339,12 @@
       const card = visualCardFrom(event.target);
       if (card && isFullTireCard(card)) lastClickedCard = card;
       syncSelectedPanelFromWidget();
+    }, true);
+    document.addEventListener('input', (event) => {
+      const root = document.getElementById('tireconnect');
+      const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
+      if (root && !path.includes(root) && !root.contains(event.target)) return;
+      scheduleSelectedPanelSync();
     }, true);
     document.addEventListener('scroll', () => {
       placeHighlightOverlay(highlightedCard);
@@ -1366,8 +1379,9 @@
       ? pickSummaryBrand(panel, summaryHay)
       : (sanitizeBrand(fromCard?.tires?.[0]?.brand) || sanitizeBrand(fromHash?.tires?.[0]?.brand) || scrapeBrand(text) || '');
     const model = headingModelFrom(panel || text, brand)
-      || cleanTireField(fromCard?.tires?.[0]?.model)
-      || cleanTireField(fromHash?.tires?.[0]?.model)
+      || headingModelFrom(text, brand)
+      || sanitizeModel(fromCard?.tires?.[0]?.model, brand)
+      || sanitizeModel(fromHash?.tires?.[0]?.model, brand)
       || '';
     const size = tireSizeValue(panel || text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
     const qty = isWidgetSummaryPage()
@@ -1378,7 +1392,7 @@
     const price = scrapeUnitPrice(panel) || (isWidgetSummaryPage() ? 0 : (fromCard?.tires?.[0]?.price || 0));
     const scraped = {
       brand: sanitizeBrand(brand),
-      model: cleanTireField(model),
+      model: sanitizeModel(model, brand),
       size,
       qty,
       price,
@@ -1470,8 +1484,8 @@
     const encodedId = raw.match(/tire_ids(?:\[|%5B)0(?:\]|%5D)=([^&]+)/i)?.[1] || '';
     const decoded = decodeTireId(encodedId);
     const tire = {
-      brand: cleanTireField(decoded.brand),
-      model: cleanTireField(decoded.model),
+      brand: sanitizeBrand(decoded.brand),
+      model: sanitizeModel(decoded.model, decoded.brand),
       size,
       qty,
       price: 0,
@@ -1509,6 +1523,19 @@
     applyCapturedQuote(scraped, { replace: false, scroll: false });
   }
 
+  function scheduleSelectedPanelSync() {
+    [0, 60, 180, 400].forEach((delay) => {
+      window.setTimeout(syncSelectedPanelFromWidget, delay);
+    });
+  }
+
+  function startSummaryPanelSync() {
+    if (summarySyncTimer) return;
+    summarySyncTimer = window.setInterval(() => {
+      if (isWidgetSummaryPage()) syncSelectedPanelFromWidget();
+    }, 500);
+  }
+
   function hasCapturedTire(quote = selectedQuote) {
     return isUsableTire(quote?.tires?.[0]);
   }
@@ -1535,7 +1562,7 @@
 
   function selectedTireFactsHtml(quote) {
     return (quote?.tires || []).map((tire) => {
-      const model = cleanTireField(tire.model);
+      const model = sanitizeModel(tire.model, tire.brand);
       const rows = [
         ['Brand', sanitizeBrand(tire.brand) || '—'],
         ...(model ? [['Model', model]] : []),
@@ -2418,9 +2445,16 @@
           syncSelectedPanelFromWidget();
         }, 50);
       });
-      observer.observe(widget, { childList: true, subtree: true, characterData: true });
+      observer.observe(widget, {
+        attributes: true,
+        attributeFilter: ['value', 'selected', 'aria-valuenow', 'data-value'],
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
       widget.addEventListener('load', onWidgetDomChanged, true);
     }
+    startSummaryPanelSync();
     onWidgetDomChanged();
     bindWidgetHighlightClicks();
     bindLocalWidgetCheckout();

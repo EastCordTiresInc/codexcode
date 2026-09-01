@@ -134,7 +134,7 @@
     if (words.length > 3) return false;
     const specWords = words.filter((word) => CATEGORY_LINE.test(word) || /^(all|the|category)$/i.test(word));
     if (specWords.length >= Math.max(1, words.length - 1)) return false;
-    return !/\d{2,}/.test(text);
+    return !/\d/.test(text);
   }
 
   function strongerBrand(incoming, current) {
@@ -166,12 +166,18 @@
   function isBadModelCandidate(value, brand = '') {
     const text = cleanTireField(value);
     if (!text || isWidgetChrome(text) || isBadBrandCandidate(text)) return true;
+    if (/^(?:warranty|category|size|speed rating|load index|sidewall|part|sku|utqg|tread depth|qty|quantity|per tire)(?:\b|(?=\d))/i.test(text)) return true;
     if (SPEC_LABEL.test(text) || CATEGORY_LINE.test(text)) return true;
     if (/^order\s*by\b/i.test(text) || /^sort\s*by\b/i.test(text)) return true;
     if (tireSizeHint(text) || /\$/.test(text)) return true;
     const brandKey = sanitizeBrand(brand).toLowerCase();
     if (brandKey && text.toLowerCase() === brandKey) return true;
     return false;
+  }
+
+  function sanitizeModel(value, brand = '') {
+    const text = cleanTireField(value);
+    return isBadModelCandidate(text, brand) ? '' : text;
   }
 
   function headingModelFrom(text, brand = '') {
@@ -192,6 +198,7 @@
     const model = headingModelFrom(text);
     const hints = [
       [/\bICELYNX\s+TI501\b/i, 'Triangle'],
+      [/\bATREZZO\s+4S\b/i, 'Sailun'],
     ];
     return hints.find(([pattern]) => pattern.test(model))?.[1] || '';
   }
@@ -201,7 +208,8 @@
     const fromLogo = sanitizeBrand(brandFromLogoHint(hay)) || sanitizeBrand(knownBrandIn(logoHay || ''));
     if (fromLogo) return fromLogo;
     const heading = sanitizeBrand(headingBrandFrom(summaryText));
-    return heading || brandFromModelHint(summaryText);
+    if (isKnownBrandName(heading)) return heading;
+    return brandFromModelHint(summaryText) || '';
   }
 
   function scrapeQty(text) {
@@ -275,6 +283,7 @@
     strongerBrand,
     headingBrandFrom,
     headingModelFrom,
+    sanitizeModel,
     brandFromModelHint,
     pickSummaryBrand,
     isBadBrandCandidate,

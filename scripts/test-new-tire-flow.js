@@ -6,6 +6,7 @@ const {
   normalizeWidgetItems,
   cleanWidgetText,
   cleanWidgetBrand,
+  cleanWidgetModel,
   cleanTireSize,
 } = require('../netlify/functions/lib/new-tire-order');
 const {
@@ -51,6 +52,7 @@ test('rejects TireConnect category metadata as a brand', () => {
   }]);
   assert.strictEqual(item.brand, '');
   assert.strictEqual(item.model, 'ICELYNX TI501');
+  assert.strictEqual(cleanWidgetModel('WARRANTY100000km'), '');
 });
 
 test('extracts core metric size from concatenated widget size', () => {
@@ -319,6 +321,7 @@ const {
   scrapeUnitPrice,
   looksLikeBrand,
   sanitizeBrand,
+  sanitizeModel,
   isBadBrandCandidate,
 } = require('../new-tire-brand.js');
 
@@ -430,6 +433,17 @@ test('Triangle ICELYNX summary never uses CATEGORY Winter as its brand', () => {
   assert.strictEqual(headingModelFrom(summary, 'Triangle'), 'ICELYNX TI501');
 });
 
+test('Sailun ATREZZO summary replaces stale brand and ignores warranty as model', () => {
+  const summary = logoSummary('ATREZZO 4S', 'All Weather', {
+    warranty: '100000km',
+    price: '$145.80',
+  });
+  assert.strictEqual(pickSummaryBrand(summary), 'Sailun');
+  assert.strictEqual(headingModelFrom(summary, 'Sailun'), 'ATREZZO 4S');
+  assert.strictEqual(sanitizeModel('WARRANTY100000km', 'Sailun'), '');
+  assert.strictEqual(strongerBrand('Sailun', 'Triangle'), 'Sailun');
+});
+
 test('summary QTY and PER TIRE beat leftover search price and default quantity', () => {
   const summary = [
     'SUMMARY',
@@ -480,6 +494,8 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(page, /lastWidgetPointerRect/);
   assert.match(page, /placeHighlightRect/);
   assert.match(page, /scheduleHighlightRefresh/);
+  assert.match(page, /startSummaryPanelSync/);
+  assert.match(page, /attributeFilter: \['value', 'selected', 'aria-valuenow', 'data-value'\]/);
   assert.match(page, /isWidgetModalOpen/);
   assert.match(page, /if \(!isFullTireCard\(card\)\) return false/);
   assert.match(page, /Keep npm run dev running/);

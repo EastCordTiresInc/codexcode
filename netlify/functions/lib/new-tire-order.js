@@ -192,6 +192,13 @@ function cleanWidgetBrand(value) {
   return text;
 }
 
+function cleanWidgetModel(value) {
+  const text = cleanWidgetText(value);
+  if (!text) return '';
+  if (/^(?:warranty|category|size|speed rating|load index|sidewall|part|sku|utqg|tread depth|qty|quantity|per tire)(?:\b|(?=\d))/i.test(text)) return '';
+  return text;
+}
+
 function cleanTireSize(value) {
   const compact = String(value || '').replace(/\s+/g, '').toUpperCase();
   const metric = compact.match(/(\d{3}\/\d{2}Z?R\d{2})/);
@@ -212,7 +219,7 @@ function normalizeWidgetItems(items) {
       return {
         kind: 'new_tire',
         brand: cleanWidgetBrand(item.brand || item.brand_name || item.manufacturer || item.tire_brand),
-        model: cleanWidgetText(item.model || item.model_name || item.product_name || item.tire_model),
+        model: cleanWidgetModel(item.model || item.model_name || item.product_name || item.tire_model),
         size: cleanTireSize(item.size || item.sizeShort || item.size_short || item.tire_size || item.size_display),
         qty,
         unitPrice,
@@ -461,6 +468,7 @@ module.exports = {
   roundMoney,
   cleanWidgetText,
   cleanWidgetBrand,
+  cleanWidgetModel,
   cleanTireSize,
   normalizeWidgetItems,
   fulfillPaidNewTireOrder,
