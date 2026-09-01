@@ -495,6 +495,7 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(page, /placeHighlightRect/);
   assert.match(page, /scheduleHighlightRefresh/);
   assert.match(page, /startSummaryPanelSync/);
+  assert.match(page, /qtyFromSummaryControl\(\) \|\| scrapeQty\(panel\)/);
   assert.match(page, /attributeFilter: \['value', 'selected', 'aria-valuenow', 'data-value'\]/);
   assert.match(page, /isWidgetModalOpen/);
   assert.match(page, /if \(!isFullTireCard\(card\)\) return false/);

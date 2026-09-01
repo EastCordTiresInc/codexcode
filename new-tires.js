@@ -1004,10 +1004,37 @@
         || (el.tagName === 'INPUT' && (el.type === 'number' || /qty|quantity/i.test(label)));
       if (!isQtyControl) continue;
       const selectedText = String(el.selectedOptions?.[0]?.textContent || el.value || el.getAttribute?.('aria-valuenow') || '');
-      const qty = Number(selectedText.match(/\d{1,2}/)?.[0] || selectedText);
+      const qty = Math.abs(Number(selectedText.match(/-?\d{1,2}/)?.[0] || selectedText));
       if (qty >= 1 && qty <= 8) return qty;
     }
     return scrapeQty(card.innerText);
+  }
+
+  function qtyFromSummaryControl() {
+    const root = document.getElementById('tireconnect');
+    const controls = collectWidgetElements(root).filter((el) => {
+      if (!el || !isVisibleWidgetElement(el)) return false;
+      const label = `${el.name || ''} ${el.id || ''} ${el.getAttribute?.('aria-label') || ''} ${el.className || ''}`;
+      if (el.tagName === 'INPUT') return el.type === 'number' || /qty|quantity/i.test(label);
+      if (el.tagName !== 'SELECT') return false;
+      const optionNumbers = [...(el.options || [])]
+        .map((option) => Math.abs(Number(String(option.textContent || option.value).match(/-?\d{1,2}/)?.[0])))
+        .filter(Number.isFinite);
+      const nearby = String(el.parentElement?.parentElement?.innerText || el.parentElement?.innerText || '');
+      return /qty|quantity/i.test(`${label} ${nearby}`)
+        || (optionNumbers.length >= 2 && optionNumbers.every((value) => value >= 1 && value <= 8));
+    });
+    for (const control of controls) {
+      const raw = String(
+        control.selectedOptions?.[0]?.textContent
+        || control.value
+        || control.getAttribute?.('aria-valuenow')
+        || '',
+      );
+      const qty = Math.abs(Number(raw.match(/-?\d{1,2}/)?.[0] || raw));
+      if (qty >= 1 && qty <= 8) return qty;
+    }
+    return 0;
   }
 
   function quoteFromCard(card) {
@@ -1385,7 +1412,7 @@
       || '';
     const size = tireSizeValue(panel || text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
     const qty = isWidgetSummaryPage()
-      ? (scrapeQty(panel) || qtyFromCard(summaryBrandRoot()) || scrapeQtyFromHash(window.location.hash) || 0)
+      ? (qtyFromSummaryControl() || scrapeQty(panel) || qtyFromCard(summaryBrandRoot()) || scrapeQtyFromHash(window.location.hash) || 0)
       : (Number(fromCard?.tires?.[0]?.qty) >= 1
         ? Number(fromCard.tires[0].qty)
         : (Number(fromHash?.tires?.[0]?.qty) >= 1 ? Number(fromHash.tires[0].qty) : scrapeQty(panel || text)));
