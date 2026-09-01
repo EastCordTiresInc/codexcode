@@ -480,6 +480,8 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(page, /lastWidgetPointerRect/);
   assert.match(page, /placeHighlightRect/);
   assert.match(page, /scheduleHighlightRefresh/);
+  assert.match(page, /isWidgetModalOpen/);
+  assert.match(page, /if \(!isFullTireCard\(card\)\) return false/);
   assert.match(page, /Keep npm run dev running/);
   assert.doesNotMatch(page, /The demo order could not be saved\. Log in and try again/);
   assert.match(html, /new-tire-brand\.js\?v=/);

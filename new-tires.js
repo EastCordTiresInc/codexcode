@@ -1080,6 +1080,7 @@
 
   function isHighlightableCard(card) {
     if (!card?.isConnected || card.id === 'tireconnect') return false;
+    if (!isFullTireCard(card)) return false;
     const rect = card.getBoundingClientRect();
     const root = document.getElementById('tireconnect');
     const rootRect = root?.getBoundingClientRect?.();
@@ -1087,6 +1088,28 @@
     if (rect.width > 620 || rect.height > 900) return false;
     if (rootRect && (rect.width > rootRect.width * 0.85 || rect.height > rootRect.height * 0.9)) return false;
     return true;
+  }
+
+  function isVisibleWidgetElement(el) {
+    if (!el?.getBoundingClientRect) return false;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return false;
+    try {
+      const style = el.ownerDocument?.defaultView?.getComputedStyle?.(el);
+      return style?.display !== 'none' && style?.visibility !== 'hidden' && Number(style?.opacity ?? 1) !== 0;
+    } catch (error) {
+      return true;
+    }
+  }
+
+  function isWidgetModalOpen() {
+    const root = document.getElementById('tireconnect');
+    return collectWidgetElements(root).some((el) => {
+      if (!isVisibleWidgetElement(el)) return false;
+      if (el.matches?.('dialog[open], [role="dialog"], [aria-modal="true"]')) return true;
+      const className = String(el.className || '');
+      return /(?:^|[\s_-])modal(?:$|[\s_-])|lightbox|image[_-]?(?:modal|popup)|modal[_-]?(?:open|active|show)|(?:open|active|show)[_-]?modal/i.test(className);
+    });
   }
 
   function rememberWidgetPointer(clientX, clientY) {
@@ -1127,7 +1150,7 @@
     for (const node of path) {
       if (!node || node.nodeType !== 1) continue;
       const card = visualCardFrom(node);
-      if (isFullTireCard(card) || isHighlightableCard(card)) return card;
+      if (isFullTireCard(card) && isHighlightableCard(card)) return card;
     }
     return null;
   }
@@ -1238,6 +1261,10 @@
 
   function highlightSelectedWidgetTires() {
     syncSummaryLayout();
+    if (isWidgetModalOpen()) {
+      hideHighlightOverlay();
+      return;
+    }
     if (isLocalCheckoutOpen() || isWidgetCheckoutPage() || isWidgetSummaryPage()) {
       hideHighlightOverlay({ clearHold: true });
       return;
@@ -1297,7 +1324,6 @@
       const quote = quoteFromCard(card);
       if (quote) applyCapturedQuote(quote, { replace: false, scroll: false });
       scheduleHighlightRefresh();
-      showTireHighlight(card);
     }, true);
     document.addEventListener('change', (event) => {
       const root = document.getElementById('tireconnect');
