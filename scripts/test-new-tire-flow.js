@@ -499,6 +499,7 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(page, /applyQuantityFromPayload/);
   assert.match(page, /onTireQuantityChanged/);
   assert.match(page, /JSON\.parse\(event\)/);
+  assert.match(page, /&& !\/tire_ids\?/);
   assert.match(page, /attributeFilter: \['value', 'selected', 'aria-valuenow', 'data-value'\]/);
   assert.match(page, /isWidgetModalOpen/);
   assert.match(page, /if \(!isFullTireCard\(card\)\) return false/);
@@ -512,8 +513,10 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(html, /data-new-tire-selected-empty/);
   assert.match(page, /Number\(tire\.qty\) >= 1 \? String\(tire\.qty\) : '—'/);
   const account = fs.readFileSync(path.join(__dirname, '..', 'account.html'), 'utf8');
+  const accountJs = fs.readFileSync(path.join(__dirname, '..', 'account.js'), 'utf8');
   assert.doesNotMatch(account, /wait until EastCord sends your booking link/);
   assert.match(account, /book it from the order below/);
+  assert.match(accountJs, /if \(!sessionError\) return sessionData\?\.session\?\.user \|\| null/);
 });
 
 if (failed) {

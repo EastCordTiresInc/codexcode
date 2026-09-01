@@ -247,6 +247,16 @@ async function recordWidgetNewTireOrder({
   const preparedItems = normalizeWidgetItems(items);
   const orderKey = String(orderNumber || '').trim() ? `tireconnect:${String(orderNumber).trim()}` : '';
 
+  const findExistingOrder = async () => {
+    if (!orderKey) return null;
+    const { data } = await supabaseAdmin
+      .from('new_tire_orders')
+      .select('*')
+      .eq('stripe_session_id', orderKey)
+      .maybeSingle();
+    return data || null;
+  };
+
   const attach = async (order) => {
     const appointmentIds = await attachAppointmentsToNewTireOrder({
       supabaseAdmin,
@@ -259,11 +269,7 @@ async function recordWidgetNewTireOrder({
   };
 
   if (orderKey) {
-    const { data: existing } = await supabaseAdmin
-      .from('new_tire_orders')
-      .select('*')
-      .eq('stripe_session_id', orderKey)
-      .maybeSingle();
+    const existing = await findExistingOrder();
     if (existing) {
       const linked = await attach(existing);
       return { ok: true, alreadyPaid: true, order: existing, ...linked };
@@ -316,6 +322,14 @@ async function recordWidgetNewTireOrder({
     })
     .select('*')
     .single();
+
+  if (error?.code === '23505' && orderKey) {
+    const existing = await findExistingOrder();
+    if (existing) {
+      const linked = await attach(existing);
+      return { ok: true, alreadyPaid: true, order: existing, ...linked };
+    }
+  }
 
   if (error || !order) {
     return {

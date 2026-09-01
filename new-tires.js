@@ -1541,6 +1541,9 @@
   function quoteFromHash() {
     const raw = decodeURIComponent(window.location.hash || '');
     if (!raw) return null;
+    if (/(?:!|\/)(?:tires\/)?(?:search|results)\b/i.test(raw) && !/tire_ids?(?:\[|%5B|=)/i.test(raw)) {
+      return null;
+    }
     const qty = scrapeQtyFromHash(raw);
     const width = raw.match(/(?:width|t>width)[^0-9]{0,6}(\d{3})/i)?.[1];
     const height = raw.match(/(?:height|t>height)[^0-9]{0,6}(\d{2})/i)?.[1];

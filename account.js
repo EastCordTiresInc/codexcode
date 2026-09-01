@@ -559,9 +559,8 @@ async function getCurrentUser() {
   if (!client) return null;
 
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
-  if (sessionError) {
-    logSupabaseError('Supabase session lookup failed.', sessionError);
-  }
+  if (!sessionError) return sessionData?.session?.user || null;
+  logSupabaseError('Supabase session lookup failed.', sessionError);
   if (sessionData?.session?.user) return sessionData.session.user;
 
   const { data, error } = await client.auth.getUser();
