@@ -67,7 +67,15 @@
   }
 
   function eventPayload(event, depth = 0) {
-    if (!event || typeof event !== 'object' || depth > 5) return {};
+    if (!event || depth > 5) return {};
+    if (typeof event === 'string') {
+      try {
+        return eventPayload(JSON.parse(event), depth + 1);
+      } catch (error) {
+        return {};
+      }
+    }
+    if (typeof event !== 'object') return {};
     if (typeof event.preventDefault === 'function') {
       return eventPayload(event.detail || event.data || {}, depth + 1);
     }
@@ -75,6 +83,37 @@
     const nested = event.data || event.detail || event.payload || event.result;
     if (nested && typeof nested === 'object' && nested !== event) return eventPayload(nested, depth + 1);
     return event;
+  }
+
+  function quantityFromPayload(payload) {
+    const data = eventPayload(payload);
+    const direct = Number(
+      data.selected_quantity
+      ?? data.selectedQuantity
+      ?? data.quantity
+      ?? data.qty,
+    );
+    if (direct >= 1 && direct <= 8) return direct;
+    const tire = data.tire || data.tires?.[0] || data.items?.[0] || data.quote?.tires?.[0];
+    if (!tire || tire === data) return 0;
+    const nested = Number(
+      tire.selected_quantity
+      ?? tire.selectedQuantity
+      ?? tire.quantity
+      ?? tire.qty,
+    );
+    return nested >= 1 && nested <= 8 ? nested : 0;
+  }
+
+  function applyQuantityFromPayload(payload) {
+    const qty = quantityFromPayload(payload);
+    if (!qty || !selectedQuote?.tires?.[0] || Number(selectedQuote.tires[0].qty) === qty) return false;
+    storeQuote({
+      ...selectedQuote,
+      tires: [{ ...selectedQuote.tires[0], qty }],
+    }, { replace: true });
+    syncFulfillmentUi();
+    return true;
   }
 
   function resolveWidgetEvent(event) {
@@ -2167,6 +2206,13 @@
         return handler(event);
       });
     };
+    const listenOptional = (name, handler) => {
+      try {
+        listen(name, handler);
+      } catch (error) {
+        logFlow(`callback.${name}.unsupported`);
+      }
+    };
 
     listen('onTireSearchResults', (event) => {
       rememberSearchTires(eventPayload(event));
@@ -2183,8 +2229,25 @@
     });
     listen('onSummaryInitiated', (event) => {
       applyCapturedQuote(quoteFromWidgetPayload(event) || quoteFromSelectEvent(eventPayload(event)), { allowScrape: true });
+      applyQuantityFromPayload(event);
       pushCustomerIntoWidget();
       resolveWidgetEvent(event);
+    });
+    [
+      'onTireQuantityChange',
+      'onTireQuantityChanged',
+      'onQuantityChange',
+      'onQuantityChanged',
+      'onCartUpdated',
+      'onSummaryUpdated',
+      'onQuoteUpdated',
+    ].forEach((name) => {
+      listenOptional(name, (event) => {
+        const quote = quoteFromSelectEvent(eventPayload(event)) || quoteFromWidgetPayload(event);
+        if (quote) applyCapturedQuote(quote, { scroll: false });
+        applyQuantityFromPayload(event);
+        resolveWidgetEvent(event);
+      });
     });
     listen('onPageChanged', (event) => {
       const page = String(eventPayload(event).page || event?.page || '');
@@ -2426,6 +2489,7 @@
     const status = String(data.status || data.order_status || '').toLowerCase();
     const quote = quoteFromSelectEvent(data) || quoteFromWidgetPayload(data);
     if (quote) applyCapturedQuote(quote, { scroll: false });
+    applyQuantityFromPayload(data);
     if (isCompletedOrderStatus(status) || /order.?submitted/i.test(type)) {
       handleWidgetOrderComplete(data, 'postMessage');
     }
