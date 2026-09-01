@@ -389,6 +389,13 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(html, /new-tire-brand\.js\?v=/);
   assert.match(html, /You cannot book on the purchase date or the following 4 days/);
   assert.doesNotMatch(html, /Search tires in the widget/);
+  assert.doesNotMatch(html, /If the tire above is blank/);
+  assert.doesNotMatch(html, /data-new-tire-details/);
+  assert.match(html, /data-new-tire-selected-empty/);
+  assert.match(page, /Number\(tire\.qty\) >= 1 \? String\(tire\.qty\) : '—'/);
+  const account = fs.readFileSync(path.join(__dirname, '..', 'account.html'), 'utf8');
+  assert.doesNotMatch(account, /wait until EastCord sends your booking link/);
+  assert.match(account, /book it from the order below/);
 });
 
 if (failed) {

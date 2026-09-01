@@ -248,7 +248,7 @@ function validateCartSlotAvailability(bookings, ordersById = {}) {
     }
 
     if (isWithinNewTireShippingHold(booking, purchaseIsoForBooking(booking, ordersById))) {
-      return { valid: false, reason: 'shipping_hold', message: 'New tire installation cannot be booked for the next 4 days after your tire purchase. Please choose a later date.' };
+      return { valid: false, reason: 'shipping_hold', message: 'New tire installation cannot be booked on the purchase date or the following 4 days. Please choose a later date.' };
     }
 
     if (isLessThanMinimumAdvance(booking)) {
@@ -524,7 +524,7 @@ function validateBookingFields(booking, customer, ordersById = {}) {
   }
 
   if (isWithinNewTireShippingHold(booking, purchaseIsoForBooking(booking, ordersById))) {
-    return 'New tire installation cannot be booked for the next 4 days after your tire purchase. Please choose a later date.';
+    return 'New tire installation cannot be booked on the purchase date or the following 4 days. Please choose a later date.';
   }
 
   return '';

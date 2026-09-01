@@ -370,6 +370,13 @@
   display: none;
 }
 
+.new-tire-selected-empty {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
 .new-tire-selected > span {
   color: #8a2430;
   font-size: 0.78rem;
@@ -665,13 +672,13 @@
 .new-tire-auth[hidden],
 .new-tire-submit[hidden],
 .new-tire-submit[hidden] + .new-tire-submit-hint,
-[data-new-tire-details-field][hidden],
 [data-new-tire-demo-order][hidden],
 .new-tire-datetime[hidden],
 [data-new-tire-datetime][hidden],
 .new-tire-datetime-popover[hidden],
 .new-tire-choice-tip[hidden],
 .new-tire-phone-field[hidden],
+.new-tire-selected-empty[hidden],
 .new-tire-fulfillment-message[hidden] {
   display: none;
 }

@@ -81,7 +81,7 @@ async function notifyPaidNewTireOrder(order) {
       `Hello ${customerName},`,
       '',
       'EastCord Tires received your new tire payment. This order is confirmed.',
-      'You can book installation now. You cannot book for the next 4 days after your purchase date. Hours are 8:00 AM to 8:00 PM. Use this link so the appointment stays tied to these new tires:',
+      'You can book installation now. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM. Use this link so the appointment stays tied to these new tires:',
       bookingUrl,
       '',
       ...itemLines,

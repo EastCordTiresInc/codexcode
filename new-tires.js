@@ -396,8 +396,6 @@
     } catch (error) {
       selectedQuote = null;
     }
-    const input = detailsInput();
-    if (input) input.value = '';
     lastClickedCard = null;
     hideHighlightOverlay();
     syncFulfillmentUi();
@@ -407,10 +405,6 @@
     const amount = Number(value);
     if (!Number.isFinite(amount) || amount <= 0) return '';
     return `$${amount.toFixed(2)}`;
-  }
-
-  function detailsInput() {
-    return document.querySelector('[data-new-tire-details]');
   }
 
   const resultBrandCache = [];
@@ -1418,10 +1412,12 @@
 
   function selectedTireFactsHtml(quote) {
     return (quote?.tires || []).map((tire) => {
+      const model = cleanTireField(tire.model);
       const rows = [
         ['Brand', cleanTireField(tire.brand) || '—'],
+        ...(model ? [['Model', model]] : []),
         ['Size', tireSizeValue(tire.size) || '—'],
-        ['Quantity', String(tire.qty || 4)],
+        ['Quantity', Number(tire.qty) >= 1 ? String(tire.qty) : '—'],
         ['Price/tire', money(tire.price) || '—'],
       ];
       return rows.map(([label, value]) => (
@@ -1485,7 +1481,7 @@
   function syncFulfillmentUi() {
     const selected = document.querySelector('[data-new-tire-selected]');
     const selectedLabel = document.querySelector('[data-new-tire-selected-label]');
-    const detailsField = document.querySelector('[data-new-tire-details-field]');
+    const selectedEmpty = document.querySelector('[data-new-tire-selected-empty]');
     const auth = document.querySelector('[data-new-tire-auth]');
     const submit = document.querySelector('[data-new-tire-submit]');
     const phoneField = document.querySelector('[data-new-tire-phone-field]');
@@ -1494,14 +1490,8 @@
     const captured = hasCapturedTire();
 
     if (selected) selected.hidden = !captured;
+    if (selectedEmpty) selectedEmpty.hidden = captured;
     if (selectedLabel) selectedLabel.innerHTML = selectedTireFactsHtml(selectedQuote);
-    if (detailsField) detailsField.hidden = captured;
-    if (detailsInput() && captured) {
-      detailsInput().required = false;
-      detailsInput().value = formatQuoteSummary(selectedQuote);
-    } else if (detailsInput()) {
-      detailsInput().required = false;
-    }
     if (auth) auth.hidden = signedIn;
     if (submit) submit.hidden = true;
     const needsPhone = signedIn && !String(currentProfile?.phone || '').trim();

@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
-    <link rel="stylesheet" href="new-tires.css?v=39" />
+    <link rel="stylesheet" href="new-tires.css?v=40" />
   </head>
   <body class="new-tires-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -124,6 +124,7 @@
               <dl class="new-tire-selected-facts" data-new-tire-selected-label></dl>
               <button class="new-tire-change" type="button" data-new-tire-change>Wrong tire? Choose another in the search</button>
             </article>
+            <p class="new-tire-selected-empty" data-new-tire-selected-empty>Select a tire in the search. Brand, size, quantity, and price copy here.</p>
             <form class="new-tire-fulfillment-form" data-new-tire-fulfillment-form>
               <fieldset class="new-tire-choice">
                 <legend>How do you want this order?</legend>
@@ -144,11 +145,7 @@
                   <span class="new-tire-choice-tip" id="install-choice-info" hidden>After your tire order is saved, we take you to book installation. That booking is linked to these new tires and your purchase date. You cannot book on the purchase date or the following 4 days.</span>
                 </label>
               </fieldset>
-              <label class="new-tire-phone-field" data-new-tire-details-field>
-                <span>If the tire above is blank, type brand, size, and quantity</span>
-                <input type="text" name="Tire Details" data-new-tire-details placeholder="Only if we could not copy it automatically" />
-              </label>
-              <div class="new-tire-auth" data-new-tire-auth hidden>
+              <div class="new-tire-auth" data-new-tire-auth>
                 <strong>Please log in or create an account so we can save this order to My Account.</strong>
                 <div class="new-tire-auth-actions">
                   <a class="button button-primary" data-new-tire-login href="/login.html?redirect=/new-tires.html">Log In</a>
@@ -231,7 +228,7 @@
     <script src="tireconnect-config.js"></script>
     <script src="https://app.tireconnect.ca/js/widget.js" defer></script>
     <script src="new-tire-brand.js?v=2" defer></script>
-    <script src="new-tires.js?v=70" defer></script>
+    <script src="new-tires.js?v=72" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

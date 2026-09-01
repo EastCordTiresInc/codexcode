@@ -145,7 +145,7 @@ exports.handler = async function requestNewTireOrder(event) {
       `Hello ${customer.name},`,
       '',
       'EastCord Tires received your new tire order with installation.',
-      'You can book installation after this order is saved. You cannot book for the next 4 days after your purchase date. Hours are 8:00 AM to 8:00 PM.',
+      'You can book installation after this order is saved. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.',
       'https://eastcordtires.ca/appointment',
       '',
       ...itemLines,

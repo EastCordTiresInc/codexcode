@@ -164,7 +164,7 @@ function validateInstallSlots(items, ordersById = {}) {
       return 'Installation hours are 8:00 AM to 8:00 PM. Please choose a time in that window.';
     }
     if (isWithinNewTireShippingHold(item, purchaseIsoForItem(item, ordersById))) {
-      return 'New tire installation cannot be booked for the next 4 days after your tire purchase. Please choose a later date.';
+      return 'New tire installation cannot be booked on the purchase date or the following 4 days. Please choose a later date.';
     }
   }
   return '';
