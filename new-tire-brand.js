@@ -20,7 +20,8 @@
     'Ambfor', 'Goodtrip', 'Milever',
   ].slice().sort((a, b) => b.length - a.length);
 
-  const CATEGORY_LINE = /^(performance|summer|winter|touring|all season|all weather|mud terrain|highway terrain|sport|passenger|ltr?|xl)$/i;
+  const CATEGORY_LINE = /^(performance|summer|winter|touring|all season|all weather|mud terrain|highway terrain|sport|passenger|ltr?|xl|category)$/i;
+  const SPEC_LABEL = /^(summary|price summary|quote|qty|quantity|warranty|category|size|speed rating|load index|sidewall|part|part #|sku|utqg|tread depth|per tire|set of|change tire|n\/a|kmh|km)\b/i;
 
   function isWidgetChrome(value) {
     const text = String(value || '')
@@ -82,34 +83,40 @@
     const text = cleanTireField(value);
     if (!text) return false;
     if (isKnownBrandName(text)) return true;
-    if (tireSizeHint(text) || /\$/.test(text) || CATEGORY_LINE.test(text)) return false;
+    if (SPEC_LABEL.test(text) || tireSizeHint(text) || /\$/.test(text) || CATEGORY_LINE.test(text)) return false;
+    if (/\bcategory\b/i.test(text)) return false;
     if (text.length < 2 || text.length > 28) return false;
     if (!/^[A-Za-z][A-Za-z0-9 .&'+-]*$/.test(text)) return false;
     const words = text.split(/\s+/);
     if (words.length > 3) return false;
-    if (words.every((word) => CATEGORY_LINE.test(word) || /^(all|the)$/i.test(word))) return false;
+    const specWords = words.filter((word) => CATEGORY_LINE.test(word) || /^(all|the|category)$/i.test(word));
+    if (specWords.length >= Math.max(1, words.length - 1)) return false;
     return !/\d{2,}/.test(text);
   }
 
   function strongerBrand(incoming, current) {
     const next = cleanTireField(incoming);
     const prev = cleanTireField(current);
-    if (looksLikeBrand(next) && looksLikeBrand(prev) && next.toLowerCase() !== prev.toLowerCase()) {
+    if (isKnownBrandName(next) && isKnownBrandName(prev) && next.toLowerCase() !== prev.toLowerCase()) {
       return knownBrandIn(next) || next;
     }
-    if (looksLikeBrand(next)) return knownBrandIn(next) || next;
-    if (looksLikeBrand(prev)) return knownBrandIn(prev) || prev;
+    if (isKnownBrandName(next)) return knownBrandIn(next) || next;
+    if (isKnownBrandName(prev)) return knownBrandIn(prev) || prev;
+    if (looksLikeBrand(next) && looksLikeBrand(prev) && next.toLowerCase() !== prev.toLowerCase()) {
+      return next;
+    }
+    if (looksLikeBrand(next)) return next;
+    if (looksLikeBrand(prev)) return prev;
     return next || prev;
   }
 
   function headingBrandFrom(text) {
-    const skip = /^(summary|price summary|quote|qty|quantity|warranty|category|size|speed rating|load index|sidewall|part|part #|sku|utqg|tread depth|per tire|set of|change tire|n\/a|kmh|km)$/i;
     const lines = String(text || '')
       .split(/\n+/)
       .map((line) => cleanTireField(line))
       .filter(Boolean);
     for (const line of lines) {
-      if (skip.test(line) || CATEGORY_LINE.test(line)) continue;
+      if (SPEC_LABEL.test(line) || CATEGORY_LINE.test(line) || /\bcategory\b/i.test(line)) continue;
       if (tireSizeHint(line) || /\$/.test(line)) continue;
       if (!looksLikeBrand(line)) continue;
       return knownBrandIn(line) || line;
@@ -117,8 +124,11 @@
     return '';
   }
 
-  function pickSummaryBrand(summaryText) {
-    return headingBrandFrom(summaryText) || '';
+  function pickSummaryBrand(summaryText, logoHay = '') {
+    const heading = headingBrandFrom(summaryText);
+    if (isKnownBrandName(heading)) return knownBrandIn(heading) || heading;
+    const hay = `${logoHay || ''}\n${summaryText || ''}`;
+    return brandFromLogoHint(hay) || knownBrandIn(logoHay || '') || heading || '';
   }
 
   function scrapeQty(text) {

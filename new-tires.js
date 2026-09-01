@@ -1331,7 +1331,12 @@
   }
 
   function scrapeBrand(text = '') {
-    if (isWidgetSummaryPage()) return pickSummaryBrand(summaryPanelText());
+    if (isWidgetSummaryPage()) {
+      const panel = summaryPanelText();
+      const scoped = summaryBrandRoot();
+      const hay = scoped ? collectBrandHaystack(scoped) : '';
+      return pickSummaryBrand(panel, hay);
+    }
     return headingBrandFrom(text) || '';
   }
 

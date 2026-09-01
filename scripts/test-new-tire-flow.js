@@ -301,6 +301,7 @@ const {
   scrapeQty,
   scrapeQtyFromHash,
   scrapeUnitPrice,
+  looksLikeBrand,
 } = require('../new-tire-brand.js');
 
 test('summary heading Mirage is not overwritten by leftover BFGoodrich filters', () => {
@@ -335,6 +336,33 @@ test('summary heading Mirage is not overwritten by leftover BFGoodrich filters',
   assert.strictEqual(strongerBrand('Mirage', 'BF Goodrich'), 'Mirage');
   assert.strictEqual(strongerBrand('Mirage', 'BFGoodrich'), 'Mirage');
   assert.notStrictEqual(pickSummaryBrand(summary), knownBrandIn(widgetWithFilters));
+});
+
+test('Ovation logo-only summary is not captured as CATEGORY Performance', () => {
+  const summary = [
+    'SUMMARY',
+    'VI-388',
+    'WARRANTY',
+    'N/A',
+    'CATEGORY',
+    'Performance Summer',
+    'SIZE',
+    '225/45R18 95W XL',
+    'QTY',
+    '4',
+    'PER TIRE',
+    '$101.40',
+    'CHANGE TIRE',
+  ].join('\n');
+  const glued = 'CATEGORY Performance Summer';
+  const logoHay = 'https://cdn.tireconnect.ca/brands/ovation-logo.png alt="Ovation Tires"';
+
+  assert.equal(looksLikeBrand(glued), false);
+  assert.notEqual(headingBrandFrom(summary), 'CATEGORY');
+  assert.doesNotMatch(headingBrandFrom(summary) || '', /category/i);
+  assert.strictEqual(pickSummaryBrand(summary, logoHay), 'Ovation');
+  assert.strictEqual(strongerBrand('CATEGORY Performance', 'Ovation'), 'Ovation');
+  assert.strictEqual(strongerBrand('Ovation', 'CATEGORY Performance'), 'Ovation');
 });
 
 test('summary QTY and PER TIRE beat leftover search price and default quantity', () => {
