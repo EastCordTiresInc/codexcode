@@ -28,6 +28,7 @@
 
 .new-tires-widget-card {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   box-sizing: border-box;
   width: 100%;
