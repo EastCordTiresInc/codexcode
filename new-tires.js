@@ -334,7 +334,7 @@
       const tire = quote.tires[0];
       quote.tires[0] = {
         ...tire,
-        brand: cleanTireField(tire.brand),
+        brand: sanitizeBrand(tire.brand),
         model: cleanTireField(tire.model),
         size: tireSizeValue(tire.size),
       };
@@ -451,15 +451,15 @@
 
   function brandValueFromTire(tire) {
     if (!tire) return '';
-    if (typeof tire === 'string') return cleanTireField(tire);
+    if (typeof tire === 'string') return sanitizeBrand(tire);
     const hay = textFromUnknown(tire);
-    return cleanTireField(tire.brand_name)
-      || cleanTireField(typeof tire.brand === 'string' ? tire.brand : '')
-      || cleanTireField(tire.manufacturer_name)
-      || cleanTireField(typeof tire.manufacturer === 'string' ? tire.manufacturer : tire.manufacturer?.name)
-      || knownBrandIn(hay)
-      || brandFromLogoHint(hay)
-      || cleanTireField(tire.tire_brand || tire.vendor || tire.make)
+    return sanitizeBrand(tire.brand_name)
+      || sanitizeBrand(typeof tire.brand === 'string' ? tire.brand : '')
+      || sanitizeBrand(tire.manufacturer_name)
+      || sanitizeBrand(typeof tire.manufacturer === 'string' ? tire.manufacturer : tire.manufacturer?.name)
+      || sanitizeBrand(knownBrandIn(hay))
+      || sanitizeBrand(brandFromLogoHint(hay))
+      || sanitizeBrand(tire.tire_brand || tire.vendor || tire.make)
       || '';
   }
 

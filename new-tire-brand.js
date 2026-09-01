@@ -21,6 +21,7 @@
   ].slice().sort((a, b) => b.length - a.length);
 
   const CATEGORY_LINE = /^(performance|summer|winter|touring|all season|all weather|mud terrain|highway terrain|sport|passenger|ltr?|xl|category|win|per|perform)$/i;
+  const CATEGORY_BRAND = /^category(?:[^a-z0-9]*|(?=winter|summer|performance|perform|touring|allseason|allweather|win|per))/i;
   const SPEC_LABEL = /^(summary|price summary|quote|qty|quantity|warranty|category|size|speed rating|load index|sidewall|part|part #|sku|utqg|tread depth|per tire|set of|change tire|n\/a|kmh|km|order by|sort by)\b/i;
   const LOGO_STOPWORDS = /^(logo|brand|tire|tyre|tires|icon|image|sprite|header|filter|manufacturer|assets|cdn|static|media|img|png|jpg|jpeg|svg|webp)$/i;
 
@@ -74,8 +75,8 @@
   function isBadBrandCandidate(value) {
     const text = cleanTireField(value);
     if (!text) return true;
-    if (/^category\b/i.test(text)) return true;
-    if (/\bcategory\s+(perform|performance|win|winter|summer|tour)/i.test(text)) return true;
+    if (CATEGORY_BRAND.test(text)) return true;
+    if (/\bcategory[^a-z0-9]*(perform|performance|win|winter|summer|tour)/i.test(text)) return true;
     if (/^order\s*by\b/i.test(text) || /^sort\s*by\b/i.test(text)) return true;
     if (SPEC_LABEL.test(text)) return true;
     if (CATEGORY_LINE.test(text)) return true;
@@ -187,12 +188,20 @@
     return '';
   }
 
+  function brandFromModelHint(text) {
+    const model = headingModelFrom(text);
+    const hints = [
+      [/\bICELYNX\s+TI501\b/i, 'Triangle'],
+    ];
+    return hints.find(([pattern]) => pattern.test(model))?.[1] || '';
+  }
+
   function pickSummaryBrand(summaryText, logoHay = '') {
     const hay = `${logoHay || ''}\n${summaryText || ''}`;
     const fromLogo = sanitizeBrand(brandFromLogoHint(hay)) || sanitizeBrand(knownBrandIn(logoHay || ''));
     if (fromLogo) return fromLogo;
     const heading = sanitizeBrand(headingBrandFrom(summaryText));
-    return heading || '';
+    return heading || brandFromModelHint(summaryText);
   }
 
   function scrapeQty(text) {
@@ -266,6 +275,7 @@
     strongerBrand,
     headingBrandFrom,
     headingModelFrom,
+    brandFromModelHint,
     pickSummaryBrand,
     isBadBrandCandidate,
     sanitizeBrand,

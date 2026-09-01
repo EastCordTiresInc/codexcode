@@ -185,6 +185,13 @@ function cleanWidgetText(value) {
   return text.slice(0, 80);
 }
 
+function cleanWidgetBrand(value) {
+  const text = cleanWidgetText(value);
+  if (!text) return '';
+  if (/^category(?:[^a-z0-9]*|(?=winter|summer|performance|perform|touring|allseason|allweather|win|per))/i.test(text)) return '';
+  return text;
+}
+
 function cleanTireSize(value) {
   const compact = String(value || '').replace(/\s+/g, '').toUpperCase();
   const metric = compact.match(/(\d{3}\/\d{2}Z?R\d{2})/);
@@ -204,7 +211,7 @@ function normalizeWidgetItems(items) {
       const unitPrice = Math.max(0, roundMoney(item.unitPrice ?? item.price ?? item.unit_price ?? item.price_per_tire ?? item.retail_price ?? 0));
       return {
         kind: 'new_tire',
-        brand: cleanWidgetText(item.brand || item.brand_name || item.manufacturer || item.tire_brand),
+        brand: cleanWidgetBrand(item.brand || item.brand_name || item.manufacturer || item.tire_brand),
         model: cleanWidgetText(item.model || item.model_name || item.product_name || item.tire_model),
         size: cleanTireSize(item.size || item.sizeShort || item.size_short || item.tire_size || item.size_display),
         qty,
@@ -453,6 +460,7 @@ async function attachAppointmentsToNewTireOrder({
 module.exports = {
   roundMoney,
   cleanWidgetText,
+  cleanWidgetBrand,
   cleanTireSize,
   normalizeWidgetItems,
   fulfillPaidNewTireOrder,

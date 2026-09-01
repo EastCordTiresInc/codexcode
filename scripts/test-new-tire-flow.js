@@ -5,6 +5,7 @@ const assert = require('assert');
 const {
   normalizeWidgetItems,
   cleanWidgetText,
+  cleanWidgetBrand,
   cleanTireSize,
 } = require('../netlify/functions/lib/new-tire-order');
 const {
@@ -36,6 +37,20 @@ test('strips TireConnect "FILTER RESULTS" chrome from brand', () => {
   assert.strictEqual(cleanWidgetText('FILTER RESULTS:'), '');
   assert.strictEqual(cleanWidgetText('BFGoodrich FILTER RESULTS:'), 'BFGoodrich');
   assert.strictEqual(cleanWidgetText(`BFGoodrich FILTER RESULTS:${String.fromCharCode(0xF105)}`), 'BFGoodrich');
+});
+
+test('rejects TireConnect category metadata as a brand', () => {
+  assert.strictEqual(cleanWidgetBrand('CATEGORY Winter'), '');
+  assert.strictEqual(cleanWidgetBrand('CATEGORYWinter'), '');
+  const [item] = normalizeWidgetItems([{
+    brand: 'CATEGORY Winter',
+    model: 'ICELYNX TI501',
+    size: '225/45R18',
+    qty: 4,
+    unitPrice: 140.4,
+  }]);
+  assert.strictEqual(item.brand, '');
+  assert.strictEqual(item.model, 'ICELYNX TI501');
 });
 
 test('extracts core metric size from concatenated widget size', () => {
@@ -402,6 +417,17 @@ test('logo-only Triangle, Westlake, Rovelo, and Ironman skip CATEGORY chrome', (
     assert.strictEqual(headingModelFrom(`${summary}\nOrder By`, brand), model, `${brand} model`);
     assert.strictEqual(strongerBrand('CATEGORY Perform', brand), brand, `${brand} keeps known brand`);
   });
+});
+
+test('Triangle ICELYNX summary never uses CATEGORY Winter as its brand', () => {
+  const summary = logoSummary('ICELYNX TI501', 'Winter', {
+    price: '$140.40',
+  });
+  assert.strictEqual(isBadBrandCandidate('CATEGORY Winter'), true);
+  assert.strictEqual(isBadBrandCandidate('CATEGORYWinter'), true);
+  assert.strictEqual(sanitizeBrand('CATEGORY Winter'), '');
+  assert.strictEqual(pickSummaryBrand(summary), 'Triangle');
+  assert.strictEqual(headingModelFrom(summary, 'Triangle'), 'ICELYNX TI501');
 });
 
 test('summary QTY and PER TIRE beat leftover search price and default quantity', () => {
