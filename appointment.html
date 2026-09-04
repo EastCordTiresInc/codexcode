@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles.css?v=7" />
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
-    <link rel="stylesheet" href="appointment.css?v=28" />
+    <link rel="stylesheet" href="appointment.css?v=45" />
     <link rel="stylesheet" href="account.css?v=2" />
     <link rel="stylesheet" href="chat.css" />
   </head>
@@ -58,14 +58,11 @@
       <section class="appointment-hero section" aria-labelledby="appointment-title">
         <div class="shell appointment-hero-grid">
           <div>
-            <h1 id="appointment-title">Changeover / Swap Appointment</h1>
+            <h1 id="appointment-title">Book Tire Service</h1>
             <p>
-              Select a service, add appointment details to cart, then checkout once with a signed-in customer account.
+              Choose one or more services, add your appointment details, then checkout once with a signed-in customer account.
               Your appointment is confirmed automatically after successful deposit payment.
             </p>
-            <div class="appointment-hero-actions">
-              <a class="button button-primary appointment-start-button" href="#appointment-booking">Start Booking</a>
-            </div>
           </div>
         </div>
       </section>
@@ -76,18 +73,19 @@
             <input type="hidden" name="form-name" value="eastcord-changeover-appointment" />
             <input type="hidden" name="Booking Status" value="Pending Confirmation" />
             <input type="hidden" name="Service area status" data-service-area-status value="In service area" />
-            <input type="hidden" name="Service Name" data-hidden-service-name value="Seasonal Changeover - All 4 Tires Pre-Mounted on Rims" />
-            <input type="hidden" name="Starting Price" data-hidden-starting-price value="40" />
-            <input type="hidden" name="Service Subtotal" data-hidden-service-subtotal value="40" />
-            <input type="hidden" name="HST Amount" data-hidden-hst-amount value="5.20" />
-            <input type="hidden" name="Total With HST" data-hidden-total-with-hst value="45.20" />
+            <input type="hidden" name="Service ID" data-hidden-service-id value="" />
+            <input type="hidden" name="Service Name" data-hidden-service-name value="" />
+            <input type="hidden" name="Starting Price" data-hidden-starting-price value="0" />
+            <input type="hidden" name="Service Subtotal" data-hidden-service-subtotal value="0" />
+            <input type="hidden" name="HST Amount" data-hidden-hst-amount value="0" />
+            <input type="hidden" name="Total With HST" data-hidden-total-with-hst value="0" />
             <input type="hidden" name="Tax Rate" data-hidden-tax-rate value="0.13" />
-            <input type="hidden" name="Booking Deposit" data-hidden-deposit-price value="9.04" />
-            <input type="hidden" name="Remaining Balance" data-hidden-balance-price value="36.16" />
+            <input type="hidden" name="Booking Deposit" data-hidden-deposit-price value="0" />
+            <input type="hidden" name="Remaining Balance" data-hidden-balance-price value="0" />
 
             <div class="appointment-form-heading">
-              <h2 id="booking-title">Add Appointment to Cart</h2>
-              <p>Add your preferred service details to cart. Customer name, email, and phone come from your EastCord account at checkout. New-tire installation is booked after the tire purchase, and that appointment stays linked to those new tires and the purchase date.</p>
+              <h2 id="booking-title">Build Your Appointment</h2>
+              <p>Choose all services needed for one vehicle and appointment time. Customer details come from your EastCord account at checkout.</p>
             </div>
             <p class="appointment-status-message" data-new-tire-order-gate hidden></p>
 
@@ -100,67 +98,98 @@
             </ol>
 
             <section class="appointment-step" data-booking-step="0" aria-label="Step 1: Select Service">
-              <div class="appointment-step-heading"><span>Step 1 of 5</span><h3>Select Service</h3><p>Choose the mobile tire service you want to add to cart.</p></div>
-              <fieldset class="appointment-service-menu">
-                <legend>Service needed</legend>
-                <select id="service-select" class="visually-hidden" name="serviceId" required tabindex="-1" aria-hidden="true">
-                  <option value="seasonal-changeover-rims" data-service-name="Seasonal Changeover - All 4 Tires Pre-Mounted on Rims" data-price="40">Seasonal Changeover - All 4 Tires Pre-Mounted on Rims - Starting price $40</option>
-                  <option value="seasonal-swap-not-mounted" data-service-name="Seasonal Tire Swap - All 4 Tires Not Mounted on Rims" data-price="80">Seasonal Tire Swap - All 4 Tires Not Mounted on Rims - Starting price $80</option>
-                  <option value="mount-balance-1" data-service-name="Mount &amp; Balance - 1 Tire" data-price="25">Mount &amp; Balance - 1 Tire - Starting price $25</option>
-                  <option value="mount-balance-2" data-service-name="Mount &amp; Balance - 2 Tires" data-price="50">Mount &amp; Balance - 2 Tires - Starting price $50</option>
-                  <option value="mount-balance-3" data-service-name="Mount &amp; Balance - 3 Tires" data-price="75">Mount &amp; Balance - 3 Tires - Starting price $75</option>
-                  <option value="mount-balance-4" data-service-name="Mount &amp; Balance - 4 Tires" data-price="100">Mount &amp; Balance - 4 Tires - Starting price $100</option>
-                </select>
-                <div class="appointment-service-options" role="listbox" aria-label="Service needed" data-service-options>
-                  <button type="button" class="appointment-service-option is-selected" role="option" aria-selected="true" data-service-id="seasonal-changeover-rims">
-                    <strong>Seasonal Changeover</strong>
-                    <span>All 4 tires pre-mounted on rims</span>
-                    <em>Starting at $40</em>
-                  </button>
-                  <button type="button" class="appointment-service-option" role="option" aria-selected="false" data-service-id="seasonal-swap-not-mounted">
-                    <strong>Seasonal Tire Swap</strong>
-                    <span>All 4 tires not mounted on rims</span>
-                    <em>Starting at $80</em>
-                  </button>
-                  <button type="button" class="appointment-service-option" role="option" aria-selected="false" data-service-id="mount-balance-1">
-                    <strong>Mount &amp; Balance</strong>
-                    <span>1 tire</span>
-                    <em>Starting at $25</em>
-                  </button>
-                  <button type="button" class="appointment-service-option" role="option" aria-selected="false" data-service-id="mount-balance-2">
-                    <strong>Mount &amp; Balance</strong>
-                    <span>2 tires</span>
-                    <em>Starting at $50</em>
-                  </button>
-                  <button type="button" class="appointment-service-option" role="option" aria-selected="false" data-service-id="mount-balance-3">
-                    <strong>Mount &amp; Balance</strong>
-                    <span>3 tires</span>
-                    <em>Starting at $75</em>
-                  </button>
-                  <button type="button" class="appointment-service-option" role="option" aria-selected="false" data-service-id="mount-balance-4">
-                    <strong>Mount &amp; Balance</strong>
-                    <span>4 tires</span>
-                    <em>Starting at $100</em>
-                  </button>
+              <div class="appointment-step-heading"><span>Step 1 of 5</span><h3>Choose your services</h3><p>Select everything you need for this vehicle. Your total updates automatically.</p></div>
+              <div class="appointment-service-workspace">
+                <div class="appointment-service-main">
+                  <div class="appointment-service-builder" data-service-options>
+                <section class="appointment-service-group" aria-labelledby="tire-swap-heading">
+                  <div class="appointment-service-group-heading"><div><h4 id="tire-swap-heading">Tire swap</h4><p>Choose on-rim or off-rim service.</p></div><span>Choose one</span></div>
+                  <div class="appointment-service-choice-grid">
+                    <label class="appointment-service-choice" data-service-item="on-rim-swap">
+                      <input type="checkbox" data-service-toggle value="on-rim-swap" />
+                      <span class="appointment-service-check" aria-hidden="true"></span>
+                      <span class="appointment-service-copy"><strong>On-rim swap</strong><small>Tires are already mounted on rims</small><em>$15 per tire</em></span>
+                      <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="On-rim swap tire quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
+                    </label>
+                    <label class="appointment-service-choice" data-service-item="off-rim-swap">
+                      <input type="checkbox" data-service-toggle value="off-rim-swap" />
+                      <span class="appointment-service-check" aria-hidden="true"></span>
+                      <span class="appointment-service-copy"><strong>Off-rim swap</strong><small>Tires need to be removed and mounted</small><em>$16.25–$25 per tire</em></span>
+                      <span class="appointment-service-controls appointment-service-controls-double"><span><span>Rim size <small>Auto-filled from linked tires</small></span><select data-service-size-band disabled aria-label="Off-rim tire size"><option value="" selected>Choose size</option><option value="14-16">14–16 in</option><option value="17-19">17–19 in</option><option value="20-22">20–22 in</option><option value="23-24">23–24 in</option></select></span><span><span>Quantity</span><select data-service-quantity disabled aria-label="Off-rim swap tire quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span></span>
+                    </label>
+                  </div>
+                </section>
+
+                <section class="appointment-service-group" aria-labelledby="additional-services-heading">
+                  <div class="appointment-service-group-heading"><div><h4 id="additional-services-heading">Additional services</h4><p>Add as many as you need.</p></div><span>Optional</span></div>
+                  <div class="appointment-service-choice-grid">
+                    <label class="appointment-service-choice" data-service-item="balancing">
+                      <input type="checkbox" data-service-toggle value="balancing" />
+                      <span class="appointment-service-check" aria-hidden="true"></span>
+                      <span class="appointment-service-copy"><strong>Wheel balancing</strong><small>Balance loose wheels or wheels on the vehicle</small><em>$15 per tire</em></span>
+                      <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="Wheel balancing quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
+                    </label>
+                    <label class="appointment-service-choice" data-service-item="flat-patch-plug">
+                      <input type="checkbox" data-service-toggle value="flat-patch-plug" />
+                      <span class="appointment-service-check" aria-hidden="true"></span>
+                      <span class="appointment-service-copy"><strong>Patch + plug</strong><small>Complete flat-tire repair</small><em>$50 per tire</em></span>
+                      <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="Patch and plug quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
+                    </label>
+                    <label class="appointment-service-choice" data-service-item="flat-plug-only">
+                      <input type="checkbox" data-service-toggle value="flat-plug-only" />
+                      <span class="appointment-service-check" aria-hidden="true"></span>
+                      <span class="appointment-service-copy"><strong>Plug only</strong><small>External puncture plug</small><em>$30 per tire</em></span>
+                      <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="Plug-only quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
+                    </label>
+                  </div>
+                </section>
+
+                <section class="appointment-service-group" aria-labelledby="quote-services-heading">
+                  <div class="appointment-service-group-heading"><div><h4 id="quote-services-heading">Quick services</h4><p>Add either service for a fixed price.</p></div><span>$20 each</span></div>
+                  <div class="appointment-service-choice-grid appointment-service-choice-grid-compact">
+                    <label class="appointment-service-choice" data-service-item="air-fill"><input type="checkbox" data-service-toggle value="air-fill" /><span class="appointment-service-check" aria-hidden="true"></span><span class="appointment-service-copy"><strong>Air fill-up</strong><small>Inflate tires to the recommended pressure</small><em>$20</em></span></label>
+                    <label class="appointment-service-choice" data-service-item="tire-replacement"><input type="checkbox" data-service-toggle value="tire-replacement" /><span class="appointment-service-check" aria-hidden="true"></span><span class="appointment-service-copy"><strong>Tire retorque</strong><small>Recheck and tighten wheel nuts to specification</small><em>$20</em></span></label>
+                  </div>
+                </section>
+                  </div>
+                  <fieldset class="appointment-tire-selector" data-appointment-tire-selector hidden>
+                    <legend>Link your tires</legend>
+                    <p data-linked-tire-hint>Link tires you already paid for, or tires still in your cart.</p>
+                    <div class="appointment-tire-options" data-appointment-tire-options>
+                      <p>Checking your purchased tires...</p>
+                    </div>
+                    <a href="/account.html">View purchased tires</a>
+                    <a href="/tire-cart">View Tire Cart</a>
+                  </fieldset>
                 </div>
-              </fieldset>
-              <fieldset class="appointment-tire-selector" data-appointment-tire-selector hidden>
-                <legend>Link your tires</legend>
-                <p data-linked-tire-hint>Link tires you already paid for, or tires still in your cart.</p>
-                <div class="appointment-tire-options" data-appointment-tire-options>
-                  <p>Checking your purchased tires...</p>
-                </div>
-                <a href="/account.html">View purchased tires</a>
-                <a href="/tire-cart">View Tire Cart</a>
-              </fieldset>
-              <div class="appointment-price-summary" aria-live="polite">
-                <div><span>Service subtotal</span><strong data-starting-price>$40.00</strong></div>
-                <div><span>HST 13%</span><strong data-hst-price>$5.20</strong></div>
-                <div><span>Total including HST</span><strong data-total-price>$45.20</strong></div>
-                <div><span>Due today</span><strong><small>20% booking deposit - </small><span data-deposit-price>$9.04</span></strong></div>
-                <div><span>Remaining balance</span><strong><span data-balance-price>$36.16</span> <small>due on-site after service</small></strong></div>
+                <aside class="appointment-pricing-sidebar" aria-label="Appointment payment summary">
+                  <div class="appointment-selected-services" data-selected-services hidden></div>
+                  <div class="appointment-price-summary" aria-live="polite">
+                    <div class="appointment-price-summary-heading">
+                      <h4>Payment summary</h4>
+                      <span>Taxes and deposit included</span>
+                    </div>
+                    <dl class="appointment-price-breakdown">
+                      <div><dt>Service subtotal</dt><dd data-starting-price>$0.00</dd></div>
+                      <div><dt>HST (13%)</dt><dd data-hst-price>$0.00</dd></div>
+                      <div class="appointment-price-total"><dt>Total</dt><dd data-total-price>$0.00</dd></div>
+                    </dl>
+                    <div class="appointment-payment-timing">
+                      <div class="appointment-payment-due">
+                        <span>Due today</span>
+                        <strong data-deposit-price>$0.00</strong>
+                        <small>20% booking deposit</small>
+                      </div>
+                      <div>
+                        <span>Pay after service</span>
+                        <strong data-balance-price>$0.00</strong>
+                        <small>Remaining balance paid on-site</small>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="appointment-payment-note">Your deposit reserves the appointment. We will confirm any additional work or fees with you before service.</p>
+                </aside>
               </div>
-              <p class="appointment-payment-note">Your 20% booking deposit, including applicable HST, helps reserve your booking. The remaining balance, including applicable HST, is paid on-site after service. Final price may change if additional work, location fee, tire condition, or extra services are required.</p>
               <div class="appointment-step-actions"><button class="button button-primary" type="button" data-next-step>Next: Vehicle Details</button></div>
             </section>
 
@@ -192,7 +221,7 @@
             </section>
 
             <section class="appointment-step" data-booking-step="2" aria-label="Step 3: Service Location" hidden>
-              <div class="appointment-step-heading"><span>Step 3 of 5</span><h3>Service Location</h3><p>Choose mobile service at your address, or bring the vehicle to the EastCord shop.</p></div>
+              <div class="appointment-step-heading"><span>Step 3 of 5</span><h3>Service Location</h3><p>Choose mobile service at your home or workplace. EastCord shop appointments are coming soon.</p></div>
               <input type="hidden" name="Install Location" data-install-location value="" />
               <fieldset class="appointment-service-menu">
                 <legend>Where should we install?</legend>
@@ -201,9 +230,9 @@
                     <strong>Come to me</strong>
                     <span>Mobile service at your home or work in Milton, Oakville, Brampton, or Mississauga</span>
                   </button>
-                  <button type="button" class="appointment-service-option" data-install-location-option="shop" aria-pressed="false">
-                    <strong>EastCord shop</strong>
-                    <span>Bring your vehicle to the EastCord shop for installation</span>
+                  <button type="button" class="appointment-service-option" data-install-location-option="shop" aria-pressed="false" aria-disabled="true" disabled>
+                    <strong>EastCord shop (Coming soon)</strong>
+                    <span>Shop appointments are not available yet</span>
                   </button>
                 </div>
               </fieldset>
@@ -233,12 +262,12 @@
             <section class="appointment-step" data-booking-step="4" aria-label="Step 5: Review and Add to Cart" hidden>
               <div class="appointment-step-heading"><span>Step 5 of 5</span><h3>Review &amp; Add to Cart</h3><p>Your customer name, email, and phone will come from your signed-in account profile.</p></div>
               <div class="appointment-review-grid" aria-live="polite">
-                <div class="appointment-review-card"><span>Service</span><strong data-review-service>Seasonal Changeover - All 4 Tires Pre-Mounted on Rims</strong></div>
-                <div class="appointment-review-card"><span>Vehicle</span><strong data-review-vehicle>Not entered yet</strong></div>
-                <div class="appointment-review-card"><span>Location</span><strong data-review-location>Not entered yet</strong></div>
-                <div class="appointment-review-card"><span>Date &amp; Time</span><strong data-review-date>Not entered yet</strong></div>
-                <div class="appointment-review-card" data-review-tires-card hidden><span>Linked Tires</span><strong data-review-tires>No tires selected</strong></div>
-                <div class="appointment-review-card"><span>Deposit</span><strong data-review-price>Due today: $9.04<br>Remaining on-site: $36.16</strong></div>
+                <div class="appointment-review-card appointment-review-card-wide appointment-review-service"><h4>Service</h4><div class="appointment-review-value" data-review-service>Seasonal Changeover - All 4 Tires Pre-Mounted on Rims</div></div>
+                <div class="appointment-review-card appointment-review-vehicle"><h4>Vehicle</h4><div class="appointment-review-details" data-review-vehicle>Not entered yet</div></div>
+                <div class="appointment-review-card appointment-review-location"><h4>Location</h4><div class="appointment-review-details" data-review-location>Not entered yet</div></div>
+                <div class="appointment-review-card appointment-review-card-wide appointment-review-date"><h4>Date &amp; time</h4><div class="appointment-review-details" data-review-date>Not entered yet</div></div>
+                <div class="appointment-review-card appointment-review-card-wide appointment-review-tires" data-review-tires-card hidden><h4>Linked tires</h4><div class="appointment-review-value" data-review-tires>No tires selected</div></div>
+                <div class="appointment-review-card appointment-review-card-wide appointment-review-payment"><h4>Payment</h4><div class="appointment-review-details" data-review-price>No services selected</div></div>
               </div>
               <div class="checkout-block" data-login-required-block hidden><strong>Please sign up or log in before adding this appointment to cart.</strong><div class="account-actions"><a class="button button-primary" href="/login.html">Log In</a><a class="button button-secondary" href="/signup.html">Create Account</a></div></div>
               <p class="appointment-status-message" data-appointment-message aria-live="polite"></p>
@@ -308,8 +337,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=48"></script>
-    <script src="appointment.js?v=60" defer></script>
+    <script src="account.js?v=51"></script>
+    <script src="appointment-services.js?v=3" defer></script>
+    <script src="appointment.js?v=71" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

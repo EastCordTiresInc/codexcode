@@ -539,6 +539,26 @@
     return withModel?.brand || '';
   }
 
+  function modelFromCache(brand, size, part) {
+    const brandKey = sanitizeBrand(brand).replace(/[^a-z0-9]/gi, '').toLowerCase();
+    const sizeKey = tireSizeValue(size);
+    const partKey = String(part || '').trim().toLowerCase();
+    const candidates = resultBrandCache.filter((row) => {
+      if (!row.model) return false;
+      const rowBrandKey = sanitizeBrand(row.brand).replace(/[^a-z0-9]/gi, '').toLowerCase();
+      return (!brandKey || rowBrandKey === brandKey) && (!sizeKey || row.size === sizeKey);
+    });
+    if (partKey) {
+      const byPart = candidates.find((row) => String(row.part || '').trim().toLowerCase() === partKey);
+      if (byPart) return sanitizeModel(byPart.model, brand);
+    }
+    const models = [...new Map(candidates.map((row) => {
+      const model = sanitizeModel(row.model, brand);
+      return [model.toLowerCase(), model];
+    }).filter(([key]) => key)).values()];
+    return models.length === 1 ? models[0] : '';
+  }
+
   function quoteFromSelectEvent(payload) {
     const tires = extractTires(payload);
     const vehicle = payload.vehicle || {};
@@ -653,6 +673,24 @@
     return /CHANGE\s*TIRE/i.test(text) && /warranty|category|size:|price summary|sub-total|summary/i.test(text);
   }
 
+  function isWidgetSearchFormPage() {
+    const text = widgetPlainText();
+    if (!/HOW WOULD YOU LIKE TO SEARCH/i.test(text)) return false;
+    if (!/FIND YOUR TIRES NOW|Width[\s\S]{0,120}Profile[\s\S]{0,120}Wheel Size/i.test(text)) return false;
+    return !isWidgetSummaryPage();
+  }
+
+  function clearQuoteForWidgetSearch(pageName = '') {
+    const page = String(pageName || '');
+    const explicitSearchPage = /search|vehicle|tire size|by size|home|start/i.test(page)
+      && !/results?|summary|quote|order|checkout|payment/i.test(page);
+    if (!explicitSearchPage && !isWidgetSearchFormPage()) return false;
+    if (selectedQuote || lastClickedCard || highlightedCard) clearQuote();
+    else hideHighlightOverlay({ clearHold: true });
+    highlightedCard = null;
+    return true;
+  }
+
   function isWidgetCheckoutPage() {
     const text = widgetPlainText();
     return /PLACE YOUR ORDER|BACK TO SUMMARY|PAY WITH CREDIT CARD|CREDIT CARD NUMBER/i.test(text);
@@ -662,9 +700,99 @@
     document.querySelector('.new-tires-workspace')?.classList.remove('is-widget-summary');
   }
 
+  function directWidgetText(element) {
+    return Array.from(element?.childNodes || [])
+      .filter((node) => node.nodeType === 3)
+      .map((node) => node.textContent || '')
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function moveDisplayedEcoFeeToPriceSummary() {
+    const root = document.getElementById('tireconnect');
+    if (!root) return;
+    const elements = collectWidgetElements(root);
+    const labels = elements.filter((element) => /^tire eco fee$/i.test(directWidgetText(element)));
+    const existingSummaryRow = elements.find((element) => element.hasAttribute?.('data-eastcord-eco-fee-summary'));
+    if (existingSummaryRow) {
+      const sourceLabel = labels.find((label) => !label.closest?.('[data-eastcord-eco-fee-summary]'));
+      let sourceRow = sourceLabel?.closest?.('li, tr, [role="row"]') || sourceLabel?.parentElement;
+      for (let depth = 0; sourceRow && depth < 5; depth += 1) {
+        const text = String(sourceRow.innerText || sourceRow.textContent || '').replace(/\s+/g, ' ').trim();
+        if (/tire eco fee/i.test(text) && /\$\s*\d/i.test(text) && text.length <= 180) break;
+        sourceRow = sourceRow.parentElement;
+      }
+      const latestAmount = String(sourceRow?.innerText || sourceRow?.textContent || '').match(/\$\s*[\d,.]+/)?.[0]?.replace(/\s+/g, '');
+      const displayedAmount = [existingSummaryRow, ...existingSummaryRow.querySelectorAll('*')]
+        .find((element) => /^\$\s*[\d,.]+$/.test(directWidgetText(element)));
+      if (latestAmount && displayedAmount && directWidgetText(displayedAmount) !== latestAmount) {
+        displayedAmount.textContent = latestAmount;
+      }
+      return;
+    }
+
+    labels.forEach((label) => {
+      let row = label.closest?.('li, tr, [role="row"]') || label.parentElement;
+      for (let depth = 0; row && depth < 5; depth += 1) {
+        const text = String(row.innerText || row.textContent || '').replace(/\s+/g, ' ').trim();
+        if (/tire eco fee/i.test(text) && /\$\s*\d/i.test(text) && text.length <= 180) break;
+        row = row.parentElement;
+      }
+      if (!row || row.id === 'tireconnect') return;
+
+      const requiredHeading = elements.find((element) => /^required services$/i.test(directWidgetText(element)));
+      let requiredGroup = requiredHeading?.parentElement;
+      for (let depth = 0; requiredGroup && depth < 5 && !requiredGroup.contains(row); depth += 1) {
+        requiredGroup = requiredGroup.parentElement;
+      }
+
+      const subtotalLabel = elements.find((element) => /^sub-?total$/i.test(directWidgetText(element)));
+      let subtotalRow = subtotalLabel?.closest?.('li, tr, [role="row"]') || subtotalLabel?.parentElement;
+      for (let depth = 0; subtotalRow && depth < 4; depth += 1) {
+        const text = String(subtotalRow.innerText || subtotalRow.textContent || '').replace(/\s+/g, ' ').trim();
+        if (/sub-?total/i.test(text) && /\$\s*\d/i.test(text) && text.length <= 160) break;
+        subtotalRow = subtotalRow.parentElement;
+      }
+      if (!subtotalRow || subtotalRow.id === 'tireconnect' || subtotalRow.contains(row)) return;
+
+      const feeAmount = String(row.innerText || row.textContent || '').match(/\$\s*[\d,.]+/)?.[0] || '$20.00';
+      const summaryRow = subtotalRow.cloneNode(true);
+      summaryRow.removeAttribute?.('id');
+      summaryRow.querySelectorAll?.('[id]').forEach((element) => element.removeAttribute('id'));
+      summaryRow.setAttribute('data-eastcord-eco-fee-summary', 'true');
+      const summaryElements = [summaryRow, ...summaryRow.querySelectorAll('*')];
+      const summaryLabel = summaryElements.find((element) => /^sub-?total$/i.test(directWidgetText(element)));
+      const summaryAmount = summaryElements.find((element) => /^\$\s*[\d,.]+$/.test(directWidgetText(element)));
+      if (!summaryLabel || !summaryAmount) return;
+      summaryLabel.textContent = 'Tire Eco Fee';
+      summaryAmount.textContent = feeAmount.replace(/\s+/g, '');
+      subtotalRow.parentElement.insertBefore(summaryRow, subtotalRow);
+
+      row.hidden = true;
+      row.setAttribute('aria-hidden', 'true');
+      row.setAttribute('data-eastcord-eco-fee-hidden', 'true');
+
+      if (requiredGroup && requiredGroup.id !== 'tireconnect') {
+        const groupText = String(requiredGroup.innerText || '').replace(/\s+/g, ' ').trim();
+        const hasAnotherVisibleCharge = collectWidgetElements(requiredGroup).some((element) => (
+          !row.contains(element)
+          && isElementVisible(element)
+          && /\$\s*\d/.test(directWidgetText(element))
+        ));
+        if (!hasAnotherVisibleCharge && groupText.length <= 240) {
+          requiredGroup.hidden = true;
+          requiredGroup.setAttribute('aria-hidden', 'true');
+        }
+      }
+    });
+  }
+
   function onWidgetDomChanged() {
     syncSummaryLayout();
+    clearQuoteForWidgetSearch();
     relabelWidgetButtons();
+    moveDisplayedEcoFeeToPriceSummary();
     revealNativeOrderButton();
     ensureSummaryOrderButton();
     bindNativeOrderFallback();
@@ -1444,12 +1572,15 @@
     const brand = isWidgetSummaryPage()
       ? pickSummaryBrand(panel, summaryHay)
       : (sanitizeBrand(fromCard?.tires?.[0]?.brand) || sanitizeBrand(fromHash?.tires?.[0]?.brand) || scrapeBrand(text) || '');
-    const model = headingModelFrom(panel || text, brand)
-      || headingModelFrom(text, brand)
+    const size = tireSizeValue(panel || text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
+    const partNumber = fromHash?.tires?.[0]?.partNumber
+      || String((panel || text).match(/\bpart(?:\s*#|\s+number)?\s*:?\s*([A-Za-z0-9-]{3,})/i)?.[1] || '').trim();
+    const model = headingModelFrom(text, brand)
+      || modelFromCache(brand, size, partNumber)
+      || headingModelFrom(panel || text, brand)
       || sanitizeModel(fromCard?.tires?.[0]?.model, brand)
       || sanitizeModel(fromHash?.tires?.[0]?.model, brand)
       || '';
-    const size = tireSizeValue(panel || text) || fromCard?.tires?.[0]?.size || fromHash?.tires?.[0]?.size || '';
     const qty = isWidgetSummaryPage()
       ? (qtyFromSummaryControl() || scrapeQty(panel) || qtyFromCard(summaryBrandRoot()) || scrapeQtyFromHash(window.location.hash) || 0)
       : (Number(fromCard?.tires?.[0]?.qty) >= 1
@@ -1462,7 +1593,7 @@
       size,
       qty,
       price,
-      partNumber: fromHash?.tires?.[0]?.partNumber || '',
+      partNumber,
     };
     const tire = mergeTire(fromCard?.tires?.[0] || {}, scraped);
     if (!isUsableTire(tire)) return fromCard || fromHash;
@@ -2255,6 +2386,10 @@
     listen('onPageChanged', (event) => {
       const page = String(eventPayload(event).page || event?.page || '');
       logFlow('checkout.pageChanged', page);
+      if (clearQuoteForWidgetSearch(page)) {
+        resolveWidgetEvent(event);
+        return;
+      }
       if (/summary|quote|order|checkout|payment/i.test(page)) {
         applyCapturedQuote(quoteFromHash() || selectedQuote, { allowScrape: true });
         pushCustomerIntoWidget();

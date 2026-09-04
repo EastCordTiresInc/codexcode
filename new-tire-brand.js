@@ -23,6 +23,8 @@
   const CATEGORY_LINE = /^(performance|summer|winter|touring|all season|all weather|mud terrain|highway terrain|sport|passenger|ltr?|xl|category|win|per|perform)$/i;
   const CATEGORY_BRAND = /^category(?:[^a-z0-9]*|(?=winter|summer|performance|perform|touring|allseason|allweather|win|per))/i;
   const SPEC_LABEL = /^(summary|price summary|quote|qty|quantity|warranty|category|size|speed rating|load index|sidewall|part|part #|sku|utqg|tread depth|per tire|set of|change tire|n\/a|kmh|km|order by|sort by)\b/i;
+  const UI_FIELD_LABEL = /^(?:selected tire|tire details?|brand|manufacturer|make|model|tire model|product|product name|tire name|description|vehicle|year|vehicle year|vehicle make|vehicle model|submodel|trim|size|tire size|qty|quantity|warranty|category|season|speed rating|load index|sidewall|part|part number|sku|utqg|tread depth|asymmetrical|asymmetric|directional|non[\s-]?directional|studdable|studded|run[\s-]?flat|price|price tire|price per tire|per tire|unit price|retail price|price range|price summary|sub[\s-]?total|tax|taxes|eco fee|tire eco fee|total|total price|deposit|balance|pickup|installation|delivery|shipping|order type|fulfillment|required services?|optional services?)$/i;
+  const UI_FIELD_PREFIX = /^(?:selected tire|brand|manufacturer|make|model|tire model|product(?: name)?|tire name|description|vehicle(?: year|make|model)?|year|submodel|trim|price(?:\s*\/?\s*tire| per tire| range)?|unit price|retail price|qty|quantity)\b/i;
   const LOGO_STOPWORDS = /^(logo|brand|tire|tyre|tires|icon|image|sprite|header|filter|manufacturer|assets|cdn|static|media|img|png|jpg|jpeg|svg|webp)$/i;
 
   function isWidgetChrome(value) {
@@ -31,9 +33,11 @@
       .replace(/\s+/g, ' ')
       .trim();
     if (!text) return true;
-    if (/^(summary|price summary|quote|order|cart|your cart|details?|done|pickup|installation|tires for|filter results)$/i.test(text)) return true;
+    if (UI_FIELD_LABEL.test(text)) return true;
+    if (/^(summary|price summary|price range|selected tire|brand|model|size|price\/?tire|quote|order|cart|your cart|details?|done|pickup|installation|tires for|filter results)$/i.test(text)) return true;
+    if (/\bprices?\s+(?:is|are)?\s*subject to change\b/i.test(text)) return true;
     if (/^order\s*by\b/i.test(text) || /^sort\s*by\b/i.test(text)) return true;
-    return /^(revise search|change (tire|search|vehicle)|search by|search tires|price summary|see out|add to cart|place order|place your order|add to compare|powered by|tireconnect|qty|quantity|warranty|category|recommended|specs|features|reviews|sub-total|taxes|total price|per tire|touring|performance|winter|summer|all season|all weather|in stock|load more|show more|next|previous|filters?|filter results|sort by|best match|preferred date|how do you want|order by)$/i.test(text);
+    return /^(revise search|change (tire|search|vehicle)|search by|search tires|price summary|price range|selected tire|brand|model|size|price\/?tire|see out|add to cart|place order|place your order|add to compare|powered by|tireconnect|qty|quantity|warranty|category|recommended|specs|features|reviews|sub-total|taxes|total price|per tire|touring|performance|winter|summer|all season|all weather|in stock|load more|show more|next|previous|filters?|filter results|sort by|best match|preferred date|how do you want|order by)$/i.test(text);
   }
 
   function cleanTireField(value) {
@@ -166,7 +170,20 @@
   function isBadModelCandidate(value, brand = '') {
     const text = cleanTireField(value);
     if (!text || isWidgetChrome(text) || isBadBrandCandidate(text)) return true;
+    if (UI_FIELD_LABEL.test(text) || UI_FIELD_PREFIX.test(text)) return true;
     if (/^(?:warranty|category|size|speed rating|load index|sidewall|part|sku|utqg|tread depth|qty|quantity|per tire)(?:\b|(?=\d))/i.test(text)) return true;
+    if (/^(?:non(?:\s*-\s*|\s+)?)?(?:asymmetrical|asymmetric|directional|studdable|studded|run[\s-]?flat)\s*[:\-]?\s*(?:yes|no)$/i.test(text)) return true;
+    if (/^[a-z][a-z0-9 /_-]{1,48}\s+(?:yes|no)$/i.test(text)) return true;
+    if (/^(?:yes|no|bsw|owl|rwl|wol)$/i.test(text)) return true;
+    if (/^\d[\d,.]*\s*(?:km|kilometres?|miles?)$/i.test(text)) return true;
+    if (/^[a-z]\s*\(\s*\d+\s*km\/h\s*\)$/i.test(text)) return true;
+    if (/^\d{3}\s+[a-z]\s+[a-z]$/i.test(text)) return true;
+    if (/\bprices?\s+(?:is|are)?\s*subject to change\b/i.test(text)) return true;
+    if (/\b(?:tire size|fitment).*\b(?:verify|verified|installation)\b/i.test(text)) return true;
+    if (/\b(?:will be|at the time of|choose another|wrong tire|please select|click here)\b/i.test(text)) return true;
+    if (/^(?:19[89]\d|20[0-3]\d)\s+\S+(?:\s+\S+){1,}$/i.test(text)) return true;
+    if (/\btires?\s+for\b/i.test(text)) return true;
+    if (text.split(/\s+/).length > 6) return true;
     if (SPEC_LABEL.test(text) || CATEGORY_LINE.test(text)) return true;
     if (/^order\s*by\b/i.test(text) || /^sort\s*by\b/i.test(text)) return true;
     if (tireSizeHint(text) || /\$/.test(text)) return true;
@@ -183,9 +200,12 @@
   function headingModelFrom(text, brand = '') {
     const lines = String(text || '')
       .split(/\n+/)
-      .map((line) => cleanTireField(line))
+      .map((line) => String(line || '').trim())
       .filter(Boolean);
-    for (const line of lines) {
+    for (const rawLine of lines) {
+      if (/^(?:warranty|category|size|speed rating|load index|sidewall|part|sku|utqg|tread depth|qty|quantity|per tire)(?:\b|(?=\d))/i.test(rawLine)) break;
+      const line = cleanTireField(rawLine);
+      if (!line) continue;
       if (isBadModelCandidate(line, brand)) continue;
       if (line.length < 3 || line.length > 70) continue;
       if (!/[A-Za-z]/.test(line) || !/[A-Za-z0-9]/.test(line)) continue;

@@ -1,3 +1,4 @@
+(() => {
 const cartCustomer = document.querySelector('[data-cart-customer]');
 const cartSubtotal = document.querySelector('[data-cart-subtotal]');
 const cartHst = document.querySelector('[data-cart-hst]');
@@ -218,6 +219,7 @@ function getStorageKeys(storage) {
 }
 
 function isCartRelatedStorageKey(key) {
+  if (/^eastcord_customer_cart_owner_/i.test(key)) return false;
   return CART_RESET_STORAGE_KEYS.includes(key)
     || /appointment/i.test(key)
     || /pendingAppointment/i.test(key)
@@ -679,6 +681,44 @@ function compactAppointmentMeta(item) {
   return [vehicle, date, time, place].filter(Boolean).join(' · ');
 }
 
+function compactAppointmentAddress(item) {
+  const shop = String(item.installLocation || item.install_location || '').trim() === 'shop'
+    || String(item.city || '').trim() === 'EastCord shop';
+  if (shop) return 'EastCord Tires shop';
+  return [item.fullServiceAddress, item.city, item.postalCode]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+function appointmentServiceLines(item) {
+  const selections = Array.isArray(item.serviceSelections) ? item.serviceSelections : [];
+  const api = window.EastCordAppointmentServices;
+  if (!selections.length || !api) return [];
+  return selections.map((selection) => ({
+    label: api.selectionLabel(selection) || api.SERVICES?.[selection.id]?.shortName || 'Appointment service',
+    price: api.selectionPrice(selection),
+  }));
+}
+
+function appointmentServicesHtml(item) {
+  const lines = appointmentServiceLines(item);
+  if (!lines.length) {
+    return `<strong class="cart-line-service-fallback">${escapeHtml(item.serviceName || 'Appointment service')}</strong>`;
+  }
+  return `
+    <ol class="cart-line-services" aria-label="Appointment services">
+      ${lines.map((line, index) => `
+        <li>
+          <span class="cart-line-service-number">${index + 1}</span>
+          <strong>${escapeHtml(line.label)}</strong>
+          <span class="cart-line-service-price">${escapeHtml(formatMoney(line.price))}</span>
+        </li>
+      `).join('')}
+    </ol>
+  `;
+}
+
 function cartLineRemoveButton(item) {
   return `<button class="cart-line-remove" type="button" data-remove-cart-item="${escapeHtml(item.id || '')}" data-remove-cart-index="${escapeHtml(item.cartIndex)}">Remove</button>`;
 }
@@ -701,14 +741,16 @@ function renderCartItem(item) {
   if (item.isInvalidCartItem) return renderInvalidCartItem(item);
 
   const meta = compactAppointmentMeta(item);
+  const address = compactAppointmentAddress(item);
   return `
     <article class="cart-line">
       <div class="cart-line-main">
-        <strong>${escapeHtml(item.serviceName || 'Appointment service')}</strong>
+        ${appointmentServicesHtml(item)}
         ${meta ? `<p class="cart-line-meta">${escapeHtml(meta)}</p>` : ''}
+        ${address ? `<p class="cart-line-address"><span>Service address:</span> ${escapeHtml(address)}</p>` : ''}
       </div>
       <div class="cart-line-side">
-        <span class="cart-line-price">${escapeHtml(formatMoney(item.serviceSubtotal))}</span>
+        <span class="cart-line-total"><span>Appointment total</span><strong class="cart-line-price">${escapeHtml(formatMoney(item.serviceSubtotal))}</strong></span>
         ${cartLineRemoveButton(item)}
       </div>
     </article>
@@ -1125,3 +1167,4 @@ renderCart();
 document.addEventListener('DOMContentLoaded', () => {
   renderCartItemsAndTotals();
 });
+})();

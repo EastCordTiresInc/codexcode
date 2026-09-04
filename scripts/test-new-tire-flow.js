@@ -343,6 +343,81 @@ function logoSummary(model, category = 'Performance Summer', extra = {}) {
   ].join('\n');
 }
 
+test('tire specification values are never displayed as the model', () => {
+  assert.strictEqual(sanitizeModel('ASYMMETRICAL Yes', 'Firestone'), '');
+  assert.strictEqual(cleanWidgetModel('ASYMMETRICAL Yes'), '');
+  assert.strictEqual(sanitizeModel('Directional No', 'Firestone'), '');
+  assert.strictEqual(sanitizeModel('NON-DIRECTIONAL Yes', 'Firestone'), '');
+  assert.strictEqual(sanitizeModel('NON- DIRECTIONAL Yes', 'Firestone'), '');
+  assert.strictEqual(cleanWidgetModel('NON-DIRECTIONAL Yes'), '');
+  assert.strictEqual(sanitizeModel('† Prices are subject to change at any time', 'Firestone'), '');
+  assert.strictEqual(cleanWidgetModel('† Prices are subject to change at any time'), '');
+  assert.strictEqual(sanitizeModel('Tire size and fitment will be verified at the time of installation', 'Firestone'), '');
+  assert.strictEqual(cleanWidgetModel('Tire size and fitment will be verified at the time of installation'), '');
+  assert.strictEqual(sanitizeModel('2009 MAZDA 3 GS SEDAN', 'Maxxis'), '');
+  assert.strictEqual(cleanWidgetModel('2009 MAZDA 3 GS SEDAN'), '');
+  assert.strictEqual(sanitizeModel('TIRES FOR 2009 MAZDA 3 GS SEDAN', 'Maxxis'), '');
+  assert.strictEqual(sanitizeModel('Price Range', 'Ovation'), '');
+  assert.strictEqual(cleanWidgetModel('Price Range'), '');
+  assert.strictEqual(headingModelFrom([
+    'SELECTED TIRE',
+    'BRAND',
+    'Ovation',
+    'MODEL',
+    'Price Range',
+    'SIZE',
+    '195/65R15',
+  ].join('\n'), 'Ovation'), '');
+  assert.strictEqual(headingModelFrom([
+    'SUMMARY',
+    'Ovation',
+    'ECOVISION VI-682',
+    'WARRANTY N/A',
+    'CATEGORY All Season',
+  ].join('\n'), 'Ovation'), 'ECOVISION VI-682');
+  [
+    'Selected Tire', 'Tire Details', 'Brand', 'Manufacturer', 'Make', 'Model',
+    'Tire Model', 'Product', 'Product Name', 'Tire Name', 'Description',
+    'Vehicle', 'Year', 'Vehicle Make', 'Vehicle Model', 'Submodel', 'Trim',
+    'Size', 'Tire Size', 'Qty', 'Quantity', 'Warranty', 'Category', 'Season',
+    'Speed Rating', 'Load Index', 'Sidewall', 'Part Number', 'SKU', 'UTQG',
+    'Tread Depth', 'Asymmetrical', 'Directional', 'Non-Directional', 'Studdable',
+    'Run-flat', 'Price', 'Price/Tire', 'Price Per Tire', 'Unit Price',
+    'Retail Price', 'Price Range', 'Price Summary', 'Subtotal', 'Tax', 'Taxes',
+    'Tire Eco Fee', 'Total', 'Total Price', 'Deposit', 'Balance', 'Pickup',
+    'Installation', 'Delivery', 'Shipping', 'Order Type', 'Fulfillment',
+    'Required Services', 'Optional Services',
+  ].forEach((label) => {
+    assert.strictEqual(sanitizeModel(label, 'Ovation'), '', `${label} frontend label`);
+    assert.strictEqual(cleanWidgetModel(label), '', `${label} server label`);
+  });
+  [
+    'MODEL Price Range',
+    'BRAND Ovation',
+    'MANUFACTURER Ovation',
+    'VEHICLE MODEL Mazda 3',
+    'TIRE MODEL Price Range',
+    'PRODUCT NAME Price Range',
+    'UNIT PRICE $81.90',
+    'QUANTITY 4',
+  ].forEach((value) => {
+    assert.strictEqual(sanitizeModel(value, 'Ovation'), '', `${value} frontend joined label`);
+    assert.strictEqual(cleanWidgetModel(value), '', `${value} server joined label`);
+  });
+  assert.strictEqual(sanitizeModel('105000km', 'Firestone'), '');
+  assert.strictEqual(sanitizeModel('V (240 km/h)', 'Firestone'), '');
+  assert.strictEqual(sanitizeModel('BSW', 'Firestone'), '');
+  assert.strictEqual(sanitizeModel('560 A B', 'Firestone'), '');
+  assert.strictEqual(headingModelFrom([
+    'SUMMARY',
+    'Firestone',
+    'ALL SEASON',
+    'WARRANTY 105000km',
+    'CATEGORY Touring All Season',
+    'Tire size and fitment will be verified at the time of installation',
+  ].join('\n'), 'Firestone'), '');
+});
+
 test('summary heading Mirage is not overwritten by leftover BFGoodrich filters', () => {
   const summary = [
     'SUMMARY',
@@ -486,6 +561,17 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(brands, /'Mirage'/);
   assert.match(page, /pickSummaryBrand/);
   assert.match(page, /summaryPanelText/);
+  assert.match(page, /function modelFromCache/);
+  assert.match(page, /modelFromCache\(brand, size, partNumber\)/);
+  assert.match(page, /const partNumber = fromHash/);
+  assert.match(page, /function isWidgetSearchFormPage/);
+  assert.match(page, /function clearQuoteForWidgetSearch/);
+  assert.match(page, /clearQuoteForWidgetSearch\(page\)/);
+  assert.match(page, /clearQuoteForWidgetSearch\(\);\s+relabelWidgetButtons/);
+  assert.ok(
+    page.indexOf('const model = headingModelFrom(text, brand)') < page.indexOf('|| headingModelFrom(panel || text, brand)'),
+    'full TireConnect summary must be checked before the order sidebar for model names',
+  );
   assert.match(page, /scrapeQty\(panel\)/);
   assert.match(brands, /scrapeQtyFromHash/);
   assert.match(brands, /filter\\s\*results:\?/);
@@ -503,6 +589,10 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(page, /attributeFilter: \['value', 'selected', 'aria-valuenow', 'data-value'\]/);
   assert.match(page, /isWidgetModalOpen/);
   assert.match(page, /if \(!isFullTireCard\(card\)\) return false/);
+  assert.match(page, /moveDisplayedEcoFeeToPriceSummary/);
+  assert.match(page, /data-eastcord-eco-fee-hidden/);
+  assert.match(page, /data-eastcord-eco-fee-summary/);
+  assert.match(page, /latestAmount && displayedAmount/);
   assert.match(page, /Keep npm run dev running/);
   assert.doesNotMatch(page, /The demo order could not be saved\. Log in and try again/);
   assert.match(html, /new-tire-brand\.js\?v=/);

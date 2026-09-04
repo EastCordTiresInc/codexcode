@@ -85,8 +85,8 @@
     els.totalPrice = document.querySelector('[data-total-price]');
     els.depositPrice = document.querySelector('[data-deposit-price]');
     els.balancePrice = document.querySelector('[data-balance-price]');
-    els.serviceSelect = document.getElementById('service-select');
     els.serviceOptions = document.querySelector('[data-service-options]');
+    els.selectedServices = document.querySelector('[data-selected-services]');
     els.rimsField = document.querySelector('[data-rims-field]');
     els.tireCountField = document.querySelector('[data-tire-count-field]');
     els.serviceIdField = document.querySelector('[data-hidden-service-id]');
@@ -124,75 +124,163 @@
     els.primaryNavigation = document.querySelector('#primary-navigation');
   }
 
-  function syncServiceOptionButtons(serviceId = els.serviceSelect?.value) {
-    els.serviceOptions?.querySelectorAll('[data-service-id]').forEach((button) => {
-      const selected = button.dataset.serviceId === serviceId;
-      button.classList.toggle('is-selected', selected);
-      button.setAttribute('aria-selected', selected ? 'true' : 'false');
+  function getServiceSelectionsFromForm() {
+    if (!els.serviceOptions) return [];
+    return Array.from(els.serviceOptions.querySelectorAll('[data-service-item]'))
+      .filter((item) => item.querySelector('[data-service-toggle]')?.checked)
+      .map((item) => ({
+        id: item.dataset.serviceItem,
+        quantity: item.querySelector('[data-service-quantity]')?.value || '',
+        sizeBand: item.querySelector('[data-service-size-band]')?.value || '',
+      }));
+  }
+
+  function isServiceSelectionComplete(selection) {
+    const definition = window.EastCordAppointmentServices?.SERVICES?.[selection?.id];
+    if (!definition) return false;
+    if (definition.quantity && !/^[1-4]$/.test(String(selection.quantity || ''))) return false;
+    if (definition.sizePricing && !window.EastCordAppointmentServices?.SIZE_BANDS?.[selection.sizeBand]) return false;
+    return true;
+  }
+
+  function resetServiceItemControls(item) {
+    item?.querySelectorAll('select').forEach((select) => {
+      select.value = '';
+      delete select.dataset.autoDerived;
+    });
+  }
+
+  function syncServiceOptionButtons() {
+    els.serviceOptions?.querySelectorAll('[data-service-item]').forEach((item) => {
+      const toggle = item.querySelector('[data-service-toggle]');
+      const selected = Boolean(toggle?.checked);
+      const selection = {
+        id: item.dataset.serviceItem,
+        quantity: item.querySelector('[data-service-quantity]')?.value || '',
+        sizeBand: item.querySelector('[data-service-size-band]')?.value || '',
+      };
+      item.classList.toggle('is-selected', selected);
+      item.classList.toggle('needs-details', selected && !isServiceSelectionComplete(selection));
+      item.querySelectorAll('select').forEach((select) => {
+        select.disabled = !selected;
+      });
     });
   }
 
   function setSelectedService(serviceId) {
-    if (els.serviceSelect && serviceId) els.serviceSelect.value = serviceId;
-    syncServiceOptionButtons(serviceId);
+    if (!els.serviceOptions || !serviceId) return;
+    const legacyMount = String(serviceId).match(/^mount-balance-([1-4])$/);
+    const mappedId = legacyMount
+      ? 'off-rim-swap'
+      : serviceId === 'seasonal-changeover-rims'
+        ? 'on-rim-swap'
+        : serviceId === 'seasonal-swap-not-mounted'
+          ? 'off-rim-swap'
+          : serviceId;
+    els.serviceOptions.querySelectorAll('[data-service-toggle]').forEach((toggle) => {
+      toggle.checked = toggle.value === mappedId;
+    });
+    const selectedItem = els.serviceOptions.querySelector(`[data-service-item="${mappedId}"]`);
+    const quantity = legacyMount ? Number(legacyMount[1]) : 4;
+    const quantityControl = selectedItem?.querySelector('[data-service-quantity]');
+    if (quantityControl) quantityControl.value = String(quantity);
+    syncServiceOptionButtons();
+  }
+
+  function setServiceSelections(selections) {
+    const selected = new Map((Array.isArray(selections) ? selections : []).map((item) => [item.id, item]));
+    els.serviceOptions?.querySelectorAll('[data-service-item]').forEach((item) => {
+      const selection = selected.get(item.dataset.serviceItem);
+      const toggle = item.querySelector('[data-service-toggle]');
+      if (toggle) toggle.checked = Boolean(selection);
+      const quantity = item.querySelector('[data-service-quantity]');
+      if (quantity && selection?.quantity) quantity.value = String(selection.quantity);
+      const sizeBand = item.querySelector('[data-service-size-band]');
+      if (sizeBand && selection?.sizeBand) sizeBand.value = selection.sizeBand;
+    });
+    syncServiceOptionButtons();
   }
 
   function getCurrentService() {
-    const select = els.serviceSelect || document.getElementById('service-select');
-    if (!select) {
-      console.error('[EastCord appointment automation] service-select not found.');
+    const calculator = window.EastCordAppointmentServices;
+    if (!calculator) {
+      console.error('[EastCord appointment automation] appointment service calculator not found.');
       return null;
     }
-
-    const option = select.options[select.selectedIndex];
-    if (!option) {
-      console.error('[EastCord appointment automation] No selected service option found.');
-      return null;
-    }
-
-    const price = roundMoney(option.dataset.price || 0);
-    const amounts = calculateServiceAmounts(price);
-
+    const selections = getServiceSelectionsFromForm();
+    if (!selections.length) return null;
+    const configuredSelections = selections.filter(isServiceSelectionComplete);
+    const calculated = calculator.calculateSelections(configuredSelections);
     return {
-      id: option.value,
-      name: option.dataset.serviceName || option.textContent.trim(),
-      price,
-      startingPrice: price,
-      ...amounts,
+      ...calculated,
+      selections,
+      incompleteSelections: selections.filter((selection) => !isServiceSelectionComplete(selection)),
     };
   }
 
+  function renderSelectedServices(service) {
+    if (!els.selectedServices) return;
+    const selections = service?.selections || [];
+    els.selectedServices.hidden = !selections.length;
+    if (!selections.length) {
+      els.selectedServices.innerHTML = '';
+      return;
+    }
+    const api = window.EastCordAppointmentServices;
+    els.selectedServices.innerHTML = `
+      <div class="appointment-selected-services-heading">
+        <span aria-hidden="true">✓</span>
+        <div>
+          <strong>Your appointment services</strong>
+          <small>${selections.length} service${selections.length === 1 ? '' : 's'} selected</small>
+        </div>
+      </div>
+      <ul>${selections.map((selection, index) => {
+        const complete = isServiceSelectionComplete(selection);
+        const definition = api.SERVICES[selection.id];
+        const price = api.selectionPrice(selection);
+        const label = complete
+          ? api.selectionLabel(selection)
+          : `${definition?.shortName || definition?.name || 'Service'} — choose ${definition?.sizePricing ? 'size and quantity' : 'quantity'}`;
+        return `<li class="${complete ? '' : 'needs-details'}"><span class="appointment-selected-service-name"><span class="appointment-selected-service-number">${index + 1}</span>${escapeHtml(label)}</span><b>${complete ? (price ? money.format(price) : 'Quote') : 'Required'}</b></li>`;
+      }).join('')}</ul>
+    `;
+  }
+
   function updateServicePricing(service = getCurrentService()) {
-    if (!service) return;
+    const emptyAmounts = calculateServiceAmounts(0);
+    const current = service || { id: '', name: '', selections: [], ...emptyAmounts };
     state.currentService = service;
 
-    if (els.startingPrice) els.startingPrice.textContent = money.format(service.serviceSubtotal);
-    if (els.hstPrice) els.hstPrice.textContent = money.format(service.hstAmount);
-    if (els.totalPrice) els.totalPrice.textContent = money.format(service.totalWithHst);
-    if (els.depositPrice) els.depositPrice.textContent = money.format(service.deposit);
-    if (els.balancePrice) els.balancePrice.textContent = money.format(service.remaining);
+    if (els.startingPrice) els.startingPrice.textContent = money.format(current.serviceSubtotal);
+    if (els.hstPrice) els.hstPrice.textContent = money.format(current.hstAmount);
+    if (els.totalPrice) els.totalPrice.textContent = money.format(current.totalWithHst);
+    if (els.depositPrice) els.depositPrice.textContent = money.format(current.deposit);
+    if (els.balancePrice) els.balancePrice.textContent = money.format(current.remaining);
 
-    setValue(els.serviceIdField, service.id);
-    setValue(els.serviceNameField, service.name);
-    setValue(els.startingPriceField, service.serviceSubtotal.toFixed(2));
-    setValue(els.serviceSubtotalField, service.serviceSubtotal.toFixed(2));
-    setValue(els.hstAmountField, service.hstAmount.toFixed(2));
-    setValue(els.totalWithHstField, service.totalWithHst.toFixed(2));
-    setValue(els.taxRateField, service.taxRate.toFixed(2));
-    setValue(els.depositField, service.deposit.toFixed(2));
-    setValue(els.balanceField, service.remaining.toFixed(2));
+    setValue(els.serviceIdField, current.id);
+    setValue(els.serviceNameField, current.name);
+    setValue(els.startingPriceField, current.serviceSubtotal.toFixed(2));
+    setValue(els.serviceSubtotalField, current.serviceSubtotal.toFixed(2));
+    setValue(els.hstAmountField, current.hstAmount.toFixed(2));
+    setValue(els.totalWithHstField, current.totalWithHst.toFixed(2));
+    setValue(els.taxRateField, current.taxRate.toFixed(2));
+    setValue(els.depositField, current.deposit.toFixed(2));
+    setValue(els.balanceField, current.remaining.toFixed(2));
 
+    renderSelectedServices(service);
     updateTireSelectorVisibility(service);
     syncServiceVehicleDefaults(service);
     updateReviewSummary(service);
   }
 
   function getServiceTireCount(service = getCurrentService()) {
-    return getMountBalanceTireCount(service) || 4;
+    const quantities = (service?.selections || []).map((selection) => Number(selection.quantity) || 0).filter(Boolean);
+    return quantities.length ? Math.max(...quantities) : 4;
   }
 
   function getServiceTiresOnRims(service = getCurrentService()) {
-    return service?.id === 'seasonal-changeover-rims' ? 'Yes' : 'No';
+    return service?.selections?.some((selection) => selection.id === 'on-rim-swap') ? 'Yes' : 'No';
   }
 
   function syncServiceVehicleDefaults(service = getCurrentService()) {
@@ -215,12 +303,12 @@
   }
 
   function isMountBalanceService(service = getCurrentService()) {
-    return String(service?.id || '').startsWith('mount-balance');
+    return Boolean(service?.selections?.some((selection) => selection.id === 'off-rim-swap'));
   }
 
   function getMountBalanceTireCount(service = getCurrentService()) {
-    const match = String(service?.id || '').match(/^mount-balance-([1-4])$/);
-    return match ? Number(match[1]) : 0;
+    const selection = service?.selections?.find((item) => item.id === 'off-rim-swap');
+    return selection ? Number(selection.quantity) || 0 : 0;
   }
 
   function updateTireSelectorVisibility(service = getCurrentService()) {
@@ -251,7 +339,11 @@
       return;
     }
     if (isMountBalanceService(service)) {
-      const count = getServiceTireCount(service);
+      const count = getMountBalanceTireCount(service);
+      if (!count) {
+        els.linkedTireHint.textContent = 'Choose the off-rim tire quantity above before linking purchased tires.';
+        return;
+      }
       els.linkedTireHint.textContent = `Link purchased tires from your profile, or tires still in your cart. Select a total of ${count} tire${count === 1 ? '' : 's'} to match this appointment.`;
       return;
     }
@@ -260,7 +352,7 @@
 
   function pruneSelectedTiresToService(service = getCurrentService()) {
     if (state.requiredNewTireOrderId && state.requiredNewTireOrder) return;
-    const limit = getServiceTireCount(service);
+    const limit = getMountBalanceTireCount(service);
     if (!limit || getSelectedTireQuantity() <= limit) return;
 
     const nextSelection = new Set();
@@ -286,7 +378,7 @@
       return '';
     }
     if (!isMountBalanceService(service) || !state.selectedTireIds.size) return '';
-    const needed = getServiceTireCount(service);
+    const needed = getMountBalanceTireCount(service);
     const selectedQty = getSelectedTireQuantity();
     if (selectedQty === needed) return '';
     if (selectedQty > needed) {
@@ -304,8 +396,7 @@
 
   function updateFromSelectedService() {
     const service = getCurrentService();
-    console.log('[EastCord appointment automation] Service changed:', service);
-    syncServiceOptionButtons(service?.id);
+    syncServiceOptionButtons();
     updateServicePricing(service);
     if (getSelectedTires().length) applySelectedTiresToForm();
     showAppointmentMessage('', 'info');
@@ -567,9 +658,16 @@
     return date.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
+  function formatReviewDate(value) {
+    const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return value || '';
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return date.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
   function getSelectedTiresSummary() {
     const selected = getSelectedTires();
-    const needed = getServiceTireCount();
+    const needed = getMountBalanceTireCount() || getServiceTireCount();
     if (!selected.length) {
       return isMountBalanceService()
         ? `No tires selected. This appointment is for ${needed} tire${needed === 1 ? '' : 's'}.`
@@ -580,13 +678,45 @@
     return `${selected.map(formatSavedTireLabel).join(', ')} — ${selectedQty} of ${needed} tires selected`;
   }
 
+  function syncOffRimSizeFromLinkedTires(selected = getSelectedTires()) {
+    const offRimItem = els.serviceOptions?.querySelector('[data-service-item="off-rim-swap"]');
+    const offRimToggle = offRimItem?.querySelector('[data-service-toggle]');
+    const sizeControl = offRimItem?.querySelector('[data-service-size-band]');
+    if (!offRimToggle?.checked || !sizeControl) return false;
+
+    const deriveBand = window.EastCordAppointmentServices?.deriveOffRimSizeBandFromSizes;
+    const nextBand = deriveBand?.(selected.map((item) => cleanSavedTireSize(item.size))) || '';
+
+    if (!nextBand) {
+      if (sizeControl.dataset.autoDerived === 'true') {
+        sizeControl.value = '';
+        delete sizeControl.dataset.autoDerived;
+        return true;
+      }
+      return false;
+    }
+
+    const changed = sizeControl.value !== nextBand;
+    sizeControl.value = nextBand;
+    sizeControl.dataset.autoDerived = 'true';
+    return changed;
+  }
+
   function applySelectedTiresToForm() {
     const selected = getSelectedTires();
-    if (!selected.length || !els.appointmentForm) return;
+    if (!els.appointmentForm) return;
+    const pricingChanged = syncOffRimSizeFromLinkedTires(selected);
 
-    const sizes = [...new Set(selected.map((item) => cleanSavedTireSize(item.size)).filter(Boolean))];
-    const sizeField = els.appointmentForm.elements.namedItem('Tire Size');
-    if (sizeField && sizes.length === 1) sizeField.value = sizes[0];
+    if (selected.length) {
+      const sizes = [...new Set(selected.map((item) => cleanSavedTireSize(item.size)).filter(Boolean))];
+      const sizeField = els.appointmentForm.elements.namedItem('Tire Size');
+      if (sizeField && sizes.length === 1) sizeField.value = sizes[0];
+    }
+
+    if (pricingChanged) {
+      syncServiceOptionButtons();
+      updateServicePricing(getCurrentService());
+    }
   }
 
   function renderSavedTireOptions() {
@@ -986,7 +1116,7 @@
   }
 
   function applyInstallLocation(location, { clearMobile = false } = {}) {
-    const next = location === 'shop' || location === 'mobile' ? location : '';
+    const next = location === 'mobile' ? 'mobile' : '';
     if (els.installLocationField) els.installLocationField.value = next;
     els.installLocationOptions?.querySelectorAll('[data-install-location-option]').forEach((button) => {
       const selected = button.dataset.installLocationOption === next;
@@ -1123,8 +1253,11 @@
   function buildDetailsHtml(rows) {
     return rows
       .filter(([, value]) => value)
-      .map(([label, value]) => `<span>${label}: ${escapeHtml(value)}</span>`)
-      .join('<br>');
+      .map(([label, value]) => {
+        const rowClass = label === 'Due Today' ? ' appointment-review-detail-due' : '';
+        return `<div class="appointment-review-detail${rowClass}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+      })
+      .join('');
   }
 
   function getStepControls(stepIndex) {
@@ -1149,8 +1282,22 @@
     const timeIsValid = validatePreferredTimeWindow();
     validateServiceArea();
 
-    if (stepIndex === 0 && !state.currentService?.id) {
+    if (stepIndex === 0 && !state.currentService?.selections?.length) {
       showAppointmentMessage('Please choose a service before continuing.');
+      return false;
+    }
+
+    if (stepIndex === 0 && state.currentService?.incompleteSelections?.length) {
+      const firstIncomplete = state.currentService.incompleteSelections[0];
+      const item = els.serviceOptions?.querySelector(`[data-service-item="${firstIncomplete.id}"]`);
+      const missingControl = Array.from(item?.querySelectorAll('select') || []).find((select) => !select.value);
+      showAppointmentMessage('Choose the required size and quantity for each selected service.');
+      missingControl?.focus();
+      return false;
+    }
+
+    if (stepIndex === 0 && !state.currentService?.pricedSelections?.length) {
+      showAppointmentMessage('Add at least one priced service. Quote requests can be included with it.');
       return false;
     }
 
@@ -1159,7 +1306,7 @@
     }
 
     if (stepIndex === 2 && !selectedInstallLocation()) {
-      showAppointmentMessage('Please choose mobile service or the EastCord shop.');
+      showAppointmentMessage('Please choose mobile service.');
       return false;
     }
 
@@ -1208,7 +1355,6 @@
 
   function updateReviewSummary(service = state.currentService || getCurrentService()) {
     if (!els.appointmentForm) return;
-    const serviceName = service?.name || 'Not selected yet';
     const vehicleDetails = getCleanVehicleDetails();
     const hasVehicleDetails = [vehicleDetails.vehicle, vehicleDetails.plate, vehicleDetails.colour, vehicleDetails.tireSize, vehicleDetails.tireCount]
       .some((value) => value && value !== 'Vehicle details');
@@ -1220,9 +1366,13 @@
     const time = getFieldValue('Preferred Time Window');
 
     if (els.reviewService) {
-      els.reviewService.innerHTML = serviceName === 'Not selected yet'
-        ? 'Not selected yet'
-        : buildDetailsHtml([['Service', serviceName]]);
+      const api = window.EastCordAppointmentServices;
+      els.reviewService.innerHTML = service?.selections?.length
+        ? `<ul class="appointment-review-service-list">${service.selections.map((selection) => {
+          const price = api.selectionPrice(selection);
+          return `<li><span>${escapeHtml(api.selectionLabel(selection))}</span><strong>${price ? money.format(price) : 'Quote requested'}</strong></li>`;
+        }).join('')}</ul>`
+        : 'Not selected yet';
     }
     if (els.reviewVehicle) {
       els.reviewVehicle.innerHTML = hasVehicleDetails
@@ -1252,7 +1402,7 @@
     if (els.reviewDate) {
       els.reviewDate.innerHTML = date || time
         ? buildDetailsHtml([
-          ['Date', date],
+          ['Date', formatReviewDate(date)],
           ['Time', time],
         ])
         : 'Not entered yet';
@@ -1294,7 +1444,8 @@
     }
 
     return {
-      serviceId: service?.id || 'seasonal-changeover-rims',
+      serviceId: service?.id || '',
+      serviceSelections: service?.selections || [],
       fields,
       currentStep: state.currentStep,
       selectedTireIds: [...state.selectedTireIds],
@@ -1325,7 +1476,8 @@
 
     if (!draft || !els.appointmentForm) return false;
 
-    if (draft.serviceId) setSelectedService(draft.serviceId);
+    if (draft.serviceSelections?.length) setServiceSelections(draft.serviceSelections);
+    else if (draft.serviceId) setSelectedService(draft.serviceId);
 
     applyInstallLocation(String(draft.fields?.['Install Location'] || '').trim());
 
@@ -1351,8 +1503,14 @@
     const selectedService = getCurrentService();
     updateServicePricing(selectedService);
 
-    if (!selectedService?.id) {
+    if (!selectedService?.selections?.length) {
       throw new Error('Please choose a service.');
+    }
+    if (selectedService.incompleteSelections?.length) {
+      throw new Error('Choose the required size and quantity for each selected service.');
+    }
+    if (!selectedService.pricedSelections?.length) {
+      throw new Error('Add at least one priced service. Quote requests can be included with it.');
     }
 
     if (!validatePreferredDate() || !validatePreferredTimeWindow()) {
@@ -1374,6 +1532,8 @@
       customerPhone: profile.phone,
       serviceId: selectedService.id,
       serviceName: selectedService.name,
+      serviceSelections: selectedService.selections,
+      quoteRequests: selectedService.quoteRequests.map((selection) => selection.id),
       startingPrice: selectedService.serviceSubtotal,
       serviceSubtotal: selectedService.serviceSubtotal,
       hstAmount: selectedService.hstAmount,
@@ -1501,19 +1661,30 @@
     state.initialized = true;
 
     console.log('[EastCord appointment automation] appointment.js loaded.');
-    console.log('[EastCord appointment automation] Service select found:', Boolean(els.serviceSelect));
+    console.log('[EastCord appointment automation] Service builder found:', Boolean(els.serviceOptions));
 
-    els.serviceSelect?.addEventListener('change', updateFromSelectedService);
-    els.serviceOptions?.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-service-id]');
-      if (!button || !els.serviceSelect) return;
-      const serviceId = button.dataset.serviceId;
-      if (!serviceId || els.serviceSelect.value === serviceId) {
-        syncServiceOptionButtons(els.serviceSelect.value);
-        return;
+    els.serviceOptions?.querySelectorAll('select').forEach((select) => {
+      select.addEventListener('click', (event) => event.stopPropagation());
+    });
+    els.serviceOptions?.addEventListener('change', (event) => {
+      const toggle = event.target.closest('[data-service-toggle]');
+      if (toggle) {
+        if (toggle.checked) {
+          const selectedService = window.EastCordAppointmentServices?.SERVICES?.[toggle.value];
+          if (selectedService?.group) {
+            els.serviceOptions.querySelectorAll('[data-service-toggle]').forEach((other) => {
+              const otherService = window.EastCordAppointmentServices?.SERVICES?.[other.value];
+              if (other !== toggle && otherService?.group === selectedService.group) {
+                other.checked = false;
+                resetServiceItemControls(other.closest('[data-service-item]'));
+              }
+            });
+          }
+        } else {
+          resetServiceItemControls(toggle.closest('[data-service-item]'));
+        }
       }
-      els.serviceSelect.value = serviceId;
-      els.serviceSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      updateFromSelectedService();
     });
 
     els.menuToggle?.addEventListener('click', () => {
@@ -1527,13 +1698,13 @@
     els.backButtons.forEach((button) => button.addEventListener('click', () => showStep(state.currentStep - 1)));
     els.appointmentForm?.addEventListener('input', () => updateReviewSummary(state.currentService || getCurrentService()));
     els.appointmentForm?.addEventListener('change', (event) => {
-      if (event.target?.matches?.('#service-select')) return;
+      if (event.target?.closest?.('[data-service-options]')) return;
       updateReviewSummary(state.currentService || getCurrentService());
     });
     els.citySelect?.addEventListener('change', validateServiceArea);
     els.installLocationOptions?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-install-location-option]');
-      if (!button) return;
+      if (!button || button.disabled || button.getAttribute('aria-disabled') === 'true') return;
       applyInstallLocation(button.dataset.installLocationOption, { clearMobile: true });
     });
     els.preferredDate?.addEventListener('input', () => {
@@ -1553,7 +1724,7 @@
       if (checkbox.checked) {
         const nextSelection = new Set(state.selectedTireIds);
         nextSelection.add(tireId);
-        const needed = getServiceTireCount();
+        const needed = getMountBalanceTireCount() || getServiceTireCount();
         const nextQty = getSelectedTireQuantity(nextSelection);
         if (isMountBalanceService() && needed && nextQty > needed) {
           checkbox.checked = false;

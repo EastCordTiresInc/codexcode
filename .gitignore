@@ -26,6 +26,7 @@ demo-payment.css
 demo-payment-success.html
 demo-payment-success.js
 netlify/functions/demo-used-tire-payment.js
+reset-local-test-storage.html
 
 # Python cache (inventory scripts)
 __pycache__/

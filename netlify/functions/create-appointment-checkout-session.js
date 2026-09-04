@@ -2,6 +2,7 @@ const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { isStripeTestMode } = require('./lib/stripe-mode');
 const { isPreferredDateInShippingHold } = require('./lib/new-tire-shipping-hold');
+const { resolveService } = require('../../appointment-services');
 
 const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
@@ -10,15 +11,6 @@ const SERVICE_START_MINUTES = 8 * 60;
 const SERVICE_END_MINUTES = 20 * 60;
 const SERVICE_TIME_ZONE = 'America/Toronto';
 const TAX_RATE = 0.13;
-
-const SERVICES = {
-  'seasonal-changeover-rims': { name: 'Seasonal Changeover - All 4 Tires Pre-Mounted on Rims', startingPrice: 40 },
-  'seasonal-swap-not-mounted': { name: 'Seasonal Tire Swap - All 4 Tires Not Mounted on Rims', startingPrice: 80 },
-  'mount-balance-1': { name: 'Mount & Balance - 1 Tire', startingPrice: 25 },
-  'mount-balance-2': { name: 'Mount & Balance - 2 Tires', startingPrice: 50 },
-  'mount-balance-3': { name: 'Mount & Balance - 3 Tires', startingPrice: 75 },
-  'mount-balance-4': { name: 'Mount & Balance - 4 Tires', startingPrice: 100 },
-};
 
 const SERVICE_AREA_CITIES = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
 
@@ -596,13 +588,13 @@ exports.handler = async (event) => {
   const preparedItems = [];
 
   for (const booking of bookingItems) {
-    const service = SERVICES[booking.serviceId];
+    const service = resolveService(booking);
     if (!service) return json(400, { message: 'Please choose a valid tire service.' });
 
     const validationMessage = validateBookingFields(booking, customer, orderGate.ordersById);
     if (validationMessage) return json(400, { message: validationMessage });
 
-    const amounts = calculateServiceAmounts(service.startingPrice);
+    const amounts = calculateServiceAmounts(service.serviceSubtotal ?? service.startingPrice);
 
     if (amounts.depositAmount <= 0) {
       return json(400, { message: 'The booking deposit amount is missing. Please return to the appointment page and add the service again.' });

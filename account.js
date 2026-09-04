@@ -662,7 +662,7 @@ function profileSaveErrorMessage(error) {
 async function insertCustomerProfile(client, row) {
   return client
     .from('customer_profiles')
-    .insert(row)
+    .upsert(row, { onConflict: 'id' })
     .select('id, full_name, phone, email')
     .single();
 }
@@ -1015,18 +1015,31 @@ function renderPurchasedTires(orders) {
     const tires = isNew ? flattenPaidNewTireItems([order]) : flattenPaidUsedTireItems([order]);
     const paidLabel = formatPaidDate(order.paid_at || order.created_at);
     const itemLines = tires.map((tire) => (
-      `<p>${escapeHtml([tire.brand, tire.model, tire.size].filter(Boolean).join(' ') || 'Tire')} × ${escapeHtml(tire.qty)}</p>`
+      `<div class="purchased-tire-line">
+        <div>
+          <strong>${escapeHtml([tire.brand, tire.model].filter(Boolean).join(' ') || 'Tire')}</strong>
+          <span>${escapeHtml(tire.size || 'Size not provided')}</span>
+        </div>
+        <b>Qty ${escapeHtml(tire.qty)}</b>
+      </div>`
     )).join('');
     const fulfillment = order.fulfillment_preference || 'Pickup';
-    const nextStep = fulfillment === 'Installation'
-      ? `<p>Installation: <a href="/appointment.html?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking">Book installation for these new tires</a>. Purchase date: ${escapeHtml(paidLabel || 'saved with this order')}. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.</p>`
-      : '<p>Pickup: EastCord will confirm when this order is ready for pickup. No appointment is required.</p>';
+    const nextStep = fulfillment === 'Installation' && isNew
+      ? `<div class="purchased-order-action">
+          <div><strong>Schedule installation</strong><span>Available after the 4-day shipping hold · 8:00 AM–8:00 PM</span></div>
+          <a class="button button-primary" href="/appointment.html?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking">Book installation</a>
+        </div>`
+      : fulfillment === 'Installation'
+        ? '<div class="purchased-order-action"><div><strong>Installation selected</strong><span>EastCord will confirm your next steps.</span></div></div>'
+        : '<div class="purchased-order-action"><div><strong>Pickup selected</strong><span>EastCord will let you know when your order is ready. No appointment needed.</span></div></div>';
     return `
-      <article class="cart-line">
-        <span>${isNew ? 'New tires' : 'Used tires'} · Paid${paidLabel ? ` ${escapeHtml(paidLabel)}` : ''}</span>
-        <strong>${tires.length} purchased tire line${tires.length === 1 ? '' : 's'}</strong>
-        ${itemLines}
-        <p>Fulfillment: ${escapeHtml(fulfillment)} | Total: ${money(order.total_with_hst || 0)}</p>
+      <article class="purchased-order">
+        <header class="purchased-order-header">
+          <div><span class="purchased-order-badge">${isNew ? 'New tires' : 'Used tires'}</span><span>Paid${paidLabel ? ` ${escapeHtml(paidLabel)}` : ''}</span></div>
+          <div class="purchased-order-total"><span>Order total</span><strong>${money(order.total_with_hst || 0)}</strong></div>
+        </header>
+        <div class="purchased-tire-list">${itemLines}</div>
+        <div class="purchased-order-fulfillment"><span>Fulfillment</span><strong>${escapeHtml(fulfillment)}</strong></div>
         ${nextStep}
       </article>
     `;
@@ -1171,6 +1184,39 @@ function formatCartLineMeta(item) {
   return [vehicle, date, time, city].filter(Boolean).join(' · ');
 }
 
+function formatCartLineAddress(item) {
+  const shop = String(item.installLocation || item.install_location || '').trim() === 'shop'
+    || String(item.city || '').trim() === 'EastCord shop';
+  if (shop) return 'EastCord Tires shop';
+  return [item.fullServiceAddress || item.full_service_address, item.city, item.postalCode || item.postal_code]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+function appointmentCartServicesHtml(item) {
+  const selections = Array.isArray(item.serviceSelections) ? item.serviceSelections : [];
+  const api = window.EastCordAppointmentServices;
+  if (!selections.length || !api) {
+    return `<strong class="cart-line-service-fallback">${escapeHtml(item.serviceName || 'Appointment service')}</strong>`;
+  }
+  return `
+    <ol class="cart-line-services" aria-label="Appointment services">
+      ${selections.map((selection, index) => {
+        const label = api.selectionLabel(selection) || api.SERVICES?.[selection.id]?.shortName || 'Appointment service';
+        const price = api.selectionPrice(selection);
+        return `
+          <li>
+            <span class="cart-line-service-number">${index + 1}</span>
+            <strong>${escapeHtml(label)}</strong>
+            <span class="cart-line-service-price">${escapeHtml(money(price))}</span>
+          </li>
+        `;
+      }).join('')}
+    </ol>
+  `;
+}
+
 function renderVisibleAppointmentCart(cart = getCart()) {
   const root = document.querySelector('[data-cart-items]');
   if (!root) return cart;
@@ -1183,15 +1229,17 @@ function renderVisibleAppointmentCart(cart = getCart()) {
 
   root.innerHTML = items.map((item, index) => {
     const meta = formatCartLineMeta(item);
+    const address = formatCartLineAddress(item);
     const price = item.serviceSubtotal ?? item.startingPrice ?? 0;
     return `
       <article class="cart-line">
         <div class="cart-line-main">
-          <strong>${escapeHtml(item.serviceName || 'Appointment service')}</strong>
+          ${appointmentCartServicesHtml(item)}
           ${meta ? `<p class="cart-line-meta">${escapeHtml(meta)}</p>` : ''}
+          ${address ? `<p class="cart-line-address"><span>Service address:</span> ${escapeHtml(address)}</p>` : ''}
         </div>
         <div class="cart-line-side">
-          <span class="cart-line-price">${escapeHtml(money(price))}</span>
+          <span class="cart-line-total"><span>Appointment total</span><strong class="cart-line-price">${escapeHtml(money(price))}</strong></span>
           <button class="cart-line-remove" type="button" data-remove-cart-item="${escapeHtml(item.id || '')}" data-remove-cart-index="${index}">Remove</button>
         </div>
       </article>
@@ -1501,6 +1549,13 @@ function isPaidAppointment(booking) {
   return payment === 'paid_deposit' || status === 'confirmed';
 }
 
+function formatAppointmentDate(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return String(value || '');
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return date.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
 function renderBookingHistory(bookings) {
   const paidBookings = bookings.filter(isPaidAppointment);
   if (!paidBookings.length) {
@@ -1509,17 +1564,31 @@ function renderBookingHistory(bookings) {
 
   return paidBookings.map((booking) => {
     const vehicle = [booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(' ');
-    const plate = booking.vehicle_plate_number ? ` | Plate: ${escapeHtml(booking.vehicle_plate_number)}` : '';
-    const colour = booking.vehicle_colour ? ` | Colour: ${escapeHtml(booking.vehicle_colour)}` : '';
+    const location = booking.install_location === 'shop' || booking.city === 'EastCord shop'
+      ? 'EastCord Tires shop'
+      : [booking.city, booking.postal_code].filter(Boolean).join(', ') || 'Mobile service';
+    const appointmentDate = formatAppointmentDate(booking.preferred_date);
     return `
-      <article class="cart-line">
-        <span>${escapeHtml(booking.booking_status || 'Confirmed')}</span>
-        <strong>${escapeHtml(booking.service_name)}</strong>
-        <p>${escapeHtml(booking.preferred_date || '')}${booking.preferred_time_window ? ` at ${escapeHtml(booking.preferred_time_window)}` : ''}</p>
-        <p>${escapeHtml(vehicle || 'Vehicle details submitted')}${plate}${colour}${booking.tire_size ? ` | ${escapeHtml(booking.tire_size)}` : ''}</p>
-        <p>${escapeHtml(booking.install_location === 'shop' || booking.city === 'EastCord shop' ? 'EastCord Tires shop' : (booking.city || ''))}</p>
-        <p>Service subtotal: ${money(booking.service_subtotal || 0)} | HST 13%: ${money(booking.hst_amount || 0)} | Total including HST: ${money(booking.total_with_hst || 0)}</p>
-        <p>Deposit: ${money(booking.deposit_amount)} | Remaining on-site: ${money(booking.remaining_balance)} | Payment: ${escapeHtml(booking.payment_status || 'paid_deposit')}</p>
+      <article class="appointment-history-item">
+        <header class="appointment-history-header">
+          <div>
+            <span class="appointment-history-badge">${escapeHtml(booking.booking_status || 'Confirmed')}</span>
+            <span>${escapeHtml(appointmentDate)}${booking.preferred_time_window ? ` · ${escapeHtml(booking.preferred_time_window)}` : ''}</span>
+          </div>
+          <div class="appointment-history-total"><span>Total</span><strong>${money(booking.total_with_hst || 0)}</strong></div>
+        </header>
+        <div class="appointment-history-service"><span>Service</span><strong>${escapeHtml(booking.service_name || 'Tire service')}</strong></div>
+        <div class="appointment-history-details">
+          <div><span>Vehicle</span><strong>${escapeHtml(vehicle || 'Vehicle details submitted')}</strong></div>
+          <div><span>Plate</span><strong>${escapeHtml(booking.vehicle_plate_number || 'Not provided')}</strong></div>
+          <div><span>Tire size</span><strong>${escapeHtml(booking.tire_size || 'Not provided')}</strong></div>
+          <div><span>Location</span><strong>${escapeHtml(location)}</strong></div>
+        </div>
+        <footer class="appointment-history-payment">
+          <div><span>Deposit paid</span><strong>${money(booking.deposit_amount)}</strong></div>
+          <div><span>Pay after service</span><strong>${money(booking.remaining_balance)}</strong></div>
+          <div><span>HST included</span><strong>${money(booking.hst_amount || 0)}</strong></div>
+        </footer>
       </article>
     `;
   }).join('');

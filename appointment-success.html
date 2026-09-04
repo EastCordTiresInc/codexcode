@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles.css?v=7" />
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
-    <link rel="stylesheet" href="appointment.css?v=25" />
+    <link rel="stylesheet" href="appointment.css?v=39" />
   </head>
   <body class="appointment-success-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -128,7 +128,7 @@
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
-    <script src="account.js?v=42"></script>
+    <script src="account.js?v=51"></script>
     <script>
       (() => {
         const cartKey = 'eastcord_cart_v1';
@@ -293,14 +293,19 @@
         details.innerHTML = `
           ${itemsHtml}
           <aside class="confirmation-receipt" aria-label="Payment summary">
-            <h2>Payment</h2>
-            <dl>
+            <div class="confirmation-receipt-heading">
+              <h2>Payment summary</h2>
+              <span>Deposit received</span>
+            </div>
+            <dl class="confirmation-receipt-breakdown">
               <div><dt>Subtotal</dt><dd>${money.format(totals.serviceSubtotal)}</dd></div>
-              <div><dt>HST 13%</dt><dd>${money.format(totals.hstAmount)}</dd></div>
-              <div><dt>Total</dt><dd>${money.format(totals.totalWithHst)}</dd></div>
-              <div class="confirmation-receipt-due"><dt>Deposit paid</dt><dd>${money.format(totals.depositAmount)}</dd></div>
+              <div><dt>HST (13%)</dt><dd>${money.format(totals.hstAmount)}</dd></div>
+              <div class="confirmation-receipt-total"><dt>Total</dt><dd>${money.format(totals.totalWithHst)}</dd></div>
             </dl>
-            <p class="confirmation-receipt-remaining">Pay on-site after service <strong>${money.format(totals.remainingBalance)}</strong></p>
+            <div class="confirmation-payment-status">
+              <div><span>Deposit paid</span><strong>${money.format(totals.depositAmount)}</strong></div>
+              <div><span>Pay after service</span><strong>${money.format(totals.remainingBalance)}</strong></div>
+            </div>
           </aside>
         `;
       })();
