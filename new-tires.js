@@ -1561,6 +1561,7 @@
     const text = widgetPlainText();
     const fromCard = isWidgetSummaryPage() ? null : quoteFromCard(lastClickedCard || highlightedCard);
     const fromHash = quoteFromHash();
+    if (isWidgetResultsPage() && !isWidgetSummaryPage() && !fromCard && !fromHash) return null;
     if (!text.trim()) return fromCard || fromHash;
     const onQuotePage = /PRICE SUMMARY|CHANGE TIRE|PER TIRE/i.test(text)
       || /summary|quote/i.test(window.location.hash || '');
@@ -2349,6 +2350,8 @@
     };
 
     listen('onTireSearchResults', (event) => {
+      clearQuote();
+      hideHighlightOverlay({ clearHold: true });
       rememberSearchTires(eventPayload(event));
       resolveWidgetEvent(event);
     });

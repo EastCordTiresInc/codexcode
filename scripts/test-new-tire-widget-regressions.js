@@ -72,6 +72,27 @@ async function waitForText(locator, pattern, message) {
     await waitForText(selected, /Quantity\s*2/i, 'selected tire quantity did not update');
 
     await page.evaluate(() => {
+      (window.TCWidget?.eventHandlers?.onTireSearchResults || [])
+        .forEach((handler) => handler({ tires: [] }));
+    });
+    await page.waitForFunction(() => document.querySelector('[data-new-tire-selected]')?.hidden === true);
+    assert.strictEqual(await page.evaluate(() => sessionStorage.getItem('eastcord_new_tire_quote_v1')), null);
+    await page.evaluate(() => {
+      (window.TCWidget?.eventHandlers?.onTireSelect || [])
+        .forEach((handler) => handler({
+          tire: {
+            brand: 'Ovation',
+            model: 'ECOVISION VI-682',
+            size: '195/65R15',
+            quantity: 2,
+            price: 81.90,
+            partNumber: 'OV1956515',
+          },
+        }));
+    });
+    await waitForText(selected, /ECOVISION VI-682/, 'selected tire did not restore after the search reset test');
+
+    await page.evaluate(() => {
       history.replaceState(null, '', `${location.pathname}#!tires/summary?t_qty=2`);
       document.getElementById('tireconnect').innerHTML = `
         <section>
