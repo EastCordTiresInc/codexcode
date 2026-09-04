@@ -245,7 +245,24 @@ async function main() {
 
     if (EXPECT_LIVE_STRIPE) {
       assert.match(page.url(), /\/cs_live_/i, 'Production checkout did not create a live Stripe session.');
+      const sessionId = page.url().match(/\/(cs_live_[^/?#]+)/i)?.[1] || '';
+      assert.ok(sessionId, 'The live Stripe session ID could not be read.');
+      const confirmationResponse = await page.request.post(
+        `${SITE}/.netlify/functions/confirm-appointment-payment`,
+        { data: { sessionId } },
+      );
+      assert.strictEqual(confirmationResponse.status(), 202);
+      assert.match((await confirmationResponse.json()).message || '', /Payment is not complete yet/i);
+      const { data: unpaidBookings, error: unpaidBookingError } = await admin
+        .from('appointment_bookings')
+        .select('id, payment_status, booking_status, stripe_session_id')
+        .eq('customer_id', userId);
+      if (unpaidBookingError) throw unpaidBookingError;
+      assert.strictEqual(unpaidBookings.length, 1, 'Live checkout did not create exactly one pending appointment booking.');
+      assert.strictEqual(unpaidBookings[0].payment_status, 'pending_checkout');
+      assert.notStrictEqual(unpaidBookings[0].booking_status, 'Confirmed');
       console.log('ok  production appointment created a live Stripe Checkout session');
+      console.log('ok  unpaid live Stripe session remains pending and is not marked confirmed');
       console.log('ok  no card was submitted and temporary booking data will be removed');
       return;
     }
@@ -309,8 +326,27 @@ async function main() {
       await admin.from('appointment_bookings').delete().in('id', bookingIds);
     }
     if (userId) {
-      await admin.from('customer_profiles').delete().eq('id', userId);
-      await admin.auth.admin.deleteUser(userId);
+      const { error: deleteBookingsError } = await admin.from('appointment_bookings').delete().eq('customer_id', userId);
+      if (deleteBookingsError) throw deleteBookingsError;
+      const { error: deleteProfileError } = await admin.from('customer_profiles').delete().eq('id', userId);
+      if (deleteProfileError) throw deleteProfileError;
+      const { error: deleteUserError } = await admin.auth.admin.deleteUser(userId);
+      if (deleteUserError) throw deleteUserError;
+
+      const { count: bookingCount, error: bookingCleanupError } = await admin
+        .from('appointment_bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('customer_id', userId);
+      if (bookingCleanupError) throw bookingCleanupError;
+      assert.strictEqual(bookingCount, 0, 'Temporary appointment bookings were not removed.');
+
+      const { count: profileCount, error: profileCleanupError } = await admin
+        .from('customer_profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('id', userId);
+      if (profileCleanupError) throw profileCleanupError;
+      assert.strictEqual(profileCount, 0, 'Temporary appointment profile was not removed.');
+      console.log('ok  temporary appointment bookings, profile, and user were removed');
     }
   }
 }

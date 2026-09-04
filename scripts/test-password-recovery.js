@@ -68,7 +68,11 @@ async function createContext(browser) {
       document.documentElement.scrollWidth - document.documentElement.clientWidth
     )) <= 1);
 
-    await forgotLink.click();
+    await Promise.all([
+      page.waitForURL(/\/forgot-password(?:\.html)?\?/),
+      forgotLink.click(),
+    ]);
+    await page.waitForLoadState('networkidle');
     await page.locator('[data-forgot-password-form] input[name="Email"]').fill('customer@example.com');
     await page.locator('[data-forgot-password-form] button[type="submit"]').click();
     await page.waitForFunction(() => /If an EastCord account exists/i.test(
