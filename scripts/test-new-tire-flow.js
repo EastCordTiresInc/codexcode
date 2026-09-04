@@ -576,7 +576,7 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(brands, /scrapeQtyFromHash/);
   assert.match(brands, /filter\\s\*results:\?/);
   assert.match(page, /onTireSearchResults/);
-  assert.match(page, /cardFromClickPath/);
+  assert.match(page, /selectionCtaFromClickPath/);
   assert.match(page, /lastWidgetPointerRect/);
   assert.match(page, /placeHighlightRect/);
   assert.match(page, /scheduleHighlightRefresh/);

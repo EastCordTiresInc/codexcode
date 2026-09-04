@@ -21,6 +21,28 @@ async function waitForText(locator, pattern, message) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     const errors = [];
     const failures = [];
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'EASTCORD_TIRECONNECT_CONFIG', {
+        configurable: false,
+        get: () => ({ apiKey: 'regression-test-key' }),
+        set: () => {},
+      });
+    });
+    await page.route('https://app.tireconnect.ca/js/widget.js', (route) => route.fulfill({
+      contentType: 'application/javascript',
+      body: `
+        window.TCWidget = {
+          eventHandlers: {},
+          on(name, handler) {
+            (this.eventHandlers[name] ||= []).push(handler);
+          },
+          init() {
+            return Promise.resolve(this);
+          },
+          addCustomerInfo() {}
+        };
+      `,
+    }));
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('response', (response) => {
       if (response.status() < 400) return;
@@ -147,6 +169,41 @@ async function waitForText(locator, pattern, message) {
       console.log('ok  returning to search clears stale tire state and highlight');
     } catch (error) {
       failures.push(`stale state: ${error.message}`);
+    }
+
+    try {
+      await page.evaluate(() => {
+        history.replaceState(null, '', `${location.pathname}#!tires/results?width%3E=225&height%3E=45&rim%3E=18&page=2`);
+        document.getElementById('tireconnect').innerHTML = `
+          <section data-test-results>
+            <button type="button" data-test-filter>Filter results:</button>
+            <article>
+              <h3>Mirage MR-182</h3>
+              <p>225/45R18</p>
+              <p>PER TIRE $95.40</p>
+              <button type="button">ADD TO CART</button>
+            </article>
+            <a href="#" data-test-next>Next »</a>
+          </section>`;
+        (window.TCWidget?.eventHandlers?.onTireSearchResults || [])
+          .forEach((handler) => handler({ tires: [] }));
+      });
+      await page.waitForTimeout(200);
+      assert.strictEqual(
+        await selected.evaluate((element) => element.hidden),
+        true,
+        'results markup must not be auto-selected',
+      );
+      await page.locator('[data-test-filter]').click();
+      await page.waitForTimeout(700);
+      assert.strictEqual(await selected.evaluate((element) => element.hidden), true, 'filter click selected a tire');
+      await page.locator('[data-test-next]').click();
+      await page.waitForTimeout(700);
+      assert.strictEqual(await selected.evaluate((element) => element.hidden), true, 'pagination click selected a tire');
+      assert.strictEqual(await page.evaluate(() => sessionStorage.getItem('eastcord_new_tire_quote_v1')), null);
+      console.log('ok  filter and pagination clicks cannot auto-select a result card');
+    } catch (error) {
+      failures.push(`results controls: ${error.message}`);
     }
     assert.deepStrictEqual(errors, []);
 

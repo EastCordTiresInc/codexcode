@@ -1346,11 +1346,11 @@
     return false;
   }
 
-  function cardFromClickPath(path) {
+  function selectionCtaFromClickPath(path) {
     for (const node of path) {
       if (!node || node.nodeType !== 1) continue;
-      const card = visualCardFrom(node);
-      if (isFullTireCard(card) && isHighlightableCard(card)) return card;
+      if (!node.matches?.('button, a, [role="button"], input[type="button"], input[type="submit"]')) continue;
+      if (isSelectCtaText(node.textContent || node.value)) return node;
     }
     return null;
   }
@@ -1517,8 +1517,8 @@
       if (!inWidget) return;
       scheduleSelectedPanelSync();
       if (path.some((node) => node && node.nodeType === 1 && (isNativeOrderAction(node) || node.id === 'eastcord-native-order'))) return;
-      const cta = path.find((node) => node && node.nodeType === 1 && isSelectCtaText(node.textContent || node.value));
-      const card = cardFromClickPath(path) || visualCardFrom(cta);
+      const cta = selectionCtaFromClickPath(path);
+      const card = visualCardFrom(cta);
       if (!card) return;
       lastClickedCard = card;
       highlightedCard = card;
