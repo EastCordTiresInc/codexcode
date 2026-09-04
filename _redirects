@@ -4,6 +4,10 @@
 /signup/   /signup.html    301!
 /login     /login.html     301!
 /login/    /login.html     301!
+/forgot-password     /forgot-password.html     301!
+/forgot-password/    /forgot-password.html     301!
+/reset-password      /reset-password.html      301!
+/reset-password/     /reset-password.html      301!
 /account   /account.html   301!
 /account/  /account.html   301!
 /cart      /cart.html      301!

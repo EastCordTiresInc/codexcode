@@ -72,6 +72,22 @@
   margin-top: 18px;
 }
 
+.forgot-password-link {
+  width: fit-content;
+  margin-top: -6px;
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.forgot-password-link:hover,
+.forgot-password-link:focus-visible {
+  color: #7f1d1d;
+}
+
+.account-form[hidden] {
+  display: none;
+}
+
 .account-detail,
 .cart-line,
 .cart-summary-card {

@@ -3,6 +3,7 @@ const CART_KEY = 'eastcord_cart_v1';
 const ACCOUNT_SETUP_MESSAGE = 'Account signup is being connected. Please contact EastCord Tires or check back soon.';
 const EMAIL_CONFIRMATION_MESSAGE = 'Account created. Please check your email to confirm your account, then log in.';
 const EXISTING_MEMBER_LOGIN_MESSAGE = 'This email already has an EastCord Tires account. Please sign in.';
+const PASSWORD_RECOVERY_KEY = 'eastcord_password_recovery_pending';
 const TAX_RATE = 0.13;
 const CUSTOMER_CART_TYPES = new Set(['appointment', 'used_tire']);
 const ACCOUNT_USED_TIRE_CART_KEY = 'eastcord_used_tire_cart_v1';
@@ -98,6 +99,10 @@ function preserveAuthSwitchLinks() {
   document.querySelectorAll('a[href="/login.html"], a[href="login.html"]').forEach((link) => {
     link.href = `/login.html?redirect=${encodeURIComponent(redirectTarget)}`;
   });
+
+  document.querySelectorAll('a[href="/forgot-password.html"], a[href="forgot-password.html"]').forEach((link) => {
+    link.href = `/forgot-password.html?redirect=${encodeURIComponent(redirectTarget)}`;
+  });
 }
 
 function getFriendlySupabaseError(error, fallback = 'Signup could not be completed right now. Please try again shortly.') {
@@ -110,9 +115,9 @@ function getFriendlySupabaseError(error, fallback = 'Signup could not be complet
   }
   if (lowerMessage.includes('invalid email')) return 'Please enter a valid email address.';
   if (lowerMessage.includes('password')) return message;
-  if (lowerMessage.includes('email rate limit')) return 'Too many signup emails were requested. Please wait a few minutes and try again.';
+  if (lowerMessage.includes('email rate limit')) return 'Too many emails were requested. Please wait a few minutes and try again.';
   if (lowerMessage.includes('signup') && lowerMessage.includes('disabled')) return 'Online signup is not enabled yet. Please contact EastCord Tires.';
-  if (lowerMessage.includes('fetch') || lowerMessage.includes('network')) return 'Signup could not connect right now. Please check your connection and try again.';
+  if (lowerMessage.includes('fetch') || lowerMessage.includes('network')) return 'Authentication could not connect right now. Please check your connection and try again.';
 
   return message;
 }
@@ -1050,6 +1055,13 @@ function getSignupEmailRedirectTo() {
   return new URL(getRedirectTarget('/account.html'), window.location.origin).toString();
 }
 
+function getPasswordResetRedirectTo() {
+  const resetUrl = new URL('/reset-password.html', window.location.origin);
+  const redirectTarget = getRedirectTarget('/account.html');
+  if (redirectTarget) resetUrl.searchParams.set('redirect', redirectTarget);
+  return resetUrl.toString();
+}
+
 function isAlreadyRegisteredError(error) {
   const message = String(error?.message || '').toLowerCase();
   const code = String(error?.code || '').toLowerCase();
@@ -1138,6 +1150,85 @@ async function signInCustomer({ email, password }) {
   if (profile) await upsertCustomerProfile(profile);
   await hydrateSignedInCarts();
   return data;
+}
+
+async function requestPasswordReset(email) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
+
+  const { error } = await client.auth.resetPasswordForEmail(String(email || '').trim(), {
+    redirectTo: getPasswordResetRedirectTo(),
+  });
+  if (error) {
+    logSupabaseError('Supabase password reset request failed.', error);
+    throw new Error(getFriendlySupabaseError(error, 'Password reset email could not be sent. Please try again shortly.'));
+  }
+}
+
+function hasPasswordRecoveryParameters() {
+  const search = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''));
+  return search.has('code')
+    || search.get('type') === 'recovery'
+    || hash.get('type') === 'recovery'
+    || hash.has('access_token');
+}
+
+function clearPasswordRecoveryUrlSecrets() {
+  const safeUrl = new URL(window.location.pathname, window.location.origin);
+  const redirectTarget = getRedirectTarget('');
+  if (redirectTarget) safeUrl.searchParams.set('redirect', redirectTarget);
+  window.history.replaceState(null, '', `${safeUrl.pathname}${safeUrl.search}`);
+}
+
+async function preparePasswordRecoveryForm(form) {
+  if (!form) return;
+  const client = getSupabaseClient();
+  if (!client) {
+    setAuthMessage(ACCOUNT_SETUP_MESSAGE, 'error');
+    return;
+  }
+
+  if (hasPasswordRecoveryParameters()) {
+    sessionStorage.setItem(PASSWORD_RECOVERY_KEY, 'true');
+  }
+  if (sessionStorage.getItem(PASSWORD_RECOVERY_KEY) !== 'true') {
+    form.hidden = true;
+    setAuthMessage('This password reset link is missing or has expired. Request a new link.', 'error');
+    return;
+  }
+
+  setAuthMessage('Checking your secure reset link...', 'success');
+  const { data, error } = await client.auth.getSession();
+  if (error || !data?.session?.user) {
+    sessionStorage.removeItem(PASSWORD_RECOVERY_KEY);
+    form.hidden = true;
+    clearPasswordRecoveryUrlSecrets();
+    setAuthMessage('This password reset link is invalid or has expired. Request a new link.', 'error');
+    return;
+  }
+
+  clearPasswordRecoveryUrlSecrets();
+  form.hidden = false;
+  setAuthMessage('Reset link verified. Enter a new password below.', 'success');
+}
+
+async function completePasswordRecovery(password) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
+  if (sessionStorage.getItem(PASSWORD_RECOVERY_KEY) !== 'true') {
+    throw new Error('This password reset link is invalid or has expired.');
+  }
+
+  const { error } = await client.auth.updateUser({ password });
+  if (error) {
+    logSupabaseError('Supabase password update failed.', error);
+    throw new Error(getFriendlySupabaseError(error, 'Password could not be updated. Please request a new reset link.'));
+  }
+
+  sessionStorage.removeItem(PASSWORD_RECOVERY_KEY);
+  const { error: signOutError } = await client.auth.signOut({ scope: 'global' });
+  if (signOutError) logSupabaseError('Password recovery sign-out failed.', signOutError);
 }
 
 async function signOutCustomer() {
@@ -1450,8 +1541,10 @@ function appendLoginLinkToAuthMessage() {
 function bindAuthForms() {
   const signupForm = document.querySelector('[data-signup-form]');
   const loginForm = document.querySelector('[data-login-form]');
+  const forgotPasswordForm = document.querySelector('[data-forgot-password-form]');
+  const resetPasswordForm = document.querySelector('[data-reset-password-form]');
 
-  if (!isAuthConfigured() && (signupForm || loginForm)) {
+  if (!isAuthConfigured() && (signupForm || loginForm || forgotPasswordForm || resetPasswordForm)) {
     setAuthMessage(ACCOUNT_SETUP_MESSAGE, 'error');
   } else {
     setAuthMessage('');
@@ -1540,6 +1633,67 @@ function bindAuthForms() {
     } catch (error) {
       setAuthMessage(error.message || 'Login could not be completed.', 'error');
     }
+  });
+
+  forgotPasswordForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!isAuthConfigured()) {
+      setAuthMessage(ACCOUNT_SETUP_MESSAGE, 'error');
+      return;
+    }
+
+    const submitButton = forgotPasswordForm.querySelector('button[type="submit"]');
+    const email = new FormData(forgotPasswordForm).get('Email');
+    if (submitButton) submitButton.disabled = true;
+    setAuthMessage('Sending a secure reset link...', 'success');
+    try {
+      await requestPasswordReset(email);
+      forgotPasswordForm.reset();
+      setAuthMessage(
+        'If an EastCord account exists for that email, a password reset link has been sent. Check your inbox and spam folder.',
+        'success',
+      );
+    } catch (error) {
+      setAuthMessage(error.message || 'Password reset email could not be sent.', 'error');
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+
+  resetPasswordForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(resetPasswordForm);
+    const password = String(formData.get('Password') || '');
+    const confirmPassword = String(formData.get('Confirm Password') || '');
+    if (password.length < 8) {
+      setAuthMessage('Your new password must be at least 8 characters.', 'error');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setAuthMessage('Passwords do not match.', 'error');
+      return;
+    }
+
+    const submitButton = resetPasswordForm.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+    setAuthMessage('Updating your password...', 'success');
+    try {
+      await completePasswordRecovery(password);
+      resetPasswordForm.reset();
+      resetPasswordForm.hidden = true;
+      setAuthMessage('Password updated. For security, please log in again with your new password.', 'success');
+      appendLoginLinkToAuthMessage();
+    } catch (error) {
+      setAuthMessage(error.message || 'Password could not be updated.', 'error');
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+
+  preparePasswordRecoveryForm(resetPasswordForm).catch((error) => {
+    logSupabaseError('Password recovery link verification failed.', error);
+    if (resetPasswordForm) resetPasswordForm.hidden = true;
+    setAuthMessage('This password reset link could not be verified. Request a new link.', 'error');
   });
 }
 

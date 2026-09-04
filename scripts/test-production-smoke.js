@@ -5,7 +5,16 @@ const { chromium } = require('playwright');
 if (process.platform === 'win32') process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const ORIGIN = 'https://eastcordtires.ca';
-const PATHS = ['/', '/new-tires.html', '/appointment.html', '/cart.html', '/login.html', '/account.html'];
+const PATHS = [
+  '/',
+  '/new-tires.html',
+  '/appointment.html',
+  '/cart.html',
+  '/login.html',
+  '/forgot-password.html',
+  '/reset-password.html',
+  '/account.html',
+];
 
 async function checkPage(browser, pathname, viewport) {
   const page = await browser.newPage({ viewport });
@@ -58,6 +67,13 @@ async function checkPage(browser, pathname, viewport) {
       'Production cart enables test-card instructions.',
     );
   }
+  if (pathname === '/forgot-password.html') {
+    assert.ok(await page.locator('[data-forgot-password-form]').isVisible());
+  }
+  if (pathname === '/reset-password.html') {
+    assert.ok(await page.locator('[data-reset-password-form]').isHidden());
+    assert.match(await page.locator('[data-auth-message]').innerText(), /missing or has expired/i);
+  }
   await page.close();
 }
 
@@ -84,7 +100,7 @@ async function checkPage(browser, pathname, viewport) {
     });
     assert.strictEqual(noAuthResponse.status, 401);
 
-    console.log('ok  six production pages load at mobile and desktop sizes');
+    console.log(`ok  ${PATHS.length} production pages load at mobile and desktop sizes`);
     console.log('ok  no same-origin HTTP or browser runtime errors');
     console.log('ok  no horizontal overflow across tested production pages');
     console.log('ok  production TireConnect search initializes');
