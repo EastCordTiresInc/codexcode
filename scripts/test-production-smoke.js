@@ -14,7 +14,7 @@ async function checkPage(browser, pathname, viewport) {
   page.on('console', (message) => {
     if (
       message.type() === 'error'
-      && !/Failed to load resource: the server responded with a status of 404|favicon|ERR_ABORTED/i.test(message.text())
+        && !/Failed to load resource: the server responded with a status of 404|favicon|ERR_ABORTED|Permissions policy violation: compute-pressure/i.test(message.text())
     ) errors.push(message.text());
   });
   page.on('response', (response) => {

@@ -16,6 +16,7 @@ const TEST_PASSWORD = `EastCord-Test-${Date.now()}!`;
 const TEST_EMAIL = `eastcord-checkout-${Date.now()}@example.com`;
 const TEST_PHONE = '9055550199';
 const MOBILE = process.env.APPOINTMENT_TEST_MOBILE === '1';
+const EXPECT_LIVE_STRIPE = process.env.APPOINTMENT_EXPECT_LIVE_STRIPE === '1';
 const TIME_WINDOWS = [
   '8:00 AM - 9:00 AM',
   '9:00 AM - 10:00 AM',
@@ -241,6 +242,13 @@ async function main() {
       page.waitForURL(/checkout\.stripe\.com/, { timeout: 30000 }),
       page.locator('[data-appointment-pay-button]').click(),
     ]);
+
+    if (EXPECT_LIVE_STRIPE) {
+      assert.match(page.url(), /\/cs_live_/i, 'Production checkout did not create a live Stripe session.');
+      console.log('ok  production appointment created a live Stripe Checkout session');
+      console.log('ok  no card was submitted and temporary booking data will be removed');
+      return;
+    }
 
     const confirmationResponsePromise = page.waitForResponse(
       (response) => response.url().includes('/.netlify/functions/confirm-appointment-payment'),
