@@ -32,7 +32,11 @@ async function assertStep(page, index) {
     });
     await page.goto(SITE, { waitUntil: 'networkidle', timeout: 60000 });
     await assertStep(page, 0);
-    assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$45.20');
+    assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$0.00');
+    await page.locator('[data-booking-step="0"] [data-next-step]').click();
+    await assertStep(page, 0);
+    await page.locator('[data-service-item="air-fill"] [data-service-toggle]').check();
+    assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$22.60');
     await page.locator('[data-booking-step="0"] [data-next-step]').click();
 
     await assertStep(page, 1);
@@ -69,6 +73,7 @@ async function assertStep(page, index) {
     await page.locator('[data-booking-step="3"] [data-next-step]').click();
 
     await assertStep(page, 4);
+    assert.match(await page.locator('[data-review-service]').innerText(), /Air fill-up/i);
     assert.match(await page.locator('[data-review-vehicle]').innerText(), /Toyota|Corolla/i);
     assert.match(await page.locator('[data-review-location]').innerText(), /123 Test Street|Milton/i);
     assert.match(await page.locator('[data-review-date]').innerText(), /2026|Sep|September/i);
