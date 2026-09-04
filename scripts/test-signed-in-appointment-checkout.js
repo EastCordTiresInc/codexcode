@@ -2,6 +2,7 @@
 const assert = require('assert');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { chromium } = require('playwright');
 const { createClient } = require('@supabase/supabase-js');
@@ -110,6 +111,7 @@ async function cleanupStaleTestData(admin) {
 
 async function fillStripeCheckout(page) {
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 30000 });
+  assert.ok(!/\/cs_live_/i.test(page.url()), 'Refusing to submit a test card to a live Stripe Checkout session.');
   const email = page.locator('input[type="email"]').first();
   if (await email.isVisible().catch(() => false)) await email.fill(TEST_EMAIL);
 
@@ -243,12 +245,22 @@ async function main() {
     const confirmationResponsePromise = page.waitForResponse(
       (response) => response.url().includes('/.netlify/functions/confirm-appointment-payment'),
       { timeout: 90000 },
-    );
+    ).catch((error) => ({ waitError: error }));
     await fillStripeCheckout(page);
-    await page.waitForURL(new RegExp(`${SITE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/appointment-success`), {
-      timeout: 60000,
-    });
+    try {
+      await page.waitForURL(new RegExp(`${SITE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/appointment-success`), {
+        timeout: 60000,
+      });
+    } catch (error) {
+      const screenshot = path.join(os.tmpdir(), 'eastcord-stripe-timeout.png');
+      await page.screenshot({ path: screenshot, fullPage: true }).catch(() => {});
+      console.error('Stripe timeout URL:', page.url());
+      console.error('Stripe timeout page:', (await page.locator('body').innerText().catch(() => '')).slice(-2500));
+      console.error('Stripe timeout screenshot:', screenshot);
+      throw error;
+    }
     const confirmationResponse = await confirmationResponsePromise;
+    if (confirmationResponse.waitError) throw confirmationResponse.waitError;
     if (!confirmationResponse.ok()) {
       throw new Error(`Payment confirmation returned ${confirmationResponse.status()}: ${await confirmationResponse.text()}`);
     }

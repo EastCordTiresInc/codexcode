@@ -51,6 +51,13 @@ async function checkPage(browser, pathname, viewport) {
       )));
     }
   }
+
+  if (pathname === '/cart.html') {
+    assert.ok(
+      await page.locator('[data-stripe-test-note]').evaluate((note) => note.hidden),
+      'Production cart enables test-card instructions.',
+    );
+  }
   await page.close();
 }
 

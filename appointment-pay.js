@@ -109,7 +109,8 @@
     }
 
     applyCheckoutAuth(currentProfile);
-    if (window.EASTCORD_AUTH_CONFIG?.stripeTestMode) {
+    const isLocalDevelopment = /^(?:localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+    if (isLocalDevelopment && window.EASTCORD_AUTH_CONFIG?.stripeTestMode) {
       document.querySelectorAll('[data-stripe-test-note]').forEach((note) => {
         note.hidden = false;
       });
