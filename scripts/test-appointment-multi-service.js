@@ -169,6 +169,9 @@ async function main() {
   assert.ok(totalBox.y > lastServiceBox.y + lastServiceBox.height, 'appointment total must appear below the service list');
   const removeBox = await cartPage.locator('.cart-line-remove').boundingBox();
   assert.ok(removeBox.y > totalBox.y, 'remove action must appear below the appointment total');
+  const cartLineBox = await cartPage.locator('.cart-line').first().boundingBox();
+  const removeBottomGap = (cartLineBox.y + cartLineBox.height) - (removeBox.y + removeBox.height);
+  assert.ok(removeBottomGap <= 10, `remove action is ${removeBottomGap}px above the card bottom`);
   const cartOverflow = await cartPage.evaluate(() => (
     document.documentElement.scrollWidth - document.documentElement.clientWidth
   ));

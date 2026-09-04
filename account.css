@@ -574,6 +574,7 @@
 
 .cart-layout .cart-line-side .cart-line-remove {
   justify-self: end;
+  margin-bottom: -6px;
 }
 
 .cart-layout .cart-line-price {
