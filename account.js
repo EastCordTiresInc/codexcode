@@ -92,16 +92,16 @@ function preserveAuthSwitchLinks() {
   const redirectTarget = getRedirectTarget('');
   if (!redirectTarget) return;
 
-  document.querySelectorAll('a[href="/signup.html"], a[href="signup.html"]').forEach((link) => {
-    link.href = `/signup.html?redirect=${encodeURIComponent(redirectTarget)}`;
+  document.querySelectorAll('a[href="/signup"], a[href="signup"], a[href="/signup.html"], a[href="signup.html"]').forEach((link) => {
+    link.href = `/signup?redirect=${encodeURIComponent(redirectTarget)}`;
   });
 
-  document.querySelectorAll('a[href="/login.html"], a[href="login.html"]').forEach((link) => {
-    link.href = `/login.html?redirect=${encodeURIComponent(redirectTarget)}`;
+  document.querySelectorAll('a[href="/login"], a[href="login"], a[href="/login.html"], a[href="login.html"]').forEach((link) => {
+    link.href = `/login?redirect=${encodeURIComponent(redirectTarget)}`;
   });
 
-  document.querySelectorAll('a[href="/forgot-password.html"], a[href="forgot-password.html"]').forEach((link) => {
-    link.href = `/forgot-password.html?redirect=${encodeURIComponent(redirectTarget)}`;
+  document.querySelectorAll('a[href="/forgot-password"], a[href="forgot-password"], a[href="/forgot-password.html"], a[href="forgot-password.html"]').forEach((link) => {
+    link.href = `/forgot-password?redirect=${encodeURIComponent(redirectTarget)}`;
   });
 }
 
@@ -1529,7 +1529,7 @@ function setAuthMessage(message, type = '') {
 
 function getLoginPageUrl() {
   const redirectTarget = getRedirectTarget('/account.html');
-  return `/login.html?redirect=${encodeURIComponent(redirectTarget)}`;
+  return `/login?redirect=${encodeURIComponent(redirectTarget)}`;
 }
 
 function appendLoginLinkToAuthMessage() {

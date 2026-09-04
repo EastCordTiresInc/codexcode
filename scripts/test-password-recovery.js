@@ -63,7 +63,7 @@ async function createContext(browser) {
     const forgotLink = page.locator('.forgot-password-link');
     await forgotLink.waitFor({ state: 'visible' });
     assert.ok(await forgotLink.isVisible());
-    assert.match(await forgotLink.getAttribute('href'), /forgot-password\.html\?redirect=%2Fappointment\.html/);
+    assert.match(await forgotLink.getAttribute('href'), /forgot-password(?:\.html)?\?redirect=%2Fappointment\.html/);
     assert.ok(await page.evaluate(() => (
       document.documentElement.scrollWidth - document.documentElement.clientWidth
     )) <= 1);
@@ -116,7 +116,7 @@ async function createContext(browser) {
     });
     assert.match(
       await recoveryPage.locator('[data-auth-message] a').getAttribute('href'),
-      /login\.html\?redirect=%2Fappointment\.html/,
+      /login(?:\.html)?\?redirect=%2Fappointment\.html/,
     );
     assert.ok(await recoveryPage.evaluate(() => (
       document.documentElement.scrollWidth - document.documentElement.clientWidth
