@@ -8,7 +8,7 @@
 }
 
 .guide-hero {
-  padding: 92px 0 36px;
+  padding: 82px 0 30px;
 }
 
 .guide-hero h1 {
@@ -24,15 +24,8 @@
   line-height: 1.68;
 }
 
-.guide-hero-actions {
-  margin-top: 34px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
 .guide-content {
-  padding: 0 0 96px;
+  padding: 0 0 78px;
 }
 
 .guide-article {
@@ -41,6 +34,10 @@
   border: 1px solid rgba(228, 229, 231, 0.94);
   border-radius: 24px;
   box-shadow: 0 24px 70px rgba(17, 18, 20, 0.08);
+}
+
+.guide-article.changeover-short-guide {
+  padding: clamp(16px, 4vw, 42px);
 }
 
 .guide-section + .guide-section {
@@ -100,17 +97,38 @@
   text-decoration: none;
 }
 
-.changeover-card-grid {
+.changeover-short-guide {
+  display: grid;
+  gap: clamp(20px, 3vw, 32px);
+}
+
+.changeover-main-image {
+  width: min(100%, 980px);
+  margin: 0 auto;
+}
+
+.changeover-main-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid rgba(17, 18, 20, 0.1);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.changeover-short-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
-  margin-top: 26px;
+  align-items: stretch;
 }
 
-.changeover-card {
+.changeover-short-card {
   display: grid;
-  gap: 12px;
   min-width: 0;
+  min-height: 100%;
+  gap: 14px;
+  align-content: start;
   padding: 24px;
   border: 1px solid rgba(17, 18, 20, 0.1);
   border-radius: 8px;
@@ -118,241 +136,77 @@
   box-shadow: var(--shadow-sm);
 }
 
-.changeover-visual {
-  min-height: 230px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 8px;
-  background:
-    linear-gradient(rgba(228, 229, 231, 0.55) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(228, 229, 231, 0.55) 1px, transparent 1px),
-    #f7f7f6;
-  background-size: 34px 34px, 34px 34px, auto;
-}
-
-.tire-shape {
-  position: relative;
-  width: min(68%, 260px);
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, transparent 0 30%, #15171a 30.5% 45%, transparent 45.5%),
-    repeating-conic-gradient(from 6deg, #22252a 0 9deg, #050608 9deg 16deg);
-  box-shadow:
-    inset 0 0 0 16px #050608,
-    inset 0 0 0 31px #2c2f35,
-    0 22px 45px rgba(17, 18, 20, 0.16);
-}
-
-.tire-shape::before {
-  content: "";
-  position: absolute;
-  inset: 19%;
-  border-radius: 50%;
-  background: #f7f7f6;
-  box-shadow: inset 0 0 0 6px #101114;
-}
-
-.rim-face {
-  position: relative;
-  z-index: 1;
-  width: 48%;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, #f7f8f9 0 13%, #747b86 13.5% 21%, #d7dbe1 21.5% 52%, #9aa1ad 53% 100%);
-  box-shadow:
-    inset 0 0 0 6px #eceff3,
-    0 0 0 6px rgba(17, 18, 20, 0.2);
-}
-
-.rim-face span {
-  position: absolute;
-  width: 12%;
-  height: 45%;
-  border-radius: 999px;
-  background: #666e7a;
-  transform-origin: center 50%;
-}
-
-.rim-face span:nth-child(1) { transform: rotate(0deg) translateY(-18%); }
-.rim-face span:nth-child(2) { transform: rotate(72deg) translateY(-18%); }
-.rim-face span:nth-child(3) { transform: rotate(144deg) translateY(-18%); }
-.rim-face span:nth-child(4) { transform: rotate(216deg) translateY(-18%); }
-.rim-face span:nth-child(5) { transform: rotate(288deg) translateY(-18%); }
-
-.off-rim-visual .tire-shape::before {
-  inset: 28%;
-  background: #f7f7f6;
-  box-shadow: inset 0 0 0 5px #141519;
-}
-
-.changeover-label {
-  width: fit-content;
-  padding: 6px 9px;
-  border-radius: 6px;
-  color: var(--white);
-  background: var(--red);
-  font-size: 0.68rem;
-  font-weight: 850;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.changeover-card h3 {
-  color: var(--ink);
-  font-size: clamp(1.18rem, 1.7vw, 1.45rem);
-  letter-spacing: -0.025em;
-}
-
-.changeover-card p {
+.changeover-short-card h2 {
   margin: 0;
+  color: var(--ink);
+  font-size: clamp(1.28rem, 2vw, 1.75rem);
+  line-height: 1.12;
 }
 
-.changeover-process-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin: 24px 0 0;
-  padding-left: 22px;
-}
-
-.guide-process-video[hidden] {
-  display: none !important;
-}
-
-.changeover-process-list li {
-  position: relative;
-  min-height: 72px;
-  padding: 16px 18px;
-  border: 1px solid rgba(17, 18, 20, 0.09);
-  border-radius: 8px;
-  background: #fbfbfc;
+.changeover-short-card p {
+  margin: 0;
   color: #34363a;
+  line-height: 1.58;
 }
 
-.changeover-process-list li::marker {
+.changeover-short-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.changeover-short-card li {
+  color: #34363a;
+  line-height: 1.52;
+}
+
+.changeover-short-card li::marker {
   color: var(--red);
-  font-size: 0.9rem;
-  font-weight: 900;
 }
 
-.changeover-process-list li {
-  box-shadow: inset 4px 0 0 var(--red);
-}
-
-.guide-callout-red {
-  background: var(--red);
-}
-
-.guide-callout-red p {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.guide-table-wrap {
-  margin-top: 20px;
-  overflow: hidden;
-  border: 1px solid var(--line);
+.changeover-short-note {
+  align-self: end;
+  margin-top: auto;
+  padding: 13px 15px;
+  border-left: 4px solid var(--red);
   border-radius: 8px;
-  background: #ffffff;
+  background: #fff4f4;
+  color: #4f1619 !important;
+  font-weight: 780;
 }
 
-.guide-comparison-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.guide-comparison-table th,
-.guide-comparison-table td {
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
-  color: #34363a;
-  line-height: 1.45;
-  text-align: left;
-  vertical-align: top;
-}
-
-.guide-comparison-table thead th {
-  color: var(--white);
-  background: var(--ink);
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.guide-comparison-table tbody th {
-  width: 34%;
-  color: var(--ink);
-  font-weight: 820;
-}
-
-.guide-comparison-table tbody tr:last-child th,
-.guide-comparison-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.guide-faq-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.guide-faq-list details {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.guide-faq-list summary {
-  padding: 17px 18px;
-  color: var(--ink);
-  font-weight: 820;
-  cursor: pointer;
-}
-
-.guide-faq-list summary:focus-visible {
-  outline: 3px solid rgba(229, 36, 42, 0.25);
-  outline-offset: 2px;
-}
-
-.guide-faq-list p {
-  margin: 0;
-  padding: 0 18px 18px;
-}
-
-.guide-help-panel {
+.guide-short-help {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 24px;
   align-items: center;
-  padding: clamp(24px, 4vw, 36px);
+  padding: clamp(22px, 4vw, 34px);
   border-radius: 8px;
   color: var(--white);
   background: var(--ink);
 }
 
-.guide-help-panel h2 {
+.guide-short-help h2 {
   margin-bottom: 12px;
   color: var(--white);
+  font-size: clamp(1.45rem, 2.2vw, 2rem);
+  line-height: 1.12;
 }
 
-.guide-help-panel p {
+.guide-short-help p {
+  margin: 0;
   color: #c7c9ce;
+  line-height: 1.62;
 }
 
-.guide-help-panel .guide-actions {
+.guide-short-help .guide-actions {
   margin-top: 0;
 }
 
 .guide-service-notice {
-  margin-top: 34px;
-  padding: 22px 24px;
+  margin: 0;
+  padding: 18px 20px;
   border-left: 5px solid var(--red);
   border-radius: 8px;
   background: #fff4f4;
@@ -366,7 +220,7 @@
 
 @media (max-width: 640px) {
   .guide-hero {
-    padding: 72px 0 28px;
+    padding: 68px 0 24px;
   }
 
   .guide-content {
@@ -386,88 +240,20 @@
     display: grid;
   }
 
-  .guide-hero-actions {
-    display: grid;
-  }
-
-  .changeover-card-grid,
-  .changeover-process-list,
-  .guide-help-panel {
+  .changeover-short-card-grid,
+  .guide-short-help {
     grid-template-columns: 1fr;
   }
 
-  .changeover-card {
+  .changeover-short-card {
     padding: 18px;
   }
 
-  .changeover-visual {
-    min-height: 190px;
-  }
-
-  .guide-table-wrap {
-    overflow: visible;
-    border: 0;
-    background: transparent;
-  }
-
-  .guide-comparison-table,
-  .guide-comparison-table thead,
-  .guide-comparison-table tbody,
-  .guide-comparison-table tr,
-  .guide-comparison-table th,
-  .guide-comparison-table td {
-    display: block;
-  }
-
-  .guide-comparison-table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-  }
-
-  .guide-comparison-table tbody tr {
-    margin-bottom: 12px;
-    overflow: hidden;
-    border: 1px solid var(--line);
+  .changeover-main-image img {
     border-radius: 8px;
-    background: #ffffff;
   }
 
-  .guide-comparison-table tbody th {
-    width: auto;
-    padding: 15px 16px;
-    border-bottom: 1px solid var(--line);
-    background: #f7f7f6;
-  }
-
-  .guide-comparison-table td {
-    display: grid;
-    grid-template-columns: 92px minmax(0, 1fr);
-    gap: 12px;
-    padding: 14px 16px;
-  }
-
-  .guide-comparison-table td::before {
-    content: attr(data-label);
-    color: var(--red);
-    font-size: 0.75rem;
-    font-weight: 900;
-    text-transform: uppercase;
-  }
-
-  .guide-comparison-table tbody tr:last-child th,
-  .guide-comparison-table tbody tr:last-child td {
-    border-bottom: 1px solid var(--line);
-  }
-
-  .guide-comparison-table tbody tr:last-child td:last-child {
-    border-bottom: 0;
-  }
-
-  .guide-help-panel .guide-actions {
+  .guide-short-help .guide-actions {
     width: 100%;
   }
 }
