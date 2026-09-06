@@ -5,13 +5,16 @@ const chatOptions = document.querySelector('[data-chat-options]');
 
 const inventoryLink = '/used-tires';
 const appointmentLink = '/appointment.html';
+const onRimGuideLink = '/on-rim-vs-off-rim-tire-changeover';
 const warrantyLink = 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf';
 const inquiryFormName = 'eastcord-inquiry';
+const onRimOffRimAnswer = 'On-rim means your seasonal tires are already mounted on their own rims. Off-rim means you have loose tires that must be mounted onto your existing rims and balanced.';
 
 const mainOptions = [
   { label: 'Used Tires', action: 'used-tires' },
   { label: 'New Tires', action: 'new-tires' },
   { label: 'Tire Changeover / Swap', action: 'changeover' },
+  { label: 'On-Rim or Off-Rim?', action: 'on-rim-off-rim' },
   { label: 'Used Tire Warranty', action: 'warranty' },
   { label: 'Tire Size Help', action: 'size-help' },
   { label: 'Contact EastCord', action: 'contact' },
@@ -70,6 +73,31 @@ function createActionButton({ label, action, className }) {
   return button;
 }
 
+function createQuestionForm() {
+  const form = document.createElement('form');
+  form.className = 'chat-question-form';
+  form.setAttribute('aria-label', 'Ask EastCord Tires a question');
+
+  const label = document.createElement('label');
+  label.className = 'sr-only';
+  label.setAttribute('for', 'chat-question-input');
+  label.textContent = 'Type your tire question';
+
+  const input = document.createElement('input');
+  input.id = 'chat-question-input';
+  input.type = 'text';
+  input.name = 'chat-question';
+  input.placeholder = 'Type a tire question';
+  input.autocomplete = 'off';
+
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.textContent = 'Ask';
+
+  form.append(label, input, submit);
+  return form;
+}
+
 function renderActions(actions) {
   if (!chatOptions) return;
 
@@ -84,6 +112,8 @@ function renderActions(actions) {
 
     chatOptions.appendChild(createActionButton(action));
   });
+
+  chatOptions.appendChild(createQuestionForm());
 }
 
 function renderMainMenu() {
@@ -144,6 +174,14 @@ function showChangeover() {
   addMessage('bot', 'Yes, customers can book tire changeover/swap service through our appointment booking page.');
   renderActions(addBackToMain([
     { label: 'Book Appointment', href: appointmentLink },
+  ]));
+}
+
+function showOnRimOffRim(customerText = 'On-Rim or Off-Rim?') {
+  addMessage('customer', customerText);
+  addMessage('bot', onRimOffRimAnswer);
+  renderActions(addBackToMain([
+    { label: 'View On-Rim vs Off-Rim Guide', href: onRimGuideLink },
   ]));
 }
 
@@ -280,6 +318,72 @@ function showInquiryConfirmation() {
   renderActions([{ label: 'Back to questions', action: 'main-menu' }]);
 }
 
+function normalizeQuestion(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[-_/]+/g, ' ')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function matchesOnRimOffRimQuestion(text) {
+  const question = normalizeQuestion(text);
+  if (!question) return false;
+
+  return [
+    /\bon rim\b/,
+    /\boff rim\b/,
+    /\bwith rims\b/,
+    /\bwithout rims\b/,
+    /\btires with rims\b/,
+    /\btires without rims\b/,
+    /\bwhich changeover\b/,
+    /\bwhich tire swap\b/,
+    /\bdifference between on rim and off rim\b/,
+    /\bwhat is on rim\b/,
+    /\bwhat is off rim\b/,
+  ].some((pattern) => pattern.test(question));
+}
+
+function findTypedQuestionAction(text) {
+  const question = normalizeQuestion(text);
+  if (!question) return null;
+
+  if (matchesOnRimOffRimQuestion(question)) return () => showOnRimOffRim(text);
+  if (/\bused tires?\b|\bused tire availability\b/.test(question)) return showUsedTires;
+  if (/\bnew tires?\b|\bshop new tires?\b/.test(question)) return showNewTires;
+  if (/\btire changeover\b|\btire swap\b|\bbook appointment\b/.test(question)) return showChangeover;
+  if (/\bwarranty\b/.test(question)) return showWarranty;
+  if (/\btire size\b|\bsize help\b/.test(question)) return showSizeHelp;
+  if (/\bcontact\b|\bphone\b|\bemail\b/.test(question)) return showContact;
+  return null;
+}
+
+function handleTypedQuestion(event) {
+  event.preventDefault();
+
+  const form = event.currentTarget;
+  const input = form.querySelector('input[name="chat-question"]');
+  const question = input?.value.trim();
+  if (!question) {
+    input?.focus();
+    return;
+  }
+
+  const action = findTypedQuestionAction(question);
+  if (action) {
+    action();
+    return;
+  }
+
+  addMessage('customer', question);
+  addMessage('bot', 'Please choose one of the quick questions below, or send us your question through Other Inquiry.');
+  renderActions(addBackToMain([
+    { label: 'Other Inquiry', action: 'other-inquiry' },
+  ]));
+}
+
 async function handleInquirySubmit(event) {
   event.preventDefault();
 
@@ -328,6 +432,7 @@ function handleAction(action) {
     'used-availability': showUsedAvailability,
     'new-tires': showNewTires,
     changeover: showChangeover,
+    'on-rim-off-rim': showOnRimOffRim,
     warranty: showWarranty,
     'size-help': showSizeHelp,
     contact: showContact,
@@ -439,6 +544,11 @@ chatOptions?.addEventListener('click', (event) => {
   const actionButton = event.target.closest('[data-chat-action]');
   if (!actionButton) return;
   handleAction(actionButton.dataset.chatAction);
+});
+
+chatOptions?.addEventListener('submit', (event) => {
+  if (!event.target.matches('.chat-question-form')) return;
+  handleTypedQuestion(event);
 });
 
 chatToggle?.addEventListener('keydown', (event) => {
