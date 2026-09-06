@@ -21,16 +21,11 @@
 }
 
 .changeover-guide-hero h1 {
-  max-width: 690px;
-  font-size: clamp(3.4rem, 6.1vw, 6.15rem);
-  line-height: 0.93;
-  font-weight: 880;
-}
-
-@media (max-width: 1000px) {
-  .changeover-guide-hero h1 {
-    font-size: clamp(3rem, 6.8vw, 5rem);
-  }
+  max-width: 700px;
+  font-size: clamp(1.875rem, 3.4vw, 3rem);
+  line-height: 1.08;
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
 .guide-intro {
@@ -235,6 +230,13 @@
   line-height: 1.7;
 }
 
+@media (max-width: 800px) {
+  .changeover-guide-hero h1 {
+    font-size: clamp(1.875rem, 6.8vw, 2.25rem);
+    line-height: 1.1;
+  }
+}
+
 @media (max-width: 640px) {
   .guide-hero {
     padding: 68px 0 24px;
@@ -279,8 +281,8 @@
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 480px) {
   .changeover-guide-hero h1 {
-    font-size: clamp(3rem, 14vw, 4.3rem);
+    font-size: clamp(1.875rem, 8vw, 2.125rem);
   }
 }
