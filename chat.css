@@ -224,6 +224,38 @@
   box-shadow: 0 10px 22px rgba(229, 36, 42, 0.1);
 }
 
+.chat-question-form {
+  width: 100%;
+  display: flex;
+  gap: 9px;
+}
+
+.chat-question-form input {
+  min-width: 0;
+  min-height: 40px;
+  flex: 1 1 180px;
+  padding: 0 13px;
+  color: var(--ink);
+  background: #f8f8f7;
+  border: 1px solid #d8dade;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.chat-question-form input:focus {
+  background: var(--white);
+  border-color: rgba(229, 36, 42, 0.55);
+  box-shadow: 0 0 0 3px rgba(229, 36, 42, 0.12);
+}
+
+.chat-question-form button {
+  flex: 0 0 auto;
+}
+
 .chat-action-link[href^='http'],
 .chat-action-link[href^='mailto'],
 .chat-action-link[href^='tel'] {
@@ -393,6 +425,15 @@
 
   .chat-options button,
   .chat-action-link {
+    width: 100%;
+  }
+
+  .chat-question-form {
+    display: grid;
+  }
+
+  .chat-question-form input,
+  .chat-question-form button {
     width: 100%;
   }
 }
