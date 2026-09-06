@@ -299,6 +299,47 @@ label:has(input[name="bot-field"]) {
   background: #fff;
 }
 
+.appointment-changeover-help {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 16px;
+  border-color: rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+}
+
+.appointment-changeover-help .appointment-step-heading {
+  min-width: 0;
+  gap: 5px;
+}
+
+.appointment-changeover-help .appointment-step-heading span {
+  color: #df1f2d;
+  font-size: 0.7rem;
+}
+
+.appointment-changeover-help .appointment-step-heading h3 {
+  font-size: clamp(1.08rem, 1.6vw, 1.28rem);
+  line-height: 1.14;
+}
+
+.appointment-changeover-help .appointment-step-heading p {
+  max-width: 640px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.appointment-changeover-help .appointment-step-actions {
+  flex: 0 0 auto;
+}
+
+.appointment-changeover-help .button {
+  min-height: 42px;
+  padding: 0 18px;
+  white-space: nowrap;
+}
+
 .appointment-service-group-heading {
   display: flex;
   align-items: flex-start;
@@ -1133,6 +1174,20 @@ label:has(input[name="bot-field"]) {
   .appointment-service-options { grid-template-columns: 1fr; }
   .appointment-service-choice-grid { grid-template-columns: 1fr; }
   .appointment-service-group { padding: 14px; }
+  .appointment-changeover-help {
+    display: grid;
+    gap: 12px;
+    align-items: start;
+  }
+  .appointment-changeover-help .appointment-step-actions {
+    justify-content: flex-start;
+  }
+  .appointment-changeover-help .button {
+    width: fit-content;
+    max-width: 100%;
+    min-height: 44px;
+    white-space: normal;
+  }
   .appointment-service-group-heading { align-items: flex-start; }
   .appointment-service-controls { grid-template-columns: auto minmax(100px, 1fr); justify-content: stretch; }
   .appointment-service-controls-double { grid-template-columns: repeat(2, minmax(0, 1fr)); }
