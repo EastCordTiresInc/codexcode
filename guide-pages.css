@@ -16,6 +16,23 @@
   font-size: clamp(2.7rem, 5.8vw, 5.6rem);
 }
 
+.changeover-guide-hero {
+  padding: 58px 0 26px;
+}
+
+.changeover-guide-hero h1 {
+  max-width: 690px;
+  font-size: clamp(3.4rem, 6.1vw, 6.15rem);
+  line-height: 0.93;
+  font-weight: 880;
+}
+
+@media (max-width: 1000px) {
+  .changeover-guide-hero h1 {
+    font-size: clamp(3rem, 6.8vw, 5rem);
+  }
+}
+
 .guide-intro {
   max-width: 760px;
   margin: 24px 0 0;
@@ -223,6 +240,10 @@
     padding: 68px 0 24px;
   }
 
+  .changeover-guide-hero {
+    padding: 44px 0 22px;
+  }
+
   .guide-content {
     padding-bottom: 70px;
   }
@@ -255,5 +276,11 @@
 
   .guide-short-help .guide-actions {
     width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .changeover-guide-hero h1 {
+    font-size: clamp(3rem, 14vw, 4.3rem);
   }
 }
