@@ -510,10 +510,12 @@ label:has(input[name="bot-field"]) {
 
 .appointment-service-controls-double {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
 }
 
 .appointment-service-controls-double > span {
   display: grid;
+  grid-template-rows: 1fr auto;
   gap: 5px;
 }
 
