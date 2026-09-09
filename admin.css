@@ -1,0 +1,225 @@
+.admin-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f4f5f7 0%, #ffffff 240px);
+}
+
+.admin-shell {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 64px;
+}
+
+.admin-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.admin-header h1 {
+  margin: 0 0 6px;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.admin-header p {
+  margin: 0;
+  color: #5b6472;
+  max-width: 36rem;
+  line-height: 1.55;
+}
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-toolbar label {
+  display: grid;
+  gap: 6px;
+  color: #4b5563;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-toolbar input[type="date"] {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #d5d9df;
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+}
+
+.admin-status {
+  margin: 0 0 18px;
+  color: #5b6472;
+  font-weight: 650;
+}
+
+.admin-status[data-tone="error"] {
+  color: #b91c1c;
+}
+
+.admin-empty {
+  padding: 28px 0;
+  color: #5b6472;
+  line-height: 1.55;
+}
+
+.admin-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-appointment {
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid #e4e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.admin-appointment-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 24px;
+  align-items: start;
+}
+
+.admin-appointment-time {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.admin-appointment-service {
+  margin: 4px 0 0;
+  color: #374151;
+  font-weight: 650;
+}
+
+.admin-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.admin-badge.is-paid {
+  background: #ecfdf3;
+  color: #14783d;
+}
+
+.admin-badge.is-pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 18px;
+}
+
+.admin-grid div {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-grid span {
+  color: #6b7280;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-grid strong {
+  color: #111317;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.admin-notes {
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px solid #eef0f3;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.admin-gate,
+.admin-loading {
+  max-width: 520px;
+  margin: 48px auto;
+  padding: 28px;
+  border: 1px solid #e4e7eb;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.admin-gate h1,
+.admin-loading h1 {
+  margin: 0 0 10px;
+  font-size: 1.6rem;
+}
+
+.admin-gate p,
+.admin-loading p {
+  margin: 0 0 18px;
+  color: #5b6472;
+  line-height: 1.55;
+}
+
+.admin-gate .account-actions,
+.admin-loading .account-actions {
+  margin-top: 0;
+}
+
+@media (max-width: 800px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-shell {
+    width: min(100% - 28px, 1100px);
+  }
+
+  .admin-toolbar {
+    width: 100%;
+  }
+
+  .admin-toolbar label,
+  .admin-toolbar input[type="date"],
+  .admin-toolbar .button {
+    width: 100%;
+  }
+}

@@ -1896,9 +1896,20 @@ async function hydrateAccountPage() {
     }
 
     accountPanel.innerHTML = `
-      <div class="account-detail"><span>Name</span><strong>${escapeHtml(profile.name || 'Not provided')}</strong></div>
-      <div class="account-detail"><span>Email</span><strong>${escapeHtml(profile.email)}</strong></div>
-      <div class="account-detail"><span>Phone</span><strong>${escapeHtml(profile.phone || 'Not provided')}</strong></div>
+      <dl class="account-profile-list">
+        <div>
+          <dt>Name</dt>
+          <dd>${escapeHtml(profile.name || 'Not provided')}</dd>
+        </div>
+        <div>
+          <dt>Email</dt>
+          <dd>${escapeHtml(profile.email)}</dd>
+        </div>
+        <div>
+          <dt>Phone</dt>
+          <dd>${escapeHtml(profile.phone || 'Not provided')}</dd>
+        </div>
+      </dl>
     `;
 
     const purchasedPanel = document.querySelector('[data-purchased-tires]');

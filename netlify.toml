@@ -70,6 +70,18 @@
   force = true
 
 [[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/admin/"
+  to = "/admin.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/cart"
   to = "/cart.html"
   status = 301
