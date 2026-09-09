@@ -377,6 +377,7 @@ test('tire specification values are never displayed as the model', () => {
   ].join('\n'), 'Ovation'), 'ECOVISION VI-682');
   [
     'Selected Tire', 'Tire Details', 'Brand', 'Manufacturer', 'Make', 'Model',
+    'Display', 'Load Range',
     'Tire Model', 'Product', 'Product Name', 'Tire Name', 'Description',
     'Vehicle', 'Year', 'Vehicle Make', 'Vehicle Model', 'Submodel', 'Trim',
     'Size', 'Tire Size', 'Qty', 'Quantity', 'Warranty', 'Category', 'Season',
@@ -506,6 +507,134 @@ test('Triangle ICELYNX summary never uses CATEGORY Winter as its brand', () => {
   assert.strictEqual(sanitizeBrand('CATEGORY Winter'), '');
   assert.strictEqual(pickSummaryBrand(summary), 'Triangle');
   assert.strictEqual(headingModelFrom(summary, 'Triangle'), 'ICELYNX TI501');
+});
+
+test('Bridgestone Potenza summary keeps the logo brand and rejects Display as the model', () => {
+  const summary = logoSummary('POTENZA SPORT AS', 'Performance All Season', {
+    size: '255/40R18 99Y XL',
+    qty: 2,
+    price: '$288.62',
+  });
+  const logoHay = 'https://cdn.tireconnect.ca/brands/bridgestone-logo.png alt="Bridgestone"';
+
+  assert.equal(looksLikeBrand('POTENZA SPORT AS'), false);
+  assert.strictEqual(sanitizeBrand('POTENZA SPORT AS'), '');
+  assert.strictEqual(sanitizeModel('Display', 'Bridgestone'), '');
+  assert.strictEqual(headingBrandFrom(summary), '');
+  assert.strictEqual(pickSummaryBrand(summary, logoHay), 'Bridgestone');
+  assert.strictEqual(pickSummaryBrand(summary), 'Bridgestone');
+  assert.strictEqual(headingModelFrom(summary, 'Bridgestone'), 'POTENZA SPORT AS');
+  assert.strictEqual(headingModelFrom([
+    'SELECTED TIRE',
+    'BRAND',
+    'POTENZA SPORT AS',
+    'MODEL',
+    'Display',
+    'SIZE',
+    '255/40R18',
+  ].join('\n'), 'Bridgestone'), 'POTENZA SPORT AS');
+  assert.strictEqual(strongerBrand('Bridgestone', 'POTENZA SPORT AS'), 'Bridgestone');
+});
+
+test('iLink SNOWGRIPPER summary keeps its own heading brand over a stale logo', () => {
+  const summary = [
+    'SUMMARY',
+    'ILINK',
+    'SNOWGRIPPER I',
+    'WARRANTY',
+    'N/A',
+    'CATEGORY',
+    'Winter',
+    'SIZE',
+    '255/40R18 99V XL',
+    'QTY',
+    '2',
+    'PER TIRE',
+    '$108.68',
+    'CHANGE TIRE',
+  ].join('\n');
+  const staleLogoHay = 'https://cdn.tireconnect.ca/brands/bridgestone-logo.png alt="Bridgestone"';
+
+  assert.strictEqual(knownBrandIn('ILINK'), 'iLink');
+  assert.strictEqual(headingBrandFrom(summary), 'iLink');
+  assert.strictEqual(pickSummaryBrand(summary, staleLogoHay), 'iLink');
+  assert.strictEqual(headingModelFrom(summary, 'iLink'), 'SNOWGRIPPER I');
+  assert.strictEqual(strongerBrand('iLink', 'Bridgestone'), 'iLink');
+});
+
+test('every selected tire keeps its own brand when switching between tires', () => {
+  const cases = [
+    {
+      brand: 'iLink',
+      model: 'SNOWGRIPPER I',
+      heading: ['ILINK', 'SNOWGRIPPER I'],
+      logoHay: 'https://cdn.tireconnect.ca/brands/bridgestone-logo.png',
+    },
+    {
+      brand: 'Bridgestone',
+      model: 'POTENZA SPORT AS',
+      heading: ['POTENZA SPORT AS'],
+      logoHay: 'https://cdn.tireconnect.ca/brands/bridgestone-logo.png alt="Bridgestone"',
+    },
+    {
+      brand: 'Michelin',
+      model: 'X-ICE SNOW',
+      heading: ['MICHELIN', 'X-ICE SNOW'],
+      logoHay: 'https://cdn.tireconnect.ca/brands/ilink-logo.png',
+    },
+    {
+      brand: 'Hankook',
+      model: 'KINERGY GT H436',
+      heading: ['HANKOOK', 'KINERGY GT H436'],
+      logoHay: '',
+    },
+  ];
+
+  let previousBrand = '';
+  cases.forEach(({ brand, model, heading, logoHay }) => {
+    const summary = [
+      'SUMMARY',
+      ...heading,
+      'WARRANTY',
+      'N/A',
+      'CATEGORY',
+      'All Season',
+      'SIZE',
+      '255/40R18',
+      'QTY',
+      '2',
+      'PER TIRE',
+      '$108.68',
+      'CHANGE TIRE',
+    ].join('\n');
+
+    const captured = pickSummaryBrand(summary, logoHay);
+    assert.strictEqual(captured, brand, `${brand} brand`);
+    assert.strictEqual(headingModelFrom(summary, captured), model, `${brand} model`);
+    assert.notStrictEqual(headingModelFrom(summary, captured), captured, `${brand} model is not the brand`);
+    if (previousBrand) {
+      assert.strictEqual(strongerBrand(captured, previousBrand), brand, `${brand} replaces ${previousBrand}`);
+    }
+    previousBrand = captured;
+  });
+});
+
+test('model text is never captured as the brand', () => {
+  [
+    'POTENZA SPORT AS',
+    'SNOWGRIPPER I',
+    'X-ICE SNOW',
+    'KINERGY GT H436',
+    'ECOVISION VI-682',
+    'Display',
+    'Load Range',
+  ].forEach((value) => {
+    assert.strictEqual(sanitizeBrand(value), '', `${value} rejected as brand`);
+    assert.equal(looksLikeBrand(value), false, `${value} does not look like a brand`);
+  });
+  ['iLink', 'Bridgestone', 'Michelin', 'Hankook', 'BF Goodrich', 'GT Radial'].forEach((brand) => {
+    assert.strictEqual(sanitizeBrand(brand), knownBrandIn(brand), `${brand} kept as brand`);
+  });
 });
 
 test('Sailun ATREZZO summary replaces stale brand and ignores warranty as model', () => {

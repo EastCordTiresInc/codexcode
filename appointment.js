@@ -344,7 +344,7 @@
         els.linkedTireHint.textContent = 'Choose the off-rim tire quantity above before linking purchased tires.';
         return;
       }
-      els.linkedTireHint.textContent = `Link purchased tires from your profile, or tires still in your cart. Select a total of ${count} tire${count === 1 ? '' : 's'} to match this appointment.`;
+      els.linkedTireHint.textContent = `Link purchased tires from your profile. Select a total of ${count} tire${count === 1 ? '' : 's'} to match this appointment.`;
       return;
     }
     els.linkedTireHint.textContent = 'Link the tires you already paid for so this appointment is connected to your purchase.';
@@ -734,7 +734,7 @@
         ? `New tires · Purchased${item.paidAt ? ` ${formatPaidDate(item.paidAt)}` : ''}`
         : item.source === 'purchased'
           ? `Purchased${item.paidAt ? ` ${formatPaidDate(item.paidAt)}` : ''}`
-          : 'In tire cart';
+          : 'Saved tire';
       return `
         <label class="appointment-tire-option">
           <input type="checkbox" data-appointment-tire-id="${escapeHtml(id)}"${checked} />

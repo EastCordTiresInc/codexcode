@@ -205,6 +205,75 @@ async function waitForText(locator, pattern, message) {
     } catch (error) {
       failures.push(`results controls: ${error.message}`);
     }
+    try {
+      const summaryScenarios = [
+        {
+          heading: ['<p>POTENZA SPORT AS</p>'],
+          logo: '<img alt="Bridgestone" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-brand="bridgestone-logo" />',
+          brand: 'Bridgestone',
+          model: 'POTENZA SPORT AS',
+          price: '$288.62',
+        },
+        {
+          heading: ['<p>ILINK</p>', '<h4>SNOWGRIPPER I</h4>'],
+          logo: '<img alt="Bridgestone" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-brand="bridgestone-logo" />',
+          brand: 'iLink',
+          model: 'SNOWGRIPPER I',
+          price: '$108.68',
+        },
+        {
+          heading: ['<p>MICHELIN</p>', '<h4>X-ICE SNOW</h4>'],
+          logo: '<img alt="iLink" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-brand="ilink-logo" />',
+          brand: 'Michelin',
+          model: 'X-ICE SNOW',
+          price: '$241.15',
+        },
+      ];
+
+      for (const scenario of summaryScenarios) {
+        await page.evaluate((data) => {
+          history.replaceState(null, '', `${location.pathname}#!tires/summary?t_qty=2`);
+          document.getElementById('tireconnect').innerHTML = `
+            <section>
+              <div>
+                <h3>SUMMARY</h3>
+                ${data.logo}
+                ${data.heading.join('')}
+                <p>WARRANTY N/A</p>
+                <p>CATEGORY Winter</p>
+                <p>SIZE 255/40R18</p>
+                <label>QTY <select><option selected>2</option></select></label>
+                <p>PER TIRE ${data.price}</p>
+                <button type="button">CHANGE TIRE</button>
+              </div>
+            </section>`;
+        }, scenario);
+
+        await page.waitForFunction(
+          (expected) => {
+            const text = document.querySelector('[data-new-tire-selected]')?.innerText || '';
+            return new RegExp(`Brand\\s*${expected}`, 'i').test(text);
+          },
+          scenario.brand,
+          { timeout: 10000 },
+        );
+
+        const panel = await selected.innerText();
+        assert.match(panel, new RegExp(`Brand\\s*${scenario.brand}`, 'i'), `${scenario.brand} brand row`);
+        assert.match(panel, new RegExp(`Model\\s*${scenario.model}`, 'i'), `${scenario.brand} model row`);
+        assert.doesNotMatch(panel, /Brand\s*(?:Display|Load Range)/i, `${scenario.brand} label as brand`);
+        assert.doesNotMatch(panel, /Model\s*(?:Display|Load Range)/i, `${scenario.brand} label as model`);
+        assert.doesNotMatch(
+          panel,
+          new RegExp(`Brand\\s*${scenario.model}`, 'i'),
+          `${scenario.brand} model captured as the brand`,
+        );
+      }
+      console.log('ok  each selected tire shows its own brand and model, not a stale logo brand');
+    } catch (error) {
+      failures.push(`selected tire brand/model: ${error.message}`);
+    }
+
     assert.deepStrictEqual(errors, []);
 
     console.log('ok  valid tire model remains visible and sidebar/spec labels are rejected');

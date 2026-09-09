@@ -3,8 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Review used tires and pay with Stripe or send a reservation request to EastCord Tires." />
-    <title>Used Tire Cart | EastCord Tires</title>
+    <meta name="description" content="The EastCord Tires tire cart is unavailable. New tires are paid for directly in the tire search." />
+    <meta name="robots" content="noindex" />
+    <title>Tire Cart Unavailable | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=7" />
     <link rel="stylesheet" href="tire-cart.css?v=12" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
@@ -33,7 +34,6 @@
           <a href="/local-installers">Local Installers</a>
           <a href="/#contact">Contact</a>
           <span class="nav-carts" aria-label="Shopping carts">
-            <a href="/tire-cart" aria-current="page">Tire Cart<span data-tire-cart-count></span></a>
             <a href="/cart">Appointment Cart</a>
           </span>
           <span class="auth-nav-group" data-auth-logged-out>
@@ -53,93 +53,15 @@
 
     <main class="section" id="main-content">
       <div class="shell tire-cart-layout">
-        <section class="tire-cart-panel" aria-labelledby="tire-cart-title">
-          <h1 id="tire-cart-title">Your Tire Cart</h1>
-          <p>Review quantities, then pay with Stripe or send a reservation request.</p>
-          <div class="tire-cart-items" data-tire-cart-items></div>
+        <section class="tire-cart-panel tire-order-success" aria-labelledby="tire-cart-title">
+          <p class="tire-cart-eyebrow">Tire cart</p>
+          <h1 id="tire-cart-title">Not available right now</h1>
+          <p>New tires are paid for directly in the tire search, so there is no separate tire cart to check out.</p>
           <div class="tire-cart-actions">
-            <a class="button button-secondary" href="/used-tires">Continue Shopping</a>
-            <button class="button button-secondary" type="button" data-clear-tire-cart>Clear Tire Cart</button>
+            <a class="button button-primary" href="/new-tires">Shop New Tires</a>
+            <a class="button button-secondary" href="/appointment">Book Appointment</a>
           </div>
         </section>
-
-        <aside class="tire-cart-panel tire-reservation-panel" aria-labelledby="reservation-title">
-          <h2 id="reservation-title">Checkout</h2>
-          <div class="tire-cart-total">
-            <span>Total</span>
-            <strong data-tire-cart-grand-total>$0.00</strong>
-          </div>
-          <p class="tire-reservation-notice">
-            Pay now with Stripe. Stock is confirmed at checkout. Pickup is confirmed when the order is ready. Installation is booked after the tires arrive — EastCord will send you the appointment link.
-          </p>
-          <p class="tire-stripe-test-note" data-stripe-test-note hidden>
-            Stripe test mode is on. Use card <strong>4242 4242 4242 4242</strong>, any future expiry, any CVC, and any postal code.
-          </p>
-
-          <form data-tire-reservation-form>
-            <label class="tire-reservation-field">
-              <span>Full name *</span>
-              <input type="text" name="Full Name" autocomplete="name" required />
-            </label>
-            <label class="tire-reservation-field">
-              <span>Email address *</span>
-              <input type="email" name="Email Address" autocomplete="email" required />
-            </label>
-            <label class="tire-reservation-field">
-              <span>Phone number *</span>
-              <input type="tel" name="Phone Number" autocomplete="tel" required />
-            </label>
-
-            <fieldset class="tire-fulfillment-options">
-              <legend>Pickup or installation? *</legend>
-              <label>
-                <input type="radio" name="Fulfillment Preference" value="Pickup" checked />
-                <span><strong>Pickup</strong> — EastCord Tires will confirm when your order is ready.</span>
-              </label>
-              <label>
-                <input type="radio" name="Fulfillment Preference" value="Installation" />
-                <span><strong>Installation</strong> — purchase your tires now. We will send you a booking link after they arrive.</span>
-              </label>
-            </fieldset>
-
-            <div class="tire-installation-directions" data-installation-directions hidden>
-              <strong>Installation selected</strong>
-              <p>Do not book an appointment yet. When your tires are in, EastCord Tires will send you a link to sign in and book installation.</p>
-            </div>
-
-            <p class="tire-signed-in" data-signed-in-identity hidden>
-              Requesting as <strong data-account-name>My Account</strong>
-            </p>
-
-            <div class="tire-checkout-auth" data-tire-checkout-auth>
-              <strong>Please sign up or log in before paying.</strong>
-              <div class="tire-checkout-auth-actions">
-                <a class="button button-primary" href="/login.html?redirect=/tire-cart.html">Log In</a>
-                <a class="button button-secondary" href="/signup.html?redirect=/tire-cart.html">Create Account</a>
-              </div>
-            </div>
-
-            <p class="tire-cart-message" data-tire-cart-message aria-live="polite"></p>
-            <button class="button button-primary tire-checkout-submit" type="button" data-tire-checkout-button>
-              Pay with Stripe
-            </button>
-            <button class="button button-secondary tire-reservation-submit" type="submit" data-tire-reservation-submit>
-              Email reservation request
-            </button>
-            <div class="tire-reservation-fallback" data-reservation-fallback hidden>
-              <p data-reservation-fallback-status></p>
-              <div class="tire-reservation-fallback-actions">
-                <a class="button button-secondary" data-reservation-mailto>Open email app</a>
-                <a class="button button-secondary" data-reservation-gmail target="_blank" rel="noopener">Open Gmail</a>
-                <button class="button button-secondary" type="button" data-reservation-copy>Copy message</button>
-              </div>
-              <label class="tire-reservation-field">
-                <span>Message to EastCord</span>
-                <textarea data-reservation-body rows="8" readonly></textarea>
-              </label>
-            </div>
-          </form>
-        </aside>
       </div>
     </main>
 
@@ -201,9 +123,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
-    <script src="used-tire-pricing.js?v=2"></script>
     <script src="account.js?v=34"></script>
-    <script src="tire-cart.js?v=27"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

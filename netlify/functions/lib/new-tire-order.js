@@ -189,18 +189,19 @@ function cleanWidgetBrand(value) {
   const text = cleanWidgetText(value);
   if (!text) return '';
   if (/^category(?:[^a-z0-9]*|(?=winter|summer|performance|perform|touring|allseason|allweather|win|per))/i.test(text)) return '';
+  if (/^(?:display|load range)$/i.test(text)) return '';
   return text;
 }
 
 function cleanWidgetModel(value) {
   const text = cleanWidgetText(value);
   if (!text) return '';
-  if (/^(?:selected tire|tire details?|brand|manufacturer|make|model|tire model|product|product name|tire name|description|vehicle|year|vehicle year|vehicle make|vehicle model|submodel|trim|size|tire size|qty|quantity|warranty|category|season|speed rating|load index|sidewall|part|part number|sku|utqg|tread depth|asymmetrical|asymmetric|directional|non[\s-]?directional|studdable|studded|run[\s-]?flat|price|price\/?tire|price per tire|per tire|unit price|retail price|price range|price summary|subtotal|sub-total|tax|taxes|eco fee|tire eco fee|total|total price|deposit|balance|pickup|installation|delivery|shipping|order type|fulfillment|required services?|optional services?)$/i.test(text)) return '';
+  if (/^(?:selected tire|tire details?|brand|manufacturer|make|model|tire model|product|product name|tire name|description|display|load range|vehicle|year|vehicle year|vehicle make|vehicle model|submodel|trim|size|tire size|qty|quantity|warranty|category|season|speed rating|load index|sidewall|part|part number|sku|utqg|tread depth|asymmetrical|asymmetric|directional|non[\s-]?directional|studdable|studded|run[\s-]?flat|price|price\/?tire|price per tire|per tire|unit price|retail price|price range|price summary|subtotal|sub-total|tax|taxes|eco fee|tire eco fee|total|total price|deposit|balance|pickup|installation|delivery|shipping|order type|fulfillment|required services?|optional services?)$/i.test(text)) return '';
   if (/^(?:selected tire|brand|manufacturer|make|model|tire model|product(?: name)?|tire name|description|vehicle(?: year|make|model)?|year|submodel|trim|price(?:\s*\/?\s*tire| per tire| range)?|unit price|retail price|qty|quantity)\b/i.test(text)) return '';
   if (/^(?:warranty|category|size|speed rating|load index|sidewall|part|sku|utqg|tread depth|qty|quantity|per tire)(?:\b|(?=\d))/i.test(text)) return '';
   if (/^(?:non(?:\s*-\s*|\s+)?)?(?:asymmetrical|asymmetric|directional|studdable|studded|run[\s-]?flat)\s*[:\-]?\s*(?:yes|no)$/i.test(text)) return '';
   if (/^[a-z][a-z0-9 /_-]{1,48}\s+(?:yes|no)$/i.test(text)) return '';
-  if (/^(?:yes|no|bsw|owl|rwl|wol)$/i.test(text)) return '';
+  if (/^(?:yes|no|bsw|owl|rwl|wol|display|images?|gallery|zoom|photos?)$/i.test(text)) return '';
   if (/^\d[\d,.]*\s*(?:km|kilometres?|miles?)$/i.test(text)) return '';
   if (/^[a-z]\s*\(\s*\d+\s*km\/h\s*\)$/i.test(text)) return '';
   if (/^\d{3}\s+[a-z]\s+[a-z]$/i.test(text)) return '';

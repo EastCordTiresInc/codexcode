@@ -17,13 +17,20 @@
     'Dextero', 'Lionhart', 'Cosmo', 'Landspider', 'Superia', 'Zeetex', 'Rotalla',
     'Mazzini', 'Grenlander', 'Lanvigator', 'Aplus', 'Minerva', 'Tracmax',
     'Joyroad', 'Wanli', 'Blacklion', 'Roadstone', 'Marshal', 'Nankang', 'Zeta',
-    'Ambfor', 'Goodtrip', 'Milever',
+    'Ambfor', 'Goodtrip', 'Milever', 'iLink', 'Arivo', 'Compasal', 'Winrun',
+    'Windforce', 'Hifly', 'Leao', 'Sunny', 'Sunfull', 'Otani', 'Austone',
+    'Comforser', 'Delinte', 'Duraturn', 'Evergreen', 'Greentrac', 'Headway',
+    'Jinyu', 'Keter', 'Massimo', 'Nereus', 'Powertrac', 'Roadcruza', 'Saferich',
+    'Farroad', 'Kapsen', 'Habilead', 'Firemax', 'Bearway', 'Neoterra', 'Sonix',
+    'Winda', 'Yeada', 'Cachland', 'Crossleader', 'Gremax', 'Luxxan', 'Mileking',
+    'Sportrak', 'Vitour', 'Waterfall', 'Durun', 'Roadone', 'Altenzo', 'Arisun',
+    'Aeolus', 'Apollo', 'Doublestar', 'Vredestein', 'Motomaster',
   ].slice().sort((a, b) => b.length - a.length);
 
   const CATEGORY_LINE = /^(performance|summer|winter|touring|all season|all weather|mud terrain|highway terrain|sport|passenger|ltr?|xl|category|win|per|perform)$/i;
   const CATEGORY_BRAND = /^category(?:[^a-z0-9]*|(?=winter|summer|performance|perform|touring|allseason|allweather|win|per))/i;
   const SPEC_LABEL = /^(summary|price summary|quote|qty|quantity|warranty|category|size|speed rating|load index|sidewall|part|part #|sku|utqg|tread depth|per tire|set of|change tire|n\/a|kmh|km|order by|sort by)\b/i;
-  const UI_FIELD_LABEL = /^(?:selected tire|tire details?|brand|manufacturer|make|model|tire model|product|product name|tire name|description|vehicle|year|vehicle year|vehicle make|vehicle model|submodel|trim|size|tire size|qty|quantity|warranty|category|season|speed rating|load index|sidewall|part|part number|sku|utqg|tread depth|asymmetrical|asymmetric|directional|non[\s-]?directional|studdable|studded|run[\s-]?flat|price|price tire|price per tire|per tire|unit price|retail price|price range|price summary|sub[\s-]?total|tax|taxes|eco fee|tire eco fee|total|total price|deposit|balance|pickup|installation|delivery|shipping|order type|fulfillment|required services?|optional services?)$/i;
+  const UI_FIELD_LABEL = /^(?:selected tire|tire details?|brand|manufacturer|make|model|tire model|product|product name|tire name|description|display|load range|vehicle|year|vehicle year|vehicle make|vehicle model|submodel|trim|size|tire size|qty|quantity|warranty|category|season|speed rating|load index|sidewall|part|part number|sku|utqg|tread depth|asymmetrical|asymmetric|directional|non[\s-]?directional|studdable|studded|run[\s-]?flat|price|price tire|price per tire|per tire|unit price|retail price|price range|price summary|sub[\s-]?total|tax|taxes|eco fee|tire eco fee|total|total price|deposit|balance|pickup|installation|delivery|shipping|order type|fulfillment|required services?|optional services?)$/i;
   const UI_FIELD_PREFIX = /^(?:selected tire|brand|manufacturer|make|model|tire model|product(?: name)?|tire name|description|vehicle(?: year|make|model)?|year|submodel|trim|price(?:\s*\/?\s*tire| per tire| range)?|unit price|retail price|qty|quantity)\b/i;
   const LOGO_STOPWORDS = /^(logo|brand|tire|tyre|tires|icon|image|sprite|header|filter|manufacturer|assets|cdn|static|media|img|png|jpg|jpeg|svg|webp)$/i;
 
@@ -90,7 +97,9 @@
   function sanitizeBrand(value) {
     const text = cleanTireField(value);
     if (!text || isBadBrandCandidate(text)) return '';
-    return knownBrandIn(text) || text;
+    const known = knownBrandIn(text);
+    if (known) return known;
+    return looksLikeBrand(text) ? text : '';
   }
 
   function brandTokenFromSegment(segment) {
@@ -130,6 +139,7 @@
     const text = cleanTireField(value);
     if (!text || isBadBrandCandidate(text)) return false;
     if (isKnownBrandName(text)) return true;
+    if (text.split(/\s+/).length > 1) return false;
     if (SPEC_LABEL.test(text) || tireSizeHint(text) || /\$/.test(text) || CATEGORY_LINE.test(text)) return false;
     if (/\bcategory\b/i.test(text)) return false;
     if (text.length < 2 || text.length > 28) return false;
@@ -174,7 +184,7 @@
     if (/^(?:warranty|category|size|speed rating|load index|sidewall|part|sku|utqg|tread depth|qty|quantity|per tire)(?:\b|(?=\d))/i.test(text)) return true;
     if (/^(?:non(?:\s*-\s*|\s+)?)?(?:asymmetrical|asymmetric|directional|studdable|studded|run[\s-]?flat)\s*[:\-]?\s*(?:yes|no)$/i.test(text)) return true;
     if (/^[a-z][a-z0-9 /_-]{1,48}\s+(?:yes|no)$/i.test(text)) return true;
-    if (/^(?:yes|no|bsw|owl|rwl|wol)$/i.test(text)) return true;
+    if (/^(?:yes|no|bsw|owl|rwl|wol|display|images?|gallery|zoom|photos?)$/i.test(text)) return true;
     if (/^\d[\d,.]*\s*(?:km|kilometres?|miles?)$/i.test(text)) return true;
     if (/^[a-z]\s*\(\s*\d+\s*km\/h\s*\)$/i.test(text)) return true;
     if (/^\d{3}\s+[a-z]\s+[a-z]$/i.test(text)) return true;
@@ -219,17 +229,18 @@
     const hints = [
       [/\bICELYNX\s+TI501\b/i, 'Triangle'],
       [/\bATREZZO\s+4S\b/i, 'Sailun'],
+      [/\bPOTENZA\b/i, 'Bridgestone'],
     ];
     return hints.find(([pattern]) => pattern.test(model))?.[1] || '';
   }
 
   function pickSummaryBrand(summaryText, logoHay = '') {
     const hay = `${logoHay || ''}\n${summaryText || ''}`;
-    const fromLogo = sanitizeBrand(brandFromLogoHint(hay)) || sanitizeBrand(knownBrandIn(logoHay || ''));
-    if (fromLogo) return fromLogo;
     const heading = sanitizeBrand(headingBrandFrom(summaryText));
     if (isKnownBrandName(heading)) return heading;
-    return brandFromModelHint(summaryText) || '';
+    const fromLogo = sanitizeBrand(brandFromLogoHint(hay)) || sanitizeBrand(knownBrandIn(logoHay || ''));
+    if (fromLogo) return fromLogo;
+    return brandFromModelHint(summaryText) || heading || '';
   }
 
   function scrapeQty(text) {

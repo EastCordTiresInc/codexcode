@@ -28,8 +28,10 @@
     strongerBrand,
     knownBrandIn,
     brandFromLogoHint,
+    brandFromModelHint,
     headingBrandFrom,
     headingModelFrom,
+    looksLikeBrand,
     sanitizeModel,
     pickSummaryBrand,
     isBadBrandCandidate,
@@ -1215,8 +1217,10 @@
       || brandFromElement(card)
       || brandFromLogoHint(hay)
       || brandFromCache(hay, size, part)
+      || brandFromModelHint(text)
       || String(text).split(/\n/).map((line) => cleanTireField(line)).find((line) => (
         line
+        && looksLikeBrand(line)
         && !skip.test(line)
         && !tireSizeValue(line)
         && !/\$/.test(line)
@@ -1228,7 +1232,7 @@
     const price = scrapeUnitPrice(text) || Number(String(text.match(/\$([\d,.]+)/)?.[1] || '').replace(/,/g, '')) || 0;
     if (!brand && !size) return null;
     return {
-      tires: [{ brand: cleanTireField(brand), model: '', size, qty, price, partNumber: '' }],
+      tires: [{ brand: sanitizeBrand(brand), model: '', size, qty, price, partNumber: '' }],
       vehicle: {},
       hash: window.location.hash || '',
     };
