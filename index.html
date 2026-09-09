@@ -11,7 +11,7 @@
     <link rel="preload" as="image" href="assets/used-tires-bg.webp" type="image/webp" fetchpriority="high" />
     <link rel="preload" as="image" href="assets/new-tires-bg.webp" type="image/webp" />
     <link rel="preload" as="image" href="assets/changeover-bg.webp" type="image/webp" />
-    <link rel="stylesheet" href="styles.css?v=7" />
+    <link rel="stylesheet" href="styles.css?v=8" />
     <link rel="stylesheet" href="used-tires-card.css?v=15" />
     <link rel="stylesheet" href="video-section.css?v=3" />
     <link rel="stylesheet" href="warranty-section.css?v=1" />
@@ -67,11 +67,14 @@
             <a href="/login">Log In</a>
           </span>
           <span class="auth-nav-group" data-auth-logged-in hidden>
-            <a class="auth-account-link" href="/account">
-              <span data-account-name>My Account</span>
-              <small data-account-email></small>
-            </a>
-            <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
+            <div class="nav-dropdown nav-account-dropdown">
+              <button class="nav-dropdown-toggle" type="button" aria-expanded="false" aria-haspopup="true">My Account</button>
+              <div class="nav-dropdown-menu">
+                <small class="nav-account-email" data-account-email hidden></small>
+                <a href="/account">View Account</a>
+                <button class="auth-link-button" type="button" data-logout-button>Log Out</button>
+              </div>
+            </div>
           </span>
         </nav>
       </div>

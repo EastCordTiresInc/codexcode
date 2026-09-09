@@ -216,6 +216,32 @@ button {
   background: #f7f7f6;
 }
 
+.nav-account-dropdown .nav-dropdown-menu {
+  left: auto;
+  right: 0;
+}
+
+.main-nav .nav-dropdown-menu .auth-link-button {
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.main-nav .nav-dropdown-menu .auth-link-button:hover,
+.main-nav .nav-dropdown-menu .auth-link-button:focus-visible {
+  background: #f7f7f6;
+}
+
+.main-nav .nav-account-email {
+  padding: 4px 10px 6px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
 .nav-carts {
   display: inline-flex;
   align-items: center;
@@ -1197,6 +1223,27 @@ h3 {
   }
 }
 
+@media (max-width: 940px) and (min-width: 801px) {
+  .nav-shell {
+    gap: 14px;
+  }
+
+  .main-nav {
+    gap: 10px;
+  }
+
+  .main-nav a,
+  .main-nav .auth-link-button,
+  .nav-dropdown-toggle {
+    font-size: 0.8rem;
+  }
+
+  .nav-carts a {
+    padding: 0 10px;
+    font-size: 0.75rem;
+  }
+}
+
 @media (max-width: 800px) {
   .site-header,
   .nav-shell {
@@ -1301,10 +1348,18 @@ h3 {
     font-size: 1rem;
   }
 
-  .main-nav .auth-link-button {
+  .main-nav .auth-link-button,
+  .main-nav .nav-dropdown-menu .auth-link-button {
     padding: 13px 4px;
     font-size: 1rem;
     text-align: left;
+  }
+
+  .main-nav .nav-account-email {
+    padding: 10px 4px 4px;
+    border-bottom: 0;
+    margin-bottom: 0;
+    max-width: 100%;
   }
 
   .main-nav .auth-nav-group {
