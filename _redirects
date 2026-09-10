@@ -12,6 +12,8 @@
 /account/  /account.html   301!
 /admin     /admin.html     301!
 /admin/    /admin.html     301!
+/admin/calendar    /admin-calendar.html    301!
+/admin/calendar/   /admin-calendar.html    301!
 /cart      /cart.html      301!
 /cart/     /cart.html      301!
 /tire-cart      /tire-cart.html      301!

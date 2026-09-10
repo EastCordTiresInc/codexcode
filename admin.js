@@ -1,7 +1,10 @@
 (() => {
   const ADMIN_EMAIL = 'info@eastcordtires.ca';
+  const REFRESH_MS = 15000;
 
   const els = {
+    chrome: document.querySelector('[data-admin-chrome]'),
+    staffEmail: document.querySelector('[data-admin-staff-email]'),
     loading: document.querySelector('[data-admin-loading]'),
     gate: document.querySelector('[data-admin-gate]'),
     gateMessage: document.querySelector('[data-admin-gate-message]'),
@@ -11,6 +14,10 @@
     status: document.querySelector('[data-admin-status]'),
     list: document.querySelector('[data-admin-list]'),
   };
+
+  let staffEmail = ADMIN_EMAIL;
+  let refreshTimer = null;
+  let refreshInFlight = false;
 
   function money(value) {
     const amount = Number(value);
@@ -36,17 +43,25 @@
     }).format(new Date());
   }
 
+  function phoneHref(phone) {
+    const digits = String(phone || '').replace(/[^\d+]/g, '');
+    return digits ? `tel:${digits}` : '';
+  }
+
   function showGate(message) {
     if (els.loading) els.loading.hidden = true;
     if (els.dashboard) els.dashboard.hidden = true;
+    if (els.chrome) els.chrome.hidden = true;
     if (els.gate) els.gate.hidden = false;
     if (els.gateMessage && message) els.gateMessage.textContent = message;
   }
 
-  function showDashboard() {
+  function showDashboard(email = '') {
     if (els.loading) els.loading.hidden = true;
     if (els.gate) els.gate.hidden = true;
     if (els.dashboard) els.dashboard.hidden = false;
+    if (els.chrome) els.chrome.hidden = false;
+    if (els.staffEmail) els.staffEmail.textContent = email || ADMIN_EMAIL;
   }
 
   function setStatus(message, tone = '') {
@@ -79,6 +94,13 @@
       : '<span class="admin-badge is-pending">Payment pending</span>';
   }
 
+  function renderPhone(phone) {
+    const label = phone || 'Not provided';
+    const href = phoneHref(phone);
+    if (!href) return `<strong>${escapeHtml(label)}</strong>`;
+    return `<strong><a href="${escapeHtml(href)}">${escapeHtml(label)}</a></strong>`;
+  }
+
   function renderAppointments(appointments) {
     if (!els.list) return;
     if (!appointments.length) {
@@ -104,7 +126,7 @@
           </div>
           <div class="admin-grid">
             <div><span>Customer</span><strong>${escapeHtml(appointment.customer_name || 'Not provided')}</strong></div>
-            <div><span>Phone</span><strong>${escapeHtml(appointment.customer_phone || 'Not provided')}</strong></div>
+            <div><span>Phone</span>${renderPhone(appointment.customer_phone)}</div>
             <div><span>Email</span><strong>${escapeHtml(appointment.customer_email || 'Not provided')}</strong></div>
             <div><span>Vehicle</span><strong>${escapeHtml(vehicleLabel(appointment))}</strong></div>
             <div><span>Plate</span><strong>${escapeHtml(appointment.vehicle_plate_number || 'Not provided')}</strong></div>
@@ -119,42 +141,82 @@
     }).join('');
   }
 
-  async function loadAppointments(date) {
-    const token = await window.EastCordAccount?.getAccessToken?.();
-    if (!token) {
-      showGate('Log in with the EastCord staff account to open the admin dashboard.');
-      return;
+  function currentDate() {
+    return els.dateInput?.value || torontoToday();
+  }
+
+  function stopAutoRefresh() {
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
     }
+  }
 
-    setStatus(`Loading appointments for ${date}...`);
-    const response = await fetch(`/.netlify/functions/admin-appointments?date=${encodeURIComponent(date)}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    refreshTimer = setInterval(() => {
+      if (document.hidden || refreshInFlight) return;
+      loadAppointments(currentDate(), staffEmail, { quiet: true });
+    }, REFRESH_MS);
+  }
 
-    let payload = {};
+  async function loadAppointments(date, email, options = {}) {
+    const quiet = Boolean(options.quiet);
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+
     try {
-      payload = await response.json();
-    } catch (error) {
-      payload = {};
-    }
+      const token = await window.EastCordAccount?.getAccessToken?.();
+      if (!token) {
+        stopAutoRefresh();
+        showGate('Log in with the EastCord staff account to open the admin dashboard.');
+        return;
+      }
 
-    if (response.status === 401 || response.status === 403) {
-      showGate(payload.message || 'This account is not allowed to open the admin dashboard.');
-      return;
-    }
+      if (!quiet) setStatus(`Loading appointments for ${date}...`);
+      const response = await fetch(`/.netlify/functions/admin-appointments?date=${encodeURIComponent(date)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    if (!response.ok) {
-      setStatus(payload.message || 'Appointments could not be loaded.', 'error');
-      if (els.list) els.list.innerHTML = '';
-      return;
-    }
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = {};
+      }
 
-    showDashboard();
-    const count = Number(payload.count) || 0;
-    setStatus(count === 1 ? '1 appointment' : `${count} appointments`);
-    renderAppointments(Array.isArray(payload.appointments) ? payload.appointments : []);
+      if (response.status === 401 || response.status === 403) {
+        stopAutoRefresh();
+        showGate(payload.message || 'This account is not allowed to open the admin dashboard.');
+        return;
+      }
+
+      if (!response.ok) {
+        if (!quiet) {
+          setStatus(payload.message || 'Appointments could not be loaded.', 'error');
+          if (els.list) els.list.innerHTML = '';
+        }
+        return;
+      }
+
+      showDashboard(email);
+      const count = Number(payload.count) || 0;
+      const stamp = new Date().toLocaleTimeString('en-CA', {
+        timeZone: 'America/Toronto',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      setStatus(
+        `${count === 1 ? '1 appointment' : `${count} appointments`} · Live · updated ${stamp}`,
+      );
+      renderAppointments(Array.isArray(payload.appointments) ? payload.appointments : []);
+      startAutoRefresh();
+    } finally {
+      refreshInFlight = false;
+    }
   }
 
   async function initialize() {
@@ -165,20 +227,22 @@
 
     const profile = await window.EastCordAccount.getCurrentProfile?.();
     const email = String(profile?.email || '').trim().toLowerCase();
+    const isStaff = window.EastCordAccount.isStaffAdminEmail?.(email) || email === ADMIN_EMAIL;
     if (!email) {
       showGate('Log in with info@eastcordtires.ca to open the admin dashboard.');
       return;
     }
 
-    if (email !== ADMIN_EMAIL) {
+    if (!isStaff) {
       showGate('Only the EastCord staff account can open this page.');
       return;
     }
 
+    staffEmail = email;
     const initialDate = new URLSearchParams(window.location.search).get('date') || torontoToday();
     if (els.dateInput) els.dateInput.value = initialDate;
-    showDashboard();
-    await loadAppointments(initialDate);
+    showDashboard(email);
+    await loadAppointments(initialDate, email);
   }
 
   els.dateForm?.addEventListener('submit', async (event) => {
@@ -187,7 +251,17 @@
     const url = new URL(window.location.href);
     url.searchParams.set('date', date);
     window.history.replaceState({}, '', url);
-    await loadAppointments(date);
+    await loadAppointments(date, staffEmail);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || els.dashboard?.hidden) return;
+    loadAppointments(currentDate(), staffEmail, { quiet: true });
+  });
+
+  window.addEventListener('focus', () => {
+    if (document.hidden || els.dashboard?.hidden) return;
+    loadAppointments(currentDate(), staffEmail, { quiet: true });
   });
 
   if (document.readyState === 'loading') {

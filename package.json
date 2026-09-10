@@ -5,6 +5,8 @@
   "scripts": {
     "predev": "node scripts/generate-auth-config.js && node scripts/generate-tireconnect-config.js",
     "dev": "node scripts/run-dev.js",
+    "dev:user": "node scripts/run-user-dev.js",
+    "keep-alive": "node scripts/keep-alive.js",
     "cache-photos": "node scripts/build-drive-photo-cache.js",
     "build": "node scripts/generate-auth-config.js && node scripts/generate-tireconnect-config.js && node scripts/build-brand-cards.js && node scripts/link-appointment-page.js && echo \"Static EastCord Tires site\""
   },

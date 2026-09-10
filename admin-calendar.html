@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
-    <title>Admin | EastCord Tires</title>
+    <title>Calendar | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
     <link rel="stylesheet" href="admin.css?v=3" />
   </head>
@@ -21,8 +21,8 @@
         </div>
 
         <nav class="admin-tabs" aria-label="Admin sections">
-          <a href="/admin" aria-current="page">Appointments</a>
-          <a href="/admin/calendar">Calendar</a>
+          <a href="/admin">Appointments</a>
+          <a href="/admin/calendar" aria-current="page">Calendar</a>
         </nav>
 
         <div class="admin-session">
@@ -33,7 +33,7 @@
     </header>
 
     <main id="main-content" class="admin-main">
-      <div class="admin-shell" data-admin-root>
+      <div class="admin-shell admin-shell-wide" data-admin-root>
         <div class="admin-panel admin-loading" data-admin-loading>
           <p class="admin-kicker">EastCord staff</p>
           <h1>Checking access</h1>
@@ -45,7 +45,7 @@
           <h1>Staff access required</h1>
           <p data-admin-gate-message>Log in with info@eastcordtires.ca to open the admin dashboard.</p>
           <div class="admin-actions">
-            <a class="button button-primary" href="/login.html?redirect=/admin">Log in</a>
+            <a class="button button-primary" href="/login.html?redirect=/admin/calendar">Log in</a>
             <a class="button button-secondary" href="/">Public site</a>
           </div>
         </section>
@@ -53,21 +53,21 @@
         <section data-admin-dashboard hidden>
           <div class="admin-header">
             <div>
-              <p class="admin-kicker">Daily schedule</p>
-              <h1>Appointments</h1>
-              <p>Booked jobs for the selected day, including deposit and remaining balance.</p>
+              <p class="admin-kicker">Week view</p>
+              <h1>Calendar</h1>
+              <p>Appointment slots from 8:00 AM to 8:00 PM. Open a day for the full schedule details.</p>
             </div>
-            <form class="admin-toolbar" data-admin-date-form>
-              <label>
-                Date
-                <input type="date" name="date" data-admin-date required />
-              </label>
-              <button class="button button-secondary" type="submit">Show day</button>
-            </form>
+            <div class="admin-toolbar admin-calendar-toolbar">
+              <button class="button button-secondary" type="button" data-cal-prev>Previous week</button>
+              <button class="button button-secondary" type="button" data-cal-today>This week</button>
+              <button class="button button-secondary" type="button" data-cal-next>Next week</button>
+            </div>
           </div>
 
-          <p class="admin-status" data-admin-status aria-live="polite">Loading appointments...</p>
-          <div class="admin-list" data-admin-list></div>
+          <p class="admin-status" data-admin-status aria-live="polite">Loading calendar...</p>
+          <div class="admin-calendar-scroll">
+            <div class="admin-calendar" data-admin-calendar></div>
+          </div>
         </section>
       </div>
     </main>
@@ -79,6 +79,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
     <script src="account.js?v=57"></script>
-    <script src="admin.js?v=4"></script>
+    <script src="admin-calendar.js?v=2"></script>
   </body>
 </html>

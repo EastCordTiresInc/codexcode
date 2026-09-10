@@ -3,6 +3,7 @@ const CART_KEY = 'eastcord_cart_v1';
 const ACCOUNT_SETUP_MESSAGE = 'Account signup is being connected. Please contact EastCord Tires or check back soon.';
 const EMAIL_CONFIRMATION_MESSAGE = 'Account created. Please check your email to confirm your account, then log in.';
 const EXISTING_MEMBER_LOGIN_MESSAGE = 'This email already has an EastCord Tires account. Please sign in.';
+const STAFF_ADMIN_EMAIL = 'info@eastcordtires.ca';
 const PASSWORD_RECOVERY_KEY = 'eastcord_password_recovery_pending';
 const TAX_RATE = 0.13;
 const CUSTOMER_CART_TYPES = new Set(['appointment', 'used_tire']);
@@ -86,6 +87,34 @@ function goToRedirectTarget(defaultTarget = '/account.html') {
   const redirectTo = getRedirectTarget(defaultTarget);
   localStorage.removeItem('eastcord_auth_redirect');
   window.location.href = redirectTo;
+}
+
+function isStaffAdminEmail(email) {
+  return String(email || '').trim().toLowerCase() === STAFF_ADMIN_EMAIL;
+}
+
+function syncStaffAdminNav(profile) {
+  const isStaff = isStaffAdminEmail(profile?.email);
+  document.body.dataset.eastcordStaffAdmin = isStaff ? 'true' : 'false';
+
+  document.querySelectorAll('.nav-account-dropdown .nav-dropdown-menu').forEach((menu) => {
+    let adminLink = menu.querySelector('[data-staff-admin-link]');
+    if (!isStaff) {
+      adminLink?.remove();
+      return;
+    }
+    if (adminLink) return;
+    adminLink = document.createElement('a');
+    adminLink.href = '/admin';
+    adminLink.setAttribute('data-staff-admin-link', '');
+    adminLink.textContent = 'Admin';
+    if (/\/admin(?:\.html)?(?:[?#]|$)/.test(window.location.pathname)) {
+      adminLink.setAttribute('aria-current', 'page');
+    }
+    const logoutButton = menu.querySelector('[data-logout-button]');
+    if (logoutButton) menu.insertBefore(adminLink, logoutButton);
+    else menu.appendChild(adminLink);
+  });
 }
 
 function preserveAuthSwitchLinks() {
@@ -1452,6 +1481,8 @@ function applySignedInProfile(profile) {
     element.remove();
   });
 
+  syncStaffAdminNav(signedIn ? profile : null);
+
   if (signedIn) fillKnownCustomerFields(profile);
   window.dispatchEvent(new CustomEvent('eastcord:auth-changed', { detail: { profile, signedIn } }));
 }
@@ -1625,10 +1656,18 @@ function bindAuthForms() {
     setAuthMessage('Logging you in...', 'success');
 
     try {
-      await signInCustomer({
+      const session = await signInCustomer({
         email: formData.get('Email'),
         password: formData.get('Password'),
       });
+      const email = String(formData.get('Email') || session?.user?.email || '').trim().toLowerCase();
+      const redirectTarget = getRedirectTarget('/account.html');
+      const goingToAccount = redirectTarget === '/account.html' || redirectTarget === '/account';
+      if (isStaffAdminEmail(email) && goingToAccount) {
+        localStorage.removeItem('eastcord_auth_redirect');
+        window.location.href = '/admin';
+        return;
+      }
       goToRedirectTarget('/account.html');
     } catch (error) {
       setAuthMessage(error.message || 'Login could not be completed.', 'error');
@@ -2003,6 +2042,7 @@ window.EastCordAccount = {
   getSupabaseClient,
   getCurrentProfile,
   getAccessToken,
+  isStaffAdminEmail,
   getCart,
   saveCart,
   loadCustomerCart,

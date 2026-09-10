@@ -82,6 +82,18 @@
   force = true
 
 [[redirects]]
+  from = "/admin/calendar"
+  to = "/admin-calendar.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/admin/calendar/"
+  to = "/admin-calendar.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/cart"
   to = "/cart.html"
   status = 301
