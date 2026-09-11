@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Inventory | EastCord Admin</title>
+    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="admin.css?v=9" />
+  </head>
+  <body class="admin-app">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="admin-topbar" data-admin-chrome hidden>
+      <div class="admin-topbar-inner">
+        <div class="admin-brand-block">
+          <a class="admin-brand" href="/admin" aria-label="EastCord Admin home">
+            <img src="/assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+          </a>
+          <span class="admin-product-label">Admin</span>
+        </div>
+
+        <nav class="admin-tabs" aria-label="Admin sections">
+          <a href="/admin">Appointments</a>
+          <a href="/admin/calendar">Calendar</a>
+          <a href="/admin/inventory" aria-current="page">Inventory</a>
+        </nav>
+
+        <div class="admin-session">
+          <span class="admin-session-email" data-admin-staff-email></span>
+          <button class="admin-logout" type="button" data-logout-button>Log out</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content" class="admin-main">
+      <div class="admin-shell admin-shell-wide" data-admin-root>
+        <div class="admin-panel admin-loading" data-admin-loading>
+          <p class="admin-kicker">EastCord staff</p>
+          <h1>Checking access</h1>
+          <p>Confirming the staff session...</p>
+        </div>
+
+        <section class="admin-panel admin-gate" data-admin-gate hidden>
+          <p class="admin-kicker">EastCord staff</p>
+          <h1>Staff access required</h1>
+          <p data-admin-gate-message>Log in with info@eastcordtires.ca to open the admin dashboard.</p>
+          <div class="admin-actions">
+            <a class="button button-primary" href="/login.html?redirect=/admin/inventory">Log in</a>
+            <a class="button button-secondary" href="/">Public site</a>
+          </div>
+        </section>
+
+        <section data-admin-dashboard hidden>
+          <div class="admin-header">
+            <div>
+              <p class="admin-kicker">Used tires</p>
+              <h1>Inventory</h1>
+              <p>Read-only Sheet1 layout. Click brands, seasons, and sizes on the left to filter.</p>
+            </div>
+            <form class="admin-toolbar admin-inventory-toolbar" data-admin-inventory-form>
+              <label>
+                Search
+                <input
+                  type="search"
+                  name="q"
+                  data-admin-inventory-search
+                  placeholder="id, brand, tire_size…"
+                  autocomplete="off"
+                />
+              </label>
+              <label>
+                Stock
+                <select data-admin-inventory-stock>
+                  <option value="all" selected>All</option>
+                  <option value="in">In stock</option>
+                  <option value="out">Out of stock</option>
+                </select>
+              </label>
+              <label>
+                Sort
+                <select data-admin-inventory-sort>
+                  <option value="id-asc" selected>Tire ID (default)</option>
+                  <option value="selling_price-asc">Price: low to high</option>
+                  <option value="selling_price-desc">Price: high to low</option>
+                  <option value="current_stock-asc">Quantity: low to high</option>
+                  <option value="current_stock-desc">Quantity: high to low</option>
+                </select>
+              </label>
+              <button class="button button-secondary" type="submit">Apply</button>
+            </form>
+          </div>
+
+          <p class="admin-status" data-admin-status aria-live="polite">Loading inventory...</p>
+
+          <div class="admin-inventory-layout">
+            <aside class="admin-inventory-filters" aria-label="Inventory filters">
+              <div class="admin-filter-block">
+                <div class="admin-filter-heading">
+                  <h2>Brand</h2>
+                  <button type="button" class="admin-filter-clear" data-clear-filter="brand">Clear</button>
+                </div>
+                <div class="admin-filter-list" data-filter-list="brand"></div>
+              </div>
+
+              <div class="admin-filter-block">
+                <div class="admin-filter-heading">
+                  <h2>Season</h2>
+                  <button type="button" class="admin-filter-clear" data-clear-filter="season">Clear</button>
+                </div>
+                <div class="admin-filter-list" data-filter-list="season"></div>
+              </div>
+
+              <div class="admin-filter-block">
+                <div class="admin-filter-heading">
+                  <h2>Size</h2>
+                  <button type="button" class="admin-filter-clear" data-clear-filter="size">Clear</button>
+                </div>
+                <div class="admin-filter-list" data-filter-list="size"></div>
+              </div>
+            </aside>
+
+            <div class="admin-inventory-scroll">
+              <div class="admin-inventory" data-admin-inventory></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="admin-footer">
+      <p>EastCord Tires staff tools · not for customers</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js?v=4"></script>
+    <script src="account.js?v=57"></script>
+    <script src="admin-inventory.js?v=7"></script>
+  </body>
+</html>

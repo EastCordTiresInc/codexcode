@@ -1,7 +1,7 @@
 const form = document.querySelector('[data-installer-form]');
-const successCard = document.querySelector('[data-installer-success]');
 const status = document.querySelector('[data-installer-status]');
 const submitButton = document.querySelector('[data-installer-submit]');
+const SUCCESS_URL = '/installer-application-success';
 
 if (form) {
   form.addEventListener('submit', handleInstallerSubmit);
@@ -36,9 +36,7 @@ async function handleInstallerSubmit(event) {
       throw new Error(`Installer form ${response.status}`);
     }
 
-    form.hidden = true;
-    if (successCard) successCard.hidden = false;
-    successCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.location.assign(SUCCESS_URL);
   } catch (error) {
     console.warn('[EastCord installers] Form submit failed.', error);
     if (submitButton) {

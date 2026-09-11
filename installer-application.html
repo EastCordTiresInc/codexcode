@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
     <link rel="stylesheet" href="appointment.css?v=23" />
-    <link rel="stylesheet" href="local-installers.css?v=4" />
+    <link rel="stylesheet" href="local-installers.css?v=5" />
   </head>
   <body class="appointment-page installer-application-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -36,7 +36,8 @@
             </div>
           </div>
           <a href="/appointment">Appointment</a>
-          <a href="/local-installers" aria-current="page">Local Installers</a>
+          <a href="/local-installers" aria-current="page">Installers</a>
+          <a href="/proudly-canadian">Proudly Canadian</a>
           <a href="/#contact">Contact</a>
           <span class="nav-carts" aria-label="Shopping carts">
             <a href="/cart">Appointment Cart</a>
@@ -63,13 +64,13 @@
       <section class="section zoho-form-section" aria-labelledby="application-title">
         <div class="shell zoho-form-shell">
           <p class="zoho-back-row">
-            <a class="zoho-back-link" href="/local-installers">← Back to Local Installers</a>
+            <a class="zoho-back-link" href="/local-installers">← Back to Installers</a>
           </p>
           <form
             class="zoho-form"
             name="eastcord-installer-application"
             method="POST"
-            action="/thank-you.html"
+            action="/installer-application-success"
             data-netlify="true"
             netlify-honeypot="bot-field"
             data-installer-form
@@ -312,17 +313,6 @@
               <button class="zoho-submit" type="submit" data-installer-submit>Submit</button>
             </div>
           </form>
-
-          <div class="zoho-form installer-success-card" data-installer-success hidden>
-            <header class="zoho-form-header">
-              <p class="zoho-form-kicker">EastCord Tires</p>
-              <h2>Submission received</h2>
-              <p>Thank you. EastCord will review your technician submission and follow up if we can assign you service-call jobs.</p>
-            </header>
-            <div class="zoho-form-footer">
-              <a class="zoho-submit zoho-submit-link" href="/local-installers">Back to Local Installers</a>
-            </div>
-          </div>
         </div>
       </section>
     </main>
@@ -354,7 +344,7 @@
             <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
             <a href="/proudly-canadian">Proudly Canadian</a>
             <a href="/appointment">Changeover / Swap Service</a>
-            <a href="/local-installers">Local Installers</a>
+            <a href="/local-installers">Installers</a>
             <a href="/#contact">Contact EastCord</a>
           </div>
         </div>
@@ -363,7 +353,8 @@
           <a href="/used-tires">Used Tires</a>
           <a href="/new-tires">New Tires</a>
           <a href="/appointment">Appointment</a>
-          <a href="/local-installers">Local Installers</a>
+          <a href="/local-installers">Installers</a>
+          <a href="/proudly-canadian">Proudly Canadian</a>
           <a href="/#warranty">Warranty</a>
           <a href="/#contact">Contact</a>
         </div>
@@ -386,7 +377,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=3"></script>
     <script src="account.js?v=57"></script>
-    <script src="local-installers.js?v=3"></script>
+    <script src="local-installers.js?v=5"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

@@ -14,6 +14,10 @@
 /admin/    /admin.html     301!
 /admin/calendar    /admin-calendar.html    301!
 /admin/calendar/   /admin-calendar.html    301!
+/admin/inventory   /admin-inventory.html   301!
+/admin/inventory/  /admin-inventory.html   301!
+/installer-application-success    /installer-application-success.html    301!
+/installer-application-success/   /installer-application-success.html    301!
 /cart      /cart.html      301!
 /cart/     /cart.html      301!
 /tire-cart      /tire-cart.html      301!

@@ -94,6 +94,18 @@
   force = true
 
 [[redirects]]
+  from = "/admin/inventory"
+  to = "/admin-inventory.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/admin/inventory/"
+  to = "/admin-inventory.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/cart"
   to = "/cart.html"
   status = 301
@@ -162,6 +174,18 @@
 [[redirects]]
   from = "/installer-application/"
   to = "/installer-application.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/installer-application-success"
+  to = "/installer-application-success.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/installer-application-success/"
+  to = "/installer-application-success.html"
   status = 301
   force = true
 
