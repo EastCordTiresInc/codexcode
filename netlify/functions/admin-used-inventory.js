@@ -14,6 +14,10 @@ const INVENTORY_SELECT = [
   'drive_link',
   'is_flotation',
   'season',
+  'width',
+  'profile',
+  'wheel_size',
+  'size_label',
 ].join(',');
 
 function json(statusCode, payload) {

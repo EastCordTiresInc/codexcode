@@ -1,20 +1,20 @@
 (() => {
   const ADMIN_EMAIL = 'info@eastcordtires.ca';
 
-  // Same column order as Sheet1 / SYNC_COLUMNS in google-sheets-inventory.js
+  // Same column order as Sheet1; labels are written for staff readability.
   const SHEET_COLUMNS = [
-    { key: 'id', label: 'id' },
-    { key: 'tire_size', label: 'tire_size' },
-    { key: 'rim_size', label: 'rim_size' },
-    { key: 'type', label: 'type' },
-    { key: 'brand', label: 'brand' },
-    { key: 'opening_qty', label: 'opening_qty' },
-    { key: 'add_qty', label: 'add_qty' },
-    { key: 'remove_qty', label: 'remove_qty' },
-    { key: 'current_stock', label: 'current_stock' },
-    { key: 'selling_price', label: 'selling_price' },
-    { key: 'drive_link', label: 'drive_link' },
-    { key: 'is_flotation', label: 'is_flotation' },
+    { key: 'id', label: 'Tire ID' },
+    { key: 'tire_size', label: 'Tire Size' },
+    { key: 'rim_size', label: 'Rim Size' },
+    { key: 'type', label: 'Type' },
+    { key: 'brand', label: 'Brand' },
+    { key: 'opening_qty', label: 'Opening Qty' },
+    { key: 'add_qty', label: 'Add' },
+    { key: 'remove_qty', label: 'Remove' },
+    { key: 'current_stock', label: 'Current Stock' },
+    { key: 'selling_price', label: 'Selling Price ($)' },
+    { key: 'drive_link', label: 'Drive Link' },
+    { key: 'is_flotation', label: 'Flotation' },
   ];
 
   const SORT_OPTIONS = {
@@ -35,22 +35,17 @@
     gateMessage: document.querySelector('[data-admin-gate-message]'),
     dashboard: document.querySelector('[data-admin-dashboard]'),
     form: document.querySelector('[data-admin-inventory-form]'),
-    search: document.querySelector('[data-admin-inventory-search]'),
+    brand: document.querySelector('[data-admin-inventory-brand]'),
+    season: document.querySelector('[data-admin-inventory-season]'),
+    size: document.querySelector('[data-admin-inventory-size]'),
     stock: document.querySelector('[data-admin-inventory-stock]'),
     sort: document.querySelector('[data-admin-inventory-sort]'),
     status: document.querySelector('[data-admin-status]'),
     inventory: document.querySelector('[data-admin-inventory]'),
-    brandList: document.querySelector('[data-filter-list="brand"]'),
-    seasonList: document.querySelector('[data-filter-list="season"]'),
-    sizeList: document.querySelector('[data-filter-list="size"]'),
-    filters: document.querySelector('.admin-inventory-filters'),
   };
 
   let allItems = [];
   let sortMode = 'id-asc';
-  const selectedBrands = new Set();
-  const selectedSeasons = new Set();
-  const selectedSizes = new Set();
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -91,16 +86,54 @@
     return String(value ?? '').trim();
   }
 
+  function formatSeasonLabel(value) {
+    const label = clean(value);
+    if (!label) return 'Unspecified';
+
+    const lower = label.toLowerCase();
+    if (lower.includes('winter')) return 'Winter';
+    if (lower.includes('summer')) return 'Summer';
+    if (lower.includes('all') || lower.includes('terrain')) return 'All Season';
+
+    return label.replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
   function itemSeason(item) {
-    return clean(item.season) || clean(item.type) || 'Unspecified';
+    return formatSeasonLabel(clean(item.season) || clean(item.type));
   }
 
   function itemBrand(item) {
     return clean(item.brand) || 'Unspecified';
   }
 
+  function formatTireSizeLabel(item) {
+    const sizeLabel = clean(item.size_label);
+    if (sizeLabel) return sizeLabel;
+
+    const width = clean(item.width);
+    const profile = clean(item.profile);
+    const rim = clean(item.wheel_size) || clean(item.rim_size);
+    const isFlotation = item.is_flotation === true
+      || item.is_flotation === 'TRUE'
+      || item.is_flotation === 'true'
+      || item.is_flotation === 1
+      || item.is_flotation === '1';
+
+    if (width && profile && rim) {
+      return isFlotation ? `${width}x${profile}R${rim}` : `${width}/${profile}R${rim}`;
+    }
+
+    const raw = clean(item.tire_size);
+    if (!raw) return 'Unspecified';
+
+    // Ensure standard sizes include an R before the rim digits when missing.
+    return raw
+      .replace(/(\d{3})\s*[\/-]\s*(\d{2})\s*[rR]?\s*(\d{2})/i, '$1/$2R$3')
+      .replace(/(\d{2})\s*[xX]\s*(\d{2}(?:\.\d+)?)\s*[rR]?\s*(\d{2})/i, '$1x$2R$3');
+  }
+
   function itemSize(item) {
-    return clean(item.tire_size) || 'Unspecified';
+    return formatTireSizeLabel(item);
   }
 
   function uniqueSorted(values) {
@@ -114,6 +147,10 @@
 
     if (key === 'id') {
       return `<code class="admin-tire-id">${escapeHtml(value)}</code>`;
+    }
+
+    if (key === 'tire_size') {
+      return escapeHtml(formatTireSizeLabel(item));
     }
 
     if (key === 'drive_link') {
@@ -130,7 +167,8 @@
     if (key === 'selling_price') {
       if (value == null || value === '') return '';
       const amount = Number(value);
-      return Number.isFinite(amount) ? escapeHtml(amount) : escapeHtml(value);
+      if (!Number.isFinite(amount)) return escapeHtml(value);
+      return `$${escapeHtml(amount)}`;
     }
 
     if (
@@ -147,66 +185,40 @@
     return value == null ? '' : escapeHtml(value);
   }
 
-  function renderFilterList(container, values, selected, group) {
-    if (!container) return;
-    if (!values.length) {
-      container.innerHTML = '<p class="admin-filter-empty">None</p>';
-      return;
-    }
-
-    container.innerHTML = values.map((value) => {
-      const active = selected.has(value) ? ' is-active' : '';
-      return `
-        <button
-          type="button"
-          class="admin-filter-option${active}"
-          data-filter-group="${escapeHtml(group)}"
-          data-filter-value="${escapeHtml(value)}"
-          aria-pressed="${selected.has(value) ? 'true' : 'false'}"
-        >${escapeHtml(value)}</button>
-      `;
-    }).join('');
+  function fillSelect(select, values, allLabel, previousValue) {
+    if (!select) return;
+    const options = [`<option value="">${escapeHtml(allLabel)}</option>`]
+      .concat(values.map((value) => (
+        `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`
+      )));
+    select.innerHTML = options.join('');
+    select.value = previousValue && values.includes(previousValue) ? previousValue : '';
   }
 
   function populateFilters() {
-    const brands = uniqueSorted(allItems.map(itemBrand));
-    const seasons = uniqueSorted(allItems.map(itemSeason));
-    const sizes = uniqueSorted(allItems.map(itemSize));
+    const previousBrand = clean(els.brand?.value);
+    const previousSeason = clean(els.season?.value);
+    const previousSize = clean(els.size?.value);
 
-    for (const value of Array.from(selectedBrands)) {
-      if (!brands.includes(value)) selectedBrands.delete(value);
-    }
-    for (const value of Array.from(selectedSeasons)) {
-      if (!seasons.includes(value)) selectedSeasons.delete(value);
-    }
-    for (const value of Array.from(selectedSizes)) {
-      if (!sizes.includes(value)) selectedSizes.delete(value);
-    }
-
-    renderFilterList(els.brandList, brands, selectedBrands, 'brand');
-    renderFilterList(els.seasonList, seasons, selectedSeasons, 'season');
-    renderFilterList(els.sizeList, sizes, selectedSizes, 'size');
+    fillSelect(els.brand, uniqueSorted(allItems.map(itemBrand)), 'All brands', previousBrand);
+    fillSelect(els.season, uniqueSorted(allItems.map(itemSeason)), 'All seasons', previousSeason);
+    fillSelect(els.size, uniqueSorted(allItems.map(itemSize)), 'All sizes', previousSize);
   }
 
   function matchesFilters(item) {
-    const query = clean(els.search?.value).toLowerCase();
+    const brand = clean(els.brand?.value);
+    const season = clean(els.season?.value);
+    const size = clean(els.size?.value);
     const stockFilter = els.stock?.value || 'all';
     const stock = Number(item.current_stock) || 0;
 
-    if (selectedBrands.size && !selectedBrands.has(itemBrand(item))) return false;
-    if (selectedSeasons.size && !selectedSeasons.has(itemSeason(item))) return false;
-    if (selectedSizes.size && !selectedSizes.has(itemSize(item))) return false;
+    if (brand && itemBrand(item) !== brand) return false;
+    if (season && itemSeason(item) !== season) return false;
+    if (size && itemSize(item) !== size) return false;
     if (stockFilter === 'in' && stock <= 0) return false;
     if (stockFilter === 'out' && stock > 0) return false;
 
-    if (!query) return true;
-
-    const haystack = SHEET_COLUMNS
-      .map(({ key }) => String(item[key] ?? '').toLowerCase())
-      .concat([itemSeason(item).toLowerCase()])
-      .join(' ');
-
-    return haystack.includes(query);
+    return true;
   }
 
   function compareNumeric(a, b, key) {
@@ -288,16 +300,18 @@
 
   function selectedSummary() {
     const parts = [];
-    if (selectedBrands.size) parts.push(`${selectedBrands.size} brand${selectedBrands.size === 1 ? '' : 's'}`);
-    if (selectedSeasons.size) parts.push(`${selectedSeasons.size} season${selectedSeasons.size === 1 ? '' : 's'}`);
-    if (selectedSizes.size) parts.push(`${selectedSizes.size} size${selectedSizes.size === 1 ? '' : 's'}`);
-    return parts.length ? ` · ${parts.join(', ')} selected` : '';
+    const brand = clean(els.brand?.value);
+    const season = clean(els.season?.value);
+    const size = clean(els.size?.value);
+    if (brand) parts.push(brand);
+    if (season) parts.push(season);
+    if (size) parts.push(size);
+    return parts.length ? ` · ${parts.join(' · ')}` : '';
   }
 
   function applyView() {
     readSortControl();
     syncSortControl();
-    populateFilters();
     const visible = sortedVisibleItems();
     const total = allItems.length;
     const shown = visible.length;
@@ -308,24 +322,6 @@
         : `Showing ${shown} of ${total} rows · sorted by ${label}${selectedSummary()} · read-only`,
     );
     renderInventory();
-  }
-
-  function toggleFilter(group, value) {
-    const set = group === 'brand'
-      ? selectedBrands
-      : group === 'season'
-        ? selectedSeasons
-        : selectedSizes;
-    if (set.has(value)) set.delete(value);
-    else set.add(value);
-    applyView();
-  }
-
-  function clearFilter(group) {
-    if (group === 'brand') selectedBrands.clear();
-    if (group === 'season') selectedSeasons.clear();
-    if (group === 'size') selectedSizes.clear();
-    applyView();
   }
 
   function sortByColumn(key) {
@@ -372,6 +368,7 @@
 
     showDashboard(email);
     allItems = Array.isArray(payload.items) ? payload.items : [];
+    populateFilters();
     applyView();
   }
 
@@ -402,21 +399,11 @@
     applyView();
   });
 
-  els.search?.addEventListener('input', () => applyView());
+  els.brand?.addEventListener('change', () => applyView());
+  els.season?.addEventListener('change', () => applyView());
+  els.size?.addEventListener('change', () => applyView());
   els.stock?.addEventListener('change', () => applyView());
   els.sort?.addEventListener('change', () => applyView());
-
-  els.filters?.addEventListener('click', (event) => {
-    const clearButton = event.target.closest('[data-clear-filter]');
-    if (clearButton) {
-      clearFilter(clearButton.dataset.clearFilter);
-      return;
-    }
-
-    const option = event.target.closest('[data-filter-group][data-filter-value]');
-    if (!option) return;
-    toggleFilter(option.dataset.filterGroup, option.dataset.filterValue);
-  });
 
   els.inventory?.addEventListener('click', (event) => {
     const sortButton = event.target.closest('[data-sort-key]');

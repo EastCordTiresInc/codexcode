@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>Inventory | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=9" />
+    <link rel="stylesheet" href="admin.css?v=13" />
   </head>
   <body class="admin-app">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -56,18 +56,26 @@
             <div>
               <p class="admin-kicker">Used tires</p>
               <h1>Inventory</h1>
-              <p>Read-only Sheet1 layout. Click brands, seasons, and sizes on the left to filter.</p>
+              <p>Read-only Sheet1 layout. Use the dropdowns to filter by brand, season, or size.</p>
             </div>
             <form class="admin-toolbar admin-inventory-toolbar" data-admin-inventory-form>
               <label>
-                Search
-                <input
-                  type="search"
-                  name="q"
-                  data-admin-inventory-search
-                  placeholder="id, brand, tire_size…"
-                  autocomplete="off"
-                />
+                Brand
+                <select data-admin-inventory-brand>
+                  <option value="" selected>All brands</option>
+                </select>
+              </label>
+              <label>
+                Season
+                <select data-admin-inventory-season>
+                  <option value="" selected>All seasons</option>
+                </select>
+              </label>
+              <label>
+                Size
+                <select data-admin-inventory-size>
+                  <option value="" selected>All sizes</option>
+                </select>
               </label>
               <label>
                 Stock
@@ -93,36 +101,8 @@
 
           <p class="admin-status" data-admin-status aria-live="polite">Loading inventory...</p>
 
-          <div class="admin-inventory-layout">
-            <aside class="admin-inventory-filters" aria-label="Inventory filters">
-              <div class="admin-filter-block">
-                <div class="admin-filter-heading">
-                  <h2>Brand</h2>
-                  <button type="button" class="admin-filter-clear" data-clear-filter="brand">Clear</button>
-                </div>
-                <div class="admin-filter-list" data-filter-list="brand"></div>
-              </div>
-
-              <div class="admin-filter-block">
-                <div class="admin-filter-heading">
-                  <h2>Season</h2>
-                  <button type="button" class="admin-filter-clear" data-clear-filter="season">Clear</button>
-                </div>
-                <div class="admin-filter-list" data-filter-list="season"></div>
-              </div>
-
-              <div class="admin-filter-block">
-                <div class="admin-filter-heading">
-                  <h2>Size</h2>
-                  <button type="button" class="admin-filter-clear" data-clear-filter="size">Clear</button>
-                </div>
-                <div class="admin-filter-list" data-filter-list="size"></div>
-              </div>
-            </aside>
-
-            <div class="admin-inventory-scroll">
-              <div class="admin-inventory" data-admin-inventory></div>
-            </div>
+          <div class="admin-inventory-scroll">
+            <div class="admin-inventory" data-admin-inventory></div>
           </div>
         </section>
       </div>
@@ -135,6 +115,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
     <script src="account.js?v=57"></script>
-    <script src="admin-inventory.js?v=7"></script>
+    <script src="admin-inventory.js?v=15"></script>
   </body>
 </html>
