@@ -1,18 +1,18 @@
 (() => {
   const ADMIN_EMAIL = 'info@eastcordtires.ca';
 
-  // Same column order as Sheet1; labels are written for staff readability.
+  // Same column order as Sheet1; Save stays first for quick staff edits.
   const SHEET_COLUMNS = [
+    { key: '_actions', label: 'Save' },
     { key: 'id', label: 'Tire ID' },
     { key: 'tire_size', label: 'Tire Size' },
     { key: 'rim_size', label: 'Rim Size' },
     { key: 'type', label: 'Type' },
     { key: 'brand', label: 'Brand' },
-    { key: 'opening_qty', label: 'Opening Qty' },
-    { key: 'add_qty', label: 'Add' },
-    { key: 'remove_qty', label: 'Remove' },
+    { key: 'add_qty', label: 'Add', editable: 'int' },
+    { key: 'remove_qty', label: 'Remove', editable: 'int' },
     { key: 'current_stock', label: 'Current Stock' },
-    { key: 'selling_price', label: 'Selling Price ($)' },
+    { key: 'selling_price', label: 'Selling Price ($)', editable: 'price' },
     { key: 'drive_link', label: 'Drive Link' },
     { key: 'is_flotation', label: 'Flotation' },
   ];
@@ -42,6 +42,7 @@
     sort: document.querySelector('[data-admin-inventory-sort]'),
     status: document.querySelector('[data-admin-status]'),
     inventory: document.querySelector('[data-admin-inventory]'),
+    syncFromSheet: document.querySelector('[data-sync-from-sheet]'),
   };
 
   let allItems = [];
@@ -142,8 +143,44 @@
     ));
   }
 
-  function formatCell(key, item) {
+  function formatStepper(field, value, options = {}) {
+    const step = options.step ?? 1;
+    const isPrice = options.price === true;
+    const number = Number(value);
+    const safe = Number.isFinite(number) ? number : 0;
+    const display = isPrice ? `$${safe}` : String(safe);
+
+    return `
+      <div class="admin-stepper" data-stepper data-field="${escapeHtml(field)}" data-value="${escapeHtml(safe)}" data-step="${escapeHtml(step)}"${isPrice ? ' data-price="1"' : ''}>
+        <button type="button" class="admin-stepper-btn" data-step-dir="-1" aria-label="Decrease ${escapeHtml(field)}">−</button>
+        <span class="admin-stepper-value" data-stepper-value>${escapeHtml(display)}</span>
+        <button type="button" class="admin-stepper-btn" data-step-dir="1" aria-label="Increase ${escapeHtml(field)}">+</button>
+      </div>
+    `;
+  }
+
+  function formatCell(column, item) {
+    const key = column.key;
     const value = item[key];
+
+    if (key === '_actions') {
+      return `
+        <button
+          type="button"
+          class="button button-secondary admin-mini-btn"
+          data-save-inventory="${escapeHtml(item.id)}"
+        >Save</button>
+      `;
+    }
+
+    if (column.editable === 'int') {
+      // Add/Remove are pending deltas for this save; always start at 0.
+      return formatStepper(key, 0, { step: 1 });
+    }
+
+    if (column.editable === 'price') {
+      return formatStepper(key, value, { step: 1, price: true });
+    }
 
     if (key === 'id') {
       return `<code class="admin-tire-id">${escapeHtml(value)}</code>`;
@@ -164,18 +201,9 @@
       return value == null ? '' : escapeHtml(value);
     }
 
-    if (key === 'selling_price') {
-      if (value == null || value === '') return '';
-      const amount = Number(value);
-      if (!Number.isFinite(amount)) return escapeHtml(value);
-      return `$${escapeHtml(amount)}`;
-    }
-
     if (
       key === 'rim_size'
       || key === 'opening_qty'
-      || key === 'add_qty'
-      || key === 'remove_qty'
       || key === 'current_stock'
     ) {
       if (value == null || value === '') return '';
@@ -285,8 +313,8 @@
     }).join('');
 
     const rows = visible.map((item) => `
-      <tr>
-        ${SHEET_COLUMNS.map((column) => `<td>${formatCell(column.key, item)}</td>`).join('')}
+      <tr data-inventory-id="${escapeHtml(item.id)}">
+        ${SHEET_COLUMNS.map((column) => `<td>${formatCell(column, item)}</td>`).join('')}
       </tr>
     `).join('');
 
@@ -318,10 +346,144 @@
     const label = currentSort().label;
     setStatus(
       shown === total
-        ? `${total} rows · sorted by ${label}${selectedSummary()} · read-only`
-        : `Showing ${shown} of ${total} rows · sorted by ${label}${selectedSummary()} · read-only`,
+        ? `${total} rows · sorted by ${label}${selectedSummary()} · use +/− on Add/Remove/Price then Save`
+        : `Showing ${shown} of ${total} rows · sorted by ${label}${selectedSummary()} · use +/− on Add/Remove/Price then Save`,
     );
     renderInventory();
+  }
+
+  function readRowPayload(row) {
+    const id = Number(row?.dataset.inventoryId);
+    const get = (field) => row.querySelector(`[data-stepper][data-field="${field}"]`)?.dataset.value;
+    return {
+      id,
+      add_qty: get('add_qty'),
+      remove_qty: get('remove_qty'),
+      selling_price: get('selling_price'),
+    };
+  }
+
+  function adjustStepper(stepper, direction) {
+    if (!stepper) return;
+    const step = Number(stepper.dataset.step) || 1;
+    const isPrice = stepper.dataset.price === '1';
+    const current = Number(stepper.dataset.value);
+    const base = Number.isFinite(current) ? current : 0;
+    const next = Math.max(0, Math.round((base + (direction * step)) * 100) / 100);
+    stepper.dataset.value = String(next);
+    const valueEl = stepper.querySelector('[data-stepper-value]');
+    if (valueEl) valueEl.textContent = isPrice ? `$${next}` : String(next);
+    stepper.classList.add('is-dirty');
+  }
+
+  async function saveInventoryRow(row, button) {
+    const payload = readRowPayload(row);
+    if (!Number.isInteger(payload.id) || payload.id <= 0) {
+      setStatus('Could not identify that inventory row.', 'error');
+      return;
+    }
+
+    const token = await window.EastCordAccount?.getAccessToken?.();
+    if (!token) {
+      showGate('Log in with the EastCord staff account to open the admin dashboard.');
+      return;
+    }
+
+    if (button) button.disabled = true;
+    setStatus(`Saving tire ${payload.id}...`);
+
+    try {
+      const response = await fetch('/.netlify/functions/admin-used-inventory', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      let body = {};
+      try {
+        body = await response.json();
+      } catch (error) {
+        body = {};
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        showGate(body.message || 'This account is not allowed to open the admin dashboard.');
+        return;
+      }
+
+      if (!response.ok) {
+        setStatus(body.message || 'Inventory could not be updated.', 'error');
+        return;
+      }
+
+      const updated = body.item;
+      if (updated) {
+        const index = allItems.findIndex((item) => Number(item.id) === Number(updated.id));
+        if (index >= 0) allItems[index] = updated;
+        else allItems.push(updated);
+      }
+
+      populateFilters();
+      applyView();
+      const sheetOk = body.sheetSync?.ok !== false;
+      setStatus(
+        sheetOk
+          ? `Saved tire ${payload.id} to Supabase + Google Sheets.`
+          : `Saved tire ${payload.id} to Supabase. Sheet sync issue: ${body.sheetSync?.skipped?.[0]?.reason || 'unknown'}`,
+        sheetOk ? '' : 'error',
+      );
+    } finally {
+      if (button?.isConnected) button.disabled = false;
+    }
+  }
+
+  async function syncInventoryFromSheet(button) {
+    const token = await window.EastCordAccount?.getAccessToken?.();
+    if (!token) {
+      showGate('Log in with the EastCord staff account to open the admin dashboard.');
+      return;
+    }
+
+    if (button) button.disabled = true;
+    setStatus('Syncing Google Sheet into Supabase...');
+
+    try {
+      const response = await fetch('/.netlify/functions/admin-used-inventory', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'syncFromSheet' }),
+      });
+
+      let body = {};
+      try {
+        body = await response.json();
+      } catch (error) {
+        body = {};
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        showGate(body.message || 'This account is not allowed to open the admin dashboard.');
+        return;
+      }
+
+      if (!response.ok) {
+        setStatus(body.message || 'Sheet sync failed.', 'error');
+        return;
+      }
+
+      allItems = Array.isArray(body.items) ? body.items : [];
+      populateFilters();
+      applyView();
+      setStatus(body.message || `Synced ${body.syncedRows || 0} rows into Supabase.`);
+    } finally {
+      if (button?.isConnected) button.disabled = false;
+    }
   }
 
   function sortByColumn(key) {
@@ -394,6 +556,34 @@
     await loadInventory(email);
   }
 
+  let holdTimer = null;
+  let holdInterval = null;
+
+  function clearHoldRepeat() {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    if (holdInterval) {
+      clearInterval(holdInterval);
+      holdInterval = null;
+    }
+  }
+
+  function startHoldRepeat(button) {
+    clearHoldRepeat();
+    const stepper = button.closest('[data-stepper]');
+    const direction = Number(button.dataset.stepDir);
+    if (!stepper || !direction) return;
+
+    adjustStepper(stepper, direction);
+    holdTimer = setTimeout(() => {
+      holdInterval = setInterval(() => {
+        adjustStepper(stepper, direction);
+      }, 70);
+    }, 350);
+  }
+
   els.form?.addEventListener('submit', (event) => {
     event.preventDefault();
     applyView();
@@ -404,11 +594,42 @@
   els.size?.addEventListener('change', () => applyView());
   els.stock?.addEventListener('change', () => applyView());
   els.sort?.addEventListener('change', () => applyView());
+  els.syncFromSheet?.addEventListener('click', (event) => {
+    syncInventoryFromSheet(event.currentTarget);
+  });
+
+  els.inventory?.addEventListener('pointerdown', (event) => {
+    const stepButton = event.target.closest('[data-step-dir]');
+    if (!stepButton || !els.inventory.contains(stepButton)) return;
+    if (event.button != null && event.button !== 0) return;
+    event.preventDefault();
+    stepButton.setPointerCapture?.(event.pointerId);
+    startHoldRepeat(stepButton);
+  });
+
+  els.inventory?.addEventListener('pointerup', clearHoldRepeat);
+  els.inventory?.addEventListener('pointercancel', clearHoldRepeat);
+  window.addEventListener('blur', clearHoldRepeat);
+  document.addEventListener('pointerup', clearHoldRepeat);
 
   els.inventory?.addEventListener('click', (event) => {
     const sortButton = event.target.closest('[data-sort-key]');
-    if (!sortButton) return;
-    sortByColumn(sortButton.dataset.sortKey);
+    if (sortButton) {
+      sortByColumn(sortButton.dataset.sortKey);
+      return;
+    }
+
+    // Stepper clicks are handled by pointerdown hold-to-repeat.
+    if (event.target.closest('[data-step-dir]')) {
+      event.preventDefault();
+      return;
+    }
+
+    const saveButton = event.target.closest('[data-save-inventory]');
+    if (!saveButton) return;
+    const row = saveButton.closest('[data-inventory-id]');
+    if (!row) return;
+    saveInventoryRow(row, saveButton);
   });
 
   if (document.readyState === 'loading') {

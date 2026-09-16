@@ -157,7 +157,7 @@
       const name = appointment.customer_name || 'Customer';
       const service = appointment.service_name || 'Appointment';
       return `
-        <a class="admin-cal-cell ${paid ? 'is-booked' : 'is-pending'}" href="/admin?date=${encodeURIComponent(date)}">
+        <a class="admin-cal-cell ${paid ? 'is-booked' : 'is-pending'}" href="/admin?date=${encodeURIComponent(date)}#appt-${encodeURIComponent(appointment.id)}">
           <strong>${escapeHtml(name)}</strong>
           <span>${escapeHtml(service)}</span>
         </a>

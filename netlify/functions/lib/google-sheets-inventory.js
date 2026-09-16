@@ -144,7 +144,10 @@ function parseSheet(values, options = {}) {
 
   const columns = {
     currentStock: columnIndex(headers, 'currentstock'),
+    openingQty: columnIndex(headers, 'openingqty'),
+    addQty: columnIndex(headers, 'addqty', 'add'),
     removeQty: columnIndex(headers, 'removeqty', 'remove'),
+    sellingPrice: columnIndex(headers, 'sellingprice', 'sellingpricetire', 'price'),
   };
 
   const rows = [];
@@ -533,6 +536,112 @@ function httpError(statusCode, message) {
   return error;
 }
 
+async function applyAdminInventoryUpdateToSheet(update = {}) {
+  const id = String(update.id ?? '').trim();
+  if (!id) {
+    return { ok: false, skipped: [{ reason: 'Missing inventory id.' }] };
+  }
+
+  const config = getConfig();
+  const missing = missingGoogleConfig(config);
+  if (missing.length) {
+    return {
+      ok: false,
+      skipped: [{ id, reason: `Missing Google Sheets config: ${missing.join(', ')}` }],
+    };
+  }
+
+  const accessToken = await getGoogleAccessToken(config);
+  const [computedValues, formulaValues] = await Promise.all([
+    getSheetValues(config, accessToken, 'FORMATTED_VALUE'),
+    getSheetValues(config, accessToken, 'FORMULA'),
+  ]);
+  const parsed = parseSheet(computedValues, { requireId: true });
+  const sheetTitle = getSheetTitle(config.googleSheetsRange);
+  const row = parsed.rows.find((entry) => String(entry.id) === id);
+
+  if (!row) {
+    return {
+      ok: false,
+      skipped: [{ id, reason: 'Sheet row was not found for this inventory id.' }],
+    };
+  }
+
+  const data = [];
+  const updated = [];
+  const columns = parsed.columns;
+
+  function queueCell(columnKey, columnIndexValue, value) {
+    if (columnIndexValue < 0) return;
+    data.push({
+      range: a1Range(sheetTitle, columnIndexValue, row.sheetRow),
+      values: [[value]],
+    });
+    updated.push({
+      id,
+      tab: sheetTitle,
+      field: columnKey,
+      sheetRow: row.sheetRow,
+      to: value,
+    });
+  }
+
+  const nextStock = Math.max(0, Number(update.current_stock) || 0);
+  const nextAdd = Math.max(0, Number(update.add_qty) || 0);
+  const nextRemove = Math.max(0, Number(update.remove_qty) || 0);
+  const nextOpening = update.opening_qty !== undefined
+    ? Math.max(0, Number(update.opening_qty) || 0)
+    : nextStock;
+  const formulaCell = cellAt(formulaValues, row.sheetRow, columns.currentStock);
+  const stockIsFormula = isFormula(formulaCell);
+
+  // Keep Opening/Add/Remove consistent with the saved Supabase row.
+  writeCell('opening_qty', columns.openingQty, nextOpening);
+  writeCell('add_qty', columns.addQty, nextAdd);
+  writeCell('remove_qty', columns.removeQty, nextRemove);
+
+  // Only overwrite Current Stock when it is a plain number (never clobber a formula).
+  if (!stockIsFormula) {
+    writeCell('current_stock', columns.currentStock, nextStock);
+  }
+
+  if (update.selling_price !== undefined && update.selling_price !== null) {
+    writeCell('selling_price', columns.sellingPrice, Number(update.selling_price));
+  }
+
+  if (data.length) {
+    await batchUpdateSheetValues(config, accessToken, data);
+  }
+
+  return {
+    ok: true,
+    updated,
+    skipped: stockIsFormula
+      ? [{ id, reason: 'Current Stock is a formula; Opening/Add/Remove were updated instead.' }]
+      : [],
+  };
+}
+
+async function pullSheetInventoryRows() {
+  const config = getConfig();
+  const missing = [
+    ...missingGoogleConfig(config),
+    ...['supabaseUrl', 'supabaseServiceRoleKey'].filter((key) => !config[key]),
+  ];
+  if (missing.length) {
+    throw httpError(501, `Missing required environment variables: ${missing.join(', ')}`);
+  }
+
+  const accessToken = await getGoogleAccessToken(config);
+  const sheetValues = await getSheetValues(config, accessToken);
+  const parsed = parseSheet(sheetValues);
+  return {
+    config,
+    rows: parsed.rows.map(toInventoryRecord),
+    skippedBlankRows: parsed.skippedBlankRows,
+  };
+}
+
 module.exports = {
   SYNC_COLUMNS,
   getConfig,
@@ -542,5 +651,7 @@ module.exports = {
   parseSheet,
   toInventoryRecord,
   applyWebsiteSalesToSheet,
+  applyAdminInventoryUpdateToSheet,
+  pullSheetInventoryRows,
   httpError,
 };
