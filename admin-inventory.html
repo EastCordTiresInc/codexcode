@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>Inventory | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=16" />
+    <link rel="stylesheet" href="admin.css?v=17" />
   </head>
   <body class="admin-app">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -59,6 +59,15 @@
               <p>Edits save to Supabase and Google Sheets. Use Sync from Sheet to pull the latest sheet into Supabase.</p>
             </div>
             <form class="admin-toolbar admin-inventory-toolbar" data-admin-inventory-form>
+              <label>
+                Search
+                <input
+                  type="search"
+                  data-admin-inventory-search
+                  placeholder="Tire ID, brand, or size"
+                  autocomplete="off"
+                />
+              </label>
               <label>
                 Brand
                 <select data-admin-inventory-brand>
@@ -116,6 +125,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
     <script src="account.js?v=57"></script>
-    <script src="admin-inventory.js?v=21"></script>
+    <script src="admin-inventory.js?v=22"></script>
   </body>
 </html>

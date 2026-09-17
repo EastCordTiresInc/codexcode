@@ -35,6 +35,7 @@
     gateMessage: document.querySelector('[data-admin-gate-message]'),
     dashboard: document.querySelector('[data-admin-dashboard]'),
     form: document.querySelector('[data-admin-inventory-form]'),
+    search: document.querySelector('[data-admin-inventory-search]'),
     brand: document.querySelector('[data-admin-inventory-brand]'),
     season: document.querySelector('[data-admin-inventory-season]'),
     size: document.querySelector('[data-admin-inventory-size]'),
@@ -234,11 +235,29 @@
   }
 
   function matchesFilters(item) {
+    const query = clean(els.search?.value).toLowerCase();
     const brand = clean(els.brand?.value);
     const season = clean(els.season?.value);
     const size = clean(els.size?.value);
     const stockFilter = els.stock?.value || 'all';
     const stock = Number(item.current_stock) || 0;
+
+    if (query) {
+      const haystack = [
+        item.id,
+        item.brand,
+        item.tire_size,
+        item.size_label,
+        item.type,
+        item.season,
+        item.width,
+        item.profile,
+        item.wheel_size,
+        item.rim_size,
+        formatTireSizeLabel(item),
+      ].map((value) => clean(value).toLowerCase()).join(' ');
+      if (!haystack.includes(query)) return false;
+    }
 
     if (brand && itemBrand(item) !== brand) return false;
     if (season && itemSeason(item) !== season) return false;
@@ -328,9 +347,11 @@
 
   function selectedSummary() {
     const parts = [];
+    const query = clean(els.search?.value);
     const brand = clean(els.brand?.value);
     const season = clean(els.season?.value);
     const size = clean(els.size?.value);
+    if (query) parts.push(`“${query}”`);
     if (brand) parts.push(brand);
     if (season) parts.push(season);
     if (size) parts.push(size);
@@ -594,6 +615,7 @@
   els.size?.addEventListener('change', () => applyView());
   els.stock?.addEventListener('change', () => applyView());
   els.sort?.addEventListener('change', () => applyView());
+  els.search?.addEventListener('input', () => applyView());
   els.syncFromSheet?.addEventListener('click', (event) => {
     syncInventoryFromSheet(event.currentTarget);
   });

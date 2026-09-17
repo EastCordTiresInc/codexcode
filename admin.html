@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>Admin | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=16" />
+    <link rel="stylesheet" href="admin.css?v=17" />
   </head>
   <body class="admin-app">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -63,6 +63,16 @@
                 Date
                 <input type="date" name="date" data-admin-date required />
               </label>
+              <label>
+                Status
+                <select data-admin-status-filter>
+                  <option value="all" selected>All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="noshow">No-show</option>
+                </select>
+              </label>
               <button class="button button-secondary" type="submit">Show day</button>
             </form>
           </div>
@@ -80,6 +90,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
     <script src="account.js?v=57"></script>
-    <script src="admin.js?v=7"></script>
+    <script src="admin.js?v=8"></script>
   </body>
 </html>

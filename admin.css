@@ -202,7 +202,8 @@
   text-transform: uppercase;
 }
 
-.admin-toolbar input[type="date"] {
+.admin-toolbar input[type="date"],
+.admin-toolbar select {
   min-height: 44px;
   padding: 0 12px;
   border: 1px solid #d5d9df;

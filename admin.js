@@ -31,6 +31,7 @@
     dashboard: document.querySelector('[data-admin-dashboard]'),
     dateForm: document.querySelector('[data-admin-date-form]'),
     dateInput: document.querySelector('[data-admin-date]'),
+    statusFilter: document.querySelector('[data-admin-status-filter]'),
     status: document.querySelector('[data-admin-status]'),
     list: document.querySelector('[data-admin-list]'),
   };
@@ -39,6 +40,8 @@
   let refreshTimer = null;
   let refreshInFlight = false;
   let timeWindows = DEFAULT_WINDOWS.slice();
+  let dayAppointments = [];
+  let lastStatusStamp = '';
 
   function money(value) {
     const amount = Number(value);
@@ -188,11 +191,85 @@
       .join('\n');
   }
 
+  function statusBucket(status) {
+    const value = String(status || '').toLowerCase();
+    if (value === 'completed') return 'completed';
+    if (value === 'cancelled') return 'cancelled';
+    if (value === 'no-show') return 'noshow';
+    return 'pending';
+  }
+
+  function currentStatusFilter() {
+    return els.statusFilter?.value || 'all';
+  }
+
+  function filteredAppointments() {
+    const filter = currentStatusFilter();
+    if (filter === 'all') return dayAppointments;
+    return dayAppointments.filter((appointment) => (
+      statusBucket(appointment.booking_status) === filter
+    ));
+  }
+
+  function formatLinkedTires(value) {
+    let items = value;
+    if (typeof items === 'string') {
+      const trimmed = items.trim();
+      if (!trimmed) return 'None';
+      try {
+        items = JSON.parse(trimmed);
+      } catch (error) {
+        return trimmed;
+      }
+    }
+    if (!Array.isArray(items) || !items.length) return 'None';
+
+    return items.map((item) => {
+      if (item == null) return '';
+      if (typeof item === 'string' || typeof item === 'number') return String(item);
+      const label = [
+        item.brand,
+        item.size || item.tire_size || item.size_label,
+        item.qty != null ? `×${item.qty}` : (item.quantity != null ? `×${item.quantity}` : ''),
+        item.id != null ? `#${item.id}` : '',
+      ].filter(Boolean).join(' ');
+      return label || 'Tire';
+    }).filter(Boolean).join(', ') || 'None';
+  }
+
+  function applyAppointmentView() {
+    const visible = filteredAppointments();
+    const total = dayAppointments.length;
+    const filter = currentStatusFilter();
+    const filterLabel = filter === 'all'
+      ? ''
+      : ` · ${filter === 'noshow' ? 'no-show' : filter}`;
+
+    const stamp = lastStatusStamp || new Date().toLocaleTimeString('en-CA', {
+      timeZone: 'America/Toronto',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    setStatus(
+      total === 0
+        ? `No appointments · Live · updated ${stamp}`
+        : visible.length === total
+          ? `${total === 1 ? '1 appointment' : `${total} appointments`} · Live · updated ${stamp}`
+          : `Showing ${visible.length} of ${total}${filterLabel} · Live · updated ${stamp}`,
+    );
+    renderAppointments(visible);
+  }
+
   function renderAppointments(appointments) {
     if (!els.list) return;
 
     if (!appointments.length) {
-      els.list.innerHTML = '<p class="admin-empty">No appointments for this date.</p>';
+      const filter = currentStatusFilter();
+      els.list.innerHTML = filter === 'all'
+        ? '<p class="admin-empty">No appointments for this date.</p>'
+        : '<p class="admin-empty">No appointments match this status filter.</p>';
       return;
     }
 
@@ -200,6 +277,14 @@
       const id = String(appointment.id);
       const notes = customerNotes(appointment);
       const status = appointment.booking_status || 'Pending Confirmation';
+      const tireCount = appointment.number_of_tires == null || appointment.number_of_tires === ''
+        ? 'Not provided'
+        : String(appointment.number_of_tires);
+      const colour = appointment.vehicle_colour || 'Not provided';
+      const linked = formatLinkedTires(appointment.linked_tires);
+      const subtotal = appointment.service_subtotal ?? appointment.starting_price;
+      const hst = appointment.hst_amount;
+      const total = appointment.total_with_hst;
       return `
         <article class="admin-appointment" id="appt-${escapeHtml(id)}" data-appointment-id="${escapeHtml(id)}">
           <div class="admin-appointment-top">
@@ -217,9 +302,15 @@
             <div><span>Phone</span>${renderPhone(appointment.customer_phone)}</div>
             <div><span>Email</span><strong>${escapeHtml(appointment.customer_email || 'Not provided')}</strong></div>
             <div><span>Vehicle</span><strong>${escapeHtml(vehicleLabel(appointment))}</strong></div>
+            <div><span>Colour</span><strong>${escapeHtml(colour)}</strong></div>
             <div><span>Plate</span><strong>${escapeHtml(appointment.vehicle_plate_number || 'Not provided')}</strong></div>
             <div><span>Tire size</span><strong>${escapeHtml(appointment.tire_size || 'Not provided')}</strong></div>
+            <div><span># of tires</span><strong>${escapeHtml(tireCount)}</strong></div>
+            <div><span>Linked tires</span><strong>${escapeHtml(linked)}</strong></div>
             <div><span>Location</span><strong>${escapeHtml(locationLabel(appointment))}</strong></div>
+            <div><span>Subtotal</span><strong>${escapeHtml(money(subtotal))}</strong></div>
+            <div><span>HST</span><strong>${escapeHtml(money(hst))}</strong></div>
+            <div><span>Total</span><strong>${escapeHtml(money(total))}</strong></div>
             <div><span>Deposit</span><strong>${escapeHtml(money(appointment.deposit_amount))}</strong></div>
             <div><span>Remaining</span><strong>${escapeHtml(money(appointment.remaining_balance))}</strong></div>
           </div>
@@ -410,17 +501,14 @@
       if (Array.isArray(payload.timeWindows) && payload.timeWindows.length) {
         timeWindows = payload.timeWindows;
       }
-      const count = Number(payload.count) || 0;
-      const stamp = new Date().toLocaleTimeString('en-CA', {
+      dayAppointments = Array.isArray(payload.appointments) ? payload.appointments : [];
+      lastStatusStamp = new Date().toLocaleTimeString('en-CA', {
         timeZone: 'America/Toronto',
         hour: 'numeric',
         minute: '2-digit',
         second: '2-digit',
       });
-      setStatus(
-        `${count === 1 ? '1 appointment' : `${count} appointments`} · Live · updated ${stamp}`,
-      );
-      renderAppointments(Array.isArray(payload.appointments) ? payload.appointments : []);
+      applyAppointmentView();
       startAutoRefresh();
     } finally {
       refreshInFlight = false;
@@ -520,6 +608,10 @@
     url.searchParams.set('date', date);
     window.history.replaceState({}, '', url);
     await loadAppointments(date, staffEmail);
+  });
+
+  els.statusFilter?.addEventListener('change', () => {
+    applyAppointmentView();
   });
 
   els.list?.addEventListener('click', (event) => {
