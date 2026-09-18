@@ -3,23 +3,31 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="The EastCord Tires tire cart is unavailable. New tires are paid for directly in the tire search." />
-    <meta name="robots" content="noindex" />
-    <title>Tire Cart Unavailable | EastCord Tires</title>
-    <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="tire-cart.css?v=12" />
+    <meta name="description" content="EastCord Tires blog with tire tips, service updates, and seasonal tire advice." />
+    <title>Blog | EastCord Tires</title>
+    <link rel="stylesheet" href="/styles.css?v=8" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
+    <link rel="stylesheet" href="/heading-balance.css" />
+    <link rel="stylesheet" href="/auth.css" />
+    <link rel="stylesheet" href="/blog.css?v=1" />
   </head>
-  <body class="tire-cart-page">
+  <body class="blog-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
-
     <header class="site-header">
       <div class="nav-shell">
         <a class="brand brand-logo" href="/" aria-label="EastCord Tires home">
           <img src="/assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
         </a>
-        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" aria-label="Open navigation menu">
-          <span></span><span></span><span></span>
+        <button
+          class="menu-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primary-navigation"
+          aria-label="Open navigation menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
         </button>
         <nav class="main-nav" id="primary-navigation" aria-label="Main navigation">
           <a href="/">Home</a>
@@ -33,7 +41,7 @@
           <a href="/appointment">Appointment</a>
           <a href="/local-installers">Installers</a>
           <a href="/proudly-canadian">Proudly Canadian</a>
-          <a href="/blog">Blog</a>
+          <a href="/blog" aria-current="page">Blog</a>
           <a href="/#contact">Contact</a>
           <span class="nav-carts" aria-label="Shopping carts">
             <a href="/cart">Appointment Cart</a>
@@ -55,22 +63,28 @@
         </nav>
       </div>
     </header>
-
-    <main class="section" id="main-content">
-      <div class="shell tire-cart-layout">
-        <section class="tire-cart-panel tire-order-success" aria-labelledby="tire-cart-title">
-          <p class="tire-cart-eyebrow">Tire cart</p>
-          <h1 id="tire-cart-title">Not available right now</h1>
-          <p>New tires are paid for directly in the tire search, so there is no separate tire cart to check out.</p>
-          <div class="tire-cart-actions">
-            <a class="button button-primary" href="/new-tires">Shop New Tires</a>
-            <a class="button button-secondary" href="/appointment">Book Appointment</a>
+    <main id="main-content">
+      <section class="blog-hero" aria-labelledby="blog-page-title">
+        <div class="shell">
+          <h1 id="blog-page-title">EastCord Tires Blog</h1>
+          <p>Practical tire advice, service updates, and seasonal guidance from the EastCord Tires team.</p>
+        </div>
+      </section>
+      <section class="blog-featured" aria-label="Latest blog article">
+        <div class="shell">
+          <div class="blog-empty-state">
+            <h2>Helpful tire advice is coming soon.</h2>
+            <p>Check back for tire-care tips, seasonal guidance, and updates from EastCord Tires.</p>
+            <div class="blog-empty-actions">
+              <a class="button button-primary" href="/new-tires">Shop Tires</a>
+              <a class="button button-secondary" href="/appointment">Book Appointment</a>
+            </div>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
     </main>
 
-    <footer class="site-footer">
+<footer class="site-footer">
       <div class="shell footer-grid">
         <div>
           <img src="/assets/eastcord-logo-footer.svg" alt="EastCord Tires" class="footer-logo" />
@@ -126,10 +140,9 @@
         </p>
       </div>
     </footer>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="auth-config.js?v=4"></script>
-    <script src="account.js?v=59"></script>
-    <script src="mobile-menu.js?v=2" defer></script>
+    <script src="/auth-config.js?v=3"></script>
+    <script src="/account.js?v=58"></script>
+    <script src="/mobile-menu.js?v=2" defer></script>
   </body>
 </html>
