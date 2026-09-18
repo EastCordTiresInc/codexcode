@@ -45,26 +45,14 @@ function getSiteOrigin(event) {
   return `${proto}://${host}`.replace(/\/$/, '');
 }
 
-function getConfirmRedirectTo(event, requestedRedirect) {
-  const origin = getSiteOrigin(event);
-  const fallback = `${origin}/account.html`;
-  const raw = String(requestedRedirect || '').trim();
-  if (!raw) return fallback;
+const PRODUCTION_CONFIRM_REDIRECT = 'https://eastcordtires.ca/account.html';
 
-  try {
-    const url = new URL(raw, origin);
-    // Never send customers to a local development URL from production emails.
-    if (/localhost|127\.0\.0\.1/i.test(url.hostname)) return fallback;
-    if (url.origin !== origin) return fallback;
-    if (!url.pathname.startsWith('/')) return fallback;
-    // Prefer the account page so confirm links land signed-in on My Account.
-    if (url.pathname === '/login' || url.pathname === '/login.html' || url.pathname === '/signup' || url.pathname === '/signup.html') {
-      return fallback;
-    }
-    return url.toString();
-  } catch (error) {
-    return fallback;
-  }
+function getConfirmRedirectTo(event, requestedRedirect) {
+  // Always send live confirmations to the production account page.
+  // Supabase project Site URL may still be a local/dev URL; never trust that for customer emails.
+  void event;
+  void requestedRedirect;
+  return PRODUCTION_CONFIRM_REDIRECT;
 }
 
 function withRedirectTo(confirmUrl, redirectTo) {
@@ -75,6 +63,18 @@ function withRedirectTo(confirmUrl, redirectTo) {
   } catch (error) {
     return confirmUrl;
   }
+}
+
+function buildConfirmUrl(supabaseUrl, data, redirectTo) {
+  const hashedToken = data?.properties?.hashed_token || '';
+  const verifyType = data?.properties?.verification_type || 'signup';
+  if (hashedToken) {
+    const base = String(supabaseUrl || '').replace(/\/$/, '');
+    return `${base}/auth/v1/verify?token=${encodeURIComponent(hashedToken)}&type=${encodeURIComponent(verifyType)}&redirect_to=${encodeURIComponent(redirectTo)}`;
+  }
+
+  const actionLink = data?.properties?.action_link || data?.action_link || '';
+  return actionLink ? withRedirectTo(actionLink, redirectTo) : '';
 }
 
 function buildConfirmationEmail({ to, confirmUrl }) {
@@ -223,13 +223,14 @@ exports.handler = async (event) => {
     });
   }
 
-  const rawConfirmUrl = extractActionLink(linkResult.data);
-  if (!rawConfirmUrl) {
-    console.error('[EastCord auth] generateLink returned no action_link.');
+  const confirmUrl = buildConfirmUrl(supabaseUrl, linkResult.data, redirectTo);
+  if (!confirmUrl || /localhost|127\.0\.0\.1/i.test(confirmUrl)) {
+    console.error('[EastCord auth] Confirmation URL missing or still pointed at localhost.', {
+      hasUrl: Boolean(confirmUrl),
+    });
     return json(502, { message: 'Confirmation email could not be created right now.' });
   }
 
-  const confirmUrl = withRedirectTo(rawConfirmUrl, redirectTo);
   const sent = await sendEmail(buildConfirmationEmail({ to: email, confirmUrl }));
   if (!sent.ok) {
     console.error('[EastCord auth] Confirmation email send failed.', sent);
