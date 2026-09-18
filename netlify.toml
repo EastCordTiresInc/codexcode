@@ -10,6 +10,12 @@
   schedule = "*/15 * * * *"
 
 [[redirects]]
+  from = "/blog-admin"
+  to = "/blog-admin/"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/used-tires"
   to = "/used-tires.html"
   status = 301

@@ -1,0 +1,66 @@
+backend:
+  name: github
+  repo: EastCordTiresInc/codexcode
+  branch: main
+
+publish_mode: editorial_workflow
+
+media_folder: assets/blog
+public_folder: /assets/blog
+
+collections:
+  - name: blog
+    label: Blog
+    folder: content/blog
+    create: true
+    format: frontmatter
+    extension: md
+    slug: "{{slug}}"
+    preview_path: "blog/{{slug}}"
+    summary: "{{title}}"
+    sortable_fields:
+      - date
+      - title
+      - category
+      - status
+    fields:
+      - label: Post Title
+        name: title
+        widget: string
+      - label: Publication Date
+        name: date
+        widget: datetime
+      - label: Short Description
+        name: description
+        widget: text
+      - label: Featured Image
+        name: featured_image
+        widget: image
+      - label: Featured Image Alt Text
+        name: featured_image_alt
+        widget: string
+      - label: Category
+        name: category
+        widget: string
+        default: Tire Tips
+      - label: URL Slug
+        name: slug
+        widget: string
+        hint: Lowercase words separated by hyphens, for example winter-tire-changeover-guide.
+        pattern:
+          - "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          - Use lowercase letters, numbers, and hyphens only.
+      - label: Published Status
+        name: status
+        widget: select
+        default: draft
+        options:
+          - draft
+          - published
+      - label: Draft
+        name: draft
+        widget: boolean
+        default: true
+      - label: Article Content
+        name: body
+        widget: markdown
