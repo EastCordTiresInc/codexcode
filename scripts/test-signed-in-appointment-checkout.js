@@ -216,7 +216,7 @@ async function main() {
     await page.locator('input[name="Full Service Address"]').fill('123 Main Street');
     await page.locator('select[name="City"]').selectOption('Milton');
     await page.locator('input[name="Postal Code"]').fill('L9T 2X5');
-    await page.locator('textarea[name="Parking Driveway Access Notes"]').fill('Vehicle is parked in the driveway.');
+    await page.locator('[data-parking-access-option="driveway"]').click();
     await page.locator('[data-booking-step="2"] [data-next-step]').click();
     await assertNoHorizontalOverflow(page, 'appointment date step');
     await page.locator('input[name="Preferred Date"]').fill(slot.date);

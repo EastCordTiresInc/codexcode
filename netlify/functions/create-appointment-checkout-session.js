@@ -6,7 +6,8 @@ const { resolveService } = require('../../appointment-services');
 
 const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
-const MIN_ADVANCE_MINUTES = 120;
+const MIN_ADVANCE_MINUTES_MOBILE = 120;
+const MIN_ADVANCE_MINUTES_SHOP = 60;
 const SERVICE_START_MINUTES = 8 * 60;
 const SERVICE_END_MINUTES = 20 * 60;
 const SERVICE_TIME_ZONE = 'America/Toronto';
@@ -153,10 +154,24 @@ function isPastAppointmentSlot(booking) {
   return false;
 }
 
+function isShopInstall(booking) {
+  const location = fieldValue(booking.installLocation || booking.install_location);
+  if (location === 'shop') return true;
+  const address = fieldValue(booking.fullServiceAddress || booking.full_service_address).toLowerCase();
+  const city = fieldValue(booking.city).toLowerCase();
+  return address === 'eastcord tires shop'
+    || address.includes('600 harrop')
+    || city === 'eastcord shop';
+}
+
+function getMinimumAdvanceMinutes(booking) {
+  return isShopInstall(booking) ? MIN_ADVANCE_MINUTES_SHOP : MIN_ADVANCE_MINUTES_MOBILE;
+}
+
 function isLessThanMinimumAdvance(booking) {
   const startDate = getAppointmentStartDate(booking);
   if (!startDate || Number.isNaN(startDate.getTime())) return false;
-  return startDate.getTime() - Date.now() < MIN_ADVANCE_MINUTES * 60 * 1000;
+  return startDate.getTime() - Date.now() < getMinimumAdvanceMinutes(booking) * 60 * 1000;
 }
 
 function linkedNewTireOrderIds(booking) {
@@ -465,14 +480,6 @@ function fieldValue(value) {
   return String(value ?? '').trim();
 }
 
-function isShopInstall(booking) {
-  const location = fieldValue(booking.installLocation || booking.install_location);
-  if (location === 'shop') return true;
-  const address = fieldValue(booking.fullServiceAddress || booking.full_service_address).toLowerCase();
-  const city = fieldValue(booking.city).toLowerCase();
-  return address === 'eastcord tires shop' || city === 'eastcord shop';
-}
-
 function validateBookingFields(booking, customer, ordersById = {}) {
   const city = fieldValue(booking.city);
   const shop = isShopInstall(booking);
@@ -508,7 +515,9 @@ function validateBookingFields(booking, customer, ordersById = {}) {
   }
 
   if (isPastAppointmentSlot(booking) || isLessThanMinimumAdvance(booking)) {
-    return 'Please choose a valid future appointment date and time window at least 2 hours from now.';
+    return isShopInstall(booking)
+      ? 'Please choose a valid future appointment date and time window at least 1 hour from now.'
+      : 'Please choose a valid future appointment date and time window at least 2 hours from now.';
   }
 
   if (isOutsideServiceHours(booking)) {

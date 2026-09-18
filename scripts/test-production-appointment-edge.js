@@ -54,6 +54,7 @@ async function assertStep(page, index) {
     await page.locator('input[name="Full Service Address"]').fill('123 Test Street');
     await page.locator('select[name="City"]').selectOption('Other');
     await page.locator('input[name="Postal Code"]').fill('L9T 2X5');
+    await page.locator('[data-parking-access-option="other"]').click();
     const parking = page.locator('textarea[name="Parking Driveway Access Notes"]');
     if (await parking.count()) await parking.fill('Driveway access is clear.');
     assert.ok(await page.locator('[data-service-area-warning]').isVisible());

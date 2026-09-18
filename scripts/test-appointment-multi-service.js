@@ -27,8 +27,9 @@ async function main() {
   await page.goto(SITE, { waitUntil: 'networkidle' });
   assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$0.00');
   const shopLocation = page.locator('[data-install-location-option="shop"]');
-  assert.strictEqual(await shopLocation.isDisabled(), true);
-  assert.match(await shopLocation.textContent(), /Coming soon/);
+  assert.strictEqual(await shopLocation.isDisabled(), false);
+  assert.match(await shopLocation.textContent(), /EastCord shop/);
+  assert.doesNotMatch(await shopLocation.textContent(), /Coming soon/);
 
   const offRim = page.locator('[data-service-item="off-rim-swap"]');
   await offRim.locator('[data-service-toggle]').check();
@@ -195,7 +196,7 @@ async function main() {
   await anonymous.locator('input[name="Full Service Address"]').fill('123 Main Street');
   await anonymous.locator('select[name="City"]').selectOption('Milton');
   await anonymous.locator('input[name="Postal Code"]').fill('L9T 2X5');
-  await anonymous.locator('textarea[name="Parking Driveway Access Notes"]').fill('Driveway');
+  await anonymous.locator('[data-parking-access-option="driveway"]').click();
   await anonymous.locator('[data-booking-step="2"] [data-next-step]').click();
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   await anonymous.locator('input[name="Preferred Date"]').fill(tomorrow);
@@ -217,7 +218,7 @@ async function main() {
   console.log('ok  mutually exclusive service choices stay organized');
   console.log('ok  linked tire size automatically selects off-rim pricing');
   console.log('ok  fixed-price quick services are included in totals');
-  console.log('ok  EastCord shop location is disabled as coming soon');
+  console.log('ok  EastCord shop location is available');
   console.log('ok  mobile service builder has no horizontal overflow');
   console.log('ok  appointment cart shows numbered service lines and prices');
   console.log(`screenshot  ${screenshot}`);

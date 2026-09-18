@@ -214,13 +214,19 @@ label:has(input[name="bot-field"]) {
   font-weight: 700;
 }
 
-[data-install-location-options] {
+[data-install-location-options],
+[data-parking-access-options] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
-[data-install-location-options] .appointment-service-option {
+[data-parking-access-options] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+[data-install-location-options] .appointment-service-option,
+[data-parking-access-options] .appointment-service-option {
   display: grid;
   gap: 6px;
   width: 100%;
@@ -236,7 +242,14 @@ label:has(input[name="bot-field"]) {
   transition: border-color 150ms ease, background 150ms ease;
 }
 
-[data-install-location-options] .appointment-service-option strong {
+[data-parking-access-options] .appointment-service-option {
+  min-height: 64px;
+  place-items: center;
+  text-align: center;
+}
+
+[data-install-location-options] .appointment-service-option strong,
+[data-parking-access-options] .appointment-service-option strong {
   color: #050505;
   font-size: 0.95rem;
   font-weight: 700;
@@ -249,15 +262,22 @@ label:has(input[name="bot-field"]) {
 }
 
 [data-install-location-options] .appointment-service-option:hover,
-[data-install-location-options] .appointment-service-option:focus-visible {
+[data-install-location-options] .appointment-service-option:focus-visible,
+[data-parking-access-options] .appointment-service-option:hover,
+[data-parking-access-options] .appointment-service-option:focus-visible {
   border-color: #df1f2d;
   outline: none;
 }
 
-[data-install-location-options] .appointment-service-option.is-selected {
+[data-install-location-options] .appointment-service-option.is-selected,
+[data-parking-access-options] .appointment-service-option.is-selected {
   border-color: #df1f2d;
   background: #fff7f7;
   box-shadow: inset 4px 0 0 #df1f2d;
+}
+
+[data-parking-access-options] .appointment-service-option.is-selected {
+  box-shadow: inset 0 0 0 2px #df1f2d;
 }
 
 [data-install-location-options] .appointment-service-option:disabled,
@@ -1173,7 +1193,8 @@ label:has(input[name="bot-field"]) {
   .appointment-price-summary,
   .appointment-review-grid,
   .appointment-cart-links,
-  .appointment-service-options { grid-template-columns: 1fr; }
+  .appointment-service-options,
+  [data-parking-access-options] { grid-template-columns: 1fr; }
   .appointment-service-choice-grid { grid-template-columns: 1fr; }
   .appointment-service-group { padding: 14px; }
   .appointment-changeover-help {

@@ -2,19 +2,21 @@
   const serviceAreaCities = new Set(['Milton', 'Oakville', 'Brampton', 'Mississauga']);
   const PENDING_APPOINTMENT_KEY = 'eastcord_pending_appointment_v1';
   const APPOINTMENT_RESTORE_PATH = '/appointment.html';
-  const MIN_ADVANCE_MINUTES = 120;
+  const MIN_ADVANCE_MINUTES_MOBILE = 120;
+  const MIN_ADVANCE_MINUTES_SHOP = 60;
   const NEW_TIRE_SHIPPING_DAYS = 4;
   const SERVICE_START_MINUTES = 8 * 60;
   const SERVICE_END_MINUTES = 20 * 60;
   const TAX_RATE = 0.13;
-  const MIN_ADVANCE_MESSAGE = 'Appointments must be booked at least 2 hours in advance to allow technician scheduling and travel time.';
+  const MIN_ADVANCE_MESSAGE_MOBILE = 'Mobile appointments must be booked at least 2 hours in advance to allow technician scheduling and travel time.';
+  const MIN_ADVANCE_MESSAGE_SHOP = 'Shop appointments must be booked at least 1 hour in advance.';
   const SHIPPING_HOLD_MESSAGE = 'You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.';
   const SERVICE_HOURS_MESSAGE = 'Installation hours are 8:00 AM to 8:00 PM. Please choose a time in that window.';
   const SHOP_LOCATION = {
-    address: 'EastCord Tires shop',
-    city: 'EastCord shop',
+    address: '600 Harrop Drive',
+    city: 'Milton',
     postalCode: '',
-    parking: 'Customer will bring the vehicle to the EastCord shop.',
+    parking: 'Customer will bring the vehicle to the EastCord shop at 600 Harrop Drive, Milton, Ontario.',
   };
   const REQUIRED_FIELD_MESSAGES = {
     'Vehicle Plate Number': 'Please enter your vehicle plate number.',
@@ -78,6 +80,10 @@
     els.installLocationField = document.querySelector('[data-install-location]');
     els.installLocationOptions = document.querySelector('[data-install-location-options]');
     els.mobileLocationFields = document.querySelector('[data-mobile-location-fields]');
+    els.parkingAccessTypeField = document.querySelector('[data-parking-access-type]');
+    els.parkingAccessOptions = document.querySelector('[data-parking-access-options]');
+    els.parkingAccessNotesField = document.querySelector('[data-parking-access-notes-field]');
+    els.parkingAccessNotesInput = els.appointmentForm?.elements.namedItem('Parking Driveway Access Notes');
     els.serviceAreaStatusField = document.querySelector('[data-service-area-status]');
     els.serviceAreaWarning = document.querySelector('[data-service-area-warning]');
     els.startingPrice = document.querySelector('[data-starting-price]');
@@ -522,9 +528,27 @@
 
   function updateDateNote() {
     if (!els.dateNote) return;
-    els.dateNote.textContent = isNewTireInstallationBooking()
-      ? newTireHoldCopy()
-      : 'Appointments must be booked at least 2 hours in advance to allow technician scheduling and travel time. Hours are 8:00 AM to 8:00 PM.';
+    if (isNewTireInstallationBooking()) {
+      els.dateNote.textContent = newTireHoldCopy();
+      return;
+    }
+    if (isShopInstall()) {
+      els.dateNote.textContent = 'Shop appointments must be booked at least 1 hour in advance. Hours are 8:00 AM to 8:00 PM.';
+      return;
+    }
+    if (selectedInstallLocation() === 'mobile') {
+      els.dateNote.textContent = 'Mobile appointments must be booked at least 2 hours in advance to allow technician scheduling and travel time. Hours are 8:00 AM to 8:00 PM.';
+      return;
+    }
+    els.dateNote.textContent = 'Mobile appointments need 2 hours’ notice. Shop appointments need 1 hour’s notice. Hours are 8:00 AM to 8:00 PM.';
+  }
+
+  function getMinimumAdvanceMinutes() {
+    return isShopInstall() ? MIN_ADVANCE_MINUTES_SHOP : MIN_ADVANCE_MINUTES_MOBILE;
+  }
+
+  function getMinimumAdvanceMessage() {
+    return isShopInstall() ? MIN_ADVANCE_MESSAGE_SHOP : MIN_ADVANCE_MESSAGE_MOBILE;
   }
 
   function isWithinNewTireShippingHold(dateValue) {
@@ -594,7 +618,7 @@
   function isLessThanMinimumAdvance(date, timeWindow) {
     const startDate = getAppointmentStartDate(date, timeWindow);
     if (!startDate) return false;
-    return startDate.getTime() - Date.now() < MIN_ADVANCE_MINUTES * 60 * 1000;
+    return startDate.getTime() - Date.now() < getMinimumAdvanceMinutes() * 60 * 1000;
   }
 
   function getSlotKey(date, timeWindow) {
@@ -913,7 +937,7 @@
     if (isPastTimeSlot(date, timeWindow)) return 'Please choose a future time window.';
     if (isOutsideServiceHours(timeWindow)) return SERVICE_HOURS_MESSAGE;
     if (isWithinNewTireShippingHold(date)) return SHIPPING_HOLD_MESSAGE;
-    if (isLessThanMinimumAdvance(date, timeWindow)) return MIN_ADVANCE_MESSAGE;
+    if (isLessThanMinimumAdvance(date, timeWindow)) return getMinimumAdvanceMessage();
     if (getCartBlockedSlots(date).has(key)) return 'This time is already in your cart. Please choose another time slot for this vehicle.';
     if (state.paidBookedSlotsDate === date && state.paidBookedSlots.has(key)) return 'This time is already booked. Please choose another time slot.';
     return '';
@@ -1003,6 +1027,8 @@
           ? 'Booked'
           : unavailableMessage.includes('2 hours')
             ? '2-hour notice required'
+            : unavailableMessage.includes('1 hour')
+              ? '1-hour notice required'
             : /next \d+ days after your tire purchase|shipping/i.test(unavailableMessage)
               ? 'Unavailable for shipping'
               : unavailableMessage.includes('8:00 AM')
@@ -1106,6 +1132,81 @@
     return selectedInstallLocation() === 'shop';
   }
 
+  function selectedParkingAccessType() {
+    return String(els.parkingAccessTypeField?.value || getFieldValue('Parking Access Type') || '').trim().toLowerCase();
+  }
+
+  function parkingAccessLabel(type = selectedParkingAccessType()) {
+    if (type === 'parking') return 'Parking';
+    if (type === 'driveway') return 'Driveway';
+    if (type === 'other') return 'Other';
+    return '';
+  }
+
+  function syncParkingAccessNotesValue() {
+    const type = selectedParkingAccessType();
+    const notesInput = els.parkingAccessNotesInput;
+    if (!notesInput) return;
+
+    if (type === 'parking' || type === 'driveway') {
+      notesInput.value = parkingAccessLabel(type);
+      notesInput.required = false;
+      notesInput.setCustomValidity('');
+    } else if (type === 'other') {
+      if (notesInput.value === 'Parking' || notesInput.value === 'Driveway') notesInput.value = '';
+      notesInput.required = true;
+    } else {
+      notesInput.value = '';
+      notesInput.required = false;
+      notesInput.setCustomValidity('');
+    }
+  }
+
+  function applyParkingAccessType(type, { notes = null } = {}) {
+    const next = type === 'parking' || type === 'driveway' || type === 'other' ? type : '';
+    if (els.parkingAccessTypeField) els.parkingAccessTypeField.value = next;
+    els.parkingAccessOptions?.querySelectorAll('[data-parking-access-option]').forEach((button) => {
+      const selected = button.dataset.parkingAccessOption === next;
+      button.classList.toggle('is-selected', selected);
+      button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+
+    if (els.parkingAccessNotesField) els.parkingAccessNotesField.hidden = next !== 'other';
+    if (notes !== null && els.parkingAccessNotesInput) {
+      els.parkingAccessNotesInput.value = notes;
+    }
+    syncParkingAccessNotesValue();
+    updateReviewSummary(state.currentService || getCurrentService());
+  }
+
+  function inferParkingAccessFromNotes(notes) {
+    const value = String(notes || '').trim();
+    const normalized = value.toLowerCase();
+    if (normalized === 'parking') return { type: 'parking', notes: 'Parking' };
+    if (normalized === 'driveway') return { type: 'driveway', notes: 'Driveway' };
+    if (value) return { type: 'other', notes: value };
+    return { type: '', notes: '' };
+  }
+
+  function validateParkingAccess() {
+    if (!selectedInstallLocation() || isShopInstall()) return true;
+    const type = selectedParkingAccessType();
+    if (!type) {
+      showAppointmentMessage('Please choose parking, driveway, or other.');
+      return false;
+    }
+    if (type === 'other') {
+      const notes = String(els.parkingAccessNotesInput?.value || '').trim();
+      if (!notes) {
+        els.parkingAccessNotesInput?.setCustomValidity('Please enter access notes.');
+        els.parkingAccessNotesInput?.reportValidity();
+        return false;
+      }
+      els.parkingAccessNotesInput?.setCustomValidity('');
+    }
+    return true;
+  }
+
   function locationField(name) {
     return els.appointmentForm?.elements.namedItem(name) || null;
   }
@@ -1116,7 +1217,7 @@
   }
 
   function applyInstallLocation(location, { clearMobile = false } = {}) {
-    const next = location === 'mobile' ? 'mobile' : '';
+    const next = location === 'mobile' || location === 'shop' ? location : '';
     if (els.installLocationField) els.installLocationField.value = next;
     els.installLocationOptions?.querySelectorAll('[data-install-location-option]').forEach((button) => {
       const selected = button.dataset.installLocationOption === next;
@@ -1131,16 +1232,20 @@
     const address = locationField('Full Service Address');
     const city = locationField('City');
     const postal = locationField('Postal Code');
-    const parking = locationField('Parking Driveway Access Notes');
-    [address, city, postal, parking].forEach((field) => {
+    [address, city, postal].forEach((field) => {
       if (!field) return;
       field.required = mobile;
       field.disabled = !mobile;
     });
 
+    if (els.parkingAccessNotesInput) {
+      els.parkingAccessNotesInput.disabled = !mobile;
+    }
+
     if (shop) {
       setLocationFieldValue('Full Service Address', SHOP_LOCATION.address);
       setLocationFieldValue('Postal Code', SHOP_LOCATION.postalCode);
+      applyParkingAccessType('');
       setLocationFieldValue('Parking Driveway Access Notes', SHOP_LOCATION.parking);
       if (els.serviceAreaStatusField) els.serviceAreaStatusField.value = 'EastCord shop';
       if (els.serviceAreaWarning) els.serviceAreaWarning.hidden = true;
@@ -1154,13 +1259,20 @@
         setLocationFieldValue('Full Service Address', '');
         setLocationFieldValue('City', '');
         setLocationFieldValue('Postal Code', '');
-        setLocationFieldValue('Parking Driveway Access Notes', '');
+        applyParkingAccessType('');
+      } else if (!selectedParkingAccessType()) {
+        applyParkingAccessType(inferParkingAccessFromNotes(getFieldValue('Parking Driveway Access Notes')).type);
+      } else {
+        syncParkingAccessNotesValue();
       }
       validateServiceArea();
     } else if (els.serviceAreaStatusField) {
       els.serviceAreaStatusField.value = '';
+      applyParkingAccessType('');
     }
 
+    updateDateNote();
+    updateAvailableTimeWindows();
     updateReviewSummary(state.currentService || getCurrentService());
   }
 
@@ -1306,7 +1418,11 @@
     }
 
     if (stepIndex === 2 && !selectedInstallLocation()) {
-      showAppointmentMessage('Please choose mobile service.');
+      showAppointmentMessage('Please choose a service location.');
+      return false;
+    }
+
+    if (stepIndex === 2 && !validateParkingAccess()) {
       return false;
     }
 
@@ -1385,10 +1501,13 @@
         ])
         : 'Not entered yet';
     }
+    const parkingNotes = shop ? '' : getFieldValue('Parking Driveway Access Notes');
+    const parkingType = shop ? '' : parkingAccessLabel();
     if (els.reviewLocation) {
       els.reviewLocation.innerHTML = shop
         ? buildDetailsHtml([
           ['Location', 'EastCord Tires shop'],
+          ['Address', '600 Harrop Drive, Milton, Ontario'],
           ['Type', 'Bring vehicle to the shop'],
         ])
         : address || city || postalCode
@@ -1396,6 +1515,7 @@
             ['Address', address],
             ['City/Postal', [city, postalCode].filter(Boolean).join(', ')],
             ['Type', 'Mobile service'],
+            ['Vehicle location', parkingType === 'Other' ? (parkingNotes || 'Other') : (parkingType || parkingNotes)],
           ])
           : 'Not entered yet';
     }
@@ -1483,9 +1603,19 @@
 
     Object.entries(draft.fields || {}).forEach(([name, value]) => {
       const field = els.appointmentForm.elements.namedItem(name);
-      if (!field || field.disabled || name === 'Install Location') return;
+      if (!field || field.disabled || name === 'Install Location' || name === 'Parking Access Type') return;
       field.value = value;
     });
+
+    if (selectedInstallLocation() === 'mobile') {
+      const savedType = String(draft.fields?.['Parking Access Type'] || '').trim().toLowerCase();
+      const inferred = inferParkingAccessFromNotes(draft.fields?.['Parking Driveway Access Notes']);
+      applyParkingAccessType(savedType || inferred.type, {
+        notes: savedType === 'other' || inferred.type === 'other'
+          ? (draft.fields?.['Parking Driveway Access Notes'] || '')
+          : null,
+      });
+    }
 
     state.selectedTireIds = new Set((draft.selectedTireIds || []).map(String));
     syncSelectedTiresWithSavedCart();
@@ -1706,6 +1836,17 @@
       const button = event.target.closest('[data-install-location-option]');
       if (!button || button.disabled || button.getAttribute('aria-disabled') === 'true') return;
       applyInstallLocation(button.dataset.installLocationOption, { clearMobile: true });
+    });
+    els.parkingAccessOptions?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-parking-access-option]');
+      if (!button) return;
+      applyParkingAccessType(button.dataset.parkingAccessOption);
+    });
+    els.parkingAccessNotesInput?.addEventListener('input', () => {
+      if (selectedParkingAccessType() === 'other') {
+        els.parkingAccessNotesInput.setCustomValidity('');
+        updateReviewSummary(state.currentService || getCurrentService());
+      }
     });
     els.preferredDate?.addEventListener('input', () => {
       validatePreferredDate();
