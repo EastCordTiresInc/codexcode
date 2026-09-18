@@ -573,6 +573,7 @@
   background: #f8f9fb;
   color: #111317;
   text-decoration: none;
+  align-content: start;
 }
 
 .admin-cal-day span {
@@ -584,6 +585,23 @@
   color: #6b7280;
   font-size: 0.72rem;
   font-weight: 650;
+}
+
+.admin-cal-day-count {
+  margin-top: 4px;
+  color: #4b5563;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.admin-cal-day.has-pending .admin-cal-day-count {
+  color: #c2410c;
+}
+
+.admin-cal-day.has-jobs:not(.has-pending) .admin-cal-day-count {
+  color: #14783d;
 }
 
 .admin-cal-day.is-today {
@@ -843,9 +861,18 @@
   color: #166534;
 }
 
+.admin-stock-pill.is-low-stock {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
 .admin-stock-pill.is-out-of-stock {
   background: #f3f4f6;
   color: #6b7280;
+}
+
+.admin-inventory-table tr.is-low-stock-row td {
+  background: #fffaf5;
 }
 
 @media (max-width: 560px) {

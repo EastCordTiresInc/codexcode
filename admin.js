@@ -155,6 +155,26 @@
     ].filter(Boolean).join(', ') || 'Location not provided';
   }
 
+  function mapsHref(appointment) {
+    if (appointment.install_location === 'shop' || String(appointment.city || '').toLowerCase() === 'eastcord shop') {
+      return '';
+    }
+    const query = [
+      appointment.full_service_address,
+      appointment.city,
+      appointment.postal_code,
+    ].filter(Boolean).join(', ');
+    if (!query) return '';
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  }
+
+  function renderLocation(appointment) {
+    const label = locationLabel(appointment);
+    const href = mapsHref(appointment);
+    if (!href) return `<strong>${escapeHtml(label)}</strong>`;
+    return `<strong><a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a></strong>`;
+  }
+
   function paymentBadge(appointment) {
     const paid = String(appointment.payment_status || '').toLowerCase().includes('paid')
       || String(appointment.booking_status || '').toLowerCase() === 'confirmed';
@@ -307,7 +327,7 @@
             <div><span>Tire size</span><strong>${escapeHtml(appointment.tire_size || 'Not provided')}</strong></div>
             <div><span># of tires</span><strong>${escapeHtml(tireCount)}</strong></div>
             <div><span>Linked tires</span><strong>${escapeHtml(linked)}</strong></div>
-            <div><span>Location</span><strong>${escapeHtml(locationLabel(appointment))}</strong></div>
+            <div><span>Location</span>${renderLocation(appointment)}</div>
             <div><span>Subtotal</span><strong>${escapeHtml(money(subtotal))}</strong></div>
             <div><span>HST</span><strong>${escapeHtml(money(hst))}</strong></div>
             <div><span>Total</span><strong>${escapeHtml(money(total))}</strong></div>

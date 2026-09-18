@@ -2,6 +2,7 @@ const { requireAdminUser } = require('./lib/admin-auth');
 const {
   applyAdminInventoryUpdateToSheet,
   pullSheetInventoryRows,
+  pushSupabaseInventoryToSheet,
 } = require('./lib/google-sheets-inventory');
 
 const INVENTORY_SELECT = [
@@ -135,12 +136,51 @@ async function syncFromSheet(supabaseAdmin) {
   });
 }
 
+async function syncToSheet(supabaseAdmin) {
+  const { data, error } = await supabaseAdmin
+    .from('usedtireinventory')
+    .select('id,opening_qty,add_qty,remove_qty,current_stock,selling_price')
+    .order('id', { ascending: true });
+
+  if (error) {
+    console.error('[EastCord admin] inventory load for sheet push failed.', error);
+    return json(500, { message: 'Supabase inventory could not be loaded for sheet sync.' });
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  if (!rows.length) {
+    return json(422, { message: 'No Supabase inventory rows were found to sync.' });
+  }
+
+  let sheetSync;
+  try {
+    sheetSync = await pushSupabaseInventoryToSheet(rows);
+  } catch (sheetError) {
+    console.error('[EastCord admin] Supabase → sheet push failed.', sheetError);
+    return json(sheetError.statusCode || 500, {
+      message: sheetError.message || 'Inventory could not be synced to Google Sheets.',
+    });
+  }
+
+  return json(200, {
+    message: `Synced ${sheetSync.updatedRows || 0} rows from Supabase into Google Sheets.`,
+    syncedRows: sheetSync.updatedRows || 0,
+    skipped: sheetSync.skipped || [],
+    syncedAt: new Date().toISOString(),
+    sheetSync,
+  });
+}
+
 async function updateInventory(supabaseAdmin, event) {
   const body = parseBody(event);
   if (body === null) return json(400, { message: 'Request body must be valid JSON.' });
 
   if (body.action === 'syncFromSheet') {
     return syncFromSheet(supabaseAdmin);
+  }
+
+  if (body.action === 'syncToSheet') {
+    return syncToSheet(supabaseAdmin);
   }
 
   const id = Number(body.id);

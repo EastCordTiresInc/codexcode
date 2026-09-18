@@ -26,6 +26,7 @@
   };
 
   const SORTABLE_KEYS = new Set(['selling_price', 'current_stock']);
+  const LOW_STOCK_MAX = 2;
 
   const els = {
     chrome: document.querySelector('[data-admin-chrome]'),
@@ -44,6 +45,7 @@
     status: document.querySelector('[data-admin-status]'),
     inventory: document.querySelector('[data-admin-inventory]'),
     syncFromSheet: document.querySelector('[data-sync-from-sheet]'),
+    syncToSheet: document.querySelector('[data-sync-to-sheet]'),
   };
 
   let allItems = [];
@@ -160,6 +162,24 @@
     `;
   }
 
+  function isLowStock(item) {
+    const stock = Number(item.current_stock) || 0;
+    return stock > 0 && stock <= LOW_STOCK_MAX;
+  }
+
+  function formatStockCell(item) {
+    const value = item.current_stock;
+    if (value == null || value === '') return '';
+    const stock = Number(value) || 0;
+    if (stock <= 0) {
+      return `<span class="admin-stock-pill is-out-of-stock">${escapeHtml(value)}</span>`;
+    }
+    if (isLowStock(item)) {
+      return `<span class="admin-stock-pill is-low-stock" title="Low stock">${escapeHtml(value)} · low</span>`;
+    }
+    return `<span class="admin-stock-pill is-in-stock">${escapeHtml(value)}</span>`;
+  }
+
   function formatCell(column, item) {
     const key = column.key;
     const value = item[key];
@@ -202,10 +222,13 @@
       return value == null ? '' : escapeHtml(value);
     }
 
+    if (key === 'current_stock') {
+      return formatStockCell(item);
+    }
+
     if (
       key === 'rim_size'
       || key === 'opening_qty'
-      || key === 'current_stock'
     ) {
       if (value == null || value === '') return '';
       return escapeHtml(value);
@@ -263,6 +286,7 @@
     if (season && itemSeason(item) !== season) return false;
     if (size && itemSize(item) !== size) return false;
     if (stockFilter === 'in' && stock <= 0) return false;
+    if (stockFilter === 'low' && !isLowStock(item)) return false;
     if (stockFilter === 'out' && stock > 0) return false;
 
     return true;
@@ -332,7 +356,7 @@
     }).join('');
 
     const rows = visible.map((item) => `
-      <tr data-inventory-id="${escapeHtml(item.id)}">
+      <tr data-inventory-id="${escapeHtml(item.id)}"${isLowStock(item) ? ' class="is-low-stock-row"' : ''}>
         ${SHEET_COLUMNS.map((column) => `<td>${formatCell(column, item)}</td>`).join('')}
       </tr>
     `).join('');
@@ -469,6 +493,7 @@
     }
 
     if (button) button.disabled = true;
+    if (els.syncToSheet) els.syncToSheet.disabled = true;
     setStatus('Syncing Google Sheet into Supabase...');
 
     try {
@@ -504,6 +529,57 @@
       setStatus(body.message || `Synced ${body.syncedRows || 0} rows into Supabase.`);
     } finally {
       if (button?.isConnected) button.disabled = false;
+      if (els.syncToSheet?.isConnected) els.syncToSheet.disabled = false;
+    }
+  }
+
+  async function syncInventoryToSheet(button) {
+    const token = await window.EastCordAccount?.getAccessToken?.();
+    if (!token) {
+      showGate('Log in with the EastCord staff account to open the admin dashboard.');
+      return;
+    }
+
+    if (button) button.disabled = true;
+    if (els.syncFromSheet) els.syncFromSheet.disabled = true;
+    setStatus('Syncing Supabase inventory into Google Sheets...');
+
+    try {
+      const response = await fetch('/.netlify/functions/admin-used-inventory', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'syncToSheet' }),
+      });
+
+      let body = {};
+      try {
+        body = await response.json();
+      } catch (error) {
+        body = {};
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        showGate(body.message || 'This account is not allowed to open the admin dashboard.');
+        return;
+      }
+
+      if (!response.ok) {
+        setStatus(body.message || 'Sync to Sheet failed.', 'error');
+        return;
+      }
+
+      const skipped = Array.isArray(body.skipped) ? body.skipped.length : 0;
+      setStatus(
+        skipped
+          ? `${body.message || 'Synced to Google Sheets.'} (${skipped} notes/skips)`
+          : (body.message || `Synced ${body.syncedRows || 0} rows to Google Sheets.`),
+      );
+    } finally {
+      if (button?.isConnected) button.disabled = false;
+      if (els.syncFromSheet?.isConnected) els.syncFromSheet.disabled = false;
     }
   }
 
@@ -618,6 +694,9 @@
   els.search?.addEventListener('input', () => applyView());
   els.syncFromSheet?.addEventListener('click', (event) => {
     syncInventoryFromSheet(event.currentTarget);
+  });
+  els.syncToSheet?.addEventListener('click', (event) => {
+    syncInventoryToSheet(event.currentTarget);
   });
 
   els.inventory?.addEventListener('pointerdown', (event) => {

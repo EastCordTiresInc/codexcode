@@ -622,6 +622,109 @@ async function applyAdminInventoryUpdateToSheet(update = {}) {
   };
 }
 
+async function pushSupabaseInventoryToSheet(rows = []) {
+  const updates = (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      id: String(row?.id ?? '').trim(),
+      opening_qty: Number(row?.opening_qty) || 0,
+      add_qty: Number(row?.add_qty) || 0,
+      remove_qty: Number(row?.remove_qty) || 0,
+      current_stock: Number(row?.current_stock) || 0,
+      selling_price: row?.selling_price == null || row?.selling_price === ''
+        ? null
+        : Number(row.selling_price),
+    }))
+    .filter((row) => row.id);
+
+  if (!updates.length) {
+    return { ok: true, updatedRows: 0, skipped: [], updated: [] };
+  }
+
+  const config = getConfig();
+  const missing = missingGoogleConfig(config);
+  if (missing.length) {
+    throw httpError(501, `Missing Google Sheets config: ${missing.join(', ')}`);
+  }
+
+  const accessToken = await getGoogleAccessToken(config);
+  const [computedValues, formulaValues] = await Promise.all([
+    getSheetValues(config, accessToken, 'FORMATTED_VALUE'),
+    getSheetValues(config, accessToken, 'FORMULA'),
+  ]);
+  const parsed = parseSheet(computedValues, { requireId: true });
+  const sheetTitle = getSheetTitle(config.googleSheetsRange);
+  const byId = new Map(parsed.rows.map((row) => [String(row.id), row]));
+
+  const data = [];
+  const updated = [];
+  const skipped = [];
+  const columns = parsed.columns;
+
+  function queueCell(id, sheetRow, columnKey, columnIndexValue, value) {
+    if (columnIndexValue < 0) return;
+    data.push({
+      range: a1Range(sheetTitle, columnIndexValue, sheetRow),
+      values: [[value]],
+    });
+    updated.push({
+      id,
+      tab: sheetTitle,
+      field: columnKey,
+      sheetRow,
+      to: value,
+    });
+  }
+
+  updates.forEach((update) => {
+    const row = byId.get(update.id);
+    if (!row) {
+      skipped.push({ id: update.id, reason: 'Sheet row was not found for this inventory id.' });
+      return;
+    }
+
+    const nextStock = Math.max(0, update.current_stock);
+    const nextAdd = Math.max(0, update.add_qty);
+    const nextRemove = Math.max(0, update.remove_qty);
+    const nextOpening = Math.max(0, update.opening_qty);
+    const formulaCell = cellAt(formulaValues, row.sheetRow, columns.currentStock);
+    const stockIsFormula = isFormula(formulaCell);
+
+    writeCell(update.id, row.sheetRow, 'opening_qty', columns.openingQty, nextOpening);
+    writeCell(update.id, row.sheetRow, 'add_qty', columns.addQty, nextAdd);
+    writeCell(update.id, row.sheetRow, 'remove_qty', columns.removeQty, nextRemove);
+
+    if (!stockIsFormula) {
+      writeCell(update.id, row.sheetRow, 'current_stock', columns.currentStock, nextStock);
+    } else {
+      skipped.push({
+        id: update.id,
+        reason: 'Current Stock is a formula; Opening/Add/Remove were updated instead.',
+      });
+    }
+
+    if (update.selling_price !== null && Number.isFinite(update.selling_price)) {
+      writeCell(update.id, row.sheetRow, 'selling_price', columns.sellingPrice, update.selling_price);
+    }
+  });
+
+  // Google Sheets batchUpdate has practical size limits; chunk writes.
+  const chunkSize = 400;
+  for (let index = 0; index < data.length; index += chunkSize) {
+    await batchUpdateSheetValues(config, accessToken, data.slice(index, index + chunkSize));
+  }
+
+  const updatedRowIds = new Set(
+    updated.map((entry) => String(entry.id)),
+  );
+
+  return {
+    ok: true,
+    updatedRows: updatedRowIds.size,
+    skipped,
+    updated,
+  };
+}
+
 async function pullSheetInventoryRows() {
   const config = getConfig();
   const missing = [
@@ -652,6 +755,7 @@ module.exports = {
   toInventoryRecord,
   applyWebsiteSalesToSheet,
   applyAdminInventoryUpdateToSheet,
+  pushSupabaseInventoryToSheet,
   pullSheetInventoryRows,
   httpError,
 };

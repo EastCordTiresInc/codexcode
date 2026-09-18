@@ -105,6 +105,24 @@
       || String(appointment.booking_status || '').toLowerCase() === 'confirmed';
   }
 
+  function dayStats(appointments, date) {
+    const forDay = appointments.filter((appointment) => String(appointment.preferred_date) === date);
+    let pending = 0;
+    let booked = 0;
+
+    forDay.forEach((appointment) => {
+      const status = String(appointment.booking_status || '').toLowerCase();
+      if (status === 'cancelled' || status === 'no-show') return;
+      if (status === 'confirmed' || status === 'completed' || isPaid(appointment)) {
+        booked += 1;
+      } else {
+        pending += 1;
+      }
+    });
+
+    return { pending, booked, total: pending + booked };
+  }
+
   function showGate(message) {
     if (els.loading) els.loading.hidden = true;
     if (els.dashboard) els.dashboard.hidden = true;
@@ -172,12 +190,19 @@
 
     const head = `
       <div class="admin-cal-corner" aria-hidden="true"></div>
-      ${days.map((date) => `
-        <a class="admin-cal-day ${date === today ? 'is-today' : ''}" href="/admin?date=${encodeURIComponent(date)}">
+      ${days.map((date) => {
+        const stats = dayStats(appointments, date);
+        const countLabel = stats.total === 0
+          ? 'Open'
+          : `${stats.booked} booked · ${stats.pending} pending`;
+        return `
+        <a class="admin-cal-day ${date === today ? 'is-today' : ''}${stats.pending ? ' has-pending' : ''}${stats.total ? ' has-jobs' : ''}" href="/admin?date=${encodeURIComponent(date)}">
           <span>${escapeHtml(dayLabel(date))}</span>
           <small>${escapeHtml(date)}</small>
+          <em class="admin-cal-day-count">${escapeHtml(countLabel)}</em>
         </a>
-      `).join('')}
+      `;
+      }).join('')}
     `;
 
     const rows = timeWindows.map((windowLabel) => `
