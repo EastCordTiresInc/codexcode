@@ -1084,6 +1084,41 @@ function getSignupEmailRedirectTo() {
   return new URL(getRedirectTarget('/account.html'), window.location.origin).toString();
 }
 
+async function signupWithResendConfirmation({ fullName, email, phone, password }) {
+  const response = await fetch('/.netlify/functions/send-signup-confirmation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email,
+      password,
+      fullName,
+      phone,
+      redirectTo: getSignupEmailRedirectTo(),
+    }),
+  });
+
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch (error) {
+    payload = {};
+  }
+
+  if (response.status === 409 || payload.alreadyMember) {
+    return { alreadyMember: true };
+  }
+
+  if (!response.ok) {
+    throw new Error(payload.message || 'Account could not be created right now.');
+  }
+
+  return {
+    emailed: true,
+    user: { email: String(email || '').trim() },
+    session: null,
+  };
+}
+
 function getPasswordResetRedirectTo() {
   const resetUrl = new URL('/reset-password.html', window.location.origin);
   const redirectTarget = getRedirectTarget('/account.html');
@@ -1110,59 +1145,30 @@ function existingMemberSignupResult() {
 }
 
 async function signUpCustomer({ fullName, email, phone, password }) {
-  const client = getSupabaseClient();
-  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
+  if (!isAuthConfigured()) throw new Error(ACCOUNT_SETUP_MESSAGE);
 
   console.info('[EastCord appointment automation] signup request started');
 
-  const { data, error } = await client.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: getSignupEmailRedirectTo(),
-      data: {
-        full_name: fullName,
-        phone,
-      },
-    },
-  });
-
-  if (error) {
-    if (isAlreadyRegisteredError(error)) {
+  // Create the auth user via admin generateLink and email the confirm URL with Resend.
+  // This avoids Supabase Auth's unreliable built-in mailer for signup confirmation.
+  try {
+    const result = await signupWithResendConfirmation({ fullName, email, phone, password });
+    if (result?.alreadyMember) {
       return existingMemberSignupResult();
     }
+
+    console.info('[EastCord appointment automation] signup success', {
+      userCreated: true,
+      sessionCreated: false,
+      emailConfirmationLikelyRequired: true,
+      emailed: Boolean(result?.emailed),
+    });
+    return result;
+  } catch (error) {
     console.info('[EastCord appointment automation] signup error');
-    logSupabaseError('Supabase signup failed.', error);
-    throw new Error(getFriendlySupabaseError(error));
+    logDeveloperError('Resend signup confirmation failed.', error);
+    throw error;
   }
-
-  if (isExistingAuthUser(data)) {
-    return existingMemberSignupResult();
-  }
-
-  console.info('[EastCord appointment automation] signup success', {
-    userCreated: Boolean(data?.user),
-    sessionCreated: Boolean(data?.session),
-    emailConfirmationLikelyRequired: Boolean(data?.user && !data?.session),
-  });
-
-  if (data?.user && data?.session) {
-    try {
-      await upsertCustomerProfile({
-        customerId: data.user.id,
-        name: fullName,
-        email: data.user.email || email,
-        phone,
-      });
-    } catch (profileError) {
-      logDeveloperError('Customer profile create after signup failed.', profileError);
-      throw profileError;
-    }
-  } else if (data?.user && !data?.session) {
-    console.info('[EastCord appointment automation] Email confirmation appears required before login.');
-  }
-
-  return data;
 }
 
 async function signInCustomer({ email, password }) {
