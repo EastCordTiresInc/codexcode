@@ -31,32 +31,57 @@ function isAlreadyRegisteredError(error) {
     || message.includes('email address has already been registered');
 }
 
-function safeRedirectTo(value, origin) {
-  const fallback = `${origin}/login.html`;
-  const raw = String(value || '').trim();
+function getSiteOrigin(event) {
+  const proto = String(event.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+  const host = String(event.headers['x-forwarded-host'] || event.headers.host || 'eastcordtires.ca')
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
+
+  if (!host || host.includes('localhost') || host.startsWith('127.')) {
+    return 'https://eastcordtires.ca';
+  }
+
+  return `${proto}://${host}`.replace(/\/$/, '');
+}
+
+function getConfirmRedirectTo(event, requestedRedirect) {
+  const origin = getSiteOrigin(event);
+  const fallback = `${origin}/account.html`;
+  const raw = String(requestedRedirect || '').trim();
   if (!raw) return fallback;
 
   try {
     const url = new URL(raw, origin);
+    // Never send customers to a local development URL from production emails.
+    if (/localhost|127\.0\.0\.1/i.test(url.hostname)) return fallback;
     if (url.origin !== origin) return fallback;
     if (!url.pathname.startsWith('/')) return fallback;
+    // Prefer the account page so confirm links land signed-in on My Account.
+    if (url.pathname === '/login' || url.pathname === '/login.html' || url.pathname === '/signup' || url.pathname === '/signup.html') {
+      return fallback;
+    }
     return url.toString();
   } catch (error) {
     return fallback;
   }
 }
 
-function getSiteOrigin(event) {
-  const proto = event.headers['x-forwarded-proto'] || 'https';
-  const host = event.headers['x-forwarded-host'] || event.headers.host || 'eastcordtires.ca';
-  return `${proto}://${host}`.replace(/\/$/, '');
+function withRedirectTo(confirmUrl, redirectTo) {
+  try {
+    const url = new URL(confirmUrl);
+    url.searchParams.set('redirect_to', redirectTo);
+    return url.toString();
+  } catch (error) {
+    return confirmUrl;
+  }
 }
 
 function buildConfirmationEmail({ to, confirmUrl }) {
   const text = [
     'Confirm your EastCord Tires account',
     '',
-    'Thanks for signing up. Open this link to confirm your email, then log in:',
+    'Thanks for signing up. Open this link to confirm your email and open your EastCord account:',
     confirmUrl,
     '',
     'If you did not create this account, you can ignore this email.',
@@ -67,7 +92,7 @@ function buildConfirmationEmail({ to, confirmUrl }) {
   const html = `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111317;">
       <h1 style="font-size:20px;margin:0 0 12px;">Confirm your EastCord Tires account</h1>
-      <p style="margin:0 0 16px;">Thanks for signing up. Click the button below to confirm your email, then log in.</p>
+      <p style="margin:0 0 16px;">Thanks for signing up. Click the button below to confirm your email and open your account.</p>
       <p style="margin:0 0 20px;">
         <a href="${confirmUrl}" style="display:inline-block;background:#ba151b;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">
           Confirm email
@@ -168,8 +193,7 @@ exports.handler = async (event) => {
     });
   }
 
-  const origin = getSiteOrigin(event);
-  const redirectTo = safeRedirectTo(body.redirectTo, origin);
+  const redirectTo = getConfirmRedirectTo(event, body.redirectTo);
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -199,12 +223,13 @@ exports.handler = async (event) => {
     });
   }
 
-  const confirmUrl = extractActionLink(linkResult.data);
-  if (!confirmUrl) {
+  const rawConfirmUrl = extractActionLink(linkResult.data);
+  if (!rawConfirmUrl) {
     console.error('[EastCord auth] generateLink returned no action_link.');
     return json(502, { message: 'Confirmation email could not be created right now.' });
   }
 
+  const confirmUrl = withRedirectTo(rawConfirmUrl, redirectTo);
   const sent = await sendEmail(buildConfirmationEmail({ to: email, confirmUrl }));
   if (!sent.ok) {
     console.error('[EastCord auth] Confirmation email send failed.', sent);

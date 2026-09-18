@@ -70,7 +70,18 @@ function isAuthConfigured() {
 function getSupabaseClient() {
   if (!isAuthConfigured()) return null;
   if (!window.eastcordSupabaseClient) {
-    window.eastcordSupabaseClient = window.supabase.createClient(AUTH_CONFIG.supabaseUrl, AUTH_CONFIG.supabaseAnonKey);
+    window.eastcordSupabaseClient = window.supabase.createClient(
+      AUTH_CONFIG.supabaseUrl,
+      AUTH_CONFIG.supabaseAnonKey,
+      {
+        auth: {
+          detectSessionInUrl: true,
+          persistSession: true,
+          autoRefreshToken: true,
+          flowType: 'implicit',
+        },
+      },
+    );
   }
   return window.eastcordSupabaseClient;
 }
@@ -1081,7 +1092,12 @@ function renderPurchasedTires(orders) {
 }
 
 function getSignupEmailRedirectTo() {
-  return new URL(getRedirectTarget('/account.html'), window.location.origin).toString();
+  const origin = window.location.origin;
+  // Always send production confirmations back to the live account page.
+  if (/localhost|127\.0\.0\.1/i.test(origin)) {
+    return 'https://eastcordtires.ca/account.html';
+  }
+  return new URL('/account.html', origin).toString();
 }
 
 async function signupWithResendConfirmation({ fullName, email, phone, password }) {
@@ -1931,6 +1947,15 @@ async function hydrateAccountPage() {
   }
 
   try {
+    // Email confirm links land here with tokens in the URL; pick up the session first.
+    const client = getSupabaseClient();
+    if (client && (window.location.hash.includes('access_token') || new URLSearchParams(window.location.search).has('code'))) {
+      await client.auth.getSession();
+      if (window.history.replaceState) {
+        window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+      }
+    }
+
     const profile = await getCurrentProfile();
     if (!profile) {
       accountPanel.innerHTML = '<p>Please log in to view your account.</p><p><a class="button button-primary" href="/login.html?redirect=/account.html">Log In</a></p>';
