@@ -50,10 +50,10 @@
 
   async function startPay(event) {
     event.preventDefault();
-    setMessage('Opening Stripe checkout...');
+    setMessage('Preparing secure checkout...');
     if (button) {
       button.disabled = true;
-      button.textContent = 'Opening Stripe...';
+      button.textContent = 'Preparing checkout...';
     }
 
     try {
@@ -61,7 +61,14 @@
       if (!items.length) throw new Error('Add an appointment before paying.');
 
       if (!form?.querySelector('[data-agreement-checkbox]')?.checked) {
-        throw new Error('Please accept the Mobile Service Agreement before paying.');
+        const needsAgreement = items.some((item) => {
+          const location = String(item?.installLocation || item?.install_location || '').trim();
+          const city = String(item?.city || '').trim();
+          return location !== 'shop' && city !== 'EastCord shop';
+        });
+        if (needsAgreement) {
+          throw new Error('Please accept the Mobile Service Agreement before paying.');
+        }
       }
 
       const profile = currentProfile || await window.EastCordAccount?.getCurrentProfile?.();

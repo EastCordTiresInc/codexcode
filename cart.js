@@ -14,7 +14,8 @@ const agreementOpenButton = document.querySelector('[data-agreement-open]');
 const agreementModal = document.querySelector('[data-agreement-modal]');
 const agreementCloseButtons = Array.from(document.querySelectorAll('[data-agreement-close]'));
 const agreementPanel = agreementModal?.querySelector('.agreement-modal-panel');
-const MIN_ADVANCE_MINUTES = 120;
+const MIN_ADVANCE_MINUTES_MOBILE = 120;
+const MIN_ADVANCE_MINUTES_SHOP = 60;
 const NEW_TIRE_SHIPPING_DAYS = 4;
 const SERVICE_START_MINUTES = 8 * 60;
 const SERVICE_END_MINUTES = 20 * 60;
@@ -438,6 +439,7 @@ function getVehicleDetails(item) {
 }
 
 function isAgreementAccepted() {
+  if (!cartNeedsMobileAgreement()) return true;
   return Boolean(agreementCheckbox?.checked);
 }
 
@@ -570,10 +572,38 @@ function isPastAppointmentSlot(item) {
   return startDate.getTime() <= Date.now();
 }
 
+function isShopCartItem(item) {
+  const location = String(item?.installLocation || item?.install_location || '').trim();
+  if (location === 'shop') return true;
+  const address = String(item?.fullServiceAddress || item?.full_service_address || '').trim().toLowerCase();
+  const city = String(item?.city || '').trim();
+  return city === 'EastCord shop'
+    || address === 'eastcord tires shop'
+    || address.includes('600 harrop');
+}
+
+function getMinimumAdvanceMinutes(item) {
+  return isShopCartItem(item) ? MIN_ADVANCE_MINUTES_SHOP : MIN_ADVANCE_MINUTES_MOBILE;
+}
+
 function isLessThanMinimumAdvance(item) {
   const startDate = getAppointmentStartDate(item);
   if (!startDate) return false;
-  return startDate.getTime() - Date.now() < MIN_ADVANCE_MINUTES * 60 * 1000;
+  return startDate.getTime() - Date.now() < getMinimumAdvanceMinutes(item) * 60 * 1000;
+}
+
+function cartNeedsMobileAgreement(items = getCheckoutItems()) {
+  return items.some((item) => item && !item.isInvalidCartItem && !isShopCartItem(item));
+}
+
+function syncAgreementVisibility(items = getCheckoutItems()) {
+  const agreement = document.querySelector('.checkout-agreement');
+  const needsAgreement = cartNeedsMobileAgreement(items);
+  if (agreement) agreement.hidden = !needsAgreement;
+  if (agreementCheckbox) {
+    agreementCheckbox.required = needsAgreement;
+    if (!needsAgreement) agreementCheckbox.checked = false;
+  }
 }
 
 function isNewTireInstallItem(item) {
@@ -674,17 +704,12 @@ function compactAppointmentMeta(item) {
   const vehicle = getVehicleDetails(item).vehicle;
   const date = formatAppointmentDate(item.preferredDate);
   const time = formatTimeStart(item.preferredTimeWindow);
-  const place = String(item.installLocation || item.install_location || '').trim() === 'shop'
-    || String(item.city || '').trim() === 'EastCord shop'
-    ? 'EastCord shop'
-    : String(item.city || '').trim();
+  const place = isShopCartItem(item) ? 'EastCord shop' : String(item.city || '').trim();
   return [vehicle, date, time, place].filter(Boolean).join(' · ');
 }
 
 function compactAppointmentAddress(item) {
-  const shop = String(item.installLocation || item.install_location || '').trim() === 'shop'
-    || String(item.city || '').trim() === 'EastCord shop';
-  if (shop) return 'EastCord Tires shop';
+  if (isShopCartItem(item)) return '600 Harrop Drive, Milton, Ontario';
   return [item.fullServiceAddress, item.city, item.postalCode]
     .map((value) => String(value || '').trim())
     .filter(Boolean)
@@ -825,6 +850,7 @@ function renderCartItemsAndTotals() {
     showCartMessage('', 'info');
   }
 
+  syncAgreementVisibility(items);
   updateCheckoutButtonState();
   return items;
 }
@@ -1058,7 +1084,7 @@ async function startCheckout(event) {
     setCheckoutBusy(false);
     showCartMessage('Checkout is taking too long. Please try Secure Checkout again.');
   }, 20000);
-  showCartMessage('Opening Stripe checkout...', 'info');
+  showCartMessage('Preparing secure checkout...', 'info');
 
   try {
     const items = getCheckoutItems();
@@ -1070,7 +1096,7 @@ async function startCheckout(event) {
         : 'Add an appointment service before checkout.');
     }
 
-    if (!isAgreementAccepted()) {
+    if (cartNeedsMobileAgreement(validItems) && !isAgreementAccepted()) {
       agreementCheckbox?.focus();
       throw new Error('Please review and accept the Mobile Service Agreement before checkout.');
     }
