@@ -25,7 +25,7 @@
   max-width: 780px;
   margin: 0;
   color: var(--ink);
-  font-size: clamp(2.25rem, 4.8vw, 4rem);
+  font-size: clamp(2.15rem, 4vw, 3.35rem);
   line-height: 1.02;
   letter-spacing: 0;
 }
@@ -202,11 +202,31 @@
   background: rgba(255, 255, 255, 0.94);
 }
 
-.blog-empty-state p {
+.blog-empty-state h2 {
   max-width: 680px;
   margin: 0;
+  color: var(--ink);
+  font-size: clamp(1.75rem, 3vw, 2.45rem);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.blog-empty-state p {
+  max-width: 680px;
+  margin: 14px 0 0;
   color: var(--muted);
   line-height: 1.68;
+}
+
+.blog-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.blog-empty-actions .button {
+  text-decoration: none;
 }
 
 .blog-cta-section {

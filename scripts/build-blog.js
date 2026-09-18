@@ -349,7 +349,12 @@ function renderFeatured(post) {
     return `<section class="blog-featured" aria-label="Latest blog article">
         <div class="shell">
           <div class="blog-empty-state">
-            <p>No published blog posts are available yet. Check back soon for EastCord Tires updates and tire care advice.</p>
+            <h2>Helpful tire advice is coming soon.</h2>
+            <p>Check back for tire-care tips, seasonal guidance, and updates from EastCord Tires.</p>
+            <div class="blog-empty-actions">
+              <a class="button button-primary" href="/new-tires">Shop Tires</a>
+              <a class="button button-secondary" href="/appointment">Book Appointment</a>
+            </div>
           </div>
         </div>
       </section>`;
@@ -402,15 +407,8 @@ function renderListing(posts) {
       </section>`
     : '';
 
-  const main = `      <section class="blog-hero" aria-labelledby="blog-page-title">
-        <div class="shell">
-          <h1 id="blog-page-title">EastCord Tires Blog</h1>
-          <p>Practical tire advice, service updates, and seasonal guidance from the EastCord Tires team.</p>
-        </div>
-      </section>
-      ${renderFeatured(featured)}
-      ${cards}
-      <section class="blog-cta-section" aria-labelledby="blog-cta-title">
+  const cta = posts.length
+    ? `<section class="blog-cta-section" aria-labelledby="blog-cta-title">
         <div class="shell">
           <div class="blog-cta-panel">
             <div>
@@ -423,7 +421,22 @@ function renderListing(posts) {
             </div>
           </div>
         </div>
-      </section>`;
+      </section>`
+    : '';
+
+  const sections = [
+    `<section class="blog-hero" aria-labelledby="blog-page-title">
+        <div class="shell">
+          <h1 id="blog-page-title">EastCord Tires Blog</h1>
+          <p>Practical tire advice, service updates, and seasonal guidance from the EastCord Tires team.</p>
+        </div>
+      </section>`,
+    renderFeatured(featured),
+    cards,
+    cta,
+  ].filter(Boolean);
+
+  const main = sections.map((section) => `      ${section}`).join('\n');
 
   return pageShell({
     title: 'Blog | EastCord Tires',
