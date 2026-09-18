@@ -1,327 +1,301 @@
-.canadian-preview {
-  background:
-    radial-gradient(circle at 12% 18%, rgba(223, 31, 45, 0.08), transparent 34%),
-    linear-gradient(180deg, #ffffff 0%, #f8f9fb 100%);
-}
-
-.canadian-preview .eyebrow > span {
-  display: none;
-}
-
-.canadian-visual {
-  background: #111317;
-}
-
-.canadian-visual::before {
-  display: none;
-}
-
-.canadian-visual::after {
-  display: none;
-}
-
-.canadian-visual-photo {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: inherit;
-}
-
 .proudly-canadian-page {
   background: #ffffff;
+  color: var(--ink);
+}
+
+.proudly-canadian-page .button:focus-visible,
+.proudly-canadian-page a:focus-visible {
+  outline: 3px solid rgba(229, 36, 42, 0.38);
+  outline-offset: 3px;
 }
 
 .canadian-page-hero {
   position: relative;
-  min-height: min(78vh, 680px);
-  display: grid;
-  align-items: end;
-  overflow: hidden;
-  color: var(--white);
-  background: #111317;
-}
-
-.canadian-page-hero-media,
-.canadian-page-hero-media img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.canadian-page-hero-media img {
-  object-fit: cover;
-}
-
-.canadian-page-hero-media::after {
-  content: "";
-  position: absolute;
-  inset: 0;
   background:
-    linear-gradient(90deg, rgba(17, 19, 23, 0.86) 0%, rgba(17, 19, 23, 0.52) 46%, rgba(17, 19, 23, 0.18) 100%),
-    linear-gradient(180deg, rgba(17, 19, 23, 0.18) 0%, rgba(17, 19, 23, 0.42) 100%);
+    linear-gradient(rgba(228, 229, 231, 0.58) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(228, 229, 231, 0.58) 1px, transparent 1px),
+    linear-gradient(135deg, #ffffff 42%, #f7f7f6);
+  background-size: 70px 70px, 70px 70px, auto;
 }
 
-.canadian-page-hero .shell {
-  position: relative;
-  z-index: 1;
-  padding: 128px 0 72px;
+.canadian-hero-grid {
+  min-height: calc(100svh - 76px);
+  display: grid;
+  grid-template-columns: minmax(0, 0.96fr) minmax(360px, 1.04fr);
+  gap: clamp(40px, 6vw, 84px);
+  align-items: center;
+  padding: clamp(70px, 9vw, 112px) 0;
+}
+
+.canadian-hero-copy {
+  max-width: 650px;
 }
 
 .canadian-page-hero .eyebrow {
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.canadian-page-hero .eyebrow > span {
-  background: currentColor;
+  margin-bottom: 18px;
 }
 
 .canadian-page-hero h1 {
-  max-width: 720px;
-  color: var(--white);
-  font-size: clamp(2.5rem, 6vw, 4.6rem);
+  max-width: 680px;
+  color: var(--ink);
+  font-size: clamp(2.75rem, 5.35vw, 5.45rem);
   line-height: 0.96;
 }
 
-.canadian-hero-intro {
-  max-width: 640px;
-  margin: 18px 0 0;
-  color: rgba(255, 255, 255, 0.84);
-  font-size: 1.08rem;
-  line-height: 1.75;
+.canadian-hero-text {
+  display: grid;
+  gap: 14px;
+  margin-top: 26px;
+}
+
+.canadian-hero-text p,
+.canadian-service-copy p,
+.canadian-location-copy p,
+.canadian-info-block p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 1.03rem;
+  line-height: 1.76;
 }
 
 .canadian-page-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 28px;
 }
 
-.canadian-outline-button {
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: transparent;
-  color: var(--white);
+.canadian-hero-actions {
+  margin-top: 32px;
+}
+
+.canadian-hero-media {
+  position: relative;
+}
+
+.canadian-hero-media img {
+  width: 100%;
+  aspect-ratio: 1.28;
+  height: auto;
+  object-fit: cover;
+  border: 1px solid rgba(17, 18, 20, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(17, 18, 20, 0.12);
+}
+
+.canadian-service-section {
+  padding: clamp(62px, 8vw, 92px) 0;
+  background: #f6f6f5;
+  border-block: 1px solid rgba(228, 229, 231, 0.9);
+}
+
+.canadian-service-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.96fr) minmax(300px, 0.74fr);
+  gap: clamp(34px, 7vw, 92px);
+  align-items: start;
+}
+
+.canadian-service-copy h2 {
+  max-width: 720px;
+  margin: 0 0 22px;
+  color: var(--ink);
+  font-size: clamp(2rem, 3.8vw, 3.55rem);
+  line-height: 1.03;
+}
+
+.canadian-service-copy p + p {
+  margin-top: 13px;
+}
+
+.canadian-location-copy {
+  padding-top: 9px;
+}
+
+.canadian-location-copy p {
+  color: var(--ink);
+  font-weight: 760;
+}
+
+.canadian-location-list {
+  display: grid;
+  gap: 13px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.canadian-location-list li {
+  position: relative;
+  padding-left: 20px;
+  color: #34363a;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.canadian-location-list li::before {
+  content: "";
+  position: absolute;
+  top: 0.62em;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  transform: translateY(-50%);
+}
+
+.canadian-info-section {
+  padding: clamp(66px, 8vw, 100px) 0 0;
+}
+
+.canadian-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.canadian-info-block {
+  padding: 4px clamp(28px, 5vw, 64px) 4px 0;
+}
+
+.canadian-info-block + .canadian-info-block {
+  padding: 4px 0 4px clamp(28px, 5vw, 64px);
+  border-left: 1px solid var(--line);
+}
+
+.canadian-accent-line {
+  display: block;
+  width: 44px;
+  height: 3px;
+  margin-bottom: 18px;
+  background: var(--red);
+}
+
+.canadian-info-block h3 {
+  margin: 0 0 16px;
+  color: var(--ink);
+  font-size: clamp(1.55rem, 2.25vw, 2.2rem);
+  line-height: 1.08;
+}
+
+.canadian-info-block p + p {
+  margin-top: 13px;
+}
+
+.canadian-action-section {
+  padding: clamp(44px, 6vw, 70px) 0 clamp(76px, 8vw, 104px);
+}
+
+.canadian-final-actions {
+  justify-content: center;
+}
+
+.canadian-secondary-button {
+  color: var(--ink);
+  background: #ffffff;
+  border-color: #cfd1d4;
   box-shadow: none;
 }
 
-.canadian-outline-button:hover,
-.canadian-outline-button:focus-visible {
-  border-color: var(--white);
-  color: var(--white);
-}
-
-.canadian-section {
-  padding: 84px 0;
-}
-
-.canadian-section .section-heading {
-  margin-bottom: 36px;
-}
-
-.canadian-location-grid,
-.canadian-step-grid {
-  display: grid;
-  gap: 22px;
-}
-
-.canadian-location-grid {
-  grid-template-columns: 1fr 1fr;
-}
-
-.canadian-step-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.canadian-photo-card {
-  overflow: hidden;
+.canadian-secondary-button:hover,
+.canadian-secondary-button:focus-visible {
+  color: var(--red);
+  border-color: rgba(229, 36, 42, 0.55);
   background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 24px;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.1);
-}
-
-.canadian-photo-card img {
-  width: 100%;
-  height: 250px;
-  object-fit: cover;
-}
-
-.canadian-photo-card-copy {
-  padding: 24px 24px 26px;
-}
-
-.canadian-photo-card-copy h3 {
-  margin: 0 0 10px;
-  font-size: 1.45rem;
-  line-height: 1.15;
-}
-
-.canadian-photo-card-copy p {
-  margin: 0;
-  color: #4f5663;
-  font-size: 1rem;
-  line-height: 1.7;
-}
-
-.canadian-step-card img {
-  height: 180px;
-}
-
-.canadian-step-number {
-  display: inline-grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-bottom: 12px;
-  color: var(--white);
-  background: var(--red);
-  border-radius: 50%;
-  font-size: 0.88rem;
-  font-weight: 800;
-}
-
-.canadian-trust {
-  padding: 0 0 84px;
-}
-
-.canadian-trust-banner {
-  position: relative;
-  overflow: hidden;
-  min-height: 340px;
-  display: grid;
-  align-items: center;
-  padding: 48px;
-  color: var(--white);
-  border-radius: 28px;
-  background: #111317;
-}
-
-.canadian-trust-banner img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.canadian-trust-banner::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(17, 19, 23, 0.88) 0%, rgba(17, 19, 23, 0.58) 52%, rgba(17, 19, 23, 0.28) 100%);
-}
-
-.canadian-trust-copy {
-  position: relative;
-  z-index: 1;
-  max-width: 640px;
-}
-
-.canadian-business-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 18px;
-  padding: 8px 14px;
-  color: var(--white);
-  background: rgba(229, 36, 42, 0.94);
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.canadian-trust-banner h2 {
-  margin: 0;
-  color: var(--white);
-  font-size: clamp(2rem, 4vw, 3.2rem);
-  line-height: 1;
-}
-
-.canadian-trust-banner p {
-  max-width: 560px;
-  margin: 14px 0 0;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 1.02rem;
-  line-height: 1.7;
-}
-
-.canadian-closing {
-  padding: 0 0 96px;
-}
-
-.canadian-closing-card {
-  padding: clamp(28px, 5vw, 48px);
-  background: #fbfbfc;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 24px;
-}
-
-.canadian-closing-card h2 {
-  margin: 0 0 14px;
-}
-
-.canadian-closing-card p {
-  max-width: 760px;
-  margin: 0;
-  color: #4f5663;
-  line-height: 1.75;
-}
-
-.canadian-closing-card p + p {
-  margin-top: 14px;
-}
-
-.canadian-closing .canadian-page-actions .canadian-outline-button {
-  border-color: rgba(17, 19, 23, 0.22);
-  color: #111317;
-}
-
-.canadian-closing .canadian-page-actions .canadian-outline-button:hover,
-.canadian-closing .canadian-page-actions .canadian-outline-button:focus-visible {
-  border-color: rgba(223, 31, 45, 0.65);
-  color: #df1f2d;
 }
 
 @media (max-width: 1000px) {
-  .canadian-step-grid {
-    grid-template-columns: 1fr 1fr;
+  .canadian-hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.82fr);
+    gap: 34px;
+  }
+
+  .canadian-page-hero h1 {
+    font-size: clamp(2.55rem, 5.8vw, 4.4rem);
+  }
+
+  .canadian-service-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.82fr);
+    gap: 38px;
   }
 }
 
 @media (max-width: 800px) {
-  .canadian-location-grid,
-  .canadian-step-grid {
+  .canadian-page-hero {
+    background-size: 56px 56px, 56px 56px, auto;
+  }
+
+  .canadian-hero-grid,
+  .canadian-service-grid,
+  .canadian-info-grid {
     grid-template-columns: 1fr;
   }
 
-  .canadian-trust-banner {
-    padding: 36px 24px;
-    border-radius: 22px;
+  .canadian-hero-grid {
+    min-height: 0;
+    padding: 68px 0 76px;
+  }
+
+  .canadian-hero-copy {
+    max-width: 720px;
+  }
+
+  .canadian-hero-media {
+    width: min(660px, 100%);
+  }
+
+  .canadian-service-grid {
+    gap: 30px;
+  }
+
+  .canadian-location-copy {
+    padding-top: 0;
+  }
+
+  .canadian-info-block,
+  .canadian-info-block + .canadian-info-block {
+    padding: 0;
+    border-left: 0;
+  }
+
+  .canadian-info-block + .canadian-info-block {
+    margin-top: 42px;
+    padding-top: 42px;
+    border-top: 1px solid var(--line);
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 560px) {
   .canadian-page-hero {
-    min-height: 560px;
+    background-size: 48px 48px, 48px 48px, auto;
   }
 
-  .canadian-page-hero .shell {
-    padding: 108px 0 48px;
+  .canadian-hero-grid {
+    padding: 54px 0 62px;
   }
 
-  .canadian-photo-card img,
-  .canadian-step-card img {
-    height: 210px;
+  .canadian-page-hero h1 {
+    font-size: clamp(2.45rem, 12vw, 3.85rem);
+  }
+
+  .canadian-hero-text p,
+  .canadian-service-copy p,
+  .canadian-location-copy p,
+  .canadian-info-block p {
+    font-size: 1rem;
+    line-height: 1.68;
+  }
+
+  .canadian-hero-media img {
+    aspect-ratio: 1.08;
+    border-radius: 14px;
+  }
+
+  .canadian-page-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .canadian-page-actions .button {
     width: 100%;
-    justify-content: center;
   }
 }
