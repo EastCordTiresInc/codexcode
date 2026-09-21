@@ -62,7 +62,7 @@ function head(url) {
   });
   const visibleConfirmText = confirmEmail.html.replace(/<a\b[^>]*>/gi, '<a>').replace(/<[^>]+>/g, ' ');
   assert.match(confirmEmail.html, /Confirm your mail/);
-  assert.match(confirmEmail.html, /eastcord-logo-red-white\.png/);
+  assert.match(confirmEmail.html, /eastcord-logo-email\.png/);
   assert.doesNotMatch(confirmEmail.html, /background:#ba151b/);
   assert.doesNotMatch(visibleConfirmText, /supabase\.co|token=/i);
   assert.doesNotMatch(confirmEmail.html, /paste this link/i);
@@ -104,7 +104,6 @@ function head(url) {
     `${SITE_ORIGIN}/reset-password`,
     `${SITE_ORIGIN}/forgot-password.html`,
     WARRANTY_URL,
-    `${SITE_ORIGIN}/assets/eastcord-logo-red-white.png`,
     ...extractUrls(linked),
     ...extractUrls(receipt.html),
   ].filter((url, index, list) => list.indexOf(url) === index);

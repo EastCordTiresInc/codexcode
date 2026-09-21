@@ -39,7 +39,7 @@ function emailCta(href, label) {
   return `<a href="${safeHref}" style="color:#ba151b;font-weight:700;font-size:16px;text-decoration:underline;">${escapeHtml(label)}</a>`;
 }
 
-const LOGO_URL = `${SITE_ORIGIN}/assets/eastcord-logo-red-white.png`;
+const LOGO_URL = `${SITE_ORIGIN}/assets/eastcord-logo-email.png`;
 
 function buildAuthEmail({ to, subject, heading, body, actionUrl, actionLabel }) {
   const text = [
@@ -64,8 +64,8 @@ function buildAuthEmail({ to, subject, heading, body, actionUrl, actionLabel }) 
         <td align="center">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
             <tr>
-              <td align="center" style="background:#111317;padding:0;">
-                <img src="${LOGO_URL}" alt="EastCord Tires" width="520" style="display:block;width:100%;max-width:520px;height:auto;border:0;" />
+              <td align="center" style="background:#111317;padding:18px 28px;">
+                <img src="${LOGO_URL}" alt="EastCord Tires" width="280" style="display:block;width:280px;max-width:100%;height:auto;border:0;" />
               </td>
             </tr>
             <tr>
