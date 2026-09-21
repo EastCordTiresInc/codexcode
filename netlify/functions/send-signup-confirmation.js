@@ -80,11 +80,15 @@ function buildConfirmUrl(supabaseUrl, data, redirectTo) {
 function buildConfirmationEmail({ to, confirmUrl }) {
   return buildAuthEmail({
     to,
-    subject: 'Confirm your signup',
-    heading: 'Confirm your signup',
-    body: 'Follow this link to confirm your user:',
+    subject: 'Confirm your EastCord Tires account',
+    heading: 'Welcome to EastCord Tires',
+    body: [
+      'Thank you for creating an account with EastCord Tires in Milton.',
+      'Confirm your email to save orders, book installation, and shop inspected used and new tires.',
+    ],
     actionUrl: confirmUrl,
-    actionLabel: 'Confirm your mail',
+    actionLabel: 'Confirm your email',
+    footer: 'If you did not create this account, you can ignore this email.',
   });
 }
 

@@ -41,20 +41,28 @@ function emailCta(href, label) {
 
 const LOGO_URL = `${SITE_ORIGIN}/assets/eastcord-logo-email.png`;
 
-function buildAuthEmail({ to, subject, heading, body, actionUrl, actionLabel }) {
+function buildAuthEmail({ to, subject, heading, body, actionUrl, actionLabel, footer }) {
+  const paragraphs = (Array.isArray(body) ? body : [body]).map((para) => String(para || '').trim()).filter(Boolean);
+  const footerText = footer || 'If you did not request this, you can ignore this email.';
   const text = [
     'EastCord Tires',
     '',
     heading,
     '',
-    body,
+    ...paragraphs,
     '',
     `Open this email and tap “${actionLabel}”.`,
     '',
-    'If you did not request this, you can ignore this email.',
+    footerText,
     '',
     'EastCord Tires',
+    '600 Harrop Drive, Milton, Ontario',
+    'info@eastcordtires.ca · 365-822-5553',
   ].join('\n');
+
+  const bodyHtml = paragraphs.map((para, index) => (
+    `<p style="margin:0 0 ${index === paragraphs.length - 1 ? '20' : '12'}px;font-size:15px;line-height:1.6;color:#4b5563;">${escapeHtml(para)}</p>`
+  )).join('');
 
   const html = `<!DOCTYPE html>
 <html>
@@ -71,9 +79,10 @@ function buildAuthEmail({ to, subject, heading, body, actionUrl, actionLabel }) 
             <tr>
               <td style="padding:32px;font-family:Arial,Helvetica,sans-serif;color:#111317;">
                 <h1 style="font-size:22px;line-height:1.3;margin:0 0 12px;">${escapeHtml(heading)}</h1>
-                <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#4b5563;">${escapeHtml(body)}</p>
+                ${bodyHtml}
                 <p style="margin:0 0 28px;">${emailCta(actionUrl, actionLabel)}</p>
-                <p style="margin:0;font-size:13px;line-height:1.5;color:#6b7280;">If you did not request this, you can ignore this email.</p>
+                <p style="margin:0 0 16px;font-size:13px;line-height:1.5;color:#6b7280;">${escapeHtml(footerText)}</p>
+                <p style="margin:0;font-size:12px;line-height:1.6;color:#9ca3af;">EastCord Tires · 600 Harrop Drive, Milton, Ontario<br />info@eastcordtires.ca · 365-822-5553</p>
               </td>
             </tr>
           </table>

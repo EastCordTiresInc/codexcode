@@ -58,10 +58,10 @@ function head(url) {
     heading: 'Confirm your signup',
     body: 'Follow this link to confirm your user:',
     actionUrl: 'https://pvivlobtolcdggzefpxo.supabase.co/auth/v1/verify?token=example&type=signup&redirect_to=https%3A%2F%2Feastcordtires.ca%2Faccount.html',
-    actionLabel: 'Confirm your mail',
+    actionLabel: 'Confirm your email',
   });
   const visibleConfirmText = confirmEmail.html.replace(/<a\b[^>]*>/gi, '<a>').replace(/<[^>]+>/g, ' ');
-  assert.match(confirmEmail.html, /Confirm your mail/);
+  assert.match(confirmEmail.html, /Confirm your email/);
   assert.match(confirmEmail.html, /eastcord-logo-email\.png/);
   assert.doesNotMatch(confirmEmail.html, /background:#ba151b/);
   assert.doesNotMatch(visibleConfirmText, /supabase\.co|token=/i);

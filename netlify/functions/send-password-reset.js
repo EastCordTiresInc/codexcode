@@ -51,11 +51,15 @@ function buildResetUrl(supabaseUrl, data, redirectTo) {
 function buildResetEmail({ to, resetUrl }) {
   return buildAuthEmail({
     to,
-    subject: 'Reset Password',
-    heading: 'Reset Password',
-    body: 'Follow this link to reset the password for your user:',
+    subject: 'Reset your EastCord Tires password',
+    heading: 'Reset your password',
+    body: [
+      'We received a request to reset the password for your EastCord Tires account.',
+      'Use the link below to choose a new password and keep shopping used tires, new tires, and installation bookings.',
+    ],
     actionUrl: resetUrl,
-    actionLabel: 'Reset Password',
+    actionLabel: 'Choose a new password',
+    footer: 'If you did not ask to reset your password, you can ignore this email.',
   });
 }
 
