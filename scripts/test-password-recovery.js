@@ -60,6 +60,21 @@ async function createContext(browser) {
     page.on('pageerror', (error) => errors.push(error.message));
 
     await page.goto(`${SITE}/login.html?redirect=%2Fappointment.html`, { waitUntil: 'networkidle' });
+    let resetRequest = null;
+    await page.route('**/.netlify/functions/send-password-reset', async (route) => {
+      try {
+        resetRequest = JSON.parse(route.request().postData() || '{}');
+      } catch (error) {
+        resetRequest = {};
+      }
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          message: 'If an EastCord account exists for that email, a password reset link has been sent.',
+          emailed: true,
+        }),
+      });
+    });
     const forgotLink = page.locator('.forgot-password-link');
     await forgotLink.waitFor({ state: 'visible' });
     assert.ok(await forgotLink.isVisible());
@@ -78,10 +93,7 @@ async function createContext(browser) {
     await page.waitForFunction(() => /If an EastCord account exists/i.test(
       document.querySelector('[data-auth-message]')?.textContent || '',
     ));
-    const resetRequest = await page.evaluate(() => window.__passwordRecoveryCalls[0]);
-    assert.strictEqual(resetRequest.method, 'resetPasswordForEmail');
-    assert.strictEqual(resetRequest.email, 'customer@example.com');
-    assert.match(resetRequest.options.redirectTo, /\/reset-password\.html\?redirect=%2Fappointment\.html$/);
+    assert.strictEqual(resetRequest?.email, 'customer@example.com');
 
     await page.goto(`${SITE}/reset-password.html?redirect=%2Fappointment.html`, { waitUntil: 'networkidle' });
     assert.strictEqual(await page.locator('[data-reset-password-form]').isHidden(), true);
@@ -129,7 +141,7 @@ async function createContext(browser) {
 
     await recoveryContext.close();
     console.log('ok  login preserves the checkout destination in the forgot-password link');
-    console.log('ok  reset requests use a secure Supabase recovery redirect');
+    console.log('ok  reset requests send through the EastCord password reset email');
     console.log('ok  unknown emails receive a non-enumerating confirmation message');
     console.log('ok  missing recovery links cannot display the password form');
     console.log('ok  mismatched passwords are rejected');

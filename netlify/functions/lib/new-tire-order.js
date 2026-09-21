@@ -1,4 +1,4 @@
-const { sendEmail, getEmailConfig, CONTACT_EMAIL } = require('./send-email');
+const { sendEmail, getEmailConfig, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, htmlFromText } = require('./send-email');
 
 function roundMoney(value) {
   const amount = Number(value);
@@ -30,8 +30,8 @@ function nextStep(fulfillment, orderId) {
     return 'When the tires are in, email or text the customer that the order is ready for pickup. No appointment.';
   }
   const bookingUrl = orderId
-    ? `https://eastcordtires.ca/appointment.html?source=new-tires&newTireOrder=${encodeURIComponent(orderId)}#appointment-booking`
-    : 'https://eastcordtires.ca/appointment';
+    ? `${APPOINTMENT_URL}?source=new-tires&newTireOrder=${encodeURIComponent(orderId)}#appointment-booking`
+    : APPOINTMENT_URL;
   return `Order is confirmed. Customer can book installation now: ${bookingUrl}`;
 }
 
@@ -74,8 +74,8 @@ async function notifyPaidNewTireOrder(order) {
   ].filter((line) => line !== undefined).join('\n');
 
   const bookingUrl = order.id
-    ? `https://eastcordtires.ca/appointment.html?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking`
-    : 'https://eastcordtires.ca/appointment';
+    ? `${APPOINTMENT_URL}?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking`
+    : APPOINTMENT_URL;
   const customerText = fulfillment === 'Installation'
     ? [
       `Hello ${customerName},`,
@@ -88,6 +88,7 @@ async function notifyPaidNewTireOrder(order) {
       `Total paid: ${formatMoney(order.total_with_hst)}`,
       '',
       'This purchase is saved to your EastCord account.',
+      `View your account: ${ACCOUNT_URL}`,
       'info@eastcordtires.ca · 365-822-5553',
     ].join('\n')
     : [
@@ -100,6 +101,7 @@ async function notifyPaidNewTireOrder(order) {
       `Total paid: ${formatMoney(order.total_with_hst)}`,
       '',
       'This purchase is saved to your EastCord account.',
+      `View your account: ${ACCOUNT_URL}`,
       'info@eastcordtires.ca · 365-822-5553',
     ].join('\n');
 
@@ -108,7 +110,7 @@ async function notifyPaidNewTireOrder(order) {
     replyTo: order.customer_email || CONTACT_EMAIL,
     subject: `Paid new tire order — ${fulfillment} — ${customerName}`,
     text: staffText,
-    html: `<pre style="font: 15px/1.5 sans-serif; white-space: pre-wrap;">${escapeHtml(staffText)}</pre>`,
+    html: htmlFromText(staffText),
   });
 
   if (order.customer_email) {
@@ -119,7 +121,7 @@ async function notifyPaidNewTireOrder(order) {
         ? 'EastCord Tires payment received — book installation with this order'
         : 'EastCord Tires payment received — we will confirm pickup',
       text: customerText,
-      html: `<pre style="font: 15px/1.5 sans-serif; white-space: pre-wrap;">${escapeHtml(customerText)}</pre>`,
+      html: htmlFromText(customerText),
     });
   }
 }

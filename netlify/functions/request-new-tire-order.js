@@ -1,4 +1,4 @@
-const { sendEmail, getEmailConfig, CONTACT_EMAIL } = require('./lib/send-email');
+const { sendEmail, getEmailConfig, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, SITE_ORIGIN, htmlFromText } = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -13,6 +13,20 @@ function json(statusCode, payload) {
 
 function clean(value) {
   return String(value || '').trim();
+}
+
+function productionPageUrl(value) {
+  const raw = clean(value);
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    if (/localhost|127\.0\.0\.1/i.test(url.hostname)) {
+      return `${SITE_ORIGIN}${url.pathname}${url.search}${url.hash}`;
+    }
+    return url.toString();
+  } catch (error) {
+    return raw;
+  }
 }
 
 function escapeHtml(value) {
@@ -86,7 +100,7 @@ exports.handler = async function requestNewTireOrder(event) {
   const fulfillment = clean(payload.fulfillment) === 'Installation' ? 'Installation' : 'Pickup';
   const vehicle = payload.vehicle || {};
   const notes = clean(payload.notes);
-  const pageUrl = clean(payload.pageUrl);
+  const pageUrl = productionPageUrl(payload.pageUrl);
   const source = clean(payload.source) || 'EastCord new tires page';
   const orderNumber = clean(payload.orderNumber);
   const items = formatItems(payload.items);
@@ -113,7 +127,7 @@ exports.handler = async function requestNewTireOrder(event) {
     return `${item.qty} x ${name}${part}${price}`;
   });
   const nextStep = fulfillment === 'Installation'
-    ? 'When the tires are in, email the customer this booking link: https://eastcordtires.ca/appointment'
+    ? `When the tires are in, email the customer this booking link: ${APPOINTMENT_URL}`
     : 'When the tires are in, email or text the customer that the order is ready for pickup. No appointment.';
 
   const text = [
@@ -146,7 +160,8 @@ exports.handler = async function requestNewTireOrder(event) {
       '',
       'EastCord Tires received your new tire order with installation.',
       'You can book installation after this order is saved. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.',
-      'https://eastcordtires.ca/appointment',
+      APPOINTMENT_URL,
+      `View your account: ${ACCOUNT_URL}`,
       '',
       ...itemLines,
       orderNumber ? `TireConnect order #: ${orderNumber}` : '',
@@ -158,6 +173,7 @@ exports.handler = async function requestNewTireOrder(event) {
       '',
       'EastCord Tires received your new tire order for store pickup.',
       'We will email you when the tires are ready to pick up. No appointment is needed.',
+      `View your account: ${ACCOUNT_URL}`,
       '',
       ...itemLines,
       orderNumber ? `TireConnect order #: ${orderNumber}` : '',
@@ -172,7 +188,7 @@ exports.handler = async function requestNewTireOrder(event) {
     replyTo: customer.email,
     subject: subjectBits.join(' — '),
     text,
-    html: `<pre style="font: 15px/1.5 sans-serif; white-space: pre-wrap;">${escapeHtml(text)}</pre>`,
+    html: htmlFromText(text),
   });
 
   if (staffEmail.ok) {
@@ -183,7 +199,7 @@ exports.handler = async function requestNewTireOrder(event) {
         ? 'EastCord Tires received your order — installation booking comes later'
         : 'EastCord Tires received your order — we will confirm pickup',
       text: customerText,
-      html: `<pre style="font: 15px/1.5 sans-serif; white-space: pre-wrap;">${escapeHtml(customerText)}</pre>`,
+      html: htmlFromText(customerText),
     });
     return json(200, { ok: true, emailed: true });
   }

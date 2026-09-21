@@ -1,4 +1,4 @@
-const { sendEmail, getEmailConfig, CONTACT_EMAIL } = require('./lib/send-email');
+const { sendEmail, getEmailConfig, CONTACT_EMAIL, APPOINTMENT_URL, htmlFromText } = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -57,7 +57,7 @@ exports.handler = async function requestUsedTireReservation(event) {
     `Phone: ${customer.phone}`,
     `Fulfillment: ${fulfillment}`,
     fulfillment === 'Installation'
-      ? 'When the tires are in, send the customer this booking link: https://eastcordtires.ca/appointment'
+      ? `When the tires are in, send the customer this booking link: ${APPOINTMENT_URL}`
       : 'Confirm with the customer when the order is ready for pickup. No appointment is required.',
     '',
     'Tires:',
@@ -73,7 +73,7 @@ exports.handler = async function requestUsedTireReservation(event) {
     replyTo: customer.email,
     subject: `Used tire reservation request — ${customer.name}`,
     text,
-    html: `<pre style="font: 15px/1.5 sans-serif; white-space: pre-wrap;">${escapeHtml(text)}</pre>`,
+    html: htmlFromText(text),
   });
 
   if (email.ok) {

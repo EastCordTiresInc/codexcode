@@ -190,6 +190,42 @@
   force = true
 
 [[redirects]]
+  from = "/appointment"
+  to = "/appointment.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/appointment/"
+  to = "/appointment.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/forgot-password"
+  to = "/forgot-password.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/forgot-password/"
+  to = "/forgot-password.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/reset-password"
+  to = "/reset-password.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/reset-password/"
+  to = "/reset-password.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/new-tire-order-success"
   to = "/new-tire-order-success.html"
   status = 301

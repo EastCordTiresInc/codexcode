@@ -4,7 +4,9 @@ const { createClient } = require('@supabase/supabase-js');
 
 const CONTACT_EMAIL = 'info@eastcordtires.ca';
 const CONTACT_PHONE = '365-822-5553';
-const SITE_URL = 'eastcordtires.ca';
+const SITE_URL = 'https://eastcordtires.ca';
+const ACCOUNT_URL = 'https://eastcordtires.ca/account.html';
+const WARRANTY_URL = 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf';
 const CUSTOMER_EMAIL_COLUMN = 'customer_confirmation_sent_at';
 const EASTCORD_EMAIL_COLUMN = 'eastcord_notification_sent_at';
 const TAX_RATE = 0.13;
@@ -320,7 +322,7 @@ function buildCustomerEmail({ rows, session }) {
   return {
     to: getCustomerEmail(rows, session),
     subject: 'Your EastCord Tires Appointment Is Confirmed',
-    text: `Hello ${customerName},\n\nYour EastCord Tires appointment is confirmed.\n\nWe have received your deposit and your appointment has been booked successfully.\n\nAppointment Details:\n${appointmentText}\n\nPayment Details:\nTotal Service Subtotal: ${formatMoney(totals.serviceSubtotal)}\nTotal HST 13%: ${formatMoney(totals.hstAmount)}\nTotal Including HST: ${formatMoney(totals.totalWithHst)}\nTotal Deposit Paid: ${formatMoney(totals.depositAmount)}\nTotal Remaining Balance Due at Service: ${formatMoney(totals.remainingBalance)}\nBooking Status: Confirmed\nPayment Status: Deposit Paid\n\nImportant Safety Reminder:\nWheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.\n\nYour appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the Used Tire Warranty Policy also applies.\n\nIf you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.\n\nEastCord Tires\n${CONTACT_EMAIL}\n${CONTACT_PHONE}\n${SITE_URL}`,
+    text: `Hello ${customerName},\n\nYour EastCord Tires appointment is confirmed.\n\nWe have received your deposit and your appointment has been booked successfully.\n\nAppointment Details:\n${appointmentText}\n\nPayment Details:\nTotal Service Subtotal: ${formatMoney(totals.serviceSubtotal)}\nTotal HST 13%: ${formatMoney(totals.hstAmount)}\nTotal Including HST: ${formatMoney(totals.totalWithHst)}\nTotal Deposit Paid: ${formatMoney(totals.depositAmount)}\nTotal Remaining Balance Due at Service: ${formatMoney(totals.remainingBalance)}\nBooking Status: Confirmed\nPayment Status: Deposit Paid\n\nImportant Safety Reminder:\nWheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.\n\nYour appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the Used Tire Warranty Policy also applies.\n\nIf you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.\n\nView your account: ${ACCOUNT_URL}\nUsed Tire Warranty: ${WARRANTY_URL}\n\nEastCord Tires\n${CONTACT_EMAIL}\n${CONTACT_PHONE}\n${SITE_URL}`,
     html: `
       <div style="font-family:Arial,sans-serif;color:#111317;line-height:1.6;max-width:720px;margin:0 auto;">
         <h2 style="color:#111317;">Your EastCord Tires appointment is confirmed.</h2>
@@ -337,9 +339,10 @@ function buildCustomerEmail({ rows, session }) {
         <strong>Payment Status:</strong> Deposit Paid</p>
         <h3>Important Safety Reminder</h3>
         <p>Wheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.</p>
-        <p>Your appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the Used Tire Warranty Policy also applies.</p>
+        <p>Your appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the <a href="${WARRANTY_URL}">Used Tire Warranty Policy</a> also applies.</p>
         <p>If you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.</p>
-        <p><strong>EastCord Tires</strong><br />${CONTACT_EMAIL}<br />${CONTACT_PHONE}<br />${SITE_URL}</p>
+        <p><a href="${ACCOUNT_URL}">View your account</a></p>
+        <p><strong>EastCord Tires</strong><br /><a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a><br />${CONTACT_PHONE}<br /><a href="${SITE_URL}">${SITE_URL}</a></p>
       </div>
     `,
   };

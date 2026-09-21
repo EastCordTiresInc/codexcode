@@ -1,6 +1,11 @@
 const https = require('https');
 
 const CONTACT_EMAIL = 'info@eastcordtires.ca';
+const SITE_ORIGIN = 'https://eastcordtires.ca';
+const ACCOUNT_URL = `${SITE_ORIGIN}/account.html`;
+const APPOINTMENT_URL = `${SITE_ORIGIN}/appointment.html`;
+const RESET_PASSWORD_URL = `${SITE_ORIGIN}/reset-password.html`;
+const WARRANTY_URL = `${SITE_ORIGIN}/public/docs/eastcord-used-tire-warranty-policy.pdf`;
 
 function getEmailConfig() {
   return {
@@ -10,6 +15,28 @@ function getEmailConfig() {
     replyTo: process.env.EMAIL_REPLY_TO || CONTACT_EMAIL,
     eastcordTo: process.env.EMAIL_TO_EASTCORD || CONTACT_EMAIL,
   };
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function htmlFromText(text) {
+  const linked = escapeHtml(text).replace(/(https:\/\/[^\s<]+)/g, (match) => {
+    const trailing = match.match(/[.,;:!?)]+$/)?.[0] || '';
+    const href = trailing ? match.slice(0, -trailing.length) : match;
+    return `<a href="${href}">${href}</a>${trailing}`;
+  });
+  return `<pre style="font: 15px/1.5 sans-serif; white-space: pre-wrap;">${linked}</pre>`;
+}
+
+function emailCta(href, label) {
+  const safeHref = escapeHtml(href);
+  return `<a href="${safeHref}" style="display:inline-block;background:#ba151b;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">${escapeHtml(label)}</a>`;
 }
 
 function postJsonWithHttps({ hostname, path, headers, body }) {
@@ -89,6 +116,14 @@ async function sendEmail(email) {
 
 module.exports = {
   CONTACT_EMAIL,
+  SITE_ORIGIN,
+  ACCOUNT_URL,
+  APPOINTMENT_URL,
+  RESET_PASSWORD_URL,
+  WARRANTY_URL,
   getEmailConfig,
+  escapeHtml,
+  htmlFromText,
+  emailCta,
   sendEmail,
 };

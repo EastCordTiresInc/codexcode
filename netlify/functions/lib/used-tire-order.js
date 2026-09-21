@@ -1,4 +1,5 @@
 const { applyWebsiteSalesToSheet } = require('./google-sheets-inventory');
+const { sendEmail, getEmailConfig, CONTACT_EMAIL, htmlFromText } = require('./send-email');
 
 const TAX_RATE = 0;
 
@@ -179,6 +180,51 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
     console.info(
       `[EastCord sheet write-back] Updated ${saleResult.sheet?.updated?.length || 0} sheet row(s) after order ${paidOrder.id}.`,
     );
+  }
+
+  try {
+    const { buildUsedTireReceipt } = require('./used-tire-receipt');
+    const receipt = buildUsedTireReceipt({
+      customer: {
+        name: paidOrder.customer_name,
+        email: paidOrder.customer_email,
+      },
+      items,
+      websiteUpdates: saleResult.websiteUpdates || [],
+    });
+    const config = getEmailConfig();
+    if (paidOrder.customer_email) {
+      await sendEmail({
+        to: paidOrder.customer_email,
+        replyTo: CONTACT_EMAIL,
+        subject: receipt.subject,
+        text: receipt.text,
+        html: receipt.html,
+      });
+    }
+    await sendEmail({
+      to: config.eastcordTo || CONTACT_EMAIL,
+      replyTo: paidOrder.customer_email || CONTACT_EMAIL,
+      subject: `Paid used tire order — ${paidOrder.customer_name || 'Customer'}`,
+      text: [
+        'Paid used tire order',
+        `Order: ${paidOrder.id}`,
+        `Name: ${paidOrder.customer_name || ''}`,
+        `Email: ${paidOrder.customer_email || ''}`,
+        `Phone: ${paidOrder.customer_phone || ''}`,
+        receipt.text,
+      ].join('\n'),
+      html: htmlFromText([
+        'Paid used tire order',
+        `Order: ${paidOrder.id}`,
+        `Name: ${paidOrder.customer_name || ''}`,
+        `Email: ${paidOrder.customer_email || ''}`,
+        `Phone: ${paidOrder.customer_phone || ''}`,
+        receipt.text,
+      ].join('\n')),
+    });
+  } catch (error) {
+    console.error('[EastCord used tires] Receipt email failed after paid order.', error);
   }
 
   return { ok: true, alreadyPaid: false, order: paidOrder, sale: saleResult };

@@ -1136,10 +1136,26 @@ async function signupWithResendConfirmation({ fullName, email, phone, password }
 }
 
 function getPasswordResetRedirectTo() {
-  const resetUrl = new URL('/reset-password.html', window.location.origin);
-  const redirectTarget = getRedirectTarget('/account.html');
-  if (redirectTarget) resetUrl.searchParams.set('redirect', redirectTarget);
-  return resetUrl.toString();
+  return 'https://eastcordtires.ca/reset-password.html';
+}
+
+async function requestPasswordReset(email) {
+  const response = await fetch('/.netlify/functions/send-password-reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: String(email || '').trim() }),
+  });
+
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch (error) {
+    payload = {};
+  }
+
+  if (!response.ok) {
+    throw new Error(payload.message || 'Password reset email could not be sent. Please try again shortly.');
+  }
 }
 
 function isAlreadyRegisteredError(error) {
@@ -1201,19 +1217,6 @@ async function signInCustomer({ email, password }) {
   if (profile) await upsertCustomerProfile(profile);
   await hydrateSignedInCarts();
   return data;
-}
-
-async function requestPasswordReset(email) {
-  const client = getSupabaseClient();
-  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
-
-  const { error } = await client.auth.resetPasswordForEmail(String(email || '').trim(), {
-    redirectTo: getPasswordResetRedirectTo(),
-  });
-  if (error) {
-    logSupabaseError('Supabase password reset request failed.', error);
-    throw new Error(getFriendlySupabaseError(error, 'Password reset email could not be sent. Please try again shortly.'));
-  }
 }
 
 function hasPasswordRecoveryParameters() {
