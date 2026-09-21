@@ -62,6 +62,8 @@ function head(url) {
   });
   const visibleConfirmText = confirmEmail.html.replace(/<a\b[^>]*>/gi, '<a>').replace(/<[^>]+>/g, ' ');
   assert.match(confirmEmail.html, /Confirm your mail/);
+  assert.match(confirmEmail.html, /eastcord-logo-red-white\.png/);
+  assert.doesNotMatch(confirmEmail.html, /background:#ba151b/);
   assert.doesNotMatch(visibleConfirmText, /supabase\.co|token=/i);
   assert.doesNotMatch(confirmEmail.html, /paste this link/i);
   assert.doesNotMatch(confirmEmail.text, /supabase\.co|token=/i);
