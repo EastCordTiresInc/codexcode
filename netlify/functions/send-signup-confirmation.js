@@ -1,6 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
 const { sendEmail, getEmailConfig, buildAuthEmail } = require('./lib/send-email');
 
+// Force Netlify to rebuild this function with the EastCord welcome copy.
+
 function json(statusCode, payload) {
   return {
     statusCode,
