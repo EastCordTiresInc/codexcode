@@ -22,9 +22,9 @@ function isValidEmail(value) {
 
 function isAlreadyRegisteredError(error) {
   const message = String(error?.message || '').toLowerCase();
-  const code = String(error?.code || error?.status || '').toLowerCase();
+  const code = String(error?.code || '').toLowerCase();
   return code === 'user_already_exists'
-    || code === '422'
+    || code === 'email_exists'
     || message.includes('already been registered')
     || message.includes('already registered')
     || message.includes('user already exists')
