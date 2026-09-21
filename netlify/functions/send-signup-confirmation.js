@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-const { sendEmail, getEmailConfig, escapeHtml, emailCta, SITE_ORIGIN } = require('./lib/send-email');
+const { sendEmail, getEmailConfig, buildAuthEmail } = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -78,37 +78,14 @@ function buildConfirmUrl(supabaseUrl, data, redirectTo) {
 }
 
 function buildConfirmationEmail({ to, confirmUrl }) {
-  const text = [
-    'Confirm your EastCord Tires account',
-    '',
-    'Thanks for signing up. Open this link to confirm your email and open your EastCord account:',
-    confirmUrl,
-    '',
-    'If you did not create this account, you can ignore this email.',
-    '',
-    'EastCord Tires',
-    SITE_ORIGIN,
-  ].join('\n');
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111317;">
-      <h1 style="font-size:20px;margin:0 0 12px;">Confirm your EastCord Tires account</h1>
-      <p style="margin:0 0 16px;">Thanks for signing up. Click the button below to confirm your email and open your account.</p>
-      <p style="margin:0 0 20px;">
-        ${emailCta(confirmUrl, 'Confirm email')}
-      </p>
-      <p style="margin:0 0 8px;font-size:13px;color:#4b5563;">Or paste this link into your browser:</p>
-      <p style="margin:0 0 12px;font-size:13px;word-break:break-all;"><a href="${escapeHtml(confirmUrl)}">${escapeHtml(confirmUrl)}</a></p>
-      <p style="margin:0;font-size:13px;"><a href="${escapeHtml(SITE_ORIGIN)}">${escapeHtml(SITE_ORIGIN)}</a></p>
-    </div>
-  `;
-
-  return {
+  return buildAuthEmail({
     to,
-    subject: 'Confirm your EastCord Tires account',
-    text,
-    html,
-  };
+    subject: 'Confirm your signup',
+    heading: 'Confirm your signup',
+    body: 'Follow this link to confirm your user:',
+    actionUrl: confirmUrl,
+    actionLabel: 'Confirm your mail',
+  });
 }
 
 async function generateConfirmLink(supabaseAdmin, { email, password, fullName, phone, redirectTo }) {

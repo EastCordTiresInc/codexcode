@@ -11,6 +11,7 @@ const {
   RESET_PASSWORD_URL,
   WARRANTY_URL,
   htmlFromText,
+  buildAuthEmail,
 } = require('../netlify/functions/lib/send-email');
 const { buildUsedTireReceipt } = require('../netlify/functions/lib/used-tire-receipt');
 
@@ -51,6 +52,20 @@ function head(url) {
   assert.match(linked, /<a href="/);
   assert.doesNotMatch(linked, /localhost|127\.0\.0\.1/i);
 
+  const confirmEmail = buildAuthEmail({
+    to: 'test@example.com',
+    subject: 'Confirm your signup',
+    heading: 'Confirm your signup',
+    body: 'Follow this link to confirm your user:',
+    actionUrl: 'https://pvivlobtolcdggzefpxo.supabase.co/auth/v1/verify?token=example&type=signup&redirect_to=https%3A%2F%2Feastcordtires.ca%2Faccount.html',
+    actionLabel: 'Confirm your mail',
+  });
+  const visibleConfirmText = confirmEmail.html.replace(/<a\b[^>]*>/gi, '<a>').replace(/<[^>]+>/g, ' ');
+  assert.match(confirmEmail.html, /Confirm your mail/);
+  assert.doesNotMatch(visibleConfirmText, /supabase\.co|token=/i);
+  assert.doesNotMatch(confirmEmail.html, /paste this link/i);
+  assert.doesNotMatch(confirmEmail.text, /supabase\.co|token=/i);
+
   const receipt = buildUsedTireReceipt({
     customer: { name: 'Test Customer', email: 'test@example.com' },
     items: [{ brand: 'Michelin', size: '225/45R17', qty: 2, unitPrice: 80 }],
@@ -87,6 +102,7 @@ function head(url) {
     `${SITE_ORIGIN}/reset-password`,
     `${SITE_ORIGIN}/forgot-password.html`,
     WARRANTY_URL,
+    `${SITE_ORIGIN}/assets/eastcord-logo-red-white.png`,
     ...extractUrls(linked),
     ...extractUrls(receipt.html),
   ].filter((url, index, list) => list.indexOf(url) === index);

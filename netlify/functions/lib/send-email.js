@@ -36,7 +36,49 @@ function htmlFromText(text) {
 
 function emailCta(href, label) {
   const safeHref = escapeHtml(href);
-  return `<a href="${safeHref}" style="display:inline-block;background:#ba151b;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">${escapeHtml(label)}</a>`;
+  return `<a href="${safeHref}" style="display:inline-block;background:#ba151b;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:700;font-size:15px;">${escapeHtml(label)}</a>`;
+}
+
+const LOGO_URL = `${SITE_ORIGIN}/assets/eastcord-logo-red-white.png`;
+
+function buildAuthEmail({ to, subject, heading, body, actionUrl, actionLabel }) {
+  const text = [
+    heading,
+    '',
+    body,
+    '',
+    `Open this email and tap “${actionLabel}”.`,
+    '',
+    'If you did not request this, you can ignore this email.',
+    '',
+    'EastCord Tires',
+  ].join('\n');
+
+  const html = `<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f4f5;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;">
+            <tr>
+              <td style="padding:36px 32px 32px;font-family:Arial,Helvetica,sans-serif;color:#111317;">
+                <img src="${LOGO_URL}" alt="EastCord Tires" height="36" style="display:block;border:0;margin:0 0 24px;" />
+                <h1 style="font-size:22px;line-height:1.3;margin:0 0 12px;">${escapeHtml(heading)}</h1>
+                <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">${escapeHtml(body)}</p>
+                <p style="margin:0 0 28px;">${emailCta(actionUrl, actionLabel)}</p>
+                <p style="margin:0;font-size:13px;line-height:1.5;color:#6b7280;">If you did not request this, you can ignore this email.</p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:16px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9ca3af;">EastCord Tires</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  return { to, subject, text, html };
 }
 
 function postJsonWithHttps({ hostname, path, headers, body }) {
@@ -125,5 +167,6 @@ module.exports = {
   escapeHtml,
   htmlFromText,
   emailCta,
+  buildAuthEmail,
   sendEmail,
 };
