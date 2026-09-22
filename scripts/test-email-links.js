@@ -54,14 +54,19 @@ function head(url) {
 
   const confirmEmail = buildAuthEmail({
     to: 'test@example.com',
-    subject: 'Confirm your signup',
-    heading: 'Confirm your signup',
-    body: 'Follow this link to confirm your user:',
+    subject: 'Nikki, confirm your EastCord Tires account',
+    heading: 'Welcome to EastCord, Nikki',
+    body: [
+      'This is your account for EastCord Tires at 600 Harrop Drive in Milton — inspected used tires, new tires, and installation at the shop.',
+      'Confirm this email so we can save your orders, hold your bookings, and keep your receipts in one place.',
+    ],
     actionUrl: 'https://pvivlobtolcdggzefpxo.supabase.co/auth/v1/verify?token=example&type=signup&redirect_to=https%3A%2F%2Feastcordtires.ca%2Faccount.html',
-    actionLabel: 'Confirm your email',
+    actionLabel: 'Confirm your EastCord account',
   });
   const visibleConfirmText = confirmEmail.html.replace(/<a\b[^>]*>/gi, '<a>').replace(/<[^>]+>/g, ' ');
-  assert.match(confirmEmail.html, /Confirm your email/);
+  assert.match(confirmEmail.html, /Welcome to EastCord, Nikki/);
+  assert.match(confirmEmail.html, /600 Harrop Drive/);
+  assert.match(confirmEmail.html, /Confirm your EastCord account/);
   assert.match(confirmEmail.html, /eastcord-logo-email\.png/);
   assert.doesNotMatch(confirmEmail.html, /background:#ba151b/);
   assert.doesNotMatch(visibleConfirmText, /supabase\.co|token=/i);
@@ -74,6 +79,8 @@ function head(url) {
   });
   assert.match(receipt.html, /View your account/);
   assert.match(receipt.html, /Used Tire Warranty Policy/);
+  assert.match(receipt.html, /eastcord-logo-email\.png/);
+  assert.match(receipt.html, /600 Harrop Drive/);
   assert.doesNotMatch(`${receipt.text}\n${receipt.html}`, /localhost|127\.0\.0\.1/i);
 
   const emailFiles = [

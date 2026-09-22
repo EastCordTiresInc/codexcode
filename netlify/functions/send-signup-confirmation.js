@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
-const { sendEmail, getEmailConfig, buildAuthEmail } = require('./lib/send-email');
+const { sendEmail, getEmailConfig, buildAuthEmail, isLocalNetlifyDev, forwardToProductionFunction } = require('./lib/send-email');
 
-// Force Netlify to rebuild this function with the EastCord welcome copy.
+// Force Netlify to rebuild this function with personalized EastCord welcome copy.
 
 function json(statusCode, payload) {
   return {
@@ -79,18 +79,27 @@ function buildConfirmUrl(supabaseUrl, data, redirectTo) {
   return actionLink ? withRedirectTo(actionLink, redirectTo) : '';
 }
 
-function buildConfirmationEmail({ to, confirmUrl }) {
+function greetingName(fullName) {
+  const first = String(fullName || '').trim().split(/\s+/)[0];
+  if (!first || first.length > 40) return '';
+  return first;
+}
+
+function buildConfirmationEmail({ to, confirmUrl, fullName }) {
+  const name = greetingName(fullName);
   return buildAuthEmail({
     to,
-    subject: 'Confirm your EastCord Tires account',
-    heading: 'Welcome to EastCord Tires',
+    subject: name
+      ? `${name}, confirm your EastCord Tires account`
+      : 'Confirm your EastCord Tires account',
+    heading: name ? `Welcome to EastCord, ${name}` : 'Welcome to EastCord Tires',
     body: [
-      'Thank you for creating an account with EastCord Tires in Milton.',
-      'Confirm your email to save orders, book installation, and shop inspected used and new tires.',
+      'This is your account for EastCord Tires at 600 Harrop Drive in Milton — inspected used tires, new tires, and installation at the shop.',
+      'Confirm this email so we can save your orders, hold your bookings, and keep your receipts in one place.',
     ],
     actionUrl: confirmUrl,
-    actionLabel: 'Confirm your email',
-    footer: 'If you did not create this account, you can ignore this email.',
+    actionLabel: 'Confirm your EastCord account',
+    footer: 'If you did not create an EastCord Tires account, you can ignore this email.',
   });
 }
 
@@ -169,6 +178,20 @@ exports.handler = async (event) => {
 
   const emailConfig = getEmailConfig();
   if (!emailConfig.apiKey) {
+    if (isLocalNetlifyDev()) {
+      try {
+        const forwarded = await forwardToProductionFunction('send-signup-confirmation', {
+          email,
+          password,
+          fullName,
+          phone,
+          redirectTo: body.redirectTo,
+        });
+        return json(forwarded.statusCode, forwarded.payload);
+      } catch (error) {
+        console.error('[EastCord auth] Local signup could not reach production email service.', error.message);
+      }
+    }
     console.error('[EastCord auth] RESEND_API_KEY is missing; cannot send signup confirmation.');
     return json(503, {
       message: 'Confirmation email service is not configured. Please contact EastCord Tires.',
@@ -214,7 +237,7 @@ exports.handler = async (event) => {
     return json(502, { message: 'Confirmation email could not be created right now.' });
   }
 
-  const sent = await sendEmail(buildConfirmationEmail({ to: email, confirmUrl }));
+  const sent = await sendEmail(buildConfirmationEmail({ to: email, confirmUrl, fullName }));
   if (!sent.ok) {
     console.error('[EastCord auth] Confirmation email send failed.', sent);
     return json(502, {

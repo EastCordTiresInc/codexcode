@@ -17,6 +17,27 @@ function getEmailConfig() {
   };
 }
 
+function isLocalNetlifyDev() {
+  return String(process.env.NETLIFY_DEV || '').toLowerCase() === 'true';
+}
+
+async function forwardToProductionFunction(functionName, body) {
+  console.warn(`[EastCord auth] RESEND_API_KEY missing locally; using production ${functionName}.`);
+  const response = await postJsonWithHttps({
+    hostname: 'eastcordtires.ca',
+    path: `/.netlify/functions/${functionName}`,
+    headers: {},
+    body,
+  });
+  const payload = response.body && typeof response.body === 'object' && !response.body.parseError
+    ? response.body
+    : { message: 'Production email service did not respond.' };
+  return {
+    statusCode: response.statusCode || 502,
+    payload,
+  };
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -41,28 +62,43 @@ function emailCta(href, label) {
 
 const LOGO_URL = `${SITE_ORIGIN}/assets/eastcord-logo-email.png`;
 
-function buildAuthEmail({ to, subject, heading, body, actionUrl, actionLabel, footer }) {
+function buildBrandedEmail({
+  to,
+  subject,
+  heading,
+  body,
+  actionUrl,
+  actionLabel,
+  footer,
+  extraText = '',
+  extraHtml = '',
+}) {
   const paragraphs = (Array.isArray(body) ? body : [body]).map((para) => String(para || '').trim()).filter(Boolean);
-  const footerText = footer || 'If you did not request this, you can ignore this email.';
+  const footerText = footer || '';
   const text = [
     'EastCord Tires',
     '',
     heading,
     '',
     ...paragraphs,
-    '',
-    `Open this email and tap “${actionLabel}”.`,
-    '',
+    extraText,
+    actionUrl && actionLabel ? `Open this email and tap “${actionLabel}”.` : '',
     footerText,
     '',
     'EastCord Tires',
     '600 Harrop Drive, Milton, Ontario',
     'info@eastcordtires.ca · 365-822-5553',
-  ].join('\n');
+  ].filter((line) => line !== undefined && line !== null).join('\n');
 
   const bodyHtml = paragraphs.map((para, index) => (
     `<p style="margin:0 0 ${index === paragraphs.length - 1 ? '20' : '12'}px;font-size:15px;line-height:1.6;color:#4b5563;">${escapeHtml(para)}</p>`
   )).join('');
+  const actionHtml = actionUrl && actionLabel
+    ? `<p style="margin:0 0 28px;">${emailCta(actionUrl, actionLabel)}</p>`
+    : '';
+  const footerHtml = footerText
+    ? `<p style="margin:0 0 16px;font-size:13px;line-height:1.5;color:#6b7280;">${escapeHtml(footerText)}</p>`
+    : '';
 
   const html = `<!DOCTYPE html>
 <html>
@@ -80,8 +116,9 @@ function buildAuthEmail({ to, subject, heading, body, actionUrl, actionLabel, fo
               <td style="padding:32px;font-family:Arial,Helvetica,sans-serif;color:#111317;">
                 <h1 style="font-size:22px;line-height:1.3;margin:0 0 12px;">${escapeHtml(heading)}</h1>
                 ${bodyHtml}
-                <p style="margin:0 0 28px;">${emailCta(actionUrl, actionLabel)}</p>
-                <p style="margin:0 0 16px;font-size:13px;line-height:1.5;color:#6b7280;">${escapeHtml(footerText)}</p>
+                ${extraHtml}
+                ${actionHtml}
+                ${footerHtml}
                 <p style="margin:0;font-size:12px;line-height:1.6;color:#9ca3af;">EastCord Tires · 600 Harrop Drive, Milton, Ontario<br />info@eastcordtires.ca · 365-822-5553</p>
               </td>
             </tr>
@@ -93,6 +130,10 @@ function buildAuthEmail({ to, subject, heading, body, actionUrl, actionLabel, fo
 </html>`;
 
   return { to, subject, text, html };
+}
+
+function buildAuthEmail(options) {
+  return buildBrandedEmail(options);
 }
 
 function postJsonWithHttps({ hostname, path, headers, body }) {
@@ -178,9 +219,12 @@ module.exports = {
   RESET_PASSWORD_URL,
   WARRANTY_URL,
   getEmailConfig,
+  isLocalNetlifyDev,
+  forwardToProductionFunction,
   escapeHtml,
   htmlFromText,
   emailCta,
   buildAuthEmail,
+  buildBrandedEmail,
   sendEmail,
 };

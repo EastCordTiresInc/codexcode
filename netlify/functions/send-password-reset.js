@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-const { sendEmail, getEmailConfig, RESET_PASSWORD_URL, buildAuthEmail } = require('./lib/send-email');
+const { sendEmail, getEmailConfig, RESET_PASSWORD_URL, buildAuthEmail, isLocalNetlifyDev, forwardToProductionFunction } = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -52,14 +52,14 @@ function buildResetEmail({ to, resetUrl }) {
   return buildAuthEmail({
     to,
     subject: 'Reset your EastCord Tires password',
-    heading: 'Reset your password',
+    heading: 'Reset your EastCord Tires password',
     body: [
-      'We received a request to reset the password for your EastCord Tires account.',
-      'Use the link below to choose a new password and keep shopping used tires, new tires, and installation bookings.',
+      'We received a request to reset the password on your EastCord Tires account.',
+      'Choose a new password so you can keep shopping inspected used tires, new tires, and installation at 600 Harrop Drive in Milton.',
     ],
     actionUrl: resetUrl,
-    actionLabel: 'Choose a new password',
-    footer: 'If you did not ask to reset your password, you can ignore this email.',
+    actionLabel: 'Choose a new EastCord password',
+    footer: 'If you did not ask to reset your EastCord Tires password, you can ignore this email.',
   });
 }
 
@@ -89,6 +89,14 @@ exports.handler = async (event) => {
 
   const emailConfig = getEmailConfig();
   if (!emailConfig.apiKey) {
+    if (isLocalNetlifyDev()) {
+      try {
+        const forwarded = await forwardToProductionFunction('send-password-reset', { email });
+        return json(forwarded.statusCode, forwarded.payload);
+      } catch (error) {
+        console.error('[EastCord auth] Local password reset could not reach production email service.', error.message);
+      }
+    }
     console.error('[EastCord auth] RESEND_API_KEY is missing; cannot send password reset.');
     return json(503, {
       message: 'Password reset email could not be sent right now. Please contact EastCord Tires.',
