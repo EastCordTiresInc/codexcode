@@ -1,4 +1,4 @@
-const { sendEmail, getEmailConfig, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, SITE_ORIGIN, htmlFromText } = require('./lib/send-email');
+const { sendEmail, getEmailConfig, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, SITE_ORIGIN, htmlFromText, buildBrandedEmail } = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -128,7 +128,7 @@ exports.handler = async function requestNewTireOrder(event) {
   });
   const nextStep = fulfillment === 'Installation'
     ? `When the tires are in, email the customer this booking link: ${APPOINTMENT_URL}`
-    : 'When the tires are in, email or text the customer that the order is ready for pickup. No appointment.';
+    : 'When the tires arrive, open Admin → Orders and tap “Tires arrived — email customer”.';
 
   const text = [
     'New tire order',
@@ -154,32 +154,31 @@ exports.handler = async function requestNewTireOrder(event) {
     nextStep,
   ].filter((line) => line !== undefined).join('\n');
 
-  const customerText = fulfillment === 'Installation'
-    ? [
-      `Hello ${customer.name},`,
-      '',
-      'EastCord Tires received your new tire order with installation.',
-      'You can book installation after this order is saved. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.',
-      APPOINTMENT_URL,
-      `View your account: ${ACCOUNT_URL}`,
-      '',
-      ...itemLines,
-      orderNumber ? `TireConnect order #: ${orderNumber}` : '',
-      '',
-      'info@eastcordtires.ca · 365-822-5553',
-    ].filter(Boolean).join('\n')
-    : [
-      `Hello ${customer.name},`,
-      '',
-      'EastCord Tires received your new tire order for store pickup.',
-      'We will email you when the tires are ready to pick up. No appointment is needed.',
-      `View your account: ${ACCOUNT_URL}`,
-      '',
-      ...itemLines,
-      orderNumber ? `TireConnect order #: ${orderNumber}` : '',
-      '',
-      'info@eastcordtires.ca · 365-822-5553',
-    ].filter(Boolean).join('\n');
+  const customerEmail = fulfillment === 'Installation'
+    ? buildBrandedEmail({
+      to: customer.email,
+      subject: 'EastCord Tires received your order — installation booking comes later',
+      heading: 'We received your new tire order',
+      body: [
+        `Hello ${customer.name},`,
+        'EastCord Tires received your new tire order with installation. You can book after this order is saved. Booking is not available on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.',
+      ],
+      actionUrl: APPOINTMENT_URL,
+      actionLabel: 'Book installation',
+      extraText: [...itemLines, orderNumber ? `TireConnect order #: ${orderNumber}` : ''].filter(Boolean).join('\n'),
+    })
+    : buildBrandedEmail({
+      to: customer.email,
+      subject: 'EastCord Tires received your order — we will confirm pickup',
+      heading: 'We received your pickup order',
+      body: [
+        `Hello ${customer.name},`,
+        'EastCord Tires received your new tire order for store pickup at 600 Harrop Drive, Milton. We will email you when the tires are ready. No appointment is needed.',
+      ],
+      actionUrl: ACCOUNT_URL,
+      actionLabel: 'View your account',
+      extraText: [...itemLines, orderNumber ? `TireConnect order #: ${orderNumber}` : ''].filter(Boolean).join('\n'),
+    });
 
   const config = getEmailConfig();
   const subjectBits = ['New tire order', fulfillment, customer.name, orderNumber].filter(Boolean);
@@ -195,11 +194,9 @@ exports.handler = async function requestNewTireOrder(event) {
     await sendEmail({
       to: customer.email,
       replyTo: CONTACT_EMAIL,
-      subject: fulfillment === 'Installation'
-        ? 'EastCord Tires received your order — installation booking comes later'
-        : 'EastCord Tires received your order — we will confirm pickup',
-      text: customerText,
-      html: htmlFromText(customerText),
+      subject: customerEmail.subject,
+      text: customerEmail.text,
+      html: customerEmail.html,
     });
     return json(200, { ok: true, emailed: true });
   }

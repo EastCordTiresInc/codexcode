@@ -687,6 +687,19 @@ label:has(input[name="bot-field"]) {
   gap: 16px;
 }
 
+.appointment-tire-size-fields {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.form-field select:disabled {
+  background: #f5f6f8;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
 .form-field {
   display: grid;
   gap: 8px;
@@ -1190,6 +1203,7 @@ label:has(input[name="bot-field"]) {
   .appointment-page .appointment-hero.section { padding-bottom: 8px; }
   .appointment-hero-actions { margin-top: 18px; }
   .appointment-field-grid,
+  .appointment-tire-size-fields,
   .appointment-price-summary,
   .appointment-review-grid,
   .appointment-cart-links,

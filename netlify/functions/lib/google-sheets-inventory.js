@@ -444,6 +444,28 @@ function a1Range(sheetTitle, columnIndexValue, rowNumber) {
   return `${quotedTitle}!${columnLetter(columnIndexValue)}${rowNumber}`;
 }
 
+function writeCell(data, updated, {
+  id,
+  sheetTitle,
+  sheetRow,
+  columnKey,
+  columnIndexValue,
+  value,
+}) {
+  if (columnIndexValue < 0) return;
+  data.push({
+    range: a1Range(sheetTitle, columnIndexValue, sheetRow),
+    values: [[value]],
+  });
+  updated.push({
+    id,
+    tab: sheetTitle,
+    field: columnKey,
+    sheetRow,
+    to: value,
+  });
+}
+
 function columnLetter(index) {
   let n = Number(index) + 1;
   let letter = '';
@@ -570,21 +592,14 @@ async function applyAdminInventoryUpdateToSheet(update = {}) {
   const data = [];
   const updated = [];
   const columns = parsed.columns;
-
-  function queueCell(columnKey, columnIndexValue, value) {
-    if (columnIndexValue < 0) return;
-    data.push({
-      range: a1Range(sheetTitle, columnIndexValue, row.sheetRow),
-      values: [[value]],
-    });
-    updated.push({
-      id,
-      tab: sheetTitle,
-      field: columnKey,
-      sheetRow: row.sheetRow,
-      to: value,
-    });
-  }
+  const queue = (columnKey, columnIndexValue, value) => writeCell(data, updated, {
+    id,
+    sheetTitle,
+    sheetRow: row.sheetRow,
+    columnKey,
+    columnIndexValue,
+    value,
+  });
 
   const nextStock = Math.max(0, Number(update.current_stock) || 0);
   const nextAdd = Math.max(0, Number(update.add_qty) || 0);
@@ -596,17 +611,17 @@ async function applyAdminInventoryUpdateToSheet(update = {}) {
   const stockIsFormula = isFormula(formulaCell);
 
   // Keep Opening/Add/Remove consistent with the saved Supabase row.
-  writeCell('opening_qty', columns.openingQty, nextOpening);
-  writeCell('add_qty', columns.addQty, nextAdd);
-  writeCell('remove_qty', columns.removeQty, nextRemove);
+  queue('opening_qty', columns.openingQty, nextOpening);
+  queue('add_qty', columns.addQty, nextAdd);
+  queue('remove_qty', columns.removeQty, nextRemove);
 
   // Only overwrite Current Stock when it is a plain number (never clobber a formula).
   if (!stockIsFormula) {
-    writeCell('current_stock', columns.currentStock, nextStock);
+    queue('current_stock', columns.currentStock, nextStock);
   }
 
   if (update.selling_price !== undefined && update.selling_price !== null) {
-    writeCell('selling_price', columns.sellingPrice, Number(update.selling_price));
+    queue('selling_price', columns.sellingPrice, Number(update.selling_price));
   }
 
   if (data.length) {
@@ -659,21 +674,14 @@ async function pushSupabaseInventoryToSheet(rows = []) {
   const updated = [];
   const skipped = [];
   const columns = parsed.columns;
-
-  function queueCell(id, sheetRow, columnKey, columnIndexValue, value) {
-    if (columnIndexValue < 0) return;
-    data.push({
-      range: a1Range(sheetTitle, columnIndexValue, sheetRow),
-      values: [[value]],
-    });
-    updated.push({
-      id,
-      tab: sheetTitle,
-      field: columnKey,
-      sheetRow,
-      to: value,
-    });
-  }
+  const queue = (id, sheetRow, columnKey, columnIndexValue, value) => writeCell(data, updated, {
+    id,
+    sheetTitle,
+    sheetRow,
+    columnKey,
+    columnIndexValue,
+    value,
+  });
 
   updates.forEach((update) => {
     const row = byId.get(update.id);
@@ -689,12 +697,12 @@ async function pushSupabaseInventoryToSheet(rows = []) {
     const formulaCell = cellAt(formulaValues, row.sheetRow, columns.currentStock);
     const stockIsFormula = isFormula(formulaCell);
 
-    writeCell(update.id, row.sheetRow, 'opening_qty', columns.openingQty, nextOpening);
-    writeCell(update.id, row.sheetRow, 'add_qty', columns.addQty, nextAdd);
-    writeCell(update.id, row.sheetRow, 'remove_qty', columns.removeQty, nextRemove);
+    queue(update.id, row.sheetRow, 'opening_qty', columns.openingQty, nextOpening);
+    queue(update.id, row.sheetRow, 'add_qty', columns.addQty, nextAdd);
+    queue(update.id, row.sheetRow, 'remove_qty', columns.removeQty, nextRemove);
 
     if (!stockIsFormula) {
-      writeCell(update.id, row.sheetRow, 'current_stock', columns.currentStock, nextStock);
+      queue(update.id, row.sheetRow, 'current_stock', columns.currentStock, nextStock);
     } else {
       skipped.push({
         id: update.id,
@@ -703,7 +711,7 @@ async function pushSupabaseInventoryToSheet(rows = []) {
     }
 
     if (update.selling_price !== null && Number.isFinite(update.selling_price)) {
-      writeCell(update.id, row.sheetRow, 'selling_price', columns.sellingPrice, update.selling_price);
+      queue(update.id, row.sheetRow, 'selling_price', columns.sellingPrice, update.selling_price);
     }
   });
 
@@ -757,5 +765,6 @@ module.exports = {
   applyAdminInventoryUpdateToSheet,
   pushSupabaseInventoryToSheet,
   pullSheetInventoryRows,
+  writeCell,
   httpError,
 };

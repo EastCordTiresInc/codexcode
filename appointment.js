@@ -19,8 +19,11 @@
     parking: 'Customer will bring the vehicle to the EastCord shop at 600 Harrop Drive, Milton, Ontario.',
   };
   const REQUIRED_FIELD_MESSAGES = {
+    'Vehicle Year': 'Please choose your vehicle year.',
+    'Vehicle Make': 'Please choose your vehicle make.',
+    'Vehicle Model': 'Please choose your vehicle model.',
     'Vehicle Plate Number': 'Please enter your vehicle plate number.',
-    'Vehicle Colour': 'Please enter your vehicle colour.',
+    'Vehicle Colour': 'Please choose your vehicle colour.',
   };
   const money = new Intl.NumberFormat('en-CA', {
     style: 'currency',
@@ -734,7 +737,10 @@
     if (selected.length) {
       const sizes = [...new Set(selected.map((item) => cleanSavedTireSize(item.size)).filter(Boolean))];
       const sizeField = els.appointmentForm.elements.namedItem('Tire Size');
-      if (sizeField && sizes.length === 1) sizeField.value = sizes[0];
+      if (sizes.length === 1) {
+        window.EastCordAppointmentVehicle?.setTireSize?.(sizes[0]);
+        if (sizeField) sizeField.value = sizes[0];
+      }
     }
 
     if (pricingChanged) {
@@ -779,14 +785,12 @@
     const size = (Array.isArray(order?.items) ? order.items : [])
       .map((item) => cleanSavedTireSize(item.size))
       .find(Boolean) || '';
-    const field = (name, value) => {
-      const input = els.appointmentForm?.elements.namedItem(name);
-      if (input && value && !String(input.value || '').trim()) input.value = value;
-    };
-    field('Vehicle Year', year);
-    field('Vehicle Make', make);
-    field('Vehicle Model', model);
-    field('Tire Size', size);
+    window.EastCordAppointmentVehicle?.setVehicle?.({
+      year,
+      make,
+      model,
+      tireSize: size,
+    });
   }
 
   function updateNewTireOrderGateMessage(message, isError = false) {
@@ -1890,8 +1894,10 @@
     updateAuthActionLinks();
     applyInstallLocation('');
     setMinimumDate();
+    window.EastCordAppointmentVehicle?.init?.();
     await hydrateCustomerTires();
     const restored = restorePendingAppointmentDraft();
+    await window.EastCordAppointmentVehicle?.hydrateFromForm?.();
     updateServicePricing(getCurrentService());
     validatePreferredDate();
     validateServiceArea();

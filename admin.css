@@ -316,6 +316,20 @@
   color: #4b5563;
 }
 
+.admin-order .admin-badge {
+  border-radius: 0;
+}
+
+.admin-badge.is-sample {
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fdba74;
+}
+
+.admin-order.is-mock {
+  border-style: dashed;
+}
+
 .admin-manage {
   display: grid;
   gap: 14px;
@@ -399,6 +413,10 @@
   color: #14783d;
   font-size: 0.88rem;
   font-weight: 650;
+}
+
+.admin-manage-feedback[data-tone="ok"] {
+  color: #166534;
 }
 
 .admin-manage-feedback[data-tone="error"] {
@@ -767,7 +785,7 @@
 .admin-inventory-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1100px;
+  min-width: 960px;
   font-size: 0.92rem;
 }
 
@@ -780,11 +798,20 @@
   white-space: nowrap;
 }
 
+.admin-inventory-table td.admin-drive-cell,
 .admin-inventory-table td:nth-child(11) {
-  max-width: 220px;
+  width: 88px;
+  max-width: 88px;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.admin-drive-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .admin-inventory-table th {

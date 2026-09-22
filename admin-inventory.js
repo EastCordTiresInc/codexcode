@@ -213,7 +213,7 @@
 
     if (key === 'drive_link') {
       if (!value) return '';
-      return `<a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer">${escapeHtml(value)}</a>`;
+      return `<a class="button button-secondary admin-mini-btn admin-drive-link" href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(value)}">Open</a>`;
     }
 
     if (key === 'is_flotation') {
@@ -357,7 +357,7 @@
 
     const rows = visible.map((item) => `
       <tr data-inventory-id="${escapeHtml(item.id)}"${isLowStock(item) ? ' class="is-low-stock-row"' : ''}>
-        ${SHEET_COLUMNS.map((column) => `<td>${formatCell(column, item)}</td>`).join('')}
+        ${SHEET_COLUMNS.map((column) => `<td${column.key === 'drive_link' ? ' class="admin-drive-cell"' : ''}>${formatCell(column, item)}</td>`).join('')}
       </tr>
     `).join('');
 

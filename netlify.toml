@@ -94,6 +94,18 @@
   force = true
 
 [[redirects]]
+  from = "/admin/orders"
+  to = "/admin-orders.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/admin/orders/"
+  to = "/admin-orders.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/admin/inventory"
   to = "/admin-inventory.html"
   status = 301

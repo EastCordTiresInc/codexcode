@@ -110,6 +110,30 @@ function runUnitTests() {
   assert(windowStartMinutes('12:00 PM - 1:00 PM') === 720, 'noon should be 720');
   assert(windowStartMinutes('12:00 AM - 1:00 AM') === 0, 'midnight should be 0');
 
+  const { writeCell } = require('../netlify/functions/lib/google-sheets-inventory');
+  const sheetData = [];
+  const sheetUpdated = [];
+  writeCell(sheetData, sheetUpdated, {
+    id: '12',
+    sheetTitle: 'Sheet1',
+    sheetRow: 4,
+    columnKey: 'add_qty',
+    columnIndexValue: 6,
+    value: 3,
+  });
+  writeCell(sheetData, sheetUpdated, {
+    id: '12',
+    sheetTitle: 'Sheet1',
+    sheetRow: 4,
+    columnKey: 'opening_qty',
+    columnIndexValue: -1,
+    value: 0,
+  });
+  assert(sheetData.length === 1, 'writeCell should skip missing columns');
+  assert(sheetData[0].range === "'Sheet1'!G4", `expected Sheet1!G4, got ${sheetData[0].range}`);
+  assert(sheetData[0].values[0][0] === 3, 'writeCell should queue the value');
+  assert(sheetUpdated[0].field === 'add_qty', 'writeCell should record the field');
+
   console.log('PASS unit helpers');
 }
 
@@ -117,7 +141,8 @@ async function runHttpTests(base = 'http://localhost:8888') {
   const pages = [
     { path: '/admin', mustInclude: ['data-admin-status-filter', 'admin.js?v=9'] },
     { path: '/admin/calendar', mustInclude: ['data-admin-calendar', 'admin-calendar.js?v=4'] },
-    { path: '/admin/inventory', mustInclude: ['Low stock', 'data-admin-inventory-search', 'data-sync-to-sheet', 'admin-inventory.js?v=24'] },
+    { path: '/admin/inventory', mustInclude: ['Low stock', 'data-admin-inventory-search', 'data-sync-to-sheet', 'admin-inventory.js?v=25'] },
+    { path: '/admin/orders', mustInclude: ['Waiting for tires', 'data-admin-orders-filter', 'admin-orders.js?v=5'] },
   ];
 
   for (const page of pages) {
@@ -137,10 +162,11 @@ async function runHttpTests(base = 'http://localhost:8888') {
   console.log('PASS homepage title');
 
   const assets = [
-    '/admin.css?v=18',
+    '/admin.css?v=22',
     '/admin.js?v=9',
     '/admin-calendar.js?v=4',
-    '/admin-inventory.js?v=24',
+    '/admin-inventory.js?v=25',
+    '/admin-orders.js?v=5',
   ];
 
   for (const asset of assets) {
@@ -152,10 +178,11 @@ async function runHttpTests(base = 'http://localhost:8888') {
   }
 
   // Source markers for today's features
-  const inventoryJs = await fetchText(`${base}/admin-inventory.js?v=24`);
+  const inventoryJs = await fetchText(`${base}/admin-inventory.js?v=25`);
   assert(inventoryJs.text.includes('LOW_STOCK_MAX'), 'inventory js missing LOW_STOCK_MAX');
   assert(inventoryJs.text.includes("stockFilter === 'low'"), 'inventory js missing low filter');
   assert(inventoryJs.text.includes('syncToSheet'), 'inventory js missing syncToSheet');
+  assert(inventoryJs.text.includes('admin-drive-link'), 'inventory js missing compact drive link');
 
   const adminJs = await fetchText(`${base}/admin.js?v=9`);
   assert(adminJs.text.includes('mapsHref'), 'admin js missing mapsHref');
@@ -202,6 +229,13 @@ async function runHttpTests(base = 'http://localhost:8888') {
     `syncToSheet should require auth, got ${syncToSheet.response.status}`,
   );
   console.log('PASS syncToSheet auth gate');
+
+  const ordersApi = await fetchJson(`${base}/.netlify/functions/admin-new-tire-orders`);
+  assert(
+    ordersApi.response.status === 401 || ordersApi.response.status === 403,
+    `admin-new-tire-orders should require auth, got ${ordersApi.response.status}`,
+  );
+  console.log('PASS admin-new-tire-orders auth gate');
 }
 
 async function main() {

@@ -202,12 +202,14 @@ async function main() {
     await page.locator('[data-booking-step="0"] [data-next-step]').click();
     await assertNoHorizontalOverflow(page, 'appointment vehicle step');
 
-    await page.locator('input[name="Vehicle Year"]').fill('2022');
-    await page.locator('input[name="Vehicle Make"]').fill('Toyota');
-    await page.locator('input[name="Vehicle Model"]').fill('Corolla');
+    await page.locator('select[name="Vehicle Year"]').selectOption('2022');
+    await page.locator('select[name="Vehicle Make"]').selectOption('Toyota');
+    await page.locator('select[name="Vehicle Model"]').selectOption('Corolla');
     await page.locator('input[name="Vehicle Plate Number"]').fill('TEST123');
-    await page.locator('input[name="Vehicle Colour"]').fill('Blue');
-    await page.locator('input[name="Tire Size"]').fill('205/55R16');
+    await page.locator('select[name="Vehicle Colour"]').selectOption('Blue');
+    await page.locator('[data-tire-width]').selectOption('205');
+    await page.locator('[data-tire-profile]').selectOption('55');
+    await page.locator('[data-tire-rim]').selectOption('16');
     await page.locator('textarea[name="Additional Notes"]').fill('AUTOMATED STRIPE TEST - SAFE TO DELETE');
     await page.locator('[data-booking-step="1"] [data-next-step]').click();
     await assertNoHorizontalOverflow(page, 'appointment location step');

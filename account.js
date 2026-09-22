@@ -1013,12 +1013,23 @@ async function getPaidNewTireOrders() {
   const profile = await getCurrentProfile();
   if (!client || !profile) return [];
 
-  const { data, error } = await client
+  const trackedSelect = 'id, items, paid_at, created_at, payment_status, fulfillment_preference, fulfillment_status, pickup_ready_at, pickup_ready_emailed_at, picked_up_at, total_with_hst, vehicle';
+  const basicSelect = 'id, items, paid_at, created_at, payment_status, fulfillment_preference, fulfillment_status, total_with_hst, vehicle';
+  let { data, error } = await client
     .from('new_tire_orders')
-    .select('id, items, paid_at, created_at, payment_status, fulfillment_preference, total_with_hst, vehicle')
+    .select(trackedSelect)
     .eq('customer_id', profile.customerId)
     .eq('payment_status', 'paid')
     .order('paid_at', { ascending: false });
+
+  if (error && /pickup_ready|picked_up_at|column/i.test(String(error.message || ''))) {
+    ({ data, error } = await client
+      .from('new_tire_orders')
+      .select(basicSelect)
+      .eq('customer_id', profile.customerId)
+      .eq('payment_status', 'paid')
+      .order('paid_at', { ascending: false }));
+  }
 
   if (error) {
     logSupabaseError('new_tire_orders read failed.', error);
@@ -1069,14 +1080,28 @@ function renderPurchasedTires(orders) {
       </div>`
     )).join('');
     const fulfillment = order.fulfillment_preference || 'Pickup';
-    const nextStep = fulfillment === 'Installation' && isNew
+    const status = String(order.fulfillment_status || '').toLowerCase();
+    const ready = Boolean(order.pickup_ready_emailed_at || order.pickup_ready_at)
+      || status === 'ready_for_pickup'
+      || status === 'arrived';
+    const pickedUp = status === 'picked_up' || status === 'completed' || Boolean(order.picked_up_at);
+    const nextStep = pickedUp
+      ? `<div class="purchased-order-action"><div><strong>${fulfillment === 'Installation' ? 'Installation complete' : 'Picked up'}</strong><span>This EastCord order is finished.</span></div></div>`
+      : fulfillment === 'Installation' && isNew && ready
+        ? `<div class="purchased-order-action">
+          <div><strong>Your tires are in</strong><span>Book installation at 600 Harrop Drive · 8:00 AM–8:00 PM</span></div>
+          <a class="button button-primary" href="/appointment.html?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking">Book installation</a>
+        </div>`
+      : fulfillment === 'Installation' && isNew
       ? `<div class="purchased-order-action">
           <div><strong>Schedule installation</strong><span>Available after the 4-day shipping hold · 8:00 AM–8:00 PM</span></div>
           <a class="button button-primary" href="/appointment.html?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking">Book installation</a>
         </div>`
       : fulfillment === 'Installation'
         ? '<div class="purchased-order-action"><div><strong>Installation selected</strong><span>EastCord will confirm your next steps.</span></div></div>'
-        : '<div class="purchased-order-action"><div><strong>Pickup selected</strong><span>EastCord will let you know when your order is ready. No appointment needed.</span></div></div>';
+        : ready
+          ? '<div class="purchased-order-action"><div><strong>Ready for pickup</strong><span>Your tires are at 600 Harrop Drive, Milton. Shop hours 8:00 AM–8:00 PM. No appointment needed.</span></div></div>'
+        : '<div class="purchased-order-action"><div><strong>Waiting for tires</strong><span>EastCord will email you when this order is ready for pickup. No appointment needed.</span></div></div>';
     return `
       <article class="purchased-order">
         <header class="purchased-order-header">

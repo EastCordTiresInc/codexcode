@@ -1,10 +1,10 @@
 const https = require('https');
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
+const { buildBrandedEmail } = require('./lib/send-email');
 
 const CONTACT_EMAIL = 'info@eastcordtires.ca';
 const CONTACT_PHONE = '365-822-5553';
-const SITE_URL = 'https://eastcordtires.ca';
 const ACCOUNT_URL = 'https://eastcordtires.ca/account.html';
 const WARRANTY_URL = 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf';
 const CUSTOMER_EMAIL_COLUMN = 'customer_confirmation_sent_at';
@@ -319,33 +319,48 @@ function buildCustomerEmail({ rows, session }) {
   const appointmentHtml = rows.map(buildAppointmentHtml).join('');
   const totals = getTotals(rows);
 
-  return {
+  return buildBrandedEmail({
     to: getCustomerEmail(rows, session),
-    subject: 'Your EastCord Tires Appointment Is Confirmed',
-    text: `Hello ${customerName},\n\nYour EastCord Tires appointment is confirmed.\n\nWe have received your deposit and your appointment has been booked successfully.\n\nAppointment Details:\n${appointmentText}\n\nPayment Details:\nTotal Service Subtotal: ${formatMoney(totals.serviceSubtotal)}\nTotal HST 13%: ${formatMoney(totals.hstAmount)}\nTotal Including HST: ${formatMoney(totals.totalWithHst)}\nTotal Deposit Paid: ${formatMoney(totals.depositAmount)}\nTotal Remaining Balance Due at Service: ${formatMoney(totals.remainingBalance)}\nBooking Status: Confirmed\nPayment Status: Deposit Paid\n\nImportant Safety Reminder:\nWheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.\n\nYour appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the Used Tire Warranty Policy also applies.\n\nIf you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.\n\nView your account: ${ACCOUNT_URL}\nUsed Tire Warranty: ${WARRANTY_URL}\n\nEastCord Tires\n${CONTACT_EMAIL}\n${CONTACT_PHONE}\n${SITE_URL}`,
-    html: `
-      <div style="font-family:Arial,sans-serif;color:#111317;line-height:1.6;max-width:720px;margin:0 auto;">
-        <h2 style="color:#111317;">Your EastCord Tires appointment is confirmed.</h2>
-        <p>Hello ${escapeHtml(customerName)},</p>
-        <p>We have received your deposit and your appointment has been booked successfully.</p>
-        ${appointmentHtml}
-        <h3>Payment Details</h3>
-        <p><strong>Total Service Subtotal:</strong> ${escapeHtml(formatMoney(totals.serviceSubtotal))}<br />
+    subject: 'Your EastCord Tires appointment is confirmed',
+    heading: 'Your appointment is confirmed',
+    body: [
+      `Hello ${customerName},`,
+      'We received your deposit and booked your EastCord Tires appointment.',
+    ],
+    actionUrl: ACCOUNT_URL,
+    actionLabel: 'View your account',
+    extraText: [
+      'Appointment Details:',
+      appointmentText,
+      '',
+      'Payment Details:',
+      `Total Service Subtotal: ${formatMoney(totals.serviceSubtotal)}`,
+      `Total HST 13%: ${formatMoney(totals.hstAmount)}`,
+      `Total Including HST: ${formatMoney(totals.totalWithHst)}`,
+      `Total Deposit Paid: ${formatMoney(totals.depositAmount)}`,
+      `Total Remaining Balance Due at Service: ${formatMoney(totals.remainingBalance)}`,
+      'Booking Status: Confirmed',
+      'Payment Status: Deposit Paid',
+      '',
+      'Wheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service.',
+      `Used Tire Warranty: ${WARRANTY_URL}`,
+    ].join('\n'),
+    extraHtml: `
+      ${appointmentHtml}
+      <h3 style="font-size:16px;margin:20px 0 8px;">Payment Details</h3>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">
+        <strong>Total Service Subtotal:</strong> ${escapeHtml(formatMoney(totals.serviceSubtotal))}<br />
         <strong>Total HST 13%:</strong> ${escapeHtml(formatMoney(totals.hstAmount))}<br />
         <strong>Total Including HST:</strong> ${escapeHtml(formatMoney(totals.totalWithHst))}<br />
         <strong>Total Deposit Paid:</strong> ${escapeHtml(formatMoney(totals.depositAmount))}<br />
         <strong>Total Remaining Balance Due at Service:</strong> ${escapeHtml(formatMoney(totals.remainingBalance))}<br />
         <strong>Booking Status:</strong> Confirmed<br />
-        <strong>Payment Status:</strong> Deposit Paid</p>
-        <h3>Important Safety Reminder</h3>
-        <p>Wheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility and is an important safety requirement.</p>
-        <p>Your appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the <a href="${WARRANTY_URL}">Used Tire Warranty Policy</a> also applies.</p>
-        <p>If you need to change or cancel your appointment, please contact EastCord Tires as soon as possible.</p>
-        <p><a href="${ACCOUNT_URL}">View your account</a></p>
-        <p><strong>EastCord Tires</strong><br /><a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a><br />${CONTACT_PHONE}<br /><a href="${SITE_URL}">${SITE_URL}</a></p>
-      </div>
+        <strong>Payment Status:</strong> Deposit Paid
+      </p>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#4b5563;">Wheel nuts/bolts must be re-torqued after approximately 100 km of driving following tire service. This is the customer's responsibility.</p>
+      <p style="margin:0 0 16px;font-size:14px;">Your appointment is subject to EastCord Tires' Mobile Service Agreement. If used tires are purchased, the <a href="${WARRANTY_URL}" style="color:#ba151b;font-weight:700;">Used Tire Warranty Policy</a> also applies.</p>
     `,
-  };
+  });
 }
 
 function buildInternalEmail({ rows, session }) {

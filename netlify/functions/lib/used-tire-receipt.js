@@ -1,5 +1,5 @@
 const { calculateTax, roundMoney } = require('./used-tire-order');
-const { ACCOUNT_URL, WARRANTY_URL, escapeHtml } = require('./send-email');
+const { ACCOUNT_URL, WARRANTY_URL, escapeHtml, buildBrandedEmail } = require('./send-email');
 
 function formatMoney(value) {
   return `$${roundMoney(value).toFixed(2)}`;
@@ -43,45 +43,42 @@ function buildUsedTireReceipt({ customer, items, demo = false, websiteUpdates = 
     ? '\nThis was a local demo payment. No real card was charged.\n'
     : '';
 
-  return {
+  const branded = buildBrandedEmail({
+    to: customer?.email || '',
     subject: demo
       ? 'EastCord Tires demo receipt — used tires'
       : 'EastCord Tires receipt — used tires',
-    text: [
+    heading: 'Thank you for your payment',
+    body: [
       `Hello ${name},`,
-      '',
       demo
-        ? 'Thank you for completing the EastCord Tires demo payment.'
-        : 'Thank you for your used tire payment.',
+        ? 'This is a demo receipt from EastCord Tires. No real card was charged.'
+        : 'Your used tire payment was received at EastCord Tires in Milton.',
+      'If you chose pickup, we will confirm when your order is ready. If you chose installation, wait until the tires arrive. We will send a booking link then.',
+    ],
+    actionUrl: ACCOUNT_URL,
+    actionLabel: 'View your account',
+    extraText: [
       demoNote,
       'Receipt',
       itemText,
       `Subtotal: ${formatMoney(totals.subtotal)}`,
       `Total: ${formatMoney(totals.totalWithHst)}`,
-      stockLines.length ? `\nInventory update:\n${stockLines.join('\n')}` : '',
-      '',
-      'If you chose pickup, EastCord Tires will confirm when your order is ready.',
-      'If you chose installation, wait until your tires arrive. We will send you a booking link then. Do not book an appointment yet.',
-      `View your account: ${ACCOUNT_URL}`,
-      `Used Tire Warranty: ${WARRANTY_URL}`,
-      'info@eastcordtires.ca · 365-822-5553',
-    ].filter((line) => line !== undefined).join('\n'),
-    html: `
-      <div style="font-family:Arial,sans-serif;color:#111;line-height:1.5;">
-        <h2>Thank you for your payment</h2>
-        <p>Hello ${escapeHtml(name)},</p>
-        <p>${demo
-    ? 'This is a <strong>demo receipt</strong> from EastCord Tires. No real card was charged.'
-    : 'Your used tire payment was received.'}</p>
-        <table style="width:100%;border-collapse:collapse;">${itemHtml}</table>
-        <p>
-          <strong>Subtotal:</strong> ${escapeHtml(formatMoney(totals.subtotal))}<br />
-          <strong>Total:</strong> ${escapeHtml(formatMoney(totals.totalWithHst))}
-        </p>
-        ${stockLines.length ? `<p><strong>Inventory update</strong><br />${stockLines.map(escapeHtml).join('<br />')}</p>` : ''}
-        <p>If you chose pickup, EastCord Tires will confirm when your order is ready.<br />If you chose installation, wait until your tires arrive. We will send you a booking link then. Do not book an appointment yet.<br /><a href="${ACCOUNT_URL}">View your account</a><br /><a href="${WARRANTY_URL}">Used Tire Warranty Policy</a><br />info@eastcordtires.ca · 365-822-5553</p>
-      </div>
+      stockLines.length ? `Inventory update:\n${stockLines.join('\n')}` : '',
+    ].filter(Boolean).join('\n'),
+    extraHtml: `
+      <table style="width:100%;border-collapse:collapse;margin:0 0 16px;">${itemHtml}</table>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#111317;">
+        <strong>Subtotal:</strong> ${escapeHtml(formatMoney(totals.subtotal))}<br />
+        <strong>Total:</strong> ${escapeHtml(formatMoney(totals.totalWithHst))}
+      </p>
+      ${stockLines.length ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#4b5563;"><strong>Inventory update</strong><br />${stockLines.map(escapeHtml).join('<br />')}</p>` : ''}
+      <p style="margin:0 0 16px;font-size:14px;"><a href="${WARRANTY_URL}" style="color:#ba151b;font-weight:700;">Used Tire Warranty Policy</a></p>
     `,
+  });
+
+  return {
+    ...branded,
     totals,
   };
 }

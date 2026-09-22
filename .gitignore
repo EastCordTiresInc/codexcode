@@ -19,6 +19,9 @@ desktop.ini
 *.log
 npm-debug.log*
 
+# Generated email preview (local only)
+email-preview.html
+
 # Local-only demo checkout (not for the live website)
 demo-payment.html
 demo-payment.js

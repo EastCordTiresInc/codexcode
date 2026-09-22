@@ -37,6 +37,12 @@ if (!stripeKey) {
   console.log('[EastCord user-dev] Stripe test secret loaded.');
 }
 
+if (process.env.RESEND_API_KEY) {
+  console.log('[EastCord user-dev] Resend API key loaded.');
+} else {
+  console.warn('[EastCord user-dev] RESEND_API_KEY is missing locally. Signup and password-reset emails will use the live eastcordtires.ca function.');
+}
+
 const child = spawn(
   'npx',
   [

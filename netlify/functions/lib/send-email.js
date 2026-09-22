@@ -7,13 +7,80 @@ const APPOINTMENT_URL = `${SITE_ORIGIN}/appointment.html`;
 const RESET_PASSWORD_URL = `${SITE_ORIGIN}/reset-password.html`;
 const WARRANTY_URL = `${SITE_ORIGIN}/public/docs/eastcord-used-tire-warranty-policy.pdf`;
 
+function firstEnv(keys, fallback = '') {
+  for (const key of keys) {
+    const value = String(process.env[key] || '').trim();
+    if (value) return value;
+  }
+  return fallback;
+}
+
+function applyEmailEnvFromFile(filePath) {
+  const fs = require('fs');
+  if (!fs.existsSync(filePath)) return 0;
+  let applied = 0;
+  fs.readFileSync(filePath, 'utf8').split(/\r?\n/).forEach((line) => {
+    const match = line.match(/^\s*([^#=\s]+)\s*=(.*)$/);
+    if (!match) return;
+    const key = match[1];
+    if (!/^(RESEND_|EMAIL_)/.test(key)) return;
+    let value = match[2].trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"'))
+      || (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    value = value.replace(/\\n/g, '\n').trim();
+    if (!value) return;
+    if (!String(process.env[key] || '').trim()) {
+      process.env[key] = value;
+      applied += 1;
+    }
+  });
+  return applied;
+}
+
+function loadLocalEmailEnv() {
+  if (loadLocalEmailEnv.done) return;
+  loadLocalEmailEnv.done = true;
+  if (firstEnv(['RESEND_API_KEY', 'RESEND_API_KEYY'])) return;
+
+  const fs = require('fs');
+  const path = require('path');
+  const starts = [process.cwd(), __dirname];
+  const seen = new Set();
+  starts.forEach((start) => {
+    let dir = start;
+    for (let i = 0; i < 6; i += 1) {
+      [
+        path.join(dir, '.netlify', '.env'),
+        path.join(dir, '.env'),
+      ].forEach((file) => {
+        const resolved = path.resolve(file);
+        if (seen.has(resolved) || !fs.existsSync(resolved)) return;
+        seen.add(resolved);
+        applyEmailEnvFromFile(resolved);
+      });
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  });
+
+  if (!String(process.env.RESEND_API_KEY || '').trim() && process.env.RESEND_API_KEYY) {
+    process.env.RESEND_API_KEY = process.env.RESEND_API_KEYY;
+  }
+}
+
 function getEmailConfig() {
+  loadLocalEmailEnv();
   return {
-    provider: process.env.EMAIL_PROVIDER || 'resend',
-    apiKey: process.env.RESEND_API_KEY || '',
-    from: process.env.EMAIL_FROM || `EastCord Tires <${CONTACT_EMAIL}>`,
-    replyTo: process.env.EMAIL_REPLY_TO || CONTACT_EMAIL,
-    eastcordTo: process.env.EMAIL_TO_EASTCORD || CONTACT_EMAIL,
+    provider: firstEnv(['EMAIL_PROVIDER'], 'resend'),
+    apiKey: firstEnv(['RESEND_API_KEY', 'RESEND_API_KEYY']),
+    from: firstEnv(['EMAIL_FROM', 'EMAIL_FROMM'], `EastCord Tires <${CONTACT_EMAIL}>`),
+    replyTo: firstEnv(['EMAIL_REPLY_TO'], CONTACT_EMAIL),
+    eastcordTo: firstEnv(['EMAIL_TO_EASTCORD'], CONTACT_EMAIL),
   };
 }
 
@@ -200,12 +267,20 @@ async function sendEmail(email) {
   });
 
   if (response.statusCode < 200 || response.statusCode >= 300) {
+    const resendMessage = String(response.body?.message || response.body?.name || '').slice(0, 160);
     console.error('[EastCord email] Send failed.', {
       to: email.to,
       subject: email.subject,
       status: response.statusCode,
+      resendMessage,
     });
-    return { ok: false, skipped: false, reason: 'send_failed', status: response.statusCode };
+    return {
+      ok: false,
+      skipped: false,
+      reason: 'send_failed',
+      status: response.statusCode,
+      resendMessage,
+    };
   }
 
   return { ok: true, skipped: false, to: email.to };

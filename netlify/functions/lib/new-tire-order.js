@@ -1,4 +1,4 @@
-const { sendEmail, getEmailConfig, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, htmlFromText } = require('./send-email');
+const { sendEmail, getEmailConfig, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, htmlFromText, buildBrandedEmail } = require('./send-email');
 
 function roundMoney(value) {
   const amount = Number(value);
@@ -27,12 +27,89 @@ function itemLabel(item) {
 
 function nextStep(fulfillment, orderId) {
   if (fulfillment !== 'Installation') {
-    return 'When the tires are in, email or text the customer that the order is ready for pickup. No appointment.';
+    return 'When the tires arrive, open Admin → Orders and tap “Tires arrived — email customer”.';
   }
   const bookingUrl = orderId
     ? `${APPOINTMENT_URL}?source=new-tires&newTireOrder=${encodeURIComponent(orderId)}#appointment-booking`
     : APPOINTMENT_URL;
-  return `Order is confirmed. Customer can book installation now: ${bookingUrl}`;
+  return `Order is confirmed. Customer can book installation now: ${bookingUrl}. When the tires arrive, open Admin → Orders if you need to send the booking email again.`;
+}
+
+function greetingName(fullName) {
+  const first = String(fullName || '').trim().split(/\s+/)[0];
+  if (!first || first.length > 40) return '';
+  return first;
+}
+
+function orderItemLines(order) {
+  return getOrderItems(order).map((item) => {
+    const qty = Math.max(1, Number(item.qty) || 1);
+    const part = item.partNumber ? ` (${item.partNumber})` : '';
+    return `${qty} x ${itemLabel(item)}${part}`;
+  });
+}
+
+function itemLinesHtml(lines) {
+  if (!lines.length) return '';
+  return `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4b5563;">${lines.map((line) => escapeHtml(line)).join('<br />')}</p>`;
+}
+
+function installationBookingUrl(orderId) {
+  return orderId
+    ? `${APPOINTMENT_URL}?source=new-tires&newTireOrder=${encodeURIComponent(orderId)}#appointment-booking`
+    : APPOINTMENT_URL;
+}
+
+function buildPickupReadyEmail(order) {
+  const name = greetingName(order.customer_name);
+  const lines = orderItemLines(order);
+  return buildBrandedEmail({
+    to: order.customer_email,
+    subject: name
+      ? `${name}, your EastCord tires are ready for pickup`
+      : 'Your EastCord tires are ready for pickup',
+    heading: 'Your tires are ready',
+    body: [
+      name ? `Hello ${name},` : 'Hello,',
+      'Your new tires are at EastCord Tires, 600 Harrop Drive in Milton.',
+      'Come by during shop hours, 8:00 AM to 8:00 PM. No appointment is needed.',
+    ],
+    actionUrl: ACCOUNT_URL,
+    actionLabel: 'View your account',
+    extraText: lines.join('\n'),
+    extraHtml: itemLinesHtml(lines),
+    footer: 'If you have questions, call EastCord Tires at 365-822-5553.',
+  });
+}
+
+function buildInstallationArrivedEmail(order) {
+  const name = greetingName(order.customer_name);
+  const lines = orderItemLines(order);
+  const bookingUrl = installationBookingUrl(order.id);
+  return buildBrandedEmail({
+    to: order.customer_email,
+    subject: name
+      ? `${name}, your EastCord tires are in — book installation`
+      : 'Your EastCord tires are in — book installation',
+    heading: 'Your new tires are in',
+    body: [
+      name ? `Hello ${name},` : 'Hello,',
+      'Your new tires have arrived at EastCord Tires, 600 Harrop Drive in Milton.',
+      'Book installation at the shop. Hours are 8:00 AM to 8:00 PM.',
+    ],
+    actionUrl: bookingUrl,
+    actionLabel: 'Book installation',
+    extraText: lines.join('\n'),
+    extraHtml: itemLinesHtml(lines),
+    footer: 'If you have questions, call EastCord Tires at 365-822-5553.',
+  });
+}
+
+function buildArrivalEmail(order) {
+  const fulfillment = order.fulfillment_preference === 'Installation' ? 'Installation' : 'Pickup';
+  return fulfillment === 'Installation'
+    ? buildInstallationArrivedEmail(order)
+    : buildPickupReadyEmail(order);
 }
 
 async function notifyPaidNewTireOrder(order) {
@@ -76,34 +153,35 @@ async function notifyPaidNewTireOrder(order) {
   const bookingUrl = order.id
     ? `${APPOINTMENT_URL}?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking`
     : APPOINTMENT_URL;
-  const customerText = fulfillment === 'Installation'
-    ? [
-      `Hello ${customerName},`,
-      '',
-      'EastCord Tires received your new tire payment. This order is confirmed.',
-      'You can book installation now. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM. Use this link so the appointment stays tied to these new tires:',
-      bookingUrl,
-      '',
-      ...itemLines,
-      `Total paid: ${formatMoney(order.total_with_hst)}`,
-      '',
-      'This purchase is saved to your EastCord account.',
-      `View your account: ${ACCOUNT_URL}`,
-      'info@eastcordtires.ca · 365-822-5553',
-    ].join('\n')
-    : [
-      `Hello ${customerName},`,
-      '',
-      'EastCord Tires received your new tire payment for store pickup.',
-      'We will email you when the tires are ready to pick up. No appointment is needed.',
-      '',
-      ...itemLines,
-      `Total paid: ${formatMoney(order.total_with_hst)}`,
-      '',
-      'This purchase is saved to your EastCord account.',
-      `View your account: ${ACCOUNT_URL}`,
-      'info@eastcordtires.ca · 365-822-5553',
-    ].join('\n');
+  const customerEmail = fulfillment === 'Installation'
+    ? buildBrandedEmail({
+      to: order.customer_email,
+      subject: 'EastCord Tires payment received — book installation',
+      heading: 'Your new tires are confirmed',
+      body: [
+        `Hello ${customerName},`,
+        'EastCord Tires received your new tire payment. You can book installation now. Booking is not available on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.',
+        `Total paid: ${formatMoney(order.total_with_hst)}`,
+      ],
+      actionUrl: bookingUrl,
+      actionLabel: 'Book installation',
+      extraText: itemLines.join('\n'),
+      extraHtml: `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4b5563;">${itemLines.map((line) => escapeHtml(line)).join('<br />')}</p>`,
+    })
+    : buildBrandedEmail({
+      to: order.customer_email,
+      subject: 'EastCord Tires payment received — we will confirm pickup',
+      heading: 'Your pickup order is confirmed',
+      body: [
+        `Hello ${customerName},`,
+        'EastCord Tires received your new tire payment for store pickup at 600 Harrop Drive, Milton. We will email you when the tires are ready. No appointment is needed.',
+        `Total paid: ${formatMoney(order.total_with_hst)}`,
+      ],
+      actionUrl: ACCOUNT_URL,
+      actionLabel: 'View your account',
+      extraText: itemLines.join('\n'),
+      extraHtml: `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4b5563;">${itemLines.map((line) => escapeHtml(line)).join('<br />')}</p>`,
+    });
 
   await sendEmail({
     to: config.eastcordTo || CONTACT_EMAIL,
@@ -117,11 +195,9 @@ async function notifyPaidNewTireOrder(order) {
     await sendEmail({
       to: order.customer_email,
       replyTo: CONTACT_EMAIL,
-      subject: fulfillment === 'Installation'
-        ? 'EastCord Tires payment received — book installation with this order'
-        : 'EastCord Tires payment received — we will confirm pickup',
-      text: customerText,
-      html: htmlFromText(customerText),
+      subject: customerEmail.subject,
+      text: customerEmail.text,
+      html: customerEmail.html,
     });
   }
 }
@@ -505,4 +581,9 @@ module.exports = {
   fulfillPaidNewTireOrder,
   recordWidgetNewTireOrder,
   attachAppointmentsToNewTireOrder,
+  greetingName,
+  orderItemLines,
+  buildPickupReadyEmail,
+  buildInstallationArrivedEmail,
+  buildArrivalEmail,
 };
