@@ -76,6 +76,9 @@ const USED_SELECT = [
   'paid_at',
   'created_at',
   'updated_at',
+  'pickup_ready_at',
+  'pickup_ready_emailed_at',
+  'picked_up_at',
 ].join(',');
 
 function withKind(order, tireKind) {
@@ -144,13 +147,37 @@ async function listNewOrders(supabaseAdmin) {
   return { orders: (data || []).map((order) => withKind(order, 'New')), error };
 }
 
+const USED_SELECT_FALLBACK = [
+  'id',
+  'customer_id',
+  'customer_name',
+  'customer_email',
+  'customer_phone',
+  'fulfillment_preference',
+  'fulfillment_status',
+  'items',
+  'total_with_hst',
+  'payment_status',
+  'paid_at',
+  'created_at',
+  'updated_at',
+].join(',');
+
 async function listUsedOrders(supabaseAdmin) {
-  const { data, error } = await supabaseAdmin
+  let { data, error } = await supabaseAdmin
     .from('used_tire_orders')
     .select(USED_SELECT)
     .eq('payment_status', 'paid')
     .order('paid_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
+  if (error && isMissingColumnError(error)) {
+    ({ data, error } = await supabaseAdmin
+      .from('used_tire_orders')
+      .select(USED_SELECT_FALLBACK)
+      .eq('payment_status', 'paid')
+      .order('paid_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false }));
+  }
   return { orders: (data || []).map((order) => withKind(order, 'Used')), error };
 }
 
@@ -182,10 +209,10 @@ async function loadOrder(supabaseAdmin, orderId, tireKind) {
       .select(select)
       .eq('id', orderId)
       .maybeSingle();
-    if (error && table === 'new_tire_orders' && isMissingColumnError(error)) {
+    if (error && isMissingColumnError(error)) {
       ({ data, error } = await supabaseAdmin
         .from(table)
-        .select(ORDER_SELECT_FALLBACK)
+        .select(table === 'used_tire_orders' ? USED_SELECT_FALLBACK : ORDER_SELECT_FALLBACK)
         .eq('id', orderId)
         .maybeSingle());
     }
