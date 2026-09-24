@@ -110,6 +110,10 @@ function runUnitTests() {
   assert(windowStartMinutes('12:00 PM - 1:00 PM') === 720, 'noon should be 720');
   assert(windowStartMinutes('12:00 AM - 1:00 AM') === 0, 'midnight should be 0');
 
+  const { slugify, renderSafeMarkdown } = require('../blog-render');
+  assert(slugify('Winter Tire Guide!') === 'winter-tire-guide', 'slugify should hyphenate titles');
+  assert(renderSafeMarkdown('**Ready**').includes('<strong>Ready</strong>'), 'markdown should render bold');
+
   const { writeCell } = require('../netlify/functions/lib/google-sheets-inventory');
   const sheetData = [];
   const sheetUpdated = [];
@@ -143,6 +147,8 @@ async function runHttpTests(base = 'http://localhost:8888') {
     { path: '/admin/calendar', mustInclude: ['data-admin-calendar', 'admin-calendar.js?v=4'] },
     { path: '/admin/inventory', mustInclude: ['Low stock', 'data-admin-inventory-search', 'data-sync-to-sheet', 'admin-inventory.js?v=25'] },
     { path: '/admin/orders', mustInclude: ['Waiting for tires', 'data-admin-orders-filter', 'admin-orders.js?v=5'] },
+    { path: '/admin/blog', mustInclude: ['Publish to site', 'data-admin-blog-form', 'admin-blog.js?v=1'] },
+    { path: '/blog', mustInclude: ['data-blog-featured', 'blog.js?v=1'] },
   ];
 
   for (const page of pages) {
@@ -162,7 +168,9 @@ async function runHttpTests(base = 'http://localhost:8888') {
   console.log('PASS homepage title');
 
   const assets = [
-    '/admin.css?v=22',
+    '/admin.css?v=23',
+    '/admin-blog.js?v=1',
+    '/blog.js?v=1',
     '/admin.js?v=9',
     '/admin-calendar.js?v=4',
     '/admin-inventory.js?v=25',
@@ -236,6 +244,18 @@ async function runHttpTests(base = 'http://localhost:8888') {
     `admin-new-tire-orders should require auth, got ${ordersApi.response.status}`,
   );
   console.log('PASS admin-new-tire-orders auth gate');
+
+  const blogAdmin = await fetchJson(`${base}/.netlify/functions/admin-blog-posts`);
+  assert(
+    blogAdmin.response.status === 401 || blogAdmin.response.status === 403,
+    `admin-blog-posts should require auth, got ${blogAdmin.response.status}`,
+  );
+  console.log('PASS admin-blog-posts auth gate');
+
+  const publicBlog = await fetchJson(`${base}/.netlify/functions/get-blog-posts`);
+  assert(publicBlog.response.status === 200, `get-blog-posts expected 200, got ${publicBlog.response.status}`);
+  assert(Array.isArray(publicBlog.payload?.posts), 'get-blog-posts should return posts array');
+  console.log('PASS get-blog-posts public list');
 }
 
 async function main() {

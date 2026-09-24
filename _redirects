@@ -20,6 +20,10 @@
 /admin/orders/     /admin-orders.html      301!
 /admin/inventory   /admin-inventory.html   301!
 /admin/inventory/  /admin-inventory.html   301!
+/admin/blog        /admin-blog.html        301!
+/admin/blog/       /admin-blog.html        301!
+/blog/:slug        /blog-post.html?slug=:slug   200!
+/blog/:slug/       /blog-post.html?slug=:slug   200!
 /installer-application-success    /installer-application-success.html    301!
 /installer-application-success/   /installer-application-success.html    301!
 /cart      /cart.html      301!

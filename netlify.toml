@@ -118,6 +118,30 @@
   force = true
 
 [[redirects]]
+  from = "/admin/blog"
+  to = "/admin-blog.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/admin/blog/"
+  to = "/admin-blog.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/blog/:slug"
+  to = "/blog-post.html?slug=:slug"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/blog/:slug/"
+  to = "/blog-post.html?slug=:slug"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/cart"
   to = "/cart.html"
   status = 301

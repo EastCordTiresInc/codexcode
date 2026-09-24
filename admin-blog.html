@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Blog | EastCord Admin</title>
+    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="admin.css?v=23" />
+  </head>
+  <body class="admin-app">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="admin-topbar" data-admin-chrome hidden>
+      <div class="admin-topbar-inner">
+        <div class="admin-brand-block">
+          <a class="admin-brand" href="/admin" aria-label="EastCord Admin home">
+            <img src="/assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+          </a>
+          <span class="admin-product-label">Admin</span>
+        </div>
+
+        <nav class="admin-tabs" aria-label="Admin sections">
+          <a href="/admin">Appointments</a>
+          <a href="/admin/calendar">Calendar</a>
+          <a href="/admin/orders">Orders</a>
+          <a href="/admin/inventory">Inventory</a>
+          <a href="/admin/blog" aria-current="page">Blog</a>
+        </nav>
+
+        <div class="admin-session">
+          <span class="admin-session-email" data-admin-staff-email></span>
+          <button class="admin-logout" type="button" data-logout-button>Log out</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content" class="admin-main">
+      <div class="admin-shell admin-shell-wide" data-admin-root>
+        <div class="admin-panel admin-loading" data-admin-loading>
+          <p class="admin-kicker">EastCord staff</p>
+          <h1>Checking access</h1>
+          <p>Confirming the staff session...</p>
+        </div>
+
+        <section class="admin-panel admin-gate" data-admin-gate hidden>
+          <p class="admin-kicker">EastCord staff</p>
+          <h1>Staff access required</h1>
+          <p data-admin-gate-message>Log in with info@eastcordtires.ca to open the admin dashboard.</p>
+          <div class="admin-actions">
+            <a class="button button-primary" href="/login.html?redirect=/admin/blog">Log in</a>
+            <a class="button button-secondary" href="/">Public site</a>
+          </div>
+        </section>
+
+        <section data-admin-dashboard hidden>
+          <div class="admin-header">
+            <div>
+              <p class="admin-kicker">Public website</p>
+              <h1>Blog</h1>
+              <p>Write a draft, then publish it to eastcordtires.ca/blog. Published posts appear on the live site immediately.</p>
+            </div>
+            <div class="admin-toolbar">
+              <button class="button button-primary" type="button" data-admin-new-post>New post</button>
+              <a class="button button-secondary" href="/blog" target="_blank" rel="noopener noreferrer">View public blog</a>
+            </div>
+          </div>
+
+          <p class="admin-status" data-admin-status aria-live="polite">Loading blog posts...</p>
+
+          <div class="admin-blog-layout">
+            <aside class="admin-blog-list-panel">
+              <label class="admin-blog-filter">
+                Show
+                <select data-admin-blog-filter>
+                  <option value="all" selected>All posts</option>
+                  <option value="draft">Drafts</option>
+                  <option value="published">Published</option>
+                </select>
+              </label>
+              <div class="admin-blog-list" data-admin-blog-list></div>
+            </aside>
+
+            <form class="admin-blog-editor" data-admin-blog-form>
+              <input type="hidden" name="id" data-admin-blog-id />
+              <div class="admin-blog-editor-grid">
+                <label>
+                  Post title
+                  <input type="text" name="title" data-admin-blog-title required maxlength="140" />
+                </label>
+                <label>
+                  URL slug
+                  <input type="text" name="slug" data-admin-blog-slug required maxlength="80" placeholder="winter-tire-changeover-guide" />
+                </label>
+                <label>
+                  Category
+                  <input type="text" name="category" data-admin-blog-category maxlength="40" value="Tire Tips" />
+                </label>
+                <label>
+                  Publish date
+                  <input type="date" name="published_at" data-admin-blog-date />
+                </label>
+                <label class="admin-blog-span">
+                  Short description
+                  <textarea name="description" data-admin-blog-description rows="3" maxlength="280"></textarea>
+                </label>
+                <label class="admin-blog-span">
+                  Featured image URL
+                  <input type="url" name="featured_image" data-admin-blog-image placeholder="https://..." />
+                </label>
+                <label class="admin-blog-span">
+                  Image alt text
+                  <input type="text" name="featured_image_alt" data-admin-blog-image-alt maxlength="140" />
+                </label>
+                <label class="admin-blog-span">
+                  Article
+                  <textarea name="body" data-admin-blog-body rows="14" placeholder="Write the article here. Use headings like ## Title, lists, and **bold** text."></textarea>
+                </label>
+              </div>
+              <div class="admin-blog-preview-wrap">
+                <p class="admin-kicker">Preview</p>
+                <div class="admin-blog-preview blog-post-content" data-admin-blog-preview></div>
+              </div>
+              <div class="admin-blog-actions">
+                <button class="button button-secondary" type="button" data-admin-save-draft>Save draft</button>
+                <button class="button button-primary" type="button" data-admin-publish>Publish to site</button>
+                <button class="button button-secondary" type="button" data-admin-unpublish hidden>Unpublish</button>
+                <button class="button button-secondary admin-blog-delete" type="button" data-admin-delete hidden>Delete</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="admin-footer">
+      <p>EastCord Tires staff tools · not for customers</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js?v=4"></script>
+    <script src="account.js?v=61"></script>
+    <script src="blog-render.js?v=1"></script>
+    <script src="admin-blog.js?v=1"></script>
+  </body>
+</html>
