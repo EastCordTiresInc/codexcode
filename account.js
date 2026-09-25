@@ -1800,22 +1800,38 @@ function formatAppointmentDate(value) {
 }
 
 function renderBookingHistory(bookings) {
-  const paidBookings = bookings.filter(isPaidAppointment);
-  if (!paidBookings.length) {
-    return '<p class="empty-cart">No paid appointments yet. Incomplete checkouts stay in your appointment cart until the deposit is paid.</p>';
+  if (!bookings.length) {
+    return '<p class="empty-cart">No appointments saved to this account yet. Add an appointment while signed in and it will appear here.</p>';
   }
 
-  return paidBookings.map((booking) => {
+  return bookings.map((booking) => {
+    const paid = isPaidAppointment(booking);
     const vehicle = [booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(' ');
     const location = booking.install_location === 'shop' || booking.city === 'EastCord shop'
       ? 'EastCord Tires shop'
       : [booking.city, booking.postal_code].filter(Boolean).join(', ') || 'Mobile service';
     const appointmentDate = formatAppointmentDate(booking.preferred_date);
+    const badge = paid ? (booking.booking_status || 'Confirmed') : 'Awaiting deposit';
+    const paymentFooter = paid
+      ? `
+        <footer class="appointment-history-payment">
+          <div><span>Deposit paid</span><strong>${money(booking.deposit_amount)}</strong></div>
+          <div><span>Pay after service</span><strong>${money(booking.remaining_balance)}</strong></div>
+          <div><span>HST included</span><strong>${money(booking.hst_amount || 0)}</strong></div>
+        </footer>
+      `
+      : `
+        <footer class="appointment-history-payment">
+          <div><span>Deposit due</span><strong>${money(booking.deposit_amount)}</strong></div>
+          <div><span>Pay after service</span><strong>${money(booking.remaining_balance)}</strong></div>
+          <div><span>Next step</span><strong><a href="/cart.html">Pay deposit</a></strong></div>
+        </footer>
+      `;
     return `
-      <article class="appointment-history-item">
+      <article class="appointment-history-item${paid ? '' : ' is-pending'}">
         <header class="appointment-history-header">
           <div>
-            <span class="appointment-history-badge">${escapeHtml(booking.booking_status || 'Confirmed')}</span>
+            <span class="appointment-history-badge${paid ? '' : ' is-pending'}">${escapeHtml(badge)}</span>
             <span>${escapeHtml(appointmentDate)}${booking.preferred_time_window ? ` · ${escapeHtml(booking.preferred_time_window)}` : ''}</span>
           </div>
           <div class="appointment-history-total"><span>Total</span><strong>${money(booking.total_with_hst || 0)}</strong></div>
@@ -1827,11 +1843,7 @@ function renderBookingHistory(bookings) {
           <div><span>Tire size</span><strong>${escapeHtml(booking.tire_size || 'Not provided')}</strong></div>
           <div><span>Location</span><strong>${escapeHtml(location)}</strong></div>
         </div>
-        <footer class="appointment-history-payment">
-          <div><span>Deposit paid</span><strong>${money(booking.deposit_amount)}</strong></div>
-          <div><span>Pay after service</span><strong>${money(booking.remaining_balance)}</strong></div>
-          <div><span>HST included</span><strong>${money(booking.hst_amount || 0)}</strong></div>
-        </footer>
+        ${paymentFooter}
       </article>
     `;
   }).join('');
@@ -1948,7 +1960,11 @@ async function hydrateAccountCartSummaries() {
     const { appointmentCart, tireCart } = await hydrateSignedInCarts();
 
     if (appointmentSummary) {
-      appointmentSummary.textContent = `${appointmentCart.length} appointment${appointmentCart.length === 1 ? '' : 's'} saved`;
+      if (!appointmentCart.length) {
+        appointmentSummary.textContent = 'No unpaid appointments in your cart.';
+      } else {
+        appointmentSummary.textContent = `${appointmentCart.length} appointment${appointmentCart.length === 1 ? '' : 's'} saved. Pay the deposit to confirm ${appointmentCart.length === 1 ? 'it' : 'them'}.`;
+      }
     }
     if (tireSummary) {
       const tireCount = tireCart.reduce((total, item) => total + (Number(item.qty) || 0), 0);

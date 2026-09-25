@@ -31,6 +31,19 @@
     `;
   }
 
+  function notFoundState() {
+    return `
+      <div class="blog-empty-state" data-blog-not-found>
+        <h2>This article was not found.</h2>
+        <p>That blog post is not on the EastCord site. It may have been unpublished or the link is out of date.</p>
+        <div class="blog-empty-actions">
+          <a class="button button-primary" href="/blog">Back to blog</a>
+          <a class="button button-secondary" href="/appointment">Book Appointment</a>
+        </div>
+      </div>
+    `;
+  }
+
   function renderFeatured(post) {
     const host = document.querySelector('[data-blog-featured]');
     if (!host) return;
@@ -118,7 +131,8 @@
     if (!article) return;
     const slug = readSlug();
     if (!slug) {
-      article.innerHTML = `<div class="shell">${emptyState()}</div>`;
+      document.title = 'Article not found | EastCord Tires';
+      article.innerHTML = `<div class="shell">${notFoundState()}</div>`;
       return;
     }
 
@@ -127,7 +141,8 @@
       const payload = await response.json().catch(() => ({}));
       const post = payload.post;
       if (!post) {
-        article.innerHTML = `<div class="shell">${emptyState()}</div>`;
+        document.title = 'Article not found | EastCord Tires';
+        article.innerHTML = `<div class="shell">${notFoundState()}</div>`;
         return;
       }
 
@@ -157,7 +172,8 @@
         </section>
       `;
     } catch (error) {
-      article.innerHTML = `<div class="shell">${emptyState()}</div>`;
+      document.title = 'Article not found | EastCord Tires';
+      article.innerHTML = `<div class="shell">${notFoundState()}</div>`;
     }
   }
 

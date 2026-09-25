@@ -114,6 +114,36 @@ function runUnitTests() {
   assert(slugify('Winter Tire Guide!') === 'winter-tire-guide', 'slugify should hyphenate titles');
   assert(renderSafeMarkdown('**Ready**').includes('<strong>Ready</strong>'), 'markdown should render bold');
 
+  const {
+    readApplicationInput,
+    validateApplication,
+  } = require('../netlify/functions/lib/installer-applications');
+  const installer = readApplicationInput({
+    fullName: 'Alex Rivera',
+    email: 'alex@example.com',
+    phone: '3655550100',
+    yearsExperience: '3-5 years',
+    licensedTechnician: 'Yes',
+    city: 'Milton',
+    postalCode: 'L9T 0A1',
+    jobsPerWeek: '6-10',
+    serviceArea: 'Milton, Oakville',
+    weekdayHours: 'Mon-Fri, 8:00 AM - 6:00 PM',
+    afterHours: 'Limited',
+    liabilityInsurance: 'Yes',
+    wsibCoverage: 'Yes',
+    services: ['Seasonal changeover', 'Mount and balance'],
+    vehicles: ['Passenger'],
+    equipment: ['Torque wrench'],
+  });
+  assert(installer.full_name === 'Alex Rivera', 'installer parser should map full name');
+  assert(installer.services.includes('Mount and balance'), 'installer parser should keep service checkboxes');
+  assert(!validateApplication(installer), 'complete installer application should validate');
+  assert(validateApplication({ ...installer, email: 'nope' }), 'invalid installer email should fail');
+  assert(validateApplication({ ...installer, services: [] }), 'installer with no services should fail');
+  assert(validateApplication({ ...installer, vehicles: [] }), 'installer with no vehicles should fail');
+  assert(validateApplication({ ...installer, equipment: [] }), 'installer with no equipment should fail');
+
   const { writeCell } = require('../netlify/functions/lib/google-sheets-inventory');
   const sheetData = [];
   const sheetUpdated = [];
@@ -147,8 +177,10 @@ async function runHttpTests(base = 'http://localhost:8888') {
     { path: '/admin/calendar', mustInclude: ['data-admin-calendar', 'admin-calendar.js?v=4'] },
     { path: '/admin/inventory', mustInclude: ['Low stock', 'data-admin-inventory-search', 'data-sync-to-sheet', 'admin-inventory.js?v=25'] },
     { path: '/admin/orders', mustInclude: ['Waiting for tires', 'data-admin-orders-filter', 'admin-orders.js?v=5'] },
-    { path: '/admin/blog', mustInclude: ['Publish to site', 'data-admin-blog-form', 'admin-blog.js?v=1'] },
-    { path: '/blog', mustInclude: ['data-blog-featured', 'blog.js?v=1'] },
+    { path: '/admin/blog', mustInclude: ['Publish to site', 'data-admin-blog-form', 'admin-blog.js?v=1', '/admin/installers'] },
+    { path: '/admin/installers', mustInclude: ['data-admin-installers-form', 'admin-installers.js?v=1', 'Public form'] },
+    { path: '/blog', mustInclude: ['data-blog-featured', 'blog.js?v=2'] },
+    { path: '/installer-application', mustInclude: ['data-installer-form', 'local-installers.js?v=7', 'data-required-group'] },
   ];
 
   for (const page of pages) {
@@ -168,9 +200,10 @@ async function runHttpTests(base = 'http://localhost:8888') {
   console.log('PASS homepage title');
 
   const assets = [
-    '/admin.css?v=23',
+    '/admin.css?v=24',
     '/admin-blog.js?v=1',
-    '/blog.js?v=1',
+    '/admin-installers.js?v=1',
+    '/blog.js?v=2',
     '/admin.js?v=9',
     '/admin-calendar.js?v=4',
     '/admin-inventory.js?v=25',
@@ -199,6 +232,9 @@ async function runHttpTests(base = 'http://localhost:8888') {
   const calendarJs = await fetchText(`${base}/admin-calendar.js?v=4`);
   assert(calendarJs.text.includes('dayStats'), 'calendar js missing dayStats');
   assert(calendarJs.text.includes('admin-cal-day-count'), 'calendar js missing day count markup');
+
+  const installerFormJs = await fetchText(`${base}/local-installers.js?v=7`);
+  assert(installerFormJs.text.includes('submit-installer-application'), 'public installer form should post to the admin-linked function');
 
   console.log('PASS feature markers in JS');
 
@@ -251,6 +287,21 @@ async function runHttpTests(base = 'http://localhost:8888') {
     `admin-blog-posts should require auth, got ${blogAdmin.response.status}`,
   );
   console.log('PASS admin-blog-posts auth gate');
+
+  const installerAdmin = await fetchJson(`${base}/.netlify/functions/admin-installer-applications`);
+  assert(
+    installerAdmin.response.status === 401 || installerAdmin.response.status === 403,
+    `admin-installer-applications should require auth, got ${installerAdmin.response.status}`,
+  );
+  console.log('PASS admin-installer-applications auth gate');
+
+  const installerSubmit = await fetchJson(`${base}/.netlify/functions/submit-installer-application`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'not-an-email' }),
+  });
+  assert(installerSubmit.response.status === 400, `installer submit should reject incomplete forms, got ${installerSubmit.response.status}`);
+  console.log('PASS installer submit validation');
 
   const publicBlog = await fetchJson(`${base}/.netlify/functions/get-blog-posts`);
   assert(publicBlog.response.status === 200, `get-blog-posts expected 200, got ${publicBlog.response.status}`);

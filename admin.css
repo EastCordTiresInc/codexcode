@@ -521,6 +521,48 @@
   text-decoration: underline;
 }
 
+.admin-grid-span {
+  grid-column: 1 / -1;
+}
+
+.admin-badge.is-new {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.admin-badge.is-reviewed {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.admin-badge.is-approved {
+  background: #ecfdf3;
+  color: #14783d;
+}
+
+.admin-badge.is-declined {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.admin-installer-note {
+  display: grid;
+  gap: 6px;
+  color: #374151;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.admin-installer-note textarea {
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 10px;
+  border: 1px solid #d5d9df;
+  border-radius: 8px;
+  font: inherit;
+  resize: vertical;
+}
+
 .admin-notes {
   margin: 0;
   padding-top: 12px;

@@ -195,10 +195,6 @@
             .replace(/'/g, '&#039;');
         }
 
-        function titleCase(value) {
-          return String(value || '').trim().toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
-        }
-
         function formatPlate(value) {
           return String(value || '').trim().toUpperCase();
         }
@@ -268,7 +264,7 @@
 
         const itemsHtml = appointments.map((item) => {
           const tax = getTaxDetails(item);
-          const vehicle = [item.vehicleYear, titleCase(item.vehicleMake), titleCase(item.vehicleModel)].filter(Boolean).join(' ');
+          const vehicle = [item.vehicleYear, item.vehicleMake, item.vehicleModel].filter(Boolean).join(' ');
           const plate = formatPlate(item.vehiclePlateNumber);
           const date = formatDate(item.preferredDate);
           const time = formatTimeStart(item.preferredTimeWindow) || item.preferredTimeWindow || '';
@@ -286,7 +282,7 @@
               </div>
               ${meta ? `<p class="confirmation-meta">${escapeHtml(meta)}</p>` : ''}
               <dl class="confirmation-facts">
-                ${item.vehicleColour ? `<div><dt>Colour</dt><dd>${escapeHtml(titleCase(item.vehicleColour))}</dd></div>` : ''}
+                ${item.vehicleColour ? `<div><dt>Colour</dt><dd>${escapeHtml(item.vehicleColour)}</dd></div>` : ''}
                 ${tires ? `<div><dt>Tires</dt><dd>${escapeHtml(tires)}</dd></div>` : ''}
                 ${location ? `<div><dt>Address</dt><dd>${escapeHtml(location)}</dd></div>` : ''}
                 <div><dt>Pay on-site</dt><dd>${money.format(tax.remainingBalance)}</dd></div>

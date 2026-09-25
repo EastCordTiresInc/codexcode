@@ -403,10 +403,6 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
-function titleCase(value) {
-  return String(value || '').trim().toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
-}
-
 function formatPlate(value) {
   return String(value || '').trim().toUpperCase();
 }
@@ -428,11 +424,15 @@ function detailLine(label, value, fallback = '') {
   return `<p>${escapeHtml(label)}: ${escapeHtml(displayValue)}</p>`;
 }
 
+function displayText(value) {
+  return String(value || '').trim();
+}
+
 function getVehicleDetails(item) {
   return {
-    vehicle: [item.vehicleYear, titleCase(item.vehicleMake), titleCase(item.vehicleModel)].filter(Boolean).join(' ') || 'Vehicle details submitted',
+    vehicle: [item.vehicleYear, displayText(item.vehicleMake), displayText(item.vehicleModel)].filter(Boolean).join(' ') || 'Vehicle details submitted',
     plate: formatPlate(item.vehiclePlateNumber) || 'Not provided',
-    colour: titleCase(item.vehicleColour) || 'Not provided',
+    colour: displayText(item.vehicleColour) || 'Not provided',
     tireSize: formatTireSize(item.tireSize) || 'Not provided',
     tireCount: item.numberOfTires || 'Not provided',
   };

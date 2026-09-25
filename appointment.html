@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles.css?v=8" />
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
-    <link rel="stylesheet" href="appointment.css?v=48" />
+    <link rel="stylesheet" href="appointment.css?v=53" />
     <link rel="stylesheet" href="account.css?v=2" />
     <link rel="stylesheet" href="chat.css" />
   </head>
@@ -209,15 +209,96 @@
             <section class="appointment-step" data-booking-step="1" aria-label="Step 2: Vehicle and Tire Details" hidden>
               <div class="appointment-step-heading"><span>Step 2 of 5</span><h3>Vehicle &amp; Tire Details</h3><p>Choose the passenger vehicle and tire size from the lists.</p></div>
               <div class="appointment-field-grid">
-                <label class="form-field"><span>Vehicle year</span><select name="Vehicle Year" required data-vehicle-year><option value="">Select year</option></select></label>
-                <label class="form-field"><span>Vehicle make</span><select name="Vehicle Make" required data-vehicle-make disabled><option value="">Select make</option></select></label>
-                <label class="form-field"><span>Vehicle model</span><select name="Vehicle Model" required data-vehicle-model disabled><option value="">Select model</option></select></label>
+                <div class="form-field">
+                  <span id="vehicle-year-label">Vehicle year</span>
+                  <div class="fancy-select" data-fancy-select>
+                    <select class="visually-hidden" name="Vehicle Year" required data-vehicle-year aria-labelledby="vehicle-year-label"><option value="">Select year</option></select>
+                    <button class="fancy-select-trigger" type="button" data-fancy-select-trigger aria-haspopup="listbox" aria-labelledby="vehicle-year-label">
+                      <span data-fancy-select-label>Select year</span>
+                      <span class="fancy-select-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div class="fancy-select-menu" data-fancy-select-menu role="listbox" hidden></div>
+                  </div>
+                </div>
+                <div class="form-field">
+                  <span id="vehicle-make-label">Vehicle make</span>
+                  <div class="fancy-select" data-fancy-select>
+                    <select class="visually-hidden" name="Vehicle Make" required data-vehicle-make disabled aria-labelledby="vehicle-make-label"><option value="">Select make</option></select>
+                    <button class="fancy-select-trigger" type="button" data-fancy-select-trigger aria-haspopup="listbox" aria-labelledby="vehicle-make-label" disabled>
+                      <span data-fancy-select-label>Select make</span>
+                      <span class="fancy-select-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div class="fancy-select-menu" data-fancy-select-menu role="listbox" hidden></div>
+                  </div>
+                </div>
+                <div class="form-field">
+                  <span id="vehicle-model-label">Vehicle model</span>
+                  <div class="fancy-select" data-fancy-select>
+                    <select class="visually-hidden" name="Vehicle Model" required data-vehicle-model disabled aria-labelledby="vehicle-model-label"><option value="">Select model</option></select>
+                    <button class="fancy-select-trigger" type="button" data-fancy-select-trigger aria-haspopup="listbox" aria-labelledby="vehicle-model-label" disabled>
+                      <span data-fancy-select-label>Select model</span>
+                      <span class="fancy-select-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div class="fancy-select-menu" data-fancy-select-menu role="listbox" hidden></div>
+                  </div>
+                </div>
                 <label class="form-field"><span>Vehicle Plate Number</span><input name="Vehicle Plate Number" type="text" placeholder="ABCD 123" required /></label>
-                <label class="form-field"><span>Vehicle Colour</span><select name="Vehicle Colour" required data-vehicle-colour><option value="">Select colour</option></select></label>
-                <div class="appointment-tire-size-fields" data-tire-size-group>
-                  <label class="form-field"><span>Tire width</span><select data-tire-width required><option value="">Select width</option></select></label>
-                  <label class="form-field"><span>Tire profile</span><select data-tire-profile required disabled><option value="">Select profile</option></select></label>
-                  <label class="form-field"><span>Wheel size</span><select data-tire-rim required disabled><option value="">Select rim</option></select></label>
+                <div class="form-field">
+                  <span id="vehicle-colour-label">Vehicle Colour</span>
+                  <div class="fancy-select" data-fancy-select="colour">
+                    <select class="visually-hidden" name="Vehicle Colour" required data-vehicle-colour aria-labelledby="vehicle-colour-label"><option value="">Select colour</option></select>
+                    <button class="fancy-select-trigger" type="button" data-fancy-select-trigger aria-haspopup="listbox" aria-labelledby="vehicle-colour-label">
+                      <span data-fancy-select-label>Select colour</span>
+                      <span class="fancy-select-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div class="fancy-select-menu" data-fancy-select-menu role="listbox" hidden></div>
+                  </div>
+                </div>
+                <div class="tire-size-picker" data-tire-size-group>
+                  <div class="tire-size-picker-top">
+                    <span>Tire size</span>
+                    <strong class="tire-size-preview" data-tire-size-preview>— / — R —</strong>
+                  </div>
+                  <div class="tire-size-picker-grid">
+                    <div class="tire-size-part">
+                      <span id="tire-width-label">Width</span>
+                      <div class="fancy-select" data-fancy-select="tiles">
+                        <select class="visually-hidden" data-tire-width required aria-labelledby="tire-width-label"><option value="">Width</option></select>
+                        <button class="fancy-select-trigger" type="button" data-fancy-select-trigger aria-haspopup="listbox" aria-labelledby="tire-width-label">
+                          <span data-fancy-select-label>Width</span>
+                          <span class="fancy-select-chevron" aria-hidden="true"></span>
+                        </button>
+                        <div class="fancy-select-menu" data-fancy-select-menu role="listbox" hidden></div>
+                      </div>
+                      <small>mm</small>
+                    </div>
+                    <span class="tire-size-sep" aria-hidden="true">/</span>
+                    <div class="tire-size-part">
+                      <span id="tire-profile-label">Profile</span>
+                      <div class="fancy-select" data-fancy-select="tiles">
+                        <select class="visually-hidden" data-tire-profile required disabled aria-labelledby="tire-profile-label"><option value="">Profile</option></select>
+                        <button class="fancy-select-trigger" type="button" data-fancy-select-trigger aria-haspopup="listbox" aria-labelledby="tire-profile-label" disabled>
+                          <span data-fancy-select-label>Profile</span>
+                          <span class="fancy-select-chevron" aria-hidden="true"></span>
+                        </button>
+                        <div class="fancy-select-menu" data-fancy-select-menu role="listbox" hidden></div>
+                      </div>
+                      <small>%</small>
+                    </div>
+                    <span class="tire-size-sep" aria-hidden="true">R</span>
+                    <div class="tire-size-part">
+                      <span id="tire-rim-label">Rim</span>
+                      <div class="fancy-select" data-fancy-select="tiles">
+                        <select class="visually-hidden" data-tire-rim required disabled aria-labelledby="tire-rim-label"><option value="">Rim</option></select>
+                        <button class="fancy-select-trigger" type="button" data-fancy-select-trigger aria-haspopup="listbox" aria-labelledby="tire-rim-label" disabled>
+                          <span data-fancy-select-label>Rim</span>
+                          <span class="fancy-select-chevron" aria-hidden="true"></span>
+                        </button>
+                        <div class="fancy-select-menu" data-fancy-select-menu role="listbox" hidden></div>
+                      </div>
+                      <small>in</small>
+                    </div>
+                  </div>
                 </div>
                 <input type="hidden" name="Tire Size" data-tire-size-value value="" />
                 <label class="form-field" data-rims-field hidden>
@@ -376,8 +457,8 @@
     <script src="auth-config.js"></script>
     <script src="account.js?v=59"></script>
     <script src="appointment-services.js?v=3" defer></script>
-    <script src="appointment-vehicle.js?v=4" defer></script>
-    <script src="appointment.js?v=76" defer></script>
+    <script src="appointment-vehicle.js?v=9" defer></script>
+    <script src="appointment.js?v=78" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

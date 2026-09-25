@@ -59,10 +59,6 @@
       .replace(/'/g, '&#039;');
   }
 
-  function titleCase(value) {
-    return String(value || '').trim().toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
-  }
-
   function formatPlate(value) {
     return String(value || '').trim().toUpperCase();
   }
@@ -169,10 +165,10 @@
       preferredDate: getFirstValue(source, ['preferredDate', 'preferred_date']),
       preferredTimeWindow: getFirstValue(source, ['preferredTimeWindow', 'preferred_time_window']),
       vehicleYear: getFirstValue(source, ['vehicleYear', 'vehicle_year']),
-      vehicleMake: titleCase(getFirstValue(source, ['vehicleMake', 'vehicle_make'])),
-      vehicleModel: titleCase(getFirstValue(source, ['vehicleModel', 'vehicle_model'])),
+      vehicleMake: getFirstValue(source, ['vehicleMake', 'vehicle_make']),
+      vehicleModel: getFirstValue(source, ['vehicleModel', 'vehicle_model']),
       vehiclePlateNumber: formatPlate(getFirstValue(source, ['vehiclePlateNumber', 'vehicle_plate_number'])),
-      vehicleColour: titleCase(getFirstValue(source, ['vehicleColour', 'vehicle_colour'])),
+      vehicleColour: getFirstValue(source, ['vehicleColour', 'vehicle_colour']),
       tireSize: formatTireSize(getFirstValue(source, ['tireSize', 'tire_size'])),
       tiresAlreadyOnRims: getFirstValue(source, ['tiresAlreadyOnRims', 'tires_already_on_rims']),
       numberOfTires: getFirstValue(source, ['numberOfTires', 'number_of_tires']),

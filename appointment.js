@@ -1327,10 +1327,6 @@
       .replace(/'/g, '&#039;');
   }
 
-  function titleCase(value) {
-    return String(value || '').trim().toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
-  }
-
   function formatPlate(value) {
     return String(value || '').trim().toUpperCase();
   }
@@ -1352,15 +1348,15 @@
 
   function getCleanVehicleDetails() {
     const year = getFieldValue('Vehicle Year');
-    const make = titleCase(getFieldValue('Vehicle Make'));
-    const model = titleCase(getFieldValue('Vehicle Model'));
+    const make = getFieldValue('Vehicle Make');
+    const model = getFieldValue('Vehicle Model');
     const vehicle = [year, make, model].filter(Boolean).join(' ');
     const tireCount = getFieldValue('Number of Tires');
 
     return {
       vehicle: vehicle || 'Vehicle details',
       plate: formatPlate(getFieldValue('Vehicle Plate Number')),
-      colour: titleCase(getFieldValue('Vehicle Colour')),
+      colour: getFieldValue('Vehicle Colour'),
       tireSize: formatTireSize(getFieldValue('Tire Size')),
       tireCount,
     };
@@ -1678,10 +1674,10 @@
       preferredDate: getFieldValue('Preferred Date'),
       preferredTimeWindow: getFieldValue('Preferred Time Window'),
       vehicleYear: getFieldValue('Vehicle Year'),
-      vehicleMake: titleCase(getFieldValue('Vehicle Make')),
-      vehicleModel: titleCase(getFieldValue('Vehicle Model')),
+      vehicleMake: getFieldValue('Vehicle Make'),
+      vehicleModel: getFieldValue('Vehicle Model'),
       vehiclePlateNumber: formatPlate(getFieldValue('Vehicle Plate Number')),
-      vehicleColour: titleCase(getFieldValue('Vehicle Colour')),
+      vehicleColour: getFieldValue('Vehicle Colour'),
       tireSize: formatTireSize(getFieldValue('Tire Size')),
       tiresAlreadyOnRims: getFieldValue('Tires Already On Rims'),
       numberOfTires: getFieldValue('Number of Tires'),

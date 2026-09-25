@@ -687,11 +687,252 @@ label:has(input[name="bot-field"]) {
   gap: 16px;
 }
 
-.appointment-tire-size-fields {
+.appointment-tire-size-fields,
+.tire-size-picker {
   grid-column: 1 / -1;
+}
+
+.tire-size-picker {
   display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7f8fa 100%);
+}
+
+.tire-size-picker-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 16px;
+  color: #34363a;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.tire-size-preview {
+  min-width: 9.5rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #eef0f3;
+  color: #6b7280;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.tire-size-preview.is-complete {
+  background: rgba(223, 31, 45, 0.1);
+  color: #111317;
+}
+
+.tire-size-picker-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: end;
+}
+
+.tire-size-part {
+  display: grid;
+  gap: 6px;
+  color: #6b7280;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.fancy-select,
+.tire-select {
+  position: relative;
+}
+
+.fancy-select-trigger,
+.tire-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 54px;
+  padding: 0 12px 0 14px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 14px;
+  background: #ffffff;
+  color: #9ca3af;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fancy-select.has-value .fancy-select-trigger,
+.tire-select.has-value .tire-select-trigger {
+  color: #111317;
+}
+
+.fancy-select-trigger [data-fancy-select-label] {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.appointment-field-grid > .form-field {
+  position: relative;
+  z-index: 1;
+}
+
+.appointment-field-grid > .form-field:has(.fancy-select.is-open) {
+  z-index: 6;
+}
+
+.fancy-select.is-open .fancy-select-trigger,
+.fancy-select-trigger:focus-visible,
+.tire-select.is-open .tire-select-trigger,
+.tire-select-trigger:focus-visible {
+  border-color: #df1f2d;
+  box-shadow: 0 0 0 4px rgba(223, 31, 45, 0.1);
+  outline: none;
+}
+
+.fancy-select.is-disabled .fancy-select-trigger,
+.fancy-select-trigger:disabled,
+.tire-select.is-disabled .tire-select-trigger,
+.tire-select-trigger:disabled {
+  background: #f5f6f8;
+  color: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.fancy-select-chevron,
+.tire-select-chevron {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  opacity: 0.55;
+}
+
+.fancy-select.is-open .fancy-select-chevron,
+.tire-select.is-open .tire-select-chevron {
+  transform: rotate(225deg) translateY(-1px);
+}
+
+.fancy-select-menu,
+.tire-select-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 12;
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+}
+
+.fancy-select[data-fancy-select="tiles"] .fancy-select-menu,
+.tire-select-menu {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 6px;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(280px, 70vw);
+  padding: 10px;
+}
+
+.tire-size-part:last-child .fancy-select-menu,
+.tire-size-part:last-child .tire-select-menu {
+  left: auto;
+  right: 0;
+}
+
+.fancy-select-menu[hidden],
+.tire-select-menu[hidden] {
+  display: none;
+}
+
+.fancy-select-option,
+.tire-select-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #111317;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fancy-select[data-fancy-select="tiles"] .fancy-select-option,
+.tire-select-option {
+  justify-content: center;
+  padding: 0 8px;
+  background: #f4f5f7;
+  font-variant-numeric: tabular-nums;
+}
+
+.fancy-select-option:hover,
+.fancy-select-option:focus-visible,
+.tire-select-option:hover,
+.tire-select-option:focus-visible {
+  background: #f4f5f7;
+  outline: none;
+}
+
+.fancy-select-option.is-selected,
+.tire-select-option.is-selected {
+  background: #df1f2d;
+  color: #ffffff;
+}
+
+.fancy-select-swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.fancy-select-option.is-selected .fancy-select-swatch {
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+.tire-size-part small {
+  color: #9ca3af;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tire-size-sep {
+  padding-bottom: 22px;
+  color: #9ca3af;
+  font-size: 1.15rem;
+  font-weight: 800;
 }
 
 .form-field select:disabled {
@@ -738,6 +979,21 @@ label:has(input[name="bot-field"]) {
 .form-field textarea:focus {
   border-color: #df1f2d;
   box-shadow: 0 0 0 4px rgba(223, 31, 45, 0.1);
+}
+
+.fancy-select > select,
+.form-field .fancy-select select {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .appointment-cart-links {
@@ -1203,7 +1459,6 @@ label:has(input[name="bot-field"]) {
   .appointment-page .appointment-hero.section { padding-bottom: 8px; }
   .appointment-hero-actions { margin-top: 18px; }
   .appointment-field-grid,
-  .appointment-tire-size-fields,
   .appointment-price-summary,
   .appointment-review-grid,
   .appointment-cart-links,
@@ -1219,6 +1474,18 @@ label:has(input[name="bot-field"]) {
   .appointment-changeover-help .appointment-step-actions {
     justify-content: flex-start;
   }
+  .tire-size-picker {
+    padding: 14px;
+  }
+
+  .tire-size-preview {
+    font-size: 1.05rem;
+  }
+
+  .tire-size-sep {
+    padding-bottom: 20px;
+  }
+
   .appointment-changeover-help .button {
     width: fit-content;
     max-width: 100%;

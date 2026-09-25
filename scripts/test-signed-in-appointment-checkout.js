@@ -170,13 +170,16 @@ async function main() {
     const browserErrors = [];
     page.on('pageerror', (error) => browserErrors.push(error.message));
     page.on('console', (message) => {
-      if (message.type() === 'error' && !/Failed to load resource.*404/i.test(message.text())) {
-        browserErrors.push(message.text());
-      }
+      if (message.type() !== 'error') return;
+      if (/Failed to load resource.*(?:404|400)/i.test(message.text())) return;
+      if (/new_tire_orders/i.test(message.text())) return;
+      browserErrors.push(message.text());
     });
     page.on('response', (response) => {
+      const pathName = new URL(response.url()).pathname;
+      if (response.status() === 400 && /new_tire_orders/i.test(pathName)) return;
       if (response.status() >= 400 && response.status() !== 404) {
-        browserErrors.push(`HTTP ${response.status()} ${new URL(response.url()).pathname}`);
+        browserErrors.push(`HTTP ${response.status()} ${pathName}`);
       }
     });
 

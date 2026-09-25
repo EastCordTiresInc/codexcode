@@ -446,6 +446,16 @@
   font-weight: 900;
 }
 
+.appointment-history-badge.is-pending,
+.appointment-history-item.is-pending .appointment-history-badge {
+  background: #fff4e5;
+  color: #9a5b00;
+}
+
+.appointment-history-item.is-pending .appointment-history-payment > div:first-child strong {
+  color: #9a5b00;
+}
+
 .appointment-history-total {
   display: grid;
   justify-items: end;

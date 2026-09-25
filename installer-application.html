@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
     <link rel="stylesheet" href="appointment.css?v=23" />
-    <link rel="stylesheet" href="local-installers.css?v=5" />
+    <link rel="stylesheet" href="local-installers.css?v=6" />
   </head>
   <body class="appointment-page installer-application-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -166,8 +166,8 @@
                 <h2>3. Service-Call Work You Can Do</h2>
                 <p>Select the mobile tire work you can complete at the customer’s location.</p>
               </div>
-              <fieldset class="zoho-options">
-                <legend>Services you can perform</legend>
+              <fieldset class="zoho-options" data-required-group="Services">
+                <legend>Services you can perform <span class="zoho-required">*</span></legend>
                 <label><input type="checkbox" name="Services" value="Seasonal changeover" /> Seasonal changeover / swap</label>
                 <label><input type="checkbox" name="Services" value="Mount and balance" /> Mount and balance</label>
                 <label><input type="checkbox" name="Services" value="TPMS" /> TPMS service</label>
@@ -175,8 +175,8 @@
                 <label><input type="checkbox" name="Services" value="New tire install" /> New tire installation</label>
                 <label><input type="checkbox" name="Services" value="Used tire install" /> Used tire installation</label>
               </fieldset>
-              <fieldset class="zoho-options">
-                <legend>Vehicles you can service</legend>
+              <fieldset class="zoho-options" data-required-group="Vehicles">
+                <legend>Vehicles you can service <span class="zoho-required">*</span></legend>
                 <label><input type="checkbox" name="Vehicles" value="Passenger" /> Passenger cars</label>
                 <label><input type="checkbox" name="Vehicles" value="CUV SUV" /> CUV / SUV</label>
                 <label><input type="checkbox" name="Vehicles" value="Light truck" /> Light truck</label>
@@ -188,8 +188,8 @@
                 <h2>4. Mobile Equipment</h2>
                 <p>What you can bring with you on a service call.</p>
               </div>
-              <fieldset class="zoho-options">
-                <legend>Equipment you travel with</legend>
+              <fieldset class="zoho-options" data-required-group="Equipment">
+                <legend>Equipment you travel with <span class="zoho-required">*</span></legend>
                 <label><input type="checkbox" name="Equipment" value="Service vehicle" /> Service vehicle / van</label>
                 <label><input type="checkbox" name="Equipment" value="Jack and stands" /> Jack and stands</label>
                 <label><input type="checkbox" name="Equipment" value="Torque wrench" /> Torque wrench</label>
@@ -378,7 +378,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=3"></script>
     <script src="account.js?v=59"></script>
-    <script src="local-installers.js?v=5"></script>
+    <script src="local-installers.js?v=7"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>
