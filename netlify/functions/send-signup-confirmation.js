@@ -96,6 +96,18 @@ function buildConfirmationEmail({ to, confirmUrl, fullName }) {
   });
 }
 
+async function findUserByEmail(supabaseAdmin, email) {
+  for (let page = 1; page <= 10; page += 1) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw error;
+    const users = data?.users || [];
+    const match = users.find((user) => String(user.email || '').trim().toLowerCase() === email);
+    if (match) return match;
+    if (users.length < 200) break;
+  }
+  return null;
+}
+
 async function generateConfirmLink(supabaseAdmin, { email, password, fullName, phone, redirectTo }) {
   // Creates the auth user and returns a confirm URL without Supabase sending mail.
   const signupAttempt = await supabaseAdmin.auth.admin.generateLink({
@@ -115,7 +127,12 @@ async function generateConfirmLink(supabaseAdmin, { email, password, fullName, p
     return signupAttempt;
   }
 
-  if (isAlreadyRegisteredError(signupAttempt.error)) {
+  if (!isAlreadyRegisteredError(signupAttempt.error)) {
+    return signupAttempt;
+  }
+
+  const existing = await findUserByEmail(supabaseAdmin, email);
+  if (existing?.email_confirmed_at) {
     return {
       data: null,
       error: signupAttempt.error,
@@ -123,7 +140,21 @@ async function generateConfirmLink(supabaseAdmin, { email, password, fullName, p
     };
   }
 
-  return signupAttempt;
+  // Unconfirmed accounts should get another EastCord confirmation email, not a dead-end sign-in message.
+  const resendAttempt = await supabaseAdmin.auth.admin.generateLink({
+    type: 'magiclink',
+    email,
+    options: { redirectTo },
+  });
+  if (!resendAttempt.error) {
+    return resendAttempt;
+  }
+
+  return {
+    data: null,
+    error: signupAttempt.error,
+    alreadyMember: true,
+  };
 }
 
 exports.handler = async (event) => {
