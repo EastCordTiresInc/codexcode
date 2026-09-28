@@ -1,5 +1,13 @@
 const { createClient } = require('@supabase/supabase-js');
-const { sendEmail, getEmailConfig, buildAuthEmail, isLocalNetlifyDev, forwardToProductionFunction } = require('./lib/send-email');
+const {
+  sendEmail,
+  getEmailConfig,
+  buildAuthEmail,
+  isLocalNetlifyDev,
+  forwardToProductionFunction,
+  CONFIRM_SIGNUP_URL,
+  buildHashedTokenActionUrl,
+} = require('./lib/send-email');
 
 // Force Netlify to rebuild this function with personalized EastCord welcome copy.
 
@@ -57,26 +65,11 @@ function getConfirmRedirectTo(event, requestedRedirect) {
   return PRODUCTION_CONFIRM_REDIRECT;
 }
 
-function withRedirectTo(confirmUrl, redirectTo) {
-  try {
-    const url = new URL(confirmUrl);
-    url.searchParams.set('redirect_to', redirectTo);
-    return url.toString();
-  } catch (error) {
-    return confirmUrl;
-  }
-}
-
-function buildConfirmUrl(supabaseUrl, data, redirectTo) {
+function buildConfirmUrl(data) {
   const hashedToken = data?.properties?.hashed_token || '';
   const verifyType = data?.properties?.verification_type || 'signup';
-  if (hashedToken) {
-    const base = String(supabaseUrl || '').replace(/\/$/, '');
-    return `${base}/auth/v1/verify?token=${encodeURIComponent(hashedToken)}&type=${encodeURIComponent(verifyType)}&redirect_to=${encodeURIComponent(redirectTo)}`;
-  }
-
-  const actionLink = data?.properties?.action_link || data?.action_link || '';
-  return actionLink ? withRedirectTo(actionLink, redirectTo) : '';
+  if (!hashedToken) return '';
+  return buildHashedTokenActionUrl(CONFIRM_SIGNUP_URL, hashedToken, verifyType);
 }
 
 function greetingName(fullName) {
@@ -131,12 +124,6 @@ async function generateConfirmLink(supabaseAdmin, { email, password, fullName, p
   }
 
   return signupAttempt;
-}
-
-function extractActionLink(data) {
-  return data?.properties?.action_link
-    || data?.action_link
-    || '';
 }
 
 exports.handler = async (event) => {
@@ -229,8 +216,8 @@ exports.handler = async (event) => {
     });
   }
 
-  const confirmUrl = buildConfirmUrl(supabaseUrl, linkResult.data, redirectTo);
-  if (!confirmUrl || /localhost|127\.0\.0\.1/i.test(confirmUrl)) {
+  const confirmUrl = buildConfirmUrl(linkResult.data);
+  if (!confirmUrl || /localhost|127\.0\.0\.1|supabase\.co/i.test(confirmUrl)) {
     console.error('[EastCord auth] Confirmation URL missing or still pointed at localhost.', {
       hasUrl: Boolean(confirmUrl),
     });

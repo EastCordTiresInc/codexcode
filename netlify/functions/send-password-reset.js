@@ -1,5 +1,13 @@
 const { createClient } = require('@supabase/supabase-js');
-const { sendEmail, getEmailConfig, RESET_PASSWORD_URL, buildAuthEmail, isLocalNetlifyDev, forwardToProductionFunction } = require('./lib/send-email');
+const {
+  sendEmail,
+  getEmailConfig,
+  RESET_PASSWORD_URL,
+  buildAuthEmail,
+  isLocalNetlifyDev,
+  forwardToProductionFunction,
+  buildHashedTokenActionUrl,
+} = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -27,25 +35,11 @@ function genericOk() {
   });
 }
 
-function withRedirectTo(confirmUrl, redirectTo) {
-  try {
-    const url = new URL(confirmUrl);
-    url.searchParams.set('redirect_to', redirectTo);
-    return url.toString();
-  } catch (error) {
-    return confirmUrl;
-  }
-}
-
-function buildResetUrl(supabaseUrl, data, redirectTo) {
+function buildResetUrl(data) {
   const hashedToken = data?.properties?.hashed_token || '';
   const verifyType = data?.properties?.verification_type || 'recovery';
-  if (hashedToken) {
-    const base = String(supabaseUrl || '').replace(/\/$/, '');
-    return `${base}/auth/v1/verify?token=${encodeURIComponent(hashedToken)}&type=${encodeURIComponent(verifyType)}&redirect_to=${encodeURIComponent(redirectTo)}`;
-  }
-  const actionLink = data?.properties?.action_link || data?.action_link || '';
-  return actionLink ? withRedirectTo(actionLink, redirectTo) : '';
+  if (!hashedToken) return '';
+  return buildHashedTokenActionUrl(RESET_PASSWORD_URL, hashedToken, verifyType);
 }
 
 function buildResetEmail({ to, resetUrl }) {
@@ -124,8 +118,8 @@ exports.handler = async (event) => {
     return genericOk();
   }
 
-  const resetUrl = buildResetUrl(supabaseUrl, data, redirectTo);
-  if (!resetUrl || /localhost|127\.0\.0\.1/i.test(resetUrl)) {
+  const resetUrl = buildResetUrl(data);
+  if (!resetUrl || /localhost|127\.0\.0\.1|supabase\.co/i.test(resetUrl)) {
     console.error('[EastCord auth] Password reset URL missing or pointed at localhost.');
     return json(502, { message: 'Password reset email could not be created right now.' });
   }

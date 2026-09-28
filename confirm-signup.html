@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Choose New Password | EastCord Tires</title>
+    <title>Confirm Account | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=8" />
     <link rel="stylesheet" href="appointment.css?v=4" />
     <link rel="stylesheet" href="account.css?v=4" />
@@ -52,53 +52,14 @@
 
     <main class="section">
       <div class="shell">
-        <section class="account-card" aria-labelledby="reset-password-title">
-          <h1 id="reset-password-title">Choose a New Password</h1>
-          <p>Use at least 8 characters. After updating your password, you’ll securely log in again.</p>
+        <section class="account-card" aria-labelledby="confirm-signup-title" data-confirm-signup>
+          <h1 id="confirm-signup-title">Confirm your EastCord account</h1>
+          <p>Tap Confirm to finish creating your EastCord Tires account. After that you can log in and keep your bookings and receipts in one place.</p>
           <p class="account-message" data-auth-message role="status" aria-live="polite"></p>
-          <p><a href="/forgot-password.html">Request a new reset link</a> · <a href="/login.html">Back to log in</a></p>
-          <p class="account-actions" data-verify-reset-wrap hidden>
-            <button class="button button-primary" type="button" data-verify-reset-button>Continue</button>
-          </p>
-          <form class="account-form" data-reset-password-form hidden>
-            <label class="form-field">
-              <span>New password</span>
-              <span class="password-input-wrap">
-                <input id="reset-password" name="Password" type="password" autocomplete="new-password" minlength="8" required />
-                <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" aria-controls="reset-password" data-password-toggle>
-                  <svg class="password-icon password-icon-show" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  <svg class="password-icon password-icon-hide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 3l18 18" />
-                    <path d="M9.9 5.2A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.1 4.1" />
-                    <path d="M6.6 6.9C3.9 8.7 2.5 12 2.5 12s3.5 7 9.5 7a10.7 10.7 0 0 0 4.2-.9" />
-                  </svg>
-                </button>
-              </span>
-            </label>
-            <label class="form-field">
-              <span>Confirm new password</span>
-              <span class="password-input-wrap">
-                <input id="reset-confirm-password" name="Confirm Password" type="password" autocomplete="new-password" minlength="8" required />
-                <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" aria-controls="reset-confirm-password" data-password-toggle>
-                  <svg class="password-icon password-icon-show" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  <svg class="password-icon password-icon-hide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 3l18 18" />
-                    <path d="M9.9 5.2A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.1 4.1" />
-                    <path d="M6.6 6.9C3.9 8.7 2.5 12 2.5 12s3.5 7 9.5 7a10.7 10.7 0 0 0 4.2-.9" />
-                  </svg>
-                </button>
-              </span>
-            </label>
-            <div class="account-actions">
-              <button class="button button-primary" type="submit">Update Password</button>
-            </div>
-          </form>
+          <div class="account-actions">
+            <button class="button button-primary" type="button" data-confirm-signup-button>Confirm your EastCord account</button>
+            <a href="/login.html">Already confirmed? Log in</a>
+          </div>
         </section>
       </div>
     </main>
@@ -126,15 +87,22 @@
             <a href="/tire-size-guide">Tire Size Guide</a>
             <a href="/tire-season-guide">Tire Season Guide</a>
             <a href="/used-tire-buying-guide">Used Tire Buying Guide</a>
+            <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Used Tire Warranty</a>
+            <a href="/how-we-inspect-used-tires">How We Inspect Used Tires</a>
             <a href="/proudly-canadian">Proudly Canadian</a>
             <a href="/appointment">Changeover / Swap Service</a>
             <a href="/local-installers">Installers</a>
+            <a href="/#contact">Contact EastCord</a>
           </div>
         </div>
         <div>
           <h3>Quick Links</h3>
-          <a href="/">Home</a>
+          <a href="/used-tires">Used Tires</a>
+          <a href="/new-tires">New Tires</a>
           <a href="/appointment">Appointment</a>
+          <a href="/local-installers">Installers</a>
+          <a href="/proudly-canadian">Proudly Canadian</a>
+          <a href="/#warranty">Warranty</a>
           <a href="/#contact">Contact</a>
         </div>
       </div>
@@ -147,6 +115,8 @@
           <a href="/privacy-policy">Privacy Policy</a>
           <span class="footer-legal-separator">|</span>
           <a href="/cookie-policy">Cookie Policy</a>
+          <span class="footer-legal-separator">|</span>
+          <a href="/public/docs/eastcord-used-tire-warranty-policy.pdf" target="_blank" rel="noopener noreferrer">Warranty Policy</a>
         </p>
       </div>
     </footer>
@@ -154,21 +124,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
     <script src="account.js?v=63"></script>
-    <script>
-      (() => {
-        document.querySelectorAll('[data-password-toggle]').forEach((button) => {
-          const input = document.getElementById(button.getAttribute('aria-controls'));
-          if (!input) return;
-          button.addEventListener('click', () => {
-            const shouldShow = input.type === 'password';
-            input.type = shouldShow ? 'text' : 'password';
-            button.setAttribute('aria-label', shouldShow ? 'Hide password' : 'Show password');
-            button.setAttribute('aria-pressed', String(shouldShow));
-            button.classList.toggle('is-showing', shouldShow);
-          });
-        });
-      })();
-    </script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

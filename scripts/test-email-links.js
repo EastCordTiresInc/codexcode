@@ -8,10 +8,12 @@ const {
   SITE_ORIGIN,
   ACCOUNT_URL,
   APPOINTMENT_URL,
+  CONFIRM_SIGNUP_URL,
   RESET_PASSWORD_URL,
   WARRANTY_URL,
   htmlFromText,
   buildAuthEmail,
+  buildHashedTokenActionUrl,
 } = require('../netlify/functions/lib/send-email');
 const { buildUsedTireReceipt } = require('../netlify/functions/lib/used-tire-receipt');
 
@@ -60,7 +62,7 @@ function head(url) {
       'This is your account for EastCord Tires at 600 Harrop Drive in Milton — inspected used tires, new tires, and installation at the shop.',
       'Confirm this email so we can save your orders, hold your bookings, and keep your receipts in one place.',
     ],
-    actionUrl: 'https://pvivlobtolcdggzefpxo.supabase.co/auth/v1/verify?token=example&type=signup&redirect_to=https%3A%2F%2Feastcordtires.ca%2Faccount.html',
+    actionUrl: 'https://eastcordtires.ca/confirm-signup.html?token_hash=example&type=signup',
     actionLabel: 'Confirm your EastCord account',
   });
   const visibleConfirmText = confirmEmail.html.replace(/<a\b[^>]*>/gi, '<a>').replace(/<[^>]+>/g, ' ');
@@ -68,10 +70,16 @@ function head(url) {
   assert.match(confirmEmail.html, /600 Harrop Drive/);
   assert.match(confirmEmail.html, /Confirm your EastCord account/);
   assert.match(confirmEmail.html, /eastcord-logo-email\.png/);
+  assert.match(confirmEmail.html, /href="https:\/\/eastcordtires\.ca\/confirm-signup\.html/);
   assert.doesNotMatch(confirmEmail.html, /background:#ba151b/);
-  assert.doesNotMatch(visibleConfirmText, /supabase\.co|token=/i);
+  assert.doesNotMatch(visibleConfirmText, /supabase\.co/i);
   assert.doesNotMatch(confirmEmail.html, /paste this link/i);
-  assert.doesNotMatch(confirmEmail.text, /supabase\.co|token=/i);
+  assert.doesNotMatch(confirmEmail.text, /supabase\.co/i);
+  assert.match(confirmEmail.text, /https:\/\/eastcordtires\.ca\/confirm-signup\.html/);
+
+  const hashedUrl = buildHashedTokenActionUrl(CONFIRM_SIGNUP_URL, 'example-token', 'signup');
+  assert.equal(hashedUrl, 'https://eastcordtires.ca/confirm-signup.html?token_hash=example-token&type=signup');
+  assert.doesNotMatch(hashedUrl, /supabase\.co/i);
 
   const receipt = buildUsedTireReceipt({
     customer: { name: 'Test Customer', email: 'test@example.com' },
@@ -98,6 +106,9 @@ function head(url) {
     const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
     assert.doesNotMatch(source, /href=["']https?:\/\/localhost/i, `${file} still has a localhost href`);
     assert.doesNotMatch(source, /https?:\/\/localhost:\d+\/(?:account|reset-password|appointment)/i, `${file} still emails a localhost page`);
+    if (file.endsWith('send-signup-confirmation.js') || file.endsWith('send-password-reset.js')) {
+      assert.doesNotMatch(source, /supabase\.co\/auth\/v1\/verify/i, `${file} still emails a Supabase verify URL`);
+    }
   }
 
   const urls = [

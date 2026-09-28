@@ -286,6 +286,18 @@
   force = true
 
 [[redirects]]
+  from = "/confirm-signup"
+  to = "/confirm-signup.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/confirm-signup/"
+  to = "/confirm-signup.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/new-tire-order-success"
   to = "/new-tire-order-success.html"
   status = 301

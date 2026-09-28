@@ -4,8 +4,16 @@ const CONTACT_EMAIL = 'info@eastcordtires.ca';
 const SITE_ORIGIN = 'https://eastcordtires.ca';
 const ACCOUNT_URL = `${SITE_ORIGIN}/account.html`;
 const APPOINTMENT_URL = `${SITE_ORIGIN}/appointment.html`;
+const CONFIRM_SIGNUP_URL = `${SITE_ORIGIN}/confirm-signup.html`;
 const RESET_PASSWORD_URL = `${SITE_ORIGIN}/reset-password.html`;
 const WARRANTY_URL = `${SITE_ORIGIN}/public/docs/eastcord-used-tire-warranty-policy.pdf`;
+
+function buildHashedTokenActionUrl(baseUrl, tokenHash, type) {
+  const url = new URL(baseUrl);
+  url.searchParams.set('token_hash', String(tokenHash || '').trim());
+  url.searchParams.set('type', String(type || '').trim() || 'signup');
+  return url.toString();
+}
 
 function firstEnv(keys, fallback = '') {
   for (const key of keys) {
@@ -149,7 +157,7 @@ function buildBrandedEmail({
     '',
     ...paragraphs,
     extraText,
-    actionUrl && actionLabel ? `Open this email and tap “${actionLabel}”.` : '',
+    actionUrl && actionLabel ? `${actionLabel}:\n${actionUrl}` : '',
     footerText,
     '',
     'EastCord Tires',
@@ -291,8 +299,10 @@ module.exports = {
   SITE_ORIGIN,
   ACCOUNT_URL,
   APPOINTMENT_URL,
+  CONFIRM_SIGNUP_URL,
   RESET_PASSWORD_URL,
   WARRANTY_URL,
+  buildHashedTokenActionUrl,
   getEmailConfig,
   isLocalNetlifyDev,
   forwardToProductionFunction,

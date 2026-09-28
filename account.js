@@ -1247,10 +1247,96 @@ async function signInCustomer({ email, password }) {
 function hasPasswordRecoveryParameters() {
   const search = new URLSearchParams(window.location.search);
   const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''));
+  const token = getAuthTokenFromUrl();
   return search.has('code')
     || search.get('type') === 'recovery'
     || hash.get('type') === 'recovery'
-    || hash.has('access_token');
+    || hash.has('access_token')
+    || Boolean(token.tokenHash && (token.type === 'recovery' || !token.type));
+}
+
+const ALLOWED_OTP_TYPES = new Set(['signup', 'invite', 'magiclink', 'recovery', 'email_change', 'email']);
+
+function getAuthTokenFromUrl() {
+  const search = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''));
+  const tokenHash = String(search.get('token_hash') || hash.get('token_hash') || '').trim();
+  const rawType = String(search.get('type') || hash.get('type') || '').trim().toLowerCase();
+  return {
+    tokenHash,
+    type: ALLOWED_OTP_TYPES.has(rawType) ? rawType : '',
+  };
+}
+
+function clearAuthTokenFromUrl() {
+  if (!window.history.replaceState) return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete('token_hash');
+  url.searchParams.delete('type');
+  url.hash = '';
+  const redirectTarget = getRedirectTarget('');
+  if (redirectTarget) url.searchParams.set('redirect', redirectTarget);
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+}
+
+async function verifyEmailToken({ fallbackType }) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
+
+  const { tokenHash, type } = getAuthTokenFromUrl();
+  if (!tokenHash) return { ok: false, reason: 'missing_token' };
+
+  const { data, error } = await client.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: type || fallbackType,
+  });
+  if (error) {
+    logSupabaseError('Email token verification failed.', error);
+    return { ok: false, reason: 'invalid_token', error };
+  }
+  return { ok: true, data };
+}
+
+async function handleConfirmSignupPage() {
+  const panel = document.querySelector('[data-confirm-signup]');
+  if (!panel) return;
+
+  const button = panel.querySelector('[data-confirm-signup-button]');
+  if (!isAuthConfigured()) {
+    setAuthMessage(ACCOUNT_SETUP_MESSAGE, 'error');
+    if (button) button.disabled = true;
+    return;
+  }
+
+  const { tokenHash } = getAuthTokenFromUrl();
+  if (!tokenHash) {
+    setAuthMessage('This confirmation link is missing or incomplete. Open the latest email from EastCord Tires, or sign up again.', 'error');
+    if (button) button.disabled = true;
+    return;
+  }
+
+  setAuthMessage('This link is ready. Tap the button below to confirm your EastCord account.', 'success');
+  button?.addEventListener('click', async () => {
+    if (button) button.disabled = true;
+    setAuthMessage('Confirming your EastCord account...', 'success');
+    try {
+      const result = await verifyEmailToken({ fallbackType: 'signup' });
+      if (!result.ok) {
+        if (button) button.disabled = false;
+        setAuthMessage('This confirmation link is invalid or has expired. Sign up again, or contact EastCord Tires.', 'error');
+        appendLoginLinkToAuthMessage();
+        return;
+      }
+      clearAuthTokenFromUrl();
+      setAuthMessage('Your email is confirmed. Taking you to your account...', 'success');
+      window.setTimeout(() => {
+        goToRedirectTarget('/account.html');
+      }, 800);
+    } catch (error) {
+      if (button) button.disabled = false;
+      setAuthMessage(error.message || 'Your account could not be confirmed right now.', 'error');
+    }
+  });
 }
 
 function clearPasswordRecoveryUrlSecrets() {
@@ -1265,6 +1351,39 @@ async function preparePasswordRecoveryForm(form) {
   const client = getSupabaseClient();
   if (!client) {
     setAuthMessage(ACCOUNT_SETUP_MESSAGE, 'error');
+    return;
+  }
+
+  const verifyWrap = document.querySelector('[data-verify-reset-wrap]');
+  const verifyButton = document.querySelector('[data-verify-reset-button]');
+  const token = getAuthTokenFromUrl();
+
+  if (token.tokenHash && (token.type === 'recovery' || !token.type)) {
+    form.hidden = true;
+    if (verifyWrap) verifyWrap.hidden = false;
+    setAuthMessage('This reset link is ready. Tap Continue to choose a new password.', 'success');
+    verifyButton?.addEventListener('click', async () => {
+      if (verifyButton) verifyButton.disabled = true;
+      setAuthMessage('Checking your secure reset link...', 'success');
+      try {
+        const result = await verifyEmailToken({ fallbackType: 'recovery' });
+        if (!result.ok) {
+          sessionStorage.removeItem(PASSWORD_RECOVERY_KEY);
+          if (verifyWrap) verifyWrap.hidden = true;
+          form.hidden = true;
+          setAuthMessage('This password reset link is invalid or has expired. Request a new link.', 'error');
+          return;
+        }
+        sessionStorage.setItem(PASSWORD_RECOVERY_KEY, 'true');
+        clearAuthTokenFromUrl();
+        if (verifyWrap) verifyWrap.hidden = true;
+        form.hidden = false;
+        setAuthMessage('Reset link verified. Enter a new password below.', 'success');
+      } catch (error) {
+        if (verifyButton) verifyButton.disabled = false;
+        setAuthMessage(error.message || 'This password reset link could not be verified. Request a new link.', 'error');
+      }
+    }, { once: true });
     return;
   }
 
@@ -1993,7 +2112,11 @@ async function hydrateAccountPage() {
   try {
     // Email confirm links land here with tokens in the URL; pick up the session first.
     const client = getSupabaseClient();
-    if (client && (window.location.hash.includes('access_token') || new URLSearchParams(window.location.search).has('code'))) {
+    const confirmToken = getAuthTokenFromUrl();
+    if (client && confirmToken.tokenHash && confirmToken.type === 'signup') {
+      await verifyEmailToken({ fallbackType: 'signup' });
+      clearAuthTokenFromUrl();
+    } else if (client && (window.location.hash.includes('access_token') || new URLSearchParams(window.location.search).has('code'))) {
       await client.auth.getSession();
       if (window.history.replaceState) {
         window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
@@ -2146,6 +2269,7 @@ document.addEventListener('DOMContentLoaded', () => {
   logAuthConfigStatus();
   preserveAuthSwitchLinks();
   bindAuthForms();
+  handleConfirmSignupPage();
   bindLogoutButtons();
   bindCartClearButtons();
   bindAuthStateChanges();

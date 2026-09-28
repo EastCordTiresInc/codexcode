@@ -485,10 +485,15 @@ async function sendEmail(email) {
     return { ok: false, skipped: true, reason: 'missing_recipient' };
   }
 
+  const headers = { Authorization: `Bearer ${config.apiKey}` };
+  if (email.idempotencyKey) {
+    headers['Idempotency-Key'] = String(email.idempotencyKey).slice(0, 256);
+  }
+
   const response = await postJsonWithHttps({
     hostname: 'api.resend.com',
     path: '/emails',
-    headers: { Authorization: `Bearer ${config.apiKey}` },
+    headers,
     body: {
       from: config.from,
       to: email.to,
@@ -537,9 +542,8 @@ function shouldSendCustomerEmail(rows, allRowsAlreadyConfirmed) {
       ? { shouldSend: true, reason: 'sent_at_missing', count: 1, bookingIds: unsent.map((row) => row.id) }
       : { shouldSend: false, reason: 'sent_at_already_exists' };
   }
-  return allRowsAlreadyConfirmed
-    ? { shouldSend: false, reason: 'webhook_retry_detected_without_sent_at_columns' }
-    : { shouldSend: true, reason: 'first_confirmation_without_sent_at_columns', count: 1, bookingIds: rows.map((row) => row.id) };
+  void allRowsAlreadyConfirmed;
+  return { shouldSend: true, reason: 'sent_at_columns_missing', count: 1, bookingIds: rows.map((row) => row.id) };
 }
 
 function shouldSendEastcordEmail(rows, allRowsAlreadyConfirmed) {
@@ -550,9 +554,8 @@ function shouldSendEastcordEmail(rows, allRowsAlreadyConfirmed) {
       ? { shouldSend: true, reason: 'sent_at_missing', count: 1, bookingIds: unsent.map((row) => row.id) }
       : { shouldSend: false, reason: 'sent_at_already_exists' };
   }
-  return allRowsAlreadyConfirmed
-    ? { shouldSend: false, reason: 'webhook_retry_detected_without_sent_at_columns' }
-    : { shouldSend: true, reason: 'first_confirmation_without_sent_at_columns', count: 1, bookingIds: rows.map((row) => row.id) };
+  void allRowsAlreadyConfirmed;
+  return { shouldSend: true, reason: 'sent_at_columns_missing', count: 1, bookingIds: rows.map((row) => row.id) };
 }
 
 async function markEmailSent({ supabaseAdmin, rows, columnName }) {
@@ -622,7 +625,10 @@ async function sendAppointmentEmails({ supabaseAdmin, rows, session, allRowsAlre
       });
       emailResults.customer = { ok: false, skipped: true, reason: 'missing_customer_email' };
     } else {
-      emailResults.customer = await sendEmail(buildCustomerEmail({ rows, session }));
+      emailResults.customer = await sendEmail({
+        ...buildCustomerEmail({ rows, session }),
+        idempotencyKey: `eastcord-appt-customer-${session.id}`,
+      });
       if (emailResults.customer.ok) {
         emailResults.customerMarker = await markEmailSent({ supabaseAdmin, rows, columnName: CUSTOMER_EMAIL_COLUMN });
       }
@@ -635,7 +641,10 @@ async function sendAppointmentEmails({ supabaseAdmin, rows, session, allRowsAlre
   }
 
   if (eastcordDecision.shouldSend) {
-    emailResults.eastcord = await sendEmail(buildInternalEmail({ rows, session }));
+    emailResults.eastcord = await sendEmail({
+      ...buildInternalEmail({ rows, session }),
+      idempotencyKey: `eastcord-appt-staff-${session.id}`,
+    });
     if (emailResults.eastcord.ok) {
       emailResults.eastcordMarker = await markEmailSent({ supabaseAdmin, rows, columnName: EASTCORD_EMAIL_COLUMN });
     }
