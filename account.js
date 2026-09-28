@@ -1279,7 +1279,7 @@ function clearAuthTokenFromUrl() {
   window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
 }
 
-async function verifyEmailToken({ fallbackType }) {
+async function verifyEmailToken({ fallbackType, otpType } = {}) {
   const client = getSupabaseClient();
   if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
 
@@ -1288,7 +1288,7 @@ async function verifyEmailToken({ fallbackType }) {
 
   const { data, error } = await client.auth.verifyOtp({
     token_hash: tokenHash,
-    type: type || fallbackType,
+    type: otpType || type || fallbackType,
   });
   if (error) {
     logSupabaseError('Email token verification failed.', error);
@@ -1297,46 +1297,123 @@ async function verifyEmailToken({ fallbackType }) {
   return { ok: true, data };
 }
 
+async function persistVerifiedAuthSession(data) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
+
+  const session = data?.session;
+  if (session?.access_token && session?.refresh_token) {
+    const { error } = await client.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    });
+    if (error) logSupabaseError('Confirmed session could not be saved.', error);
+  }
+
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) logSupabaseError('Confirmed session lookup failed.', sessionError);
+  const user = sessionData?.session?.user || data?.user || null;
+  if (!sessionData?.session?.user) return { signedIn: false, user };
+
+  const profile = profileFromUser(user);
+  if (profile) {
+    try {
+      await upsertCustomerProfile(profile);
+    } catch (error) {
+      logDeveloperError('Customer profile could not be saved after email confirmation.', error);
+    }
+  }
+  return { signedIn: true, user };
+}
+
+function goToSignedInAccount() {
+  localStorage.removeItem('eastcord_auth_redirect');
+  window.location.replace('/account.html');
+}
+
+async function confirmSignupFromEmailLink() {
+  const result = await verifyEmailToken({ fallbackType: 'signup' });
+  if (!result.ok) return result;
+  const persisted = await persistVerifiedAuthSession(result.data);
+  return { ...result, ...persisted };
+}
+
 async function handleConfirmSignupPage() {
   const panel = document.querySelector('[data-confirm-signup]');
   if (!panel) return;
 
   const button = panel.querySelector('[data-confirm-signup-button]');
+  const hideButton = () => {
+    if (!button) return;
+    button.hidden = true;
+    button.disabled = true;
+  };
+  const showButton = () => {
+    if (!button) return;
+    button.hidden = false;
+    button.disabled = false;
+  };
+
   if (!isAuthConfigured()) {
     setAuthMessage(ACCOUNT_SETUP_MESSAGE, 'error');
-    if (button) button.disabled = true;
+    hideButton();
     return;
   }
 
   const { tokenHash } = getAuthTokenFromUrl();
   if (!tokenHash) {
     setAuthMessage('This confirmation link is missing or incomplete. Open the latest email from EastCord Tires, or sign up again.', 'error');
-    if (button) button.disabled = true;
+    hideButton();
     return;
   }
 
-  setAuthMessage('This link is ready. Tap the button below to confirm your EastCord account.', 'success');
-  button?.addEventListener('click', async () => {
-    if (button) button.disabled = true;
-    setAuthMessage('Confirming your EastCord account...', 'success');
+  let confirming = false;
+  const finishConfirm = async () => {
+    if (confirming) return;
+    confirming = true;
+    hideButton();
+    setAuthMessage('Confirming your EastCord account and signing you in...', 'success');
     try {
-      const result = await verifyEmailToken({ fallbackType: 'signup' });
+      const result = await confirmSignupFromEmailLink();
       if (!result.ok) {
-        if (button) button.disabled = false;
+        confirming = false;
+        showButton();
         setAuthMessage('This confirmation link is invalid or has expired. Sign up again, or contact EastCord Tires.', 'error');
         appendLoginLinkToAuthMessage();
         return;
       }
       clearAuthTokenFromUrl();
-      setAuthMessage('Your email is confirmed. Taking you to your account...', 'success');
-      window.setTimeout(() => {
-        goToRedirectTarget('/account.html');
-      }, 800);
+      if (!result.signedIn) {
+        confirming = false;
+        setAuthMessage('Your email is confirmed. Please log in to continue.', 'success');
+        appendLoginLinkToAuthMessage();
+        window.setTimeout(() => {
+          window.location.replace(getLoginPageUrl());
+        }, 1200);
+        return;
+      }
+      setAuthMessage('You are signed in. Opening your account...', 'success');
+      window.setTimeout(goToSignedInAccount, 400);
     } catch (error) {
-      if (button) button.disabled = false;
-      setAuthMessage(error.message || 'Your account could not be confirmed right now.', 'error');
+      confirming = false;
+      showButton();
+      throw error;
     }
+  };
+
+  button?.addEventListener('click', () => {
+    finishConfirm().catch((error) => {
+      showButton();
+      setAuthMessage(error.message || 'Your account could not be confirmed right now.', 'error');
+    });
   });
+
+  try {
+    await finishConfirm();
+  } catch (error) {
+    showButton();
+    setAuthMessage(error.message || 'Your account could not be confirmed right now.', 'error');
+  }
 }
 
 function clearPasswordRecoveryUrlSecrets() {
@@ -2113,9 +2190,12 @@ async function hydrateAccountPage() {
     // Email confirm links land here with tokens in the URL; pick up the session first.
     const client = getSupabaseClient();
     const confirmToken = getAuthTokenFromUrl();
-    if (client && confirmToken.tokenHash && confirmToken.type === 'signup') {
-      await verifyEmailToken({ fallbackType: 'signup' });
+    if (client && confirmToken.tokenHash && (confirmToken.type === 'signup' || confirmToken.type === 'email' || confirmToken.type === 'magiclink' || !confirmToken.type)) {
+      const result = await confirmSignupFromEmailLink();
       clearAuthTokenFromUrl();
+      if (result.ok && result.signedIn) {
+        await updateAuthNavigation();
+      }
     } else if (client && (window.location.hash.includes('access_token') || new URLSearchParams(window.location.search).has('code'))) {
       await client.auth.getSession();
       if (window.history.replaceState) {
