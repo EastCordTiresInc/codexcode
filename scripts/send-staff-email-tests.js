@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Sends one branded test of each live customer/staff email to info@eastcordtires.ca.
+ * Sends one branded test of each live customer/staff email.
+ * Default recipient is info@eastcordtires.ca. Override with EMAIL_TEST_TO.
  */
 
 const {
@@ -154,6 +155,89 @@ async function main() {
         liability_insurance: 'Yes',
         wsib_coverage: 'Yes',
       }),
+    },
+    buildAuthEmail({
+      to: TO,
+      subject: '[TEST] EastCord Tires payment received — we will confirm pickup',
+      heading: 'Your pickup order is confirmed',
+      body: [
+        'Hello Nikki,',
+        'EastCord Tires received your new tire payment for store pickup at 600 Harrop Drive, Milton. We will email you when the tires are ready. No appointment is needed.',
+        'Total paid: $812.47',
+      ],
+      actionUrl: ACCOUNT_URL,
+      actionLabel: 'View your account',
+      extraHtml: '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4b5563;">4 x Continental ExtremeContact 225/45R17</p>',
+    }),
+    buildAuthEmail({
+      to: TO,
+      subject: '[TEST] Nikki, your EastCord tires are in — book installation',
+      heading: 'Your new tires are in',
+      body: [
+        'Hello Nikki,',
+        'Your new tires have arrived at EastCord Tires, 600 Harrop Drive in Milton.',
+        'Book installation at the shop. Hours are 8:00 AM to 8:00 PM.',
+      ],
+      actionUrl: `${APPOINTMENT_URL}?source=new-tires`,
+      actionLabel: 'Book installation',
+      extraHtml: '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4b5563;">4 x Continental ExtremeContact 225/45R17</p>',
+    }),
+    buildAuthEmail({
+      to: TO,
+      subject: '[TEST] Nikki, your EastCord used tires are ready for pickup',
+      heading: 'Your used tires are ready',
+      body: [
+        'Hello Nikki,',
+        'Your used tires are at EastCord Tires, 600 Harrop Drive in Milton.',
+        'Come by during shop hours, 8:00 AM to 8:00 PM. No appointment is needed.',
+      ],
+      actionUrl: ACCOUNT_URL,
+      actionLabel: 'View your account',
+      extraHtml: '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4b5563;">2 x Michelin 225/45R17</p>',
+    }),
+    {
+      to: TO,
+      replyTo: TO,
+      subject: '[TEST] Used tire reservation request — Nikki Testin',
+      text: [
+        'Used tire reservation request',
+        '',
+        'Name: Nikki Testin',
+        `Email: ${TO}`,
+        'Phone: 555-0100',
+        'Fulfillment: Pickup',
+        'Confirm with the customer when the order is ready for pickup. No appointment is required.',
+        '',
+        'Tires:',
+        '2 x Michelin 225/45R17',
+        '',
+        'Total: $180.80',
+      ].join('\n'),
+    },
+    {
+      to: TO,
+      replyTo: TO,
+      subject: '[TEST] Paid used tire order — Nikki Testin',
+      text: [
+        'Paid used tire order',
+        'Name: Nikki Testin',
+        `Email: ${TO}`,
+        '2 x Michelin 225/45R17',
+        'Total: $180.80',
+      ].join('\n'),
+    },
+    {
+      to: TO,
+      replyTo: TO,
+      subject: '[TEST] Paid new tire order — Pickup — Nikki Testin',
+      text: [
+        'Paid new tire order',
+        'Fulfillment: Pickup',
+        'Name: Nikki Testin',
+        `Email: ${TO}`,
+        '4 x Continental ExtremeContact 225/45R17',
+        'Total paid: $812.47',
+      ].join('\n'),
     },
   ];
 
