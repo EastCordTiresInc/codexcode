@@ -211,17 +211,41 @@ function buildAuthEmail(options) {
   return buildBrandedEmail(options);
 }
 
-function postJsonWithHttps({ hostname, path, headers, body }) {
+const RESEND_DOMAIN_NAME = 'eastcordtires.ca';
+const RESEND_SENDING_OK = new Set(['verified', 'partially_verified']);
+
+function isDomainUnverifiedError(message) {
+  return /domain is not verified|not verified/i.test(String(message || ''));
+}
+
+function summarizeResendDomain(body) {
+  const records = Array.isArray(body?.records) ? body.records : [];
+  return {
+    id: body?.id || null,
+    name: body?.name || null,
+    status: String(body?.status || ''),
+    records: records.map((record) => ({
+      type: record.record || record.type || '',
+      name: record.name || '',
+      status: record.status || '',
+    })),
+  };
+}
+
+function requestJsonWithHttps({ hostname, path, method = 'POST', headers, body }) {
   return new Promise((resolve, reject) => {
-    const requestBody = JSON.stringify(body);
+    const hasBody = body !== undefined && method !== 'GET' && method !== 'HEAD';
+    const requestBody = hasBody ? JSON.stringify(body) : '';
     const request = https.request({
       hostname,
       path,
-      method: 'POST',
+      method,
       headers: {
         ...headers,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(requestBody),
+        ...(hasBody ? {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(requestBody),
+        } : {}),
       },
     }, (response) => {
       let responseBody = '';
@@ -241,9 +265,98 @@ function postJsonWithHttps({ hostname, path, headers, body }) {
     });
 
     request.on('error', reject);
-    request.write(requestBody);
+    if (hasBody) request.write(requestBody);
     request.end();
   });
+}
+
+function postJsonWithHttps(options) {
+  return requestJsonWithHttps({ ...options, method: 'POST' });
+}
+
+async function resendApi(method, urlPath, body) {
+  const config = getEmailConfig();
+  if (!config.apiKey) {
+    return { statusCode: 0, body: { message: 'missing_resend_api_key' } };
+  }
+  return requestJsonWithHttps({
+    hostname: 'api.resend.com',
+    path: urlPath,
+    method,
+    headers: { Authorization: `Bearer ${config.apiKey}` },
+    body,
+  });
+}
+
+async function getEastcordResendDomain() {
+  const list = await resendApi('GET', '/domains');
+  if (list.statusCode < 200 || list.statusCode >= 300) {
+    return {
+      ok: false,
+      reason: 'domain_list_failed',
+      statusCode: list.statusCode,
+      resendMessage: String(list.body?.message || '').slice(0, 160),
+    };
+  }
+  const domains = Array.isArray(list.body?.data) ? list.body.data : [];
+  const match = domains.find((item) => String(item.name || '').toLowerCase() === RESEND_DOMAIN_NAME);
+  if (!match?.id) {
+    return { ok: false, reason: 'domain_not_found' };
+  }
+  const detail = await resendApi('GET', `/domains/${match.id}`);
+  if (detail.statusCode < 200 || detail.statusCode >= 300) {
+    return {
+      ok: false,
+      reason: 'domain_detail_failed',
+      statusCode: detail.statusCode,
+      domain: summarizeResendDomain(match),
+    };
+  }
+  return { ok: true, domain: summarizeResendDomain({ ...match, ...detail.body }) };
+}
+
+async function checkAndRepairResendDomain({ alertStaff = false, repair = true } = {}) {
+  const found = await getEastcordResendDomain();
+  if (!found.ok) return found;
+
+  const beforeStatus = found.domain.status;
+  const sendingOk = RESEND_SENDING_OK.has(beforeStatus);
+  if (sendingOk || !repair) {
+    return { ok: sendingOk, repaired: false, domain: found.domain };
+  }
+
+  const verify = await resendApi('POST', `/domains/${found.domain.id}/verify`);
+  const after = await getEastcordResendDomain();
+  const domain = after.domain || found.domain;
+  const ok = RESEND_SENDING_OK.has(String(domain?.status || ''));
+  const result = {
+    ok,
+    repaired: true,
+    beforeStatus,
+    verifyStatus: verify.statusCode,
+    domain,
+  };
+
+  if (alertStaff && !ok) {
+    const recordLines = (domain?.records || [])
+      .map((record) => `${record.name || record.type}: ${record.status || 'unknown'}`)
+      .join('\n');
+    const alerted = await sendEmail({
+      to: CONTACT_EMAIL,
+      subject: 'EastCord emails are blocked — Resend domain not verified',
+      text: [
+        'Customer emails from eastcordtires.ca are blocked until Resend verifies the domain again.',
+        `Current status: ${domain?.status || beforeStatus}`,
+        recordLines ? `DNS records:\n${recordLines}` : '',
+        'Leave the resend._domainkey, rsend, and send DNS records in place. This check will restart verification automatically.',
+      ].filter(Boolean).join('\n\n'),
+      html: `<p>Customer emails from eastcordtires.ca are blocked until Resend verifies the domain again.</p><p>Current status: <strong>${escapeHtml(domain?.status || beforeStatus)}</strong></p><p>Leave the resend._domainkey, rsend, and send DNS records in place.</p>`,
+      skipDomainRepair: true,
+    });
+    result.staffAlerted = Boolean(alerted.ok);
+  }
+
+  return result;
 }
 
 async function sendEmail(email) {
@@ -282,6 +395,13 @@ async function sendEmail(email) {
       status: response.statusCode,
       resendMessage,
     });
+    if (!email.skipDomainRepair && isDomainUnverifiedError(resendMessage)) {
+      try {
+        await checkAndRepairResendDomain({ alertStaff: false, repair: true });
+      } catch (error) {
+        console.error('[EastCord email] Domain repair failed.', error.message || error);
+      }
+    }
     return {
       ok: false,
       skipped: false,
@@ -312,4 +432,6 @@ module.exports = {
   buildAuthEmail,
   buildBrandedEmail,
   sendEmail,
+  isDomainUnverifiedError,
+  checkAndRepairResendDomain,
 };

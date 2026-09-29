@@ -14,6 +14,7 @@ const {
   htmlFromText,
   buildAuthEmail,
   buildHashedTokenActionUrl,
+  isDomainUnverifiedError,
 } = require('../netlify/functions/lib/send-email');
 const { buildUsedTireReceipt } = require('../netlify/functions/lib/used-tire-receipt');
 
@@ -80,6 +81,8 @@ function head(url) {
   const hashedUrl = buildHashedTokenActionUrl(CONFIRM_SIGNUP_URL, 'example-token', 'signup');
   assert.equal(hashedUrl, 'https://eastcordtires.ca/confirm-signup.html?token_hash=example-token&type=signup');
   assert.doesNotMatch(hashedUrl, /supabase\.co/i);
+  assert.ok(isDomainUnverifiedError('The eastcordtires.ca domain is not verified. You can only send testing emails to your own email address'));
+  assert.ok(!isDomainUnverifiedError('Rate limit exceeded'));
 
   const receipt = buildUsedTireReceipt({
     customer: { name: 'Test Customer', email: 'test@example.com' },

@@ -9,6 +9,9 @@
 [functions."sync-inventory-from-sheets"]
   schedule = "*/15 * * * *"
 
+[functions."watch-resend-domain"]
+  schedule = "0 */6 * * *"
+
 [[redirects]]
   from = "/used-tires"
   to = "/used-tires.html"
