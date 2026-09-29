@@ -101,6 +101,28 @@
     return new Set(bands).size === 1 ? bands[0] : '';
   }
 
+  function formatPerTireAmount(value) {
+    const amount = roundMoney(value);
+    if (!Number.isFinite(amount)) return '';
+    return Number.isInteger(amount) ? `$${amount}` : `$${amount.toFixed(2)}`;
+  }
+
+  function sizePricingRangeLabel() {
+    const prices = Object.values(SIZE_BANDS).map((band) => band.unitPrice);
+    return `${formatPerTireAmount(Math.min(...prices))}–${formatPerTireAmount(Math.max(...prices))} per tire`;
+  }
+
+  function unitPriceLabel(serviceId, sizeBand) {
+    const service = SERVICES[serviceId];
+    if (!service) return '';
+    if (service.sizePricing) {
+      const band = SIZE_BANDS[sizeBand];
+      return band ? `${formatPerTireAmount(band.unitPrice)} per tire` : sizePricingRangeLabel();
+    }
+    if (!service.quantity) return formatPerTireAmount(service.unitPrice);
+    return `${formatPerTireAmount(service.unitPrice)} per tire`;
+  }
+
   function normalizeSelections(selections) {
     const normalized = [];
     const selectedGroups = new Set();
@@ -212,6 +234,9 @@
     rimInchesFromTireSize,
     sizeBandFromTireSize,
     deriveOffRimSizeBandFromSizes,
+    formatPerTireAmount,
+    sizePricingRangeLabel,
+    unitPriceLabel,
     normalizeSelections,
     selectionPrice,
     selectionLabel,

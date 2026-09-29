@@ -173,6 +173,13 @@
       item.querySelectorAll('select').forEach((select) => {
         select.disabled = !selected;
       });
+      const priceEl = item.querySelector('[data-service-unit-price]');
+      if (priceEl) {
+        priceEl.textContent = window.EastCordAppointmentServices?.unitPriceLabel?.(
+          item.dataset.serviceItem,
+          selection.sizeBand,
+        ) || priceEl.textContent;
+      }
     });
   }
 
@@ -789,6 +796,7 @@
       year,
       make,
       model,
+      colour: vehicle.colour || vehicle.color || vehicle.Colour || '',
       tireSize: size,
     });
   }
@@ -1493,7 +1501,7 @@
     if (els.reviewVehicle) {
       els.reviewVehicle.innerHTML = hasVehicleDetails
         ? buildDetailsHtml([
-          ['Vehicle', vehicleDetails.vehicle],
+          ['Year / make / model', vehicleDetails.vehicle],
           ['Plate Number', vehicleDetails.plate],
           ['Colour', vehicleDetails.colour],
           ['Tire Size', vehicleDetails.tireSize],
@@ -1506,7 +1514,7 @@
     if (els.reviewLocation) {
       els.reviewLocation.innerHTML = shop
         ? buildDetailsHtml([
-          ['Location', 'EastCord Tires shop'],
+          ['Shop', 'EastCord Tires'],
           ['Address', '600 Harrop Drive, Milton, Ontario'],
           ['Type', 'Bring vehicle to the shop'],
         ])

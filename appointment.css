@@ -730,6 +730,56 @@ label:has(input[name="bot-field"]) {
   color: #111317;
 }
 
+.tire-size-suggestions {
+  display: grid;
+  gap: 8px;
+}
+
+.tire-size-suggestions[hidden] {
+  display: none;
+}
+
+.tire-size-suggestions-label {
+  color: #6b7280;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tire-size-suggestion-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tire-size-suggestion {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111317;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.tire-size-suggestion:hover,
+.tire-size-suggestion:focus-visible {
+  border-color: #df1f2d;
+  outline: none;
+}
+
+.tire-size-suggestion.is-selected {
+  background: #df1f2d;
+  border-color: #df1f2d;
+  color: #ffffff;
+}
+
 .tire-size-picker-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
@@ -752,6 +802,19 @@ label:has(input[name="bot-field"]) {
   position: relative;
 }
 
+.fancy-select-combobox {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fancy-select-combobox .fancy-select-swatch {
+  position: absolute;
+  left: 14px;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .fancy-select-trigger,
 .tire-select-trigger {
   display: flex;
@@ -760,29 +823,38 @@ label:has(input[name="bot-field"]) {
   gap: 8px;
   width: 100%;
   min-height: 54px;
-  padding: 0 12px 0 14px;
+  padding: 0 36px 0 14px;
   border: 1px solid rgba(15, 23, 42, 0.14);
   border-radius: 14px;
   background: #ffffff;
-  color: #9ca3af;
+  color: #111317;
   font: inherit;
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   text-align: left;
-  cursor: pointer;
+  cursor: text;
+}
+
+.form-field .fancy-select-combobox input.fancy-select-trigger {
+  min-height: 54px;
+  padding: 0 36px 0 14px;
+  font-weight: 700;
+}
+
+.fancy-select.has-swatch .fancy-select-trigger {
+  padding-left: 34px;
+}
+
+.fancy-select-trigger::placeholder,
+.tire-select-trigger::placeholder {
+  color: #9ca3af;
+  font-weight: 700;
 }
 
 .fancy-select.has-value .fancy-select-trigger,
 .tire-select.has-value .tire-select-trigger {
   color: #111317;
-}
-
-.fancy-select-trigger [data-fancy-select-label] {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
 }
 
 .appointment-field-grid > .form-field {
@@ -815,6 +887,8 @@ label:has(input[name="bot-field"]) {
 
 .fancy-select-chevron,
 .tire-select-chevron {
+  position: absolute;
+  right: 16px;
   flex: 0 0 auto;
   width: 10px;
   height: 10px;
@@ -822,6 +896,7 @@ label:has(input[name="bot-field"]) {
   border-bottom: 2px solid currentColor;
   transform: rotate(45deg) translateY(-2px);
   opacity: 0.55;
+  pointer-events: none;
 }
 
 .fancy-select.is-open .fancy-select-chevron,

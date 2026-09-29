@@ -23,6 +23,15 @@ test('off-rim size bands use the confirmed per-tire pricing', () => {
   assert.strictEqual(services.selectionPrice({ id: 'off-rim-swap', quantity: 4, sizeBand: '23-24' }), 100);
 });
 
+test('off-rim card shows a range until a rim size is chosen', () => {
+  assert.strictEqual(services.unitPriceLabel('off-rim-swap'), '$16.25–$25 per tire');
+  assert.strictEqual(services.unitPriceLabel('off-rim-swap', ''), '$16.25–$25 per tire');
+  assert.strictEqual(services.unitPriceLabel('off-rim-swap', '14-16'), '$16.25 per tire');
+  assert.strictEqual(services.unitPriceLabel('off-rim-swap', '17-19'), '$18.75 per tire');
+  assert.strictEqual(services.unitPriceLabel('off-rim-swap', '20-22'), '$21.25 per tire');
+  assert.strictEqual(services.unitPriceLabel('off-rim-swap', '23-24'), '$25 per tire');
+});
+
 test('linked tire sizes map to off-rim pricing bands', () => {
   assert.strictEqual(services.sizeBandFromTireSize('195/65R15'), '14-16');
   assert.strictEqual(services.sizeBandFromTireSize('225/45ZR18'), '17-19');

@@ -230,9 +230,10 @@ function isCartRelatedStorageKey(key) {
 
 function getRawStorageItemCount() {
   const storages = [localStorage, sessionStorage];
+  const draftKeys = new Set(APPOINTMENT_DRAFT_STORAGE_KEYS);
   return storages.reduce((count, storage) => {
     return count + getStorageKeys(storage)
-      .filter(isCartRelatedStorageKey)
+      .filter((key) => isCartRelatedStorageKey(key) && !draftKeys.has(key))
       .reduce((storageCount, key) => {
         const normalized = normalizeCartCollection(readStorageJson(storage, key));
         return storageCount + normalized.length;

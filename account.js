@@ -2183,6 +2183,8 @@ async function hydrateAccountPage() {
     if (bookingPanel) bookingPanel.innerHTML = '';
     const purchasedPanel = document.querySelector('[data-purchased-tires]');
     if (purchasedPanel) purchasedPanel.innerHTML = '';
+    const appointmentSummary = document.querySelector('[data-account-appointment-cart]');
+    if (appointmentSummary) appointmentSummary.textContent = 'Account signup is being connected.';
     return;
   }
 
@@ -2209,6 +2211,8 @@ async function hydrateAccountPage() {
       if (bookingPanel) bookingPanel.innerHTML = '';
       const purchasedPanel = document.querySelector('[data-purchased-tires]');
       if (purchasedPanel) purchasedPanel.innerHTML = '';
+      const appointmentSummary = document.querySelector('[data-account-appointment-cart]');
+      if (appointmentSummary) appointmentSummary.textContent = 'Log in to see appointments saved to your account.';
       return;
     }
 
