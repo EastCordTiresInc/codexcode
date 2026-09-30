@@ -1,5 +1,5 @@
 const { requireAdminUser } = require('./lib/admin-auth');
-const { sendEmail, CONTACT_EMAIL, getEmailConfig, buildBrandedEmail, ACCOUNT_URL } = require('./lib/send-email');
+const { sendEmail, getEmailConfig, isEmailConfigured, CONTACT_EMAIL, ACCOUNT_URL, buildBrandedEmail } = require('./lib/send-email');
 const { buildArrivalEmail, greetingName } = require('./lib/new-tire-order');
 
 const ORDER_SELECT = [
@@ -270,11 +270,13 @@ async function markReady(supabaseAdmin, order, { resend = false } = {}) {
   }
 
   const emailConfig = getEmailConfig();
-  if (!emailConfig.apiKey) {
-    console.error('[EastCord orders] RESEND_API_KEY is missing; cannot email customer.');
+  if (!isEmailConfigured(emailConfig)) {
+    console.error('[EastCord orders] Email is not configured; cannot email customer.');
     return json(503, {
-      message: 'Email is not configured on this computer. Add RESEND_API_KEY to .netlify/.env and restart the admin server (port 8888).',
-      reason: 'missing_resend_api_key',
+      message: emailConfig.provider === 'postmark'
+        ? 'Email is not configured on this computer. Add POSTMARK_SERVER_TOKEN to .netlify/.env and restart the admin server (port 8888).'
+        : 'Email is not configured on this computer. Add RESEND_API_KEY to .netlify/.env and restart the admin server (port 8888).',
+      reason: emailConfig.provider === 'postmark' ? 'missing_postmark_server_token' : 'missing_resend_api_key',
     });
   }
 
@@ -292,10 +294,12 @@ async function markReady(supabaseAdmin, order, { resend = false } = {}) {
       status: sent.status || '',
     });
     return json(502, {
-      message: sent.reason === 'missing_resend_api_key'
+      message: sent.reason === 'missing_postmark_server_token'
+        ? 'Email is not configured on this computer. Add POSTMARK_SERVER_TOKEN to .netlify/.env and restart the admin server (port 8888).'
+        : sent.reason === 'missing_resend_api_key'
         ? 'Email is not configured on this computer. Add RESEND_API_KEY to .netlify/.env and restart the admin server (port 8888).'
-        : sent.resendMessage
-          ? `The customer email could not be sent: ${sent.resendMessage}`
+        : sent.providerMessage || sent.resendMessage
+          ? `The customer email could not be sent: ${sent.providerMessage || sent.resendMessage}`
           : 'The customer email could not be sent. Try again in a moment.',
       reason: sent.reason || 'send_failed',
     });
@@ -347,8 +351,8 @@ async function markPickedUp(supabaseAdmin, order) {
 exports.handler = async (event) => {
   const emailConfig = getEmailConfig();
   console.log('[EastCord orders] email config', {
-    hasApiKey: Boolean(emailConfig.apiKey),
-    apiKeyLength: emailConfig.apiKey ? emailConfig.apiKey.length : 0,
+    provider: emailConfig.provider,
+    configured: Boolean(emailConfig.configured),
     netlifyDev: String(process.env.NETLIFY_DEV || ''),
     method: event.httpMethod,
   });

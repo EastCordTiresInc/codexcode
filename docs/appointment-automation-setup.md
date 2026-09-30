@@ -14,11 +14,12 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 STRIPE_SECRET_KEY=sk_test_or_live_key
 STRIPE_WEBHOOK_SECRET=whsec_test_or_live_secret
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_or_live_key
-EMAIL_PROVIDER=resend
+EMAIL_PROVIDER=postmark
 EMAIL_FROM=EastCord Tires <info@eastcordtires.ca>
 EMAIL_REPLY_TO=info@eastcordtires.ca
 EMAIL_TO_EASTCORD=info@eastcordtires.ca
-RESEND_API_KEY=re_your_resend_api_key
+POSTMARK_SERVER_TOKEN=your_postmark_server_token
+POSTMARK_MESSAGE_STREAM=outbound
 ```
 
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are written into `auth-config.js` during the Netlify build so the browser can connect to Supabase Auth.
@@ -31,7 +32,15 @@ RESEND_API_KEY=re_your_resend_api_key
 
 `VITE_STRIPE_PUBLISHABLE_KEY` is reserved for future Stripe client-side UI. The current flow redirects to Stripe Checkout through the Netlify function and does not collect card details manually.
 
-`RESEND_API_KEY` is used by `netlify/functions/stripe-webhook.js` to send appointment confirmation emails after payment is confirmed. The sender in `EMAIL_FROM` must be verified in Resend.
+`POSTMARK_SERVER_TOKEN` is used to send customer and staff emails after payment, signup, password reset, and order updates. The sender in `EMAIL_FROM` must be a verified Postmark Sender Signature or domain. Use the Transactional message stream (`outbound` unless you created a named stream). Keep Resend as a rollback by setting `EMAIL_PROVIDER=resend` and `RESEND_API_KEY` if needed.
+
+Postmark live switch (do this in Postmark and Netlify, not in git):
+
+1. Create a Postmark Server and copy its Server API token into `POSTMARK_SERVER_TOKEN`.
+2. Add and verify the domain `eastcordtires.ca` (DKIM + Return-Path DNS records from Postmark).
+3. Confirm a Sender Signature for `info@eastcordtires.ca` that matches `EMAIL_FROM`.
+4. Set `EMAIL_PROVIDER=postmark` in Netlify (and in `.netlify/.env` for local). Redeploy after changing production env vars.
+5. Send one staff test with `node scripts/send-staff-email-tests.js` only after the token and domain are verified. Do not paste tokens into chat.
 
 ## Supabase setup
 

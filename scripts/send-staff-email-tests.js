@@ -4,18 +4,7 @@
  * Default recipient is info@eastcordtires.ca. Override with EMAIL_TEST_TO.
  */
 
-const {
-  sendEmail,
-  getEmailConfig,
-  buildBrandedEmail,
-  buildAuthEmail,
-  CONTACT_EMAIL,
-  ACCOUNT_URL,
-  APPOINTMENT_URL,
-  RESET_PASSWORD_URL,
-  WARRANTY_URL,
-  htmlFromText,
-} = require('../netlify/functions/lib/send-email');
+const { sendEmail, getEmailConfig, isEmailConfigured, buildBrandedEmail, buildAuthEmail, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, RESET_PASSWORD_URL, WARRANTY_URL, htmlFromText } = require('../netlify/functions/lib/send-email');
 const { buildUsedTireReceipt } = require('../netlify/functions/lib/used-tire-receipt');
 const { applicationText } = require('../netlify/functions/lib/installer-applications');
 
@@ -68,9 +57,10 @@ function appointmentCustomerEmail() {
 
 async function main() {
   const config = getEmailConfig();
-  if (!config.apiKey) {
-    throw new Error('RESEND_API_KEY is missing. Emails cannot be sent.');
+  if (!isEmailConfigured(config)) {
+    throw new Error('Email is not configured. Set POSTMARK_SERVER_TOKEN or RESEND_API_KEY.');
   }
+  console.log(`Provider ${config.provider}`);
   console.log(`From ${config.from}`);
   console.log(`To ${TO}`);
 
@@ -252,7 +242,7 @@ async function main() {
       console.log(`PASS ${email.subject}`);
     } else {
       failed += 1;
-      console.error(`FAIL ${email.subject} :: ${result.reason || ''} ${result.resendMessage || ''}`);
+      console.error(`FAIL ${email.subject} :: ${result.reason || ''} ${result.providerMessage || result.resendMessage || ''}`);
     }
   }
 

@@ -29,10 +29,12 @@ const root = path.join(__dirname, '..');
 loadEnvFile(path.join(root, '.env'));
 loadEnvFile(path.join(root, '.netlify', '.env'));
 
-if (process.env.RESEND_API_KEY) {
+if (process.env.POSTMARK_SERVER_TOKEN) {
+  console.log('[EastCord dev] Postmark server token loaded.');
+} else if (process.env.RESEND_API_KEY) {
   console.log('[EastCord dev] Resend API key loaded.');
 } else {
-  console.warn('[EastCord dev] RESEND_API_KEY is missing. Admin order emails and local signup mail will not send until it is set in .netlify/.env');
+  console.warn('[EastCord dev] POSTMARK_SERVER_TOKEN is missing. Admin order emails and local signup mail will not send until it is set in .netlify/.env');
 }
 
 const child = spawn('netlify', ['dev', '-p', '8888'], {

@@ -2,6 +2,8 @@ const { createClient } = require('@supabase/supabase-js');
 const {
   sendEmail,
   getEmailConfig,
+  isEmailConfigured,
+  missingEmailConfigReason,
   buildAuthEmail,
   isLocalNetlifyDev,
   forwardToProductionFunction,
@@ -195,7 +197,7 @@ exports.handler = async (event) => {
   }
 
   const emailConfig = getEmailConfig();
-  if (!emailConfig.apiKey) {
+  if (!isEmailConfigured(emailConfig)) {
     if (isLocalNetlifyDev()) {
       try {
         const forwarded = await forwardToProductionFunction('send-signup-confirmation', {
@@ -210,10 +212,10 @@ exports.handler = async (event) => {
         console.error('[EastCord auth] Local signup could not reach production email service.', error.message);
       }
     }
-    console.error('[EastCord auth] RESEND_API_KEY is missing; cannot send signup confirmation.');
+    console.error('[EastCord auth] Email is not configured; cannot send signup confirmation.');
     return json(503, {
       message: 'Confirmation email service is not configured. Please contact EastCord Tires.',
-      reason: 'missing_resend_api_key',
+      reason: missingEmailConfigReason(emailConfig),
     });
   }
 

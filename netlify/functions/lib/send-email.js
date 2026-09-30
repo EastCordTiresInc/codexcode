@@ -31,7 +31,7 @@ function applyEmailEnvFromFile(filePath) {
     const match = line.match(/^\s*([^#=\s]+)\s*=(.*)$/);
     if (!match) return;
     const key = match[1];
-    if (!/^(RESEND_|EMAIL_)/.test(key)) return;
+    if (!/^(RESEND_|EMAIL_|POSTMARK_)/.test(key)) return;
     let value = match[2].trim();
     if (
       (value.startsWith('"') && value.endsWith('"'))
@@ -52,7 +52,7 @@ function applyEmailEnvFromFile(filePath) {
 function loadLocalEmailEnv() {
   if (loadLocalEmailEnv.done) return;
   loadLocalEmailEnv.done = true;
-  if (firstEnv(['RESEND_API_KEY', 'RESEND_API_KEYY'])) return;
+  if (firstEnv(['RESEND_API_KEY', 'RESEND_API_KEYY']) && firstEnv(['POSTMARK_SERVER_TOKEN'])) return;
 
   const fs = require('fs');
   const path = require('path');
@@ -81,15 +81,38 @@ function loadLocalEmailEnv() {
   }
 }
 
+function resolveEmailProvider(env = process.env) {
+  const explicit = String(env.EMAIL_PROVIDER || '').trim().toLowerCase();
+  if (explicit) return explicit;
+  if (String(env.POSTMARK_SERVER_TOKEN || '').trim()) return 'postmark';
+  return 'resend';
+}
+
 function getEmailConfig() {
   loadLocalEmailEnv();
+  const provider = resolveEmailProvider();
+  const apiKey = firstEnv(['RESEND_API_KEY', 'RESEND_API_KEYY']);
+  const postmarkToken = firstEnv(['POSTMARK_SERVER_TOKEN']);
   return {
-    provider: firstEnv(['EMAIL_PROVIDER'], 'resend'),
-    apiKey: firstEnv(['RESEND_API_KEY', 'RESEND_API_KEYY']),
+    provider,
+    apiKey,
+    postmarkToken,
+    messageStream: firstEnv(['POSTMARK_MESSAGE_STREAM'], 'outbound'),
     from: firstEnv(['EMAIL_FROM', 'EMAIL_FROMM'], `EastCord Tires <${CONTACT_EMAIL}>`),
     replyTo: firstEnv(['EMAIL_REPLY_TO'], CONTACT_EMAIL),
     eastcordTo: firstEnv(['EMAIL_TO_EASTCORD'], CONTACT_EMAIL),
+    configured: provider === 'postmark' ? Boolean(postmarkToken) : provider === 'resend' ? Boolean(apiKey) : false,
   };
+}
+
+function isEmailConfigured(config = getEmailConfig()) {
+  return Boolean(config?.configured);
+}
+
+function missingEmailConfigReason(config = getEmailConfig()) {
+  return String(config?.provider || '').toLowerCase() === 'postmark'
+    ? 'missing_postmark_server_token'
+    : 'missing_resend_api_key';
 }
 
 function isLocalNetlifyDev() {
@@ -97,7 +120,7 @@ function isLocalNetlifyDev() {
 }
 
 async function forwardToProductionFunction(functionName, body) {
-  console.warn(`[EastCord auth] RESEND_API_KEY missing locally; using production ${functionName}.`);
+  console.warn(`[EastCord auth] Email credentials missing locally; using production ${functionName}.`);
   const response = await postJsonWithHttps({
     hostname: 'eastcordtires.ca',
     path: `/.netlify/functions/${functionName}`,
@@ -316,6 +339,10 @@ async function getEastcordResendDomain() {
 }
 
 async function checkAndRepairResendDomain({ alertStaff = false, repair = true } = {}) {
+  const config = getEmailConfig();
+  if (String(config.provider || '').toLowerCase() === 'postmark') {
+    return { ok: true, skipped: true, reason: 'postmark_provider' };
+  }
   const found = await getEastcordResendDomain();
   if (!found.ok) return found;
 
@@ -359,24 +386,81 @@ async function checkAndRepairResendDomain({ alertStaff = false, repair = true } 
   return result;
 }
 
-async function sendEmail(email) {
-  const config = getEmailConfig();
-  const provider = String(config.provider || '').toLowerCase();
+function providerErrorMessage(body) {
+  return String(body?.Message || body?.message || body?.name || body?.ErrorCode || '').slice(0, 160);
+}
 
-  if (provider !== 'resend') {
-    return { ok: false, skipped: true, reason: 'unsupported_email_provider' };
+async function sendWithPostmark(config, email) {
+  if (!config.postmarkToken) {
+    return { ok: false, skipped: true, reason: 'missing_postmark_server_token' };
   }
+
+  const headers = {
+    Accept: 'application/json',
+    'X-Postmark-Server-Token': config.postmarkToken,
+  };
+  const body = {
+    From: config.from,
+    To: email.to,
+    ReplyTo: email.replyTo || config.replyTo,
+    Subject: email.subject,
+    HtmlBody: email.html,
+    TextBody: email.text,
+    MessageStream: config.messageStream || 'outbound',
+  };
+  if (email.idempotencyKey) {
+    body.Tag = String(email.idempotencyKey).slice(0, 80);
+  }
+
+  const response = await postJsonWithHttps({
+    hostname: 'api.postmarkapp.com',
+    path: '/email',
+    headers,
+    body,
+  });
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    const providerMessage = providerErrorMessage(response.body);
+    console.error('[EastCord email] Postmark send failed.', {
+      to: email.to,
+      subject: email.subject,
+      status: response.statusCode,
+      providerMessage,
+    });
+    return {
+      ok: false,
+      skipped: false,
+      reason: 'send_failed',
+      status: response.statusCode,
+      provider: 'postmark',
+      providerMessage,
+      resendMessage: providerMessage,
+    };
+  }
+
+  return {
+    ok: true,
+    skipped: false,
+    to: email.to,
+    provider: 'postmark',
+    id: response.body?.MessageID || '',
+  };
+}
+
+async function sendWithResend(config, email) {
   if (!config.apiKey) {
     return { ok: false, skipped: true, reason: 'missing_resend_api_key' };
   }
-  if (!email.to) {
-    return { ok: false, skipped: true, reason: 'missing_recipient' };
+
+  const headers = { Authorization: `Bearer ${config.apiKey}` };
+  if (email.idempotencyKey) {
+    headers['Idempotency-Key'] = String(email.idempotencyKey).slice(0, 256);
   }
 
   const response = await postJsonWithHttps({
     hostname: 'api.resend.com',
     path: '/emails',
-    headers: { Authorization: `Bearer ${config.apiKey}` },
+    headers,
     body: {
       from: config.from,
       to: email.to,
@@ -388,8 +472,8 @@ async function sendEmail(email) {
   });
 
   if (response.statusCode < 200 || response.statusCode >= 300) {
-    const resendMessage = String(response.body?.message || response.body?.name || '').slice(0, 160);
-    console.error('[EastCord email] Send failed.', {
+    const resendMessage = providerErrorMessage(response.body);
+    console.error('[EastCord email] Resend send failed.', {
       to: email.to,
       subject: email.subject,
       status: response.statusCode,
@@ -407,11 +491,35 @@ async function sendEmail(email) {
       skipped: false,
       reason: 'send_failed',
       status: response.statusCode,
+      provider: 'resend',
+      providerMessage: resendMessage,
       resendMessage,
     };
   }
 
-  return { ok: true, skipped: false, to: email.to };
+  return {
+    ok: true,
+    skipped: false,
+    to: email.to,
+    provider: 'resend',
+    id: response.body?.id || '',
+  };
+}
+
+async function sendEmail(email) {
+  const config = getEmailConfig();
+  const provider = String(config.provider || '').toLowerCase();
+
+  if (!email.to) {
+    return { ok: false, skipped: true, reason: 'missing_recipient' };
+  }
+  if (provider === 'postmark') {
+    return sendWithPostmark(config, email);
+  }
+  if (provider === 'resend') {
+    return sendWithResend(config, email);
+  }
+  return { ok: false, skipped: true, reason: 'unsupported_email_provider' };
 }
 
 module.exports = {
@@ -424,6 +532,9 @@ module.exports = {
   WARRANTY_URL,
   buildHashedTokenActionUrl,
   getEmailConfig,
+  isEmailConfigured,
+  missingEmailConfigReason,
+  resolveEmailProvider,
   isLocalNetlifyDev,
   forwardToProductionFunction,
   escapeHtml,

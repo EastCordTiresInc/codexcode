@@ -1,7 +1,6 @@
-const https = require('https');
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
-const { buildBrandedEmail } = require('./lib/send-email');
+const { buildBrandedEmail, sendEmail, getEmailConfig } = require('./lib/send-email');
 
 const CONTACT_EMAIL = 'info@eastcordtires.ca';
 const CONTACT_PHONE = '365-822-5553';
@@ -406,130 +405,6 @@ function buildInternalEmail({ rows, session }) {
   };
 }
 
-function getEmailConfig() {
-  return {
-    provider: process.env.EMAIL_PROVIDER || 'resend',
-    apiKey: process.env.RESEND_API_KEY || '',
-    from: process.env.EMAIL_FROM || `EastCord Tires <${CONTACT_EMAIL}>`,
-    replyTo: process.env.EMAIL_REPLY_TO || CONTACT_EMAIL,
-    eastcordTo: process.env.EMAIL_TO_EASTCORD || CONTACT_EMAIL,
-  };
-}
-
-function postJsonWithHttps({ hostname, path, headers, body }) {
-  return new Promise((resolve, reject) => {
-    const requestBody = JSON.stringify(body);
-    const request = https.request({
-      hostname,
-      path,
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(requestBody),
-      },
-    }, (response) => {
-      let responseBody = '';
-      response.setEncoding('utf8');
-      response.on('data', (chunk) => {
-        responseBody += chunk;
-      });
-      response.on('end', () => {
-        let parsed = {};
-        try {
-          parsed = responseBody ? JSON.parse(responseBody) : {};
-        } catch (error) {
-          parsed = { raw: responseBody, parseError: error.message };
-        }
-        resolve({ statusCode: response.statusCode || 0, body: parsed });
-      });
-    });
-
-    request.on('error', reject);
-    request.write(requestBody);
-    request.end();
-  });
-}
-
-async function sendEmail(email) {
-  const config = getEmailConfig();
-  const provider = String(config.provider || '').toLowerCase();
-
-  console.log('[EastCord appointment automation] Email send requested.', {
-    provider,
-    hasResendApiKey: Boolean(config.apiKey),
-    emailFrom: config.from,
-    emailReplyTo: config.replyTo,
-    emailToEastcord: config.eastcordTo,
-    to: email.to || '',
-    subject: email.subject,
-  });
-
-  if (provider !== 'resend') {
-    console.warn('[EastCord appointment automation] Email sending skipped: unsupported email provider.', { provider });
-    return { ok: false, skipped: true, reason: 'unsupported_email_provider' };
-  }
-
-  if (!config.apiKey) {
-    console.warn('[EastCord appointment automation] Email sending skipped: RESEND_API_KEY is missing.', {
-      to: email.to || '',
-      subject: email.subject,
-    });
-    return { ok: false, skipped: true, reason: 'missing_resend_api_key' };
-  }
-
-  if (!email.to) {
-    console.warn('[EastCord appointment automation] Email sending skipped: recipient is missing.', {
-      subject: email.subject,
-    });
-    return { ok: false, skipped: true, reason: 'missing_recipient' };
-  }
-
-  const headers = { Authorization: `Bearer ${config.apiKey}` };
-  if (email.idempotencyKey) {
-    headers['Idempotency-Key'] = String(email.idempotencyKey).slice(0, 256);
-  }
-
-  const response = await postJsonWithHttps({
-    hostname: 'api.resend.com',
-    path: '/emails',
-    headers,
-    body: {
-      from: config.from,
-      to: email.to,
-      reply_to: config.replyTo,
-      subject: email.subject,
-      html: email.html,
-      text: email.text,
-    },
-  });
-
-  console.log('[EastCord appointment automation] Resend API response received.', {
-    to: email.to,
-    subject: email.subject,
-    status: response.statusCode,
-    resendId: response.body?.id || '',
-  });
-
-  if (response.statusCode < 200 || response.statusCode >= 300) {
-    console.error('[EastCord appointment automation] Email send failed.', {
-      to: email.to,
-      subject: email.subject,
-      status: response.statusCode,
-      response: response.body,
-    });
-    return { ok: false, skipped: false, reason: 'send_failed', status: response.statusCode, response: response.body };
-  }
-
-  console.log('[EastCord appointment automation] Email sent successfully.', {
-    to: email.to,
-    subject: email.subject,
-    resendId: response.body?.id || '',
-  });
-
-  return { ok: true, id: response.body?.id || '' };
-}
-
 function hasColumn(rows, columnName) {
   return rows.some((row) => Object.prototype.hasOwnProperty.call(row, columnName));
 }
@@ -601,8 +476,8 @@ async function sendAppointmentEmails({ supabaseAdmin, rows, session, allRowsAlre
 
   console.log('[EastCord appointment automation] Email notification flow started.', {
     sessionId: session.id,
-    provider: config.provider || 'resend',
-    hasResendApiKey: Boolean(config.apiKey),
+    provider: config.provider,
+    emailConfigured: Boolean(config.configured),
     emailFrom: config.from,
     emailToEastcord: config.eastcordTo,
     bookingIds: rows.map((row) => row.id),
@@ -666,8 +541,8 @@ exports.handler = async (event) => {
     hasWebhookSecret: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
     hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
     hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-    hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
-    emailProvider: process.env.EMAIL_PROVIDER || 'resend',
+    emailProvider: getEmailConfig().provider,
+    emailConfigured: Boolean(getEmailConfig().configured),
     emailFrom: process.env.EMAIL_FROM || `EastCord Tires <${CONTACT_EMAIL}>`,
     emailToEastcord: process.env.EMAIL_TO_EASTCORD || CONTACT_EMAIL,
   });
