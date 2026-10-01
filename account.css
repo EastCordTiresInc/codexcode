@@ -988,6 +988,55 @@
   display: block;
 }
 
+.account-actions[hidden] {
+  display: none !important;
+}
+
+.password-strength {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.password-strength-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.password-strength-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #9ca3af;
+  transition: width 180ms ease, background-color 180ms ease;
+}
+
+.password-strength.is-weak .password-strength-fill {
+  background: #ba151b;
+}
+
+.password-strength.is-fair .password-strength-fill {
+  background: #d97706;
+}
+
+.password-strength.is-good .password-strength-fill {
+  background: #ca8a04;
+}
+
+.password-strength.is-strong .password-strength-fill {
+  background: #15803d;
+}
+
+.password-strength-label {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .appointment-pay-auth {
   display: grid;
   gap: 12px;

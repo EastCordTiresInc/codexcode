@@ -67,6 +67,18 @@ function isAuthConfigured() {
   );
 }
 
+function getPasswordRequirementError(password) {
+  const value = String(password || '');
+  if (window.EastCordPassword?.evaluatePassword) {
+    const result = window.EastCordPassword.evaluatePassword(value);
+    return result.requiredOk ? '' : result.message;
+  }
+  if (value.length < 8 || !/\d/.test(value)) {
+    return 'Password must be at least 8 characters and include a number.';
+  }
+  return '';
+}
+
 function getSupabaseClient() {
   if (!isAuthConfigured()) return null;
   if (!window.eastcordSupabaseClient) {
@@ -1469,7 +1481,7 @@ async function preparePasswordRecoveryForm(form) {
   }
   if (sessionStorage.getItem(PASSWORD_RECOVERY_KEY) !== 'true') {
     form.hidden = true;
-    setAuthMessage('This password reset link is missing or has expired. Request a new link.', 'error');
+    setAuthMessage('This password reset link is missing or has expired. Use Forgot password to email yourself a new link — opening this page on its own will not work.', 'error');
     return;
   }
 
@@ -1491,6 +1503,8 @@ async function preparePasswordRecoveryForm(form) {
 async function completePasswordRecovery(password) {
   const client = getSupabaseClient();
   if (!client) throw new Error(ACCOUNT_SETUP_MESSAGE);
+  const passwordError = getPasswordRequirementError(password);
+  if (passwordError) throw new Error(passwordError);
   if (sessionStorage.getItem(PASSWORD_RECOVERY_KEY) !== 'true') {
     throw new Error('This password reset link is invalid or has expired.');
   }
@@ -1842,8 +1856,14 @@ function bindAuthForms() {
     }
 
     const formData = new FormData(signupForm);
-    const password = formData.get('Password');
-    const confirmPassword = formData.get('Confirm Password');
+    const password = String(formData.get('Password') || '');
+    const confirmPassword = String(formData.get('Confirm Password') || '');
+    const passwordError = getPasswordRequirementError(password);
+
+    if (passwordError) {
+      setAuthMessage(passwordError, 'error');
+      return;
+    }
 
     if (password !== confirmPassword) {
       setAuthMessage('Passwords do not match.', 'error');
@@ -1950,8 +1970,9 @@ function bindAuthForms() {
     const formData = new FormData(resetPasswordForm);
     const password = String(formData.get('Password') || '');
     const confirmPassword = String(formData.get('Confirm Password') || '');
-    if (password.length < 8) {
-      setAuthMessage('Your new password must be at least 8 characters.', 'error');
+    const passwordError = getPasswordRequirementError(password);
+    if (passwordError) {
+      setAuthMessage(passwordError, 'error');
       return;
     }
     if (password !== confirmPassword) {

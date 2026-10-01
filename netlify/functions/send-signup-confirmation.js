@@ -179,8 +179,8 @@ exports.handler = async (event) => {
   if (!isValidEmail(email)) {
     return json(400, { message: 'A valid email address is required.' });
   }
-  if (password.length < 8) {
-    return json(400, { message: 'Password must be at least 8 characters.' });
+  if (password.length < 8 || !/\d/.test(password)) {
+    return json(400, { message: 'Password must be at least 8 characters and include a number.' });
   }
   if (!fullName) {
     return json(400, { message: 'Full name is required.' });
