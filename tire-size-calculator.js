@@ -21,8 +21,8 @@
   ];
   const MAX_DIAMETER_DIFFERENCE = 3;
   const MAX_TABLE_ROWS = 8;
-  const ALTERNATIVE_TAB_LABEL = 'Size References';
-  const ALTERNATIVE_HEADING = 'Possible Alternative Size References';
+  const ALTERNATIVE_TAB_LABEL = 'Find Alternative Size';
+  const ALTERNATIVE_HEADING = 'Find Alternative Tire Sizes';
   const ALTERNATIVE_GUIDANCE = 'These are possible size references based on overall diameter. Always confirm vehicle fitment, rim width, load rating, speed rating, and clearance before purchase or installation.';
   const DIAMETER_FITMENT_NOTE = 'Closest diameter does not guarantee fitment. Rim width, load rating, speed rating, brake clearance, suspension clearance, and vehicle manufacturer recommendations must be confirmed.';
   const ALTERNATIVE_DISCLAIMER = 'These sizes are for general guidance only. Tire fitment also depends on rim width, load rating, speed rating, brake clearance, suspension clearance, and vehicle manufacturer recommendations.';
