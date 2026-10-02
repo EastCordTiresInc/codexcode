@@ -39,9 +39,8 @@ function genericOk() {
 
 function buildResetUrl(data) {
   const hashedToken = data?.properties?.hashed_token || '';
-  const verifyType = data?.properties?.verification_type || 'recovery';
   if (!hashedToken) return '';
-  return buildHashedTokenActionUrl(RESET_PASSWORD_URL, hashedToken, verifyType);
+  return buildHashedTokenActionUrl(RESET_PASSWORD_URL, hashedToken, 'recovery');
 }
 
 function buildResetEmail({ to, resetUrl }) {

@@ -79,6 +79,11 @@ function getPasswordRequirementError(password) {
   return '';
 }
 
+function shouldDetectSessionInUrl() {
+  const path = String(window.location.pathname || '').toLowerCase();
+  return !/reset-password|confirm-signup/.test(path);
+}
+
 function getSupabaseClient() {
   if (!isAuthConfigured()) return null;
   if (!window.eastcordSupabaseClient) {
@@ -87,7 +92,7 @@ function getSupabaseClient() {
       AUTH_CONFIG.supabaseAnonKey,
       {
         auth: {
-          detectSessionInUrl: true,
+          detectSessionInUrl: shouldDetectSessionInUrl(),
           persistSession: true,
           autoRefreshToken: true,
           flowType: 'implicit',
@@ -1435,6 +1440,31 @@ function clearPasswordRecoveryUrlSecrets() {
   window.history.replaceState(null, '', `${safeUrl.pathname}${safeUrl.search}`);
 }
 
+async function hasRecoverySession(client) {
+  const { data, error } = await client.auth.getSession();
+  return Boolean(!error && data?.session?.user);
+}
+
+async function verifyRecoveryTokenHash(tokenHash, preferredType) {
+  const client = getSupabaseClient();
+  const types = [];
+  if (preferredType) types.push(preferredType);
+  ['recovery', 'email', 'magiclink'].forEach((type) => {
+    if (!types.includes(type)) types.push(type);
+  });
+
+  let lastError = null;
+  for (const type of types) {
+    const { data, error } = await client.auth.verifyOtp({
+      token_hash: tokenHash,
+      type,
+    });
+    if (!error) return { ok: true, data };
+    lastError = error;
+  }
+  return { ok: false, error: lastError };
+}
+
 async function preparePasswordRecoveryForm(form) {
   if (!form) return;
   const client = getSupabaseClient();
@@ -1444,35 +1474,49 @@ async function preparePasswordRecoveryForm(form) {
   }
 
   const verifyWrap = document.querySelector('[data-verify-reset-wrap]');
-  const verifyButton = document.querySelector('[data-verify-reset-button]');
-  const token = getAuthTokenFromUrl();
+  const hideVerify = () => {
+    if (verifyWrap) verifyWrap.hidden = true;
+  };
 
-  if (token.tokenHash && (token.type === 'recovery' || !token.type)) {
+  const showReadyForm = () => {
+    sessionStorage.setItem(PASSWORD_RECOVERY_KEY, 'true');
+    clearAuthTokenFromUrl();
+    hideVerify();
+    form.hidden = false;
+    setAuthMessage('Reset link verified. Enter a new password below.', 'success');
+  };
+
+  const fail = () => {
+    sessionStorage.removeItem(PASSWORD_RECOVERY_KEY);
+    hideVerify();
     form.hidden = true;
-    if (verifyWrap) verifyWrap.hidden = false;
-    setAuthMessage('This reset link is ready. Tap Continue to choose a new password.', 'success');
-    verifyButton?.addEventListener('click', async () => {
-      if (verifyButton) verifyButton.disabled = true;
-      setAuthMessage('Checking your secure reset link...', 'success');
-      try {
-        const result = await verifyEmailToken({ fallbackType: 'recovery' });
-        if (!result.ok) {
-          sessionStorage.removeItem(PASSWORD_RECOVERY_KEY);
-          if (verifyWrap) verifyWrap.hidden = true;
-          form.hidden = true;
-          setAuthMessage('This password reset link is invalid or has expired. Request a new link.', 'error');
-          return;
-        }
-        sessionStorage.setItem(PASSWORD_RECOVERY_KEY, 'true');
-        clearAuthTokenFromUrl();
-        if (verifyWrap) verifyWrap.hidden = true;
-        form.hidden = false;
-        setAuthMessage('Reset link verified. Enter a new password below.', 'success');
-      } catch (error) {
-        if (verifyButton) verifyButton.disabled = false;
-        setAuthMessage(error.message || 'This password reset link could not be verified. Request a new link.', 'error');
-      }
-    }, { once: true });
+    setAuthMessage('This password reset link is invalid or has expired. Request a new link.', 'error');
+  };
+
+  const token = getAuthTokenFromUrl();
+  if (token.tokenHash) {
+    form.hidden = true;
+    hideVerify();
+    setAuthMessage('Checking your secure reset link...', 'success');
+
+    if (await hasRecoverySession(client)) {
+      showReadyForm();
+      return;
+    }
+
+    const result = await verifyRecoveryTokenHash(token.tokenHash, token.type || 'recovery');
+    if (result.ok) {
+      await persistVerifiedAuthSession(result.data);
+      showReadyForm();
+      return;
+    }
+
+    if (await hasRecoverySession(client)) {
+      showReadyForm();
+      return;
+    }
+
+    fail();
     return;
   }
 
@@ -1486,18 +1530,12 @@ async function preparePasswordRecoveryForm(form) {
   }
 
   setAuthMessage('Checking your secure reset link...', 'success');
-  const { data, error } = await client.auth.getSession();
-  if (error || !data?.session?.user) {
-    sessionStorage.removeItem(PASSWORD_RECOVERY_KEY);
-    form.hidden = true;
-    clearPasswordRecoveryUrlSecrets();
-    setAuthMessage('This password reset link is invalid or has expired. Request a new link.', 'error');
+  if (await hasRecoverySession(client)) {
+    showReadyForm();
     return;
   }
 
-  clearPasswordRecoveryUrlSecrets();
-  form.hidden = false;
-  setAuthMessage('Reset link verified. Enter a new password below.', 'success');
+  fail();
 }
 
 async function completePasswordRecovery(password) {
