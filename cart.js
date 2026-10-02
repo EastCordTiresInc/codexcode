@@ -19,6 +19,7 @@ const MIN_ADVANCE_MINUTES_SHOP = 60;
 const NEW_TIRE_SHIPPING_DAYS = 4;
 const SERVICE_START_MINUTES = 8 * 60;
 const SERVICE_END_MINUTES = 20 * 60;
+const SERVICE_TIME_ZONE = 'America/Toronto';
 const TAX_RATE = 0.13;
 const ACTIVE_CART_KEY = 'eastcord_cart_v1';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
@@ -568,14 +569,42 @@ function getTimeWindowStartMinutes(value) {
   return (hours * 60) + minutes;
 }
 
+function getTimeZoneOffsetMs(date, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date).reduce((values, part) => {
+    if (part.type !== 'literal') values[part.type] = Number(part.value);
+    return values;
+  }, {});
+
+  const hour = parts.hour === 24 ? 0 : parts.hour;
+  const zonedAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, hour, parts.minute, parts.second);
+  return zonedAsUtc - date.getTime();
+}
+
+function zonedTimeToDate(dateValue, startMinutes) {
+  const [year, month, day] = String(dateValue || '').split('-').map(Number);
+  if (!year || !month || !day || startMinutes === null) return null;
+
+  const hours = Math.floor(startMinutes / 60);
+  const minutes = startMinutes % 60;
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+  const offset = getTimeZoneOffsetMs(utcGuess, SERVICE_TIME_ZONE);
+  return new Date(utcGuess.getTime() - offset);
+}
+
 function getAppointmentStartDate(item) {
   const startMinutes = getTimeWindowStartMinutes(item.preferredTimeWindow);
   if (!item.preferredDate || startMinutes === null) return null;
-
-  const startDate = new Date(`${item.preferredDate}T00:00:00`);
-  if (Number.isNaN(startDate.getTime())) return null;
-
-  startDate.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+  const startDate = zonedTimeToDate(item.preferredDate, startMinutes);
+  if (!startDate || Number.isNaN(startDate.getTime())) return null;
   return startDate;
 }
 

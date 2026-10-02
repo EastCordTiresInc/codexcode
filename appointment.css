@@ -150,7 +150,7 @@ label:has(input[name="bot-field"]) {
 .appointment-progress {
   position: sticky;
   top: 76px;
-  z-index: 30;
+  z-index: 20;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   gap: 8px;
@@ -191,7 +191,11 @@ label:has(input[name="bot-field"]) {
   color: #991b1b;
 }
 
-.appointment-step { display: grid; gap: 22px; }
+.appointment-step {
+  display: grid;
+  gap: 22px;
+  scroll-margin-top: 168px;
+}
 .appointment-step[hidden] { display: none !important; }
 .appointment-step-heading { display: grid; gap: 8px; }
 .appointment-step-heading span { color: #df1f2d; font-size: 0.76rem; font-weight: 950; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -1512,6 +1516,13 @@ label:has(input[name="bot-field"]) {
   font-weight: 800;
 }
 
+.appointment-status-message:not([hidden]):not(:empty) {
+  position: sticky;
+  top: 140px;
+  z-index: 24;
+  background: #fff7f7;
+}
+
 .appointment-status-message:empty,
 .appointment-status-message[hidden] { display: none; }
 .appointment-status-message.success { color: #15803d; font-weight: 800; }
@@ -1564,6 +1575,8 @@ label:has(input[name="bot-field"]) {
 
 @media (max-width: 800px) {
   .appointment-progress { top: 68px; }
+  .appointment-step { scroll-margin-top: 156px; }
+  .appointment-status-message:not([hidden]):not(:empty) { top: 128px; }
 }
 
 @media (max-width: 1080px) {

@@ -7,6 +7,7 @@
   const NEW_TIRE_SHIPPING_DAYS = 4;
   const SERVICE_START_MINUTES = 8 * 60;
   const SERVICE_END_MINUTES = 20 * 60;
+  const SERVICE_TIME_ZONE = 'America/Toronto';
   const TAX_RATE = 0.13;
   const MIN_ADVANCE_MESSAGE_MOBILE = 'Mobile appointments must be booked at least 2 hours in advance to allow technician scheduling and travel time.';
   const MIN_ADVANCE_MESSAGE_SHOP = 'Shop appointments must be booked at least 1 hour in advance.';
@@ -483,17 +484,19 @@
 
   function updateAuthActionLinks() {
     if (!els.loginRequiredBlock) return;
-    const loginLink = els.loginRequiredBlock.querySelector('a[href*="login.html"]');
-    const signupLink = els.loginRequiredBlock.querySelector('a[href*="signup.html"]');
+    const loginLink = els.loginRequiredBlock.querySelector('[data-appointment-login], a[href*="login"]');
+    const signupLink = els.loginRequiredBlock.querySelector('[data-appointment-signup], a[href*="signup"]');
     if (loginLink) loginLink.href = getLoginRedirectUrl();
     if (signupLink) signupLink.href = getSignupRedirectUrl();
   }
 
   function showLoginRequiredBlock() {
     if (!els.loginRequiredBlock) return;
+    window.EastCordAccount?.preserveAuthSwitchLinks?.();
     updateAuthActionLinks();
     els.loginRequiredBlock.hidden = false;
     els.loginRequiredBlock.classList.add('is-visible');
+    els.loginRequiredBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function hideLoginRequiredBlock() {
@@ -616,8 +619,7 @@
 
   function setMinimumDate() {
     if (!els.preferredDate) return;
-    const minDate = isNewTireInstallationBooking() ? earliestNewTireInstallDate() : startOfLocalDay();
-    els.preferredDate.min = isNewTireInstallationBooking() ? earliestNewTireInstallYmd() : formatDateInputValue(minDate);
+    els.preferredDate.min = isNewTireInstallationBooking() ? earliestNewTireInstallYmd() : torontoYmd();
     if (els.preferredDate.value && String(els.preferredDate.value) < els.preferredDate.min) {
       els.preferredDate.value = '';
     }
@@ -625,7 +627,7 @@
   }
 
   function isSameInputDate(dateValue, date) {
-    return dateValue === formatDateInputValue(date);
+    return dateValue === torontoYmd(date);
   }
 
   function getTimeWindowStartMinutes(value) {
@@ -643,14 +645,42 @@
     return (hours * 60) + minutes;
   }
 
+  function getTimeZoneOffsetMs(date, timeZone) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).formatToParts(date).reduce((values, part) => {
+      if (part.type !== 'literal') values[part.type] = Number(part.value);
+      return values;
+    }, {});
+
+    const hour = parts.hour === 24 ? 0 : parts.hour;
+    const zonedAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, hour, parts.minute, parts.second);
+    return zonedAsUtc - date.getTime();
+  }
+
+  function zonedTimeToDate(dateValue, startMinutes) {
+    const [year, month, day] = String(dateValue || '').split('-').map(Number);
+    if (!year || !month || !day || startMinutes === null) return null;
+
+    const hours = Math.floor(startMinutes / 60);
+    const minutes = startMinutes % 60;
+    const utcGuess = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+    const offset = getTimeZoneOffsetMs(utcGuess, SERVICE_TIME_ZONE);
+    return new Date(utcGuess.getTime() - offset);
+  }
+
   function getAppointmentStartDate(date, timeWindow) {
     const startMinutes = getTimeWindowStartMinutes(timeWindow);
     if (!date || startMinutes === null) return null;
-
-    const startDate = new Date(`${date}T00:00:00`);
-    if (Number.isNaN(startDate.getTime())) return null;
-
-    startDate.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+    const startDate = zonedTimeToDate(date, startMinutes);
+    if (!startDate || Number.isNaN(startDate.getTime())) return null;
     return startDate;
   }
 
@@ -1004,22 +1034,20 @@
   }
 
   async function fetchPaidBookedSlots(date) {
-    const client = window.EastCordAccount?.getSupabaseClient?.();
-    if (!client || !date) return new Set();
+    if (!date) return new Set();
 
-    const { data, error } = await client
-      .from('appointment_bookings')
-      .select('preferred_date, preferred_time_window, payment_status, booking_status')
-      .eq('preferred_date', date)
-      .eq('payment_status', 'paid_deposit')
-      .eq('booking_status', 'Confirmed');
-
-    if (error) {
+    try {
+      const response = await fetch(`/.netlify/functions/get-appointment-booked-slots?date=${encodeURIComponent(date)}`);
+      if (!response.ok) {
+        logDeveloperError('Confirmed paid appointment slots could not be loaded.', { status: response.status });
+        return new Set();
+      }
+      const payload = await response.json();
+      return new Set(Array.isArray(payload.slots) ? payload.slots.filter(Boolean) : []);
+    } catch (error) {
       logDeveloperError('Confirmed paid appointment slots could not be loaded.', error);
       return new Set();
     }
-
-    return new Set((data || []).map((row) => getSlotKey(row.preferred_date, row.preferred_time_window)));
   }
 
   async function refreshPaidBookedSlotsForSelectedDate() {
@@ -1114,11 +1142,7 @@
       return true;
     }
 
-    const selectedDate = new Date(`${els.preferredDate.value}T00:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (selectedDate < today) {
+    if (String(els.preferredDate.value) < torontoYmd()) {
       els.preferredDate.setCustomValidity('Please choose today or a future date.');
       updateAvailableTimeWindows();
       return false;
@@ -1356,6 +1380,9 @@
     els.appointmentMessage.classList.toggle('error', Boolean(text) && type === 'error');
     els.appointmentMessage.classList.toggle('success', Boolean(text) && type === 'success');
     els.appointmentMessage.dataset.messageType = text ? type : '';
+    if (text) {
+      els.appointmentMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
 
   function getFieldValue(name) {
@@ -1561,7 +1588,7 @@
     validatePreferredDate();
     showAppointmentMessage('', 'info');
     if (shouldFocus) {
-      (document.querySelector('[data-appointment-progress]') || els.appointmentForm)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      els.stepPanels[state.currentStep]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
 

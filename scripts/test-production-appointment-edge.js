@@ -80,6 +80,11 @@ async function assertStep(page, index) {
     assert.match(await page.locator('[data-review-date]').innerText(), /2026|Sep|September/i);
     await page.locator('.appointment-submit').click();
     await page.locator('[data-login-required-block]').waitFor({ state: 'visible' });
+    const loginHref = await page.locator('[data-appointment-login]').getAttribute('href');
+    const signupHref = await page.locator('[data-appointment-signup]').getAttribute('href');
+    assert.match(String(loginHref || ''), /appointment\.html/);
+    assert.match(String(signupHref || ''), /appointment\.html/);
+    assert.doesNotMatch(String(loginHref || ''), /new-tires/);
     assert.match(page.url(), /appointment/);
     const appointmentCartCount = await page.evaluate(() => (
       window.EastCordAccount?.getCart?.().filter((item) => item.type === 'appointment').length || 0

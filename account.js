@@ -145,21 +145,31 @@ function syncStaffAdminNav(profile) {
   });
 }
 
+function authSwitchLinkSelector(page) {
+  return [
+    `a[href="/${page}"]`,
+    `a[href="${page}"]`,
+    `a[href="/${page}.html"]`,
+    `a[href="${page}.html"]`,
+  ].join(', ');
+}
+
 function preserveAuthSwitchLinks() {
   const redirectTarget = getRedirectTarget('');
   if (!redirectTarget) return;
 
-  document.querySelectorAll('a[href="/signup"], a[href="signup"], a[href="/signup.html"], a[href="signup.html"]').forEach((link) => {
-    link.href = `/signup?redirect=${encodeURIComponent(redirectTarget)}`;
-  });
+  const applyRedirect = (page) => {
+    document.querySelectorAll(authSwitchLinkSelector(page)).forEach((link) => {
+      if (link.hasAttribute('data-auth-keep-href') || link.hasAttribute('data-appointment-login') || link.hasAttribute('data-appointment-signup')) {
+        return;
+      }
+      link.href = `/${page}?redirect=${encodeURIComponent(redirectTarget)}`;
+    });
+  };
 
-  document.querySelectorAll('a[href="/login"], a[href="login"], a[href="/login.html"], a[href="login.html"]').forEach((link) => {
-    link.href = `/login?redirect=${encodeURIComponent(redirectTarget)}`;
-  });
-
-  document.querySelectorAll('a[href="/forgot-password"], a[href="forgot-password"], a[href="/forgot-password.html"], a[href="forgot-password.html"]').forEach((link) => {
-    link.href = `/forgot-password?redirect=${encodeURIComponent(redirectTarget)}`;
-  });
+  applyRedirect('signup');
+  applyRedirect('login');
+  applyRedirect('forgot-password');
 }
 
 function getFriendlySupabaseError(error, fallback = 'Signup could not be completed right now. Please try again shortly.') {
@@ -2382,6 +2392,7 @@ window.EastCordAccount = {
   isAuthConfigured,
   getSupabaseClient,
   getCurrentProfile,
+  preserveAuthSwitchLinks,
   getAccessToken,
   isStaffAdminEmail,
   getCart,
