@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Add an EastCord Tires changeover or swap appointment service to cart." />
     <title>Changeover Appointment | EASTCORD TIRES</title>
-    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="styles.css?v=9" />
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
-    <link rel="stylesheet" href="appointment.css?v=56" />
+    <link rel="stylesheet" href="appointment.css?v=58" />
     <link rel="stylesheet" href="account.css?v=2" />
     <link rel="stylesheet" href="chat.css" />
   </head>
@@ -110,6 +110,7 @@
               <li>Date &amp; Time</li>
               <li>Review</li>
             </ol>
+            <p class="appointment-status-message" data-appointment-message aria-live="polite" hidden></p>
 
             <section class="appointment-step" data-booking-step="0" aria-label="Step 1: Select Service">
               <div class="appointment-step-heading"><span>Step 1 of 5</span><h3>Choose your services</h3><p>Select everything you need for this vehicle. Your total updates automatically.</p></div>
@@ -120,13 +121,13 @@
                   <div class="appointment-service-group-heading"><div><h4 id="tire-swap-heading">Tire swap</h4><p>Choose on-rim or off-rim service.</p></div><span>Choose one</span></div>
                   <div class="appointment-service-choice-grid">
                     <label class="appointment-service-choice" data-service-item="on-rim-swap">
-                      <input type="checkbox" data-service-toggle value="on-rim-swap" />
+                      <input type="checkbox" data-service-toggle value="on-rim-swap" aria-hidden="true" tabindex="-1" />
                       <span class="appointment-service-check" aria-hidden="true"></span>
                       <span class="appointment-service-copy"><strong>On-rim swap</strong><small>Tires are already mounted on rims</small><em>$15 per tire</em></span>
                       <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="On-rim swap tire quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
                     </label>
                     <label class="appointment-service-choice" data-service-item="off-rim-swap">
-                      <input type="checkbox" data-service-toggle value="off-rim-swap" />
+                      <input type="checkbox" data-service-toggle value="off-rim-swap" aria-hidden="true" tabindex="-1" />
                       <span class="appointment-service-check" aria-hidden="true"></span>
                       <span class="appointment-service-copy"><strong>Off-rim swap</strong><small>Tires need to be removed and mounted</small><em data-service-unit-price>$16.25–$25 per tire</em></span>
                       <span class="appointment-service-controls appointment-service-controls-double"><span><span>Rim size <small>Auto-filled from linked tires</small></span><select data-service-size-band disabled aria-label="Off-rim tire size"><option value="" selected>Choose size</option><option value="14-16">14–16 in</option><option value="17-19">17–19 in</option><option value="20-22">20–22 in</option><option value="23-24">23–24 in</option></select></span><span><span>Quantity</span><select data-service-quantity disabled aria-label="Off-rim swap tire quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span></span>
@@ -138,19 +139,19 @@
                   <div class="appointment-service-group-heading"><div><h4 id="additional-services-heading">Additional services</h4><p>Add as many as you need.</p></div><span>Optional</span></div>
                   <div class="appointment-service-choice-grid">
                     <label class="appointment-service-choice" data-service-item="balancing">
-                      <input type="checkbox" data-service-toggle value="balancing" />
+                      <input type="checkbox" data-service-toggle value="balancing" aria-hidden="true" tabindex="-1" />
                       <span class="appointment-service-check" aria-hidden="true"></span>
                       <span class="appointment-service-copy"><strong>Wheel balancing</strong><small>Balance loose wheels or wheels on the vehicle</small><em>$15 per tire</em></span>
                       <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="Wheel balancing quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
                     </label>
                     <label class="appointment-service-choice" data-service-item="flat-patch-plug">
-                      <input type="checkbox" data-service-toggle value="flat-patch-plug" />
+                      <input type="checkbox" data-service-toggle value="flat-patch-plug" aria-hidden="true" tabindex="-1" />
                       <span class="appointment-service-check" aria-hidden="true"></span>
                       <span class="appointment-service-copy"><strong>Patch + plug</strong><small>Complete flat-tire repair</small><em>$50 per tire</em></span>
                       <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="Patch and plug quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
                     </label>
                     <label class="appointment-service-choice" data-service-item="flat-plug-only">
-                      <input type="checkbox" data-service-toggle value="flat-plug-only" />
+                      <input type="checkbox" data-service-toggle value="flat-plug-only" aria-hidden="true" tabindex="-1" />
                       <span class="appointment-service-check" aria-hidden="true"></span>
                       <span class="appointment-service-copy"><strong>Plug only</strong><small>External puncture plug</small><em>$30 per tire</em></span>
                       <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="Plug-only quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
@@ -159,14 +160,14 @@
                 </section>
 
                 <section class="appointment-service-group" aria-labelledby="quote-services-heading">
-                  <div class="appointment-service-group-heading"><div><h4 id="quote-services-heading">Quick services</h4><p>Add either service for a fixed price.</p></div><span>$20 each</span></div>
+                  <div class="appointment-service-group-heading"><div><h4 id="quote-services-heading">Quick services</h4><p>Add one or both services for a fixed price.</p></div><span>$20 each</span></div>
                   <div class="appointment-service-choice-grid appointment-service-choice-grid-compact">
-                    <label class="appointment-service-choice" data-service-item="air-fill"><input type="checkbox" data-service-toggle value="air-fill" /><span class="appointment-service-check" aria-hidden="true"></span><span class="appointment-service-copy"><strong>Air fill-up</strong><small>Inflate tires to the recommended pressure</small><em>$20</em></span></label>
-                    <label class="appointment-service-choice" data-service-item="tire-replacement"><input type="checkbox" data-service-toggle value="tire-replacement" /><span class="appointment-service-check" aria-hidden="true"></span><span class="appointment-service-copy"><strong>Tire retorque</strong><small>Recheck and tighten wheel nuts to specification</small><em>$20</em></span></label>
+                    <label class="appointment-service-choice" data-service-item="air-fill"><input type="checkbox" data-service-toggle value="air-fill" aria-hidden="true" tabindex="-1" /><span class="appointment-service-check" aria-hidden="true"></span><span class="appointment-service-copy"><strong>Air fill-up</strong><small>Inflate tires to the recommended pressure</small><em>$20 each</em></span></label>
+                    <label class="appointment-service-choice" data-service-item="tire-replacement"><input type="checkbox" data-service-toggle value="tire-replacement" aria-hidden="true" tabindex="-1" /><span class="appointment-service-check" aria-hidden="true"></span><span class="appointment-service-copy"><strong>Tire retorque</strong><small>Recheck and tighten wheel nuts to specification</small><em>$20 each</em></span></label>
                   </div>
                 </section>
                   </div>
-                  <fieldset class="appointment-tire-selector" data-appointment-tire-selector hidden>
+                  <fieldset class="appointment-tire-selector" data-appointment-tire-selector hidden inert aria-hidden="true">
                     <legend>Link your tires</legend>
                     <p data-linked-tire-hint>Link tires you already paid for.</p>
                     <div class="appointment-tire-options" data-appointment-tire-options>
@@ -206,7 +207,7 @@
               <div class="appointment-step-actions"><button class="button button-primary" type="button" data-next-step>Next: Vehicle Details</button></div>
             </section>
 
-            <section class="appointment-step" data-booking-step="1" aria-label="Step 2: Vehicle and Tire Details" hidden>
+            <section class="appointment-step" data-booking-step="1" aria-label="Step 2: Vehicle and Tire Details" hidden inert aria-hidden="true">
               <div class="appointment-step-heading"><span>Step 2 of 5</span><h3>Vehicle &amp; Tire Details</h3><p>Choose from the list or type the year, make, model, and colour. After you pick a vehicle, tap a common tire size or enter it below.</p></div>
               <div class="appointment-field-grid">
                 <div class="form-field">
@@ -315,16 +316,17 @@
                     <option value="Not sure">Not sure</option>
                   </select>
                 </label>
-                <label class="form-field" data-tire-count-field>
+                <div class="form-field" data-tire-count-field>
                   <span>Number of tires</span>
-                  <input name="Number of Tires" type="number" inputmode="numeric" min="1" max="4" value="4" required readonly />
-                </label>
+                  <p class="appointment-tire-count-display"><strong data-tire-count-display>4</strong><small>Set from your selected services</small></p>
+                  <input name="Number of Tires" type="hidden" value="4" />
+                </div>
               </div>
               <label class="form-field form-field-full"><span>Additional notes</span><textarea name="Additional Notes" rows="4" placeholder="Tire condition, special instructions, or anything else EastCord should know."></textarea></label>
               <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next: Location</button></div>
             </section>
 
-            <section class="appointment-step" data-booking-step="2" aria-label="Step 3: Service Location" hidden>
+            <section class="appointment-step" data-booking-step="2" aria-label="Step 3: Service Location" hidden inert aria-hidden="true">
               <div class="appointment-step-heading"><span>Step 3 of 5</span><h3>Service Location</h3><p>Choose mobile service at your home or workplace, or bring your vehicle to the EastCord shop.</p></div>
               <input type="hidden" name="Install Location" data-install-location value="" />
               <fieldset class="appointment-service-menu">
@@ -370,7 +372,7 @@
               <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next: Date &amp; Time</button></div>
             </section>
 
-            <section class="appointment-step" data-booking-step="3" aria-label="Step 4: Date and Time" hidden>
+            <section class="appointment-step" data-booking-step="3" aria-label="Step 4: Date and Time" hidden inert aria-hidden="true">
               <div class="appointment-step-heading"><span>Step 4 of 5</span><h3>Date &amp; Time</h3><p>Choose a preferred appointment date and a one-hour service slot. EastCord operates 7 days a week from 8:00 AM to 8:00 PM.</p></div>
               <p class="appointment-payment-note">Each vehicle appointment takes approximately 1 hour. Please choose a separate time slot for each vehicle.</p>
               <p class="appointment-payment-note" data-appointment-date-note>Mobile appointments need 2 hours’ notice. Shop appointments need 1 hour’s notice. Hours are 8:00 AM to 8:00 PM.</p>
@@ -381,7 +383,7 @@
               <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next: Review</button></div>
             </section>
 
-            <section class="appointment-step" data-booking-step="4" aria-label="Step 5: Review and Add to Cart" hidden>
+            <section class="appointment-step" data-booking-step="4" aria-label="Step 5: Review and Add to Cart" hidden inert aria-hidden="true">
               <div class="appointment-step-heading"><span>Step 5 of 5</span><h3>Review &amp; Add to Cart</h3><p>Your customer name, email, and phone will come from your signed-in account profile.</p></div>
               <div class="appointment-review-grid" aria-live="polite">
                 <div class="appointment-review-card appointment-review-card-wide appointment-review-service"><h4>Service</h4><div class="appointment-review-value" data-review-service>Seasonal Changeover - All 4 Tires Pre-Mounted on Rims</div></div>
@@ -392,7 +394,6 @@
                 <div class="appointment-review-card appointment-review-card-wide appointment-review-payment"><h4>Payment</h4><div class="appointment-review-details" data-review-price>No services selected</div></div>
               </div>
               <div class="checkout-block" data-login-required-block hidden><strong>Please sign up or log in before adding this appointment to cart.</strong><div class="account-actions"><a class="button button-primary" href="/login.html">Log In</a><a class="button button-secondary" href="/signup.html">Create Account</a></div></div>
-              <p class="appointment-status-message" data-appointment-message aria-live="polite"></p>
               <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary appointment-submit" type="submit">Add Appointment to Cart</button></div>
             </section>
           </form>
@@ -464,7 +465,7 @@
     <script src="appointment-services.js?v=4" defer></script>
     <script src="appointment-tire-sizes.js?v=3" defer></script>
     <script src="appointment-vehicle.js?v=15" defer></script>
-    <script src="appointment.js?v=81" defer></script>
+    <script src="appointment.js?v=85" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

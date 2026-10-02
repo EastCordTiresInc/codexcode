@@ -187,7 +187,7 @@ function showOnRimOffRim(customerText = 'On-Rim or Off-Rim?') {
 
 function showWarranty() {
   addMessage('customer', 'Used Tire Warranty');
-  addMessage('bot', 'Used tires include a 1-month exchange warranty. Original receipt is required.');
+  addMessage('bot', 'Used tires include a 30-day or 1,000 km exchange warranty, whichever comes first. Original receipt is required.');
   renderActions(addBackToMain([
     { label: 'View Warranty Policy', href: warrantyLink, external: true },
   ]));

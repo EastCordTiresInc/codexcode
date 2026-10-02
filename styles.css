@@ -1275,6 +1275,7 @@ h3 {
   .main-nav {
     position: fixed;
     inset: 68px 0 auto;
+    z-index: 60;
     max-height: 0;
     overflow: hidden;
     padding: 0 20px;
@@ -1285,15 +1286,18 @@ h3 {
     box-shadow: var(--shadow-sm);
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
     transition: max-height 240ms ease, padding 240ms ease, opacity 180ms ease, visibility 180ms ease;
   }
 
-  .main-nav.open {
+  .main-nav.open,
+  .main-nav.is-open {
     max-height: min(80vh, 720px);
     overflow: auto;
     padding-block: 16px 24px;
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
   }
 
   .main-nav a {

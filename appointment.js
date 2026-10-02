@@ -24,6 +24,12 @@
     'Vehicle Model': 'Please choose your vehicle model.',
     'Vehicle Plate Number': 'Please enter your vehicle plate number.',
     'Vehicle Colour': 'Please choose your vehicle colour.',
+    'Tires Already On Rims': 'Please tell us if the tires are already on rims.',
+    'Full Service Address': 'Please enter the service address.',
+    'City': 'Please choose a city.',
+    'Postal Code': 'Please enter the postal code.',
+    'Preferred Date': 'Please choose an appointment date.',
+    'Preferred Time Window': 'Please choose a time window.',
   };
   const money = new Intl.NumberFormat('en-CA', {
     style: 'currency',
@@ -98,6 +104,7 @@
     els.selectedServices = document.querySelector('[data-selected-services]');
     els.rimsField = document.querySelector('[data-rims-field]');
     els.tireCountField = document.querySelector('[data-tire-count-field]');
+    els.tireCountDisplay = document.querySelector('[data-tire-count-display]');
     els.serviceIdField = document.querySelector('[data-hidden-service-id]');
     els.serviceNameField = document.querySelector('[data-hidden-service-name]');
     els.startingPriceField = document.querySelector('[data-hidden-starting-price]');
@@ -129,8 +136,6 @@
     els.newTireOrderGate = document.querySelector('[data-new-tire-order-gate]');
     els.tireOptions = document.querySelector('[data-appointment-tire-options]');
     els.loginRequiredBlock = document.querySelector('[data-login-required-block]');
-    els.menuToggle = document.querySelector('.menu-toggle');
-    els.primaryNavigation = document.querySelector('#primary-navigation');
   }
 
   function getServiceSelectionsFromForm() {
@@ -152,6 +157,22 @@
     return true;
   }
 
+  function describeServiceSelection(selection) {
+    const api = window.EastCordAppointmentServices;
+    const complete = isServiceSelectionComplete(selection);
+    const definition = api?.SERVICES?.[selection?.id];
+    const price = complete ? api.selectionPrice(selection) : 0;
+    const label = complete
+      ? api.selectionLabel(selection)
+      : `${definition?.shortName || definition?.name || 'Service'} — choose ${definition?.sizePricing ? 'size and quantity' : 'quantity'}`;
+    return {
+      complete,
+      label,
+      price,
+      priceText: complete ? (price ? money.format(price) : 'Quote requested') : 'Required',
+    };
+  }
+
   function resetServiceItemControls(item) {
     item?.querySelectorAll('select').forEach((select) => {
       select.value = '';
@@ -170,6 +191,13 @@
       };
       item.classList.toggle('is-selected', selected);
       item.classList.toggle('needs-details', selected && !isServiceSelectionComplete(selection));
+      item.setAttribute('role', 'checkbox');
+      item.setAttribute('aria-checked', selected ? 'true' : 'false');
+      item.tabIndex = 0;
+      if (toggle) {
+        toggle.setAttribute('aria-hidden', 'true');
+        toggle.tabIndex = -1;
+      }
       item.querySelectorAll('select').forEach((select) => {
         select.disabled = !selected;
       });
@@ -242,7 +270,6 @@
       els.selectedServices.innerHTML = '';
       return;
     }
-    const api = window.EastCordAppointmentServices;
     els.selectedServices.innerHTML = `
       <div class="appointment-selected-services-heading">
         <span aria-hidden="true">✓</span>
@@ -252,13 +279,11 @@
         </div>
       </div>
       <ul>${selections.map((selection, index) => {
-        const complete = isServiceSelectionComplete(selection);
-        const definition = api.SERVICES[selection.id];
-        const price = api.selectionPrice(selection);
-        const label = complete
-          ? api.selectionLabel(selection)
-          : `${definition?.shortName || definition?.name || 'Service'} — choose ${definition?.sizePricing ? 'size and quantity' : 'quantity'}`;
-        return `<li class="${complete ? '' : 'needs-details'}"><span class="appointment-selected-service-name"><span class="appointment-selected-service-number">${index + 1}</span>${escapeHtml(label)}</span><b>${complete ? (price ? money.format(price) : 'Quote') : 'Required'}</b></li>`;
+        const display = describeServiceSelection(selection);
+        const amount = display.complete
+          ? (display.price ? money.format(display.price) : 'Quote')
+          : 'Required';
+        return `<li class="${display.complete ? '' : 'needs-details'}"><span class="appointment-selected-service-name"><span class="appointment-selected-service-number">${index + 1}</span>${escapeHtml(display.label)}</span><b>${amount}</b></li>`;
       }).join('')}</ul>
     `;
   }
@@ -307,10 +332,8 @@
     const tiresOnRims = getServiceTiresOnRims(service);
 
     if (rimsField) rimsField.value = tiresOnRims;
-    if (qtyField) {
-      qtyField.value = String(tireCount);
-      qtyField.readOnly = true;
-    }
+    if (qtyField) qtyField.value = String(tireCount);
+    if (els.tireCountDisplay) els.tireCountDisplay.textContent = String(tireCount);
     if (els.rimsField) els.rimsField.hidden = true;
   }
 
@@ -327,19 +350,27 @@
     return selection ? Number(selection.quantity) || 0 : 0;
   }
 
+  function setA11yHidden(element, isHidden) {
+    if (!element) return;
+    element.hidden = isHidden;
+    element.toggleAttribute('inert', isHidden);
+    if (isHidden) element.setAttribute('aria-hidden', 'true');
+    else element.removeAttribute('aria-hidden');
+  }
+
   function updateTireSelectorVisibility(service = getCurrentService()) {
     const hasTiresToLink = state.savedTires.length > 0;
     const canLinkTires = isMountBalanceService(service) || hasTiresToLink;
-    if (els.tireSelector) els.tireSelector.hidden = !canLinkTires;
+    setA11yHidden(els.tireSelector, !canLinkTires);
     if (els.reviewTiresCard) els.reviewTiresCard.hidden = !canLinkTires;
     updateLinkedTireHint(service);
 
     if (!canLinkTires && state.selectedTireIds.size) {
       state.selectedTireIds.clear();
-      renderSavedTireOptions();
     } else if (isMountBalanceService(service)) {
       pruneSelectedTiresToService(service);
     }
+    renderSavedTireOptions();
   }
 
   function getSelectedTireQuantity(selectedIds = state.selectedTireIds) {
@@ -350,6 +381,10 @@
 
   function updateLinkedTireHint(service = getCurrentService()) {
     if (!els.linkedTireHint) return;
+    if (els.tireSelector?.hidden) {
+      els.linkedTireHint.textContent = '';
+      return;
+    }
     if (state.requiredNewTireOrderId) {
       els.linkedTireHint.textContent = 'These paid new tires are linked from your confirmed order. Keep them selected so this installation stays on that order.';
       return;
@@ -760,7 +795,9 @@
     if (!els.tireOptions) return;
 
     if (!state.savedTires.length) {
-      els.tireOptions.innerHTML = '<p>No purchased tires found. After you pay for used tires, or complete a new-tire order, they are saved to your profile so you can link them here. You can also add used tires to your cart first.</p>';
+      els.tireOptions.innerHTML = els.tireSelector?.hidden
+        ? ''
+        : '<p>No purchased tires found. After you pay for used tires, or complete a new-tire order, they are saved to your profile so you can link them here. You can also add used tires to your cart first.</p>';
       return;
     }
 
@@ -955,6 +992,17 @@
     return '';
   }
 
+  function getSlotUnavailableShortLabel(unavailableMessage) {
+    if (!unavailableMessage) return '';
+    if (unavailableMessage.includes('already in your cart')) return 'Already in your cart';
+    if (unavailableMessage.includes('already booked')) return 'Booked';
+    if (unavailableMessage.includes('2 hours')) return '2-hour notice required';
+    if (unavailableMessage.includes('1 hour')) return '1-hour notice required';
+    if (/next \d+ days after your tire purchase|shipping/i.test(unavailableMessage)) return 'Unavailable for shipping';
+    if (unavailableMessage.includes('8:00 AM')) return 'Outside 8 AM–8 PM';
+    return 'Unavailable';
+  }
+
   async function fetchPaidBookedSlots(date) {
     const client = window.EastCordAccount?.getSupabaseClient?.();
     if (!client || !date) return new Set();
@@ -1024,6 +1072,7 @@
     if (warning) warning.hidden = true;
 
     if (!selectedDate) {
+      options.forEach((option) => setTimeOptionState(option, false, 'Choose a date first'));
       updateReviewSummary(state.currentService || getCurrentService());
       return true;
     }
@@ -1033,21 +1082,7 @@
     options.forEach((option) => {
       const unavailableMessage = getSlotUnavailableReason(selectedDate, option.value);
       const isAvailable = !unavailableMessage;
-      const labelReason = unavailableMessage.includes('cart')
-        ? 'Already in your cart'
-        : unavailableMessage.includes('booked')
-          ? 'Booked'
-          : unavailableMessage.includes('2 hours')
-            ? '2-hour notice required'
-            : unavailableMessage.includes('1 hour')
-              ? '1-hour notice required'
-            : /next \d+ days after your tire purchase|shipping/i.test(unavailableMessage)
-              ? 'Unavailable for shipping'
-              : unavailableMessage.includes('8:00 AM')
-                ? 'Outside 8 AM–8 PM'
-                : unavailableMessage
-              ? 'Unavailable'
-              : '';
+      const labelReason = getSlotUnavailableShortLabel(unavailableMessage);
       setTimeOptionState(option, isAvailable, labelReason);
       if (isAvailable) availableCount += 1;
     });
@@ -1200,18 +1235,18 @@
     return { type: '', notes: '' };
   }
 
-  function validateParkingAccess() {
+  function validateParkingAccess(report = true) {
     if (!selectedInstallLocation() || isShopInstall()) return true;
     const type = selectedParkingAccessType();
     if (!type) {
-      showAppointmentMessage('Please choose parking, driveway, or other.');
+      if (report) showAppointmentMessage('Please choose parking, driveway, or other.');
       return false;
     }
     if (type === 'other') {
       const notes = String(els.parkingAccessNotesInput?.value || '').trim();
       if (!notes) {
         els.parkingAccessNotesInput?.setCustomValidity('Please enter access notes.');
-        els.parkingAccessNotesInput?.reportValidity();
+        if (report) reportInvalidControl(els.parkingAccessNotesInput, 'Please enter access notes.');
         return false;
       }
       els.parkingAccessNotesInput?.setCustomValidity('');
@@ -1315,10 +1350,12 @@
 
   function showAppointmentMessage(message, type = 'error') {
     if (!els.appointmentMessage) return;
-    els.appointmentMessage.textContent = message;
-    els.appointmentMessage.classList.toggle('error', type === 'error');
-    els.appointmentMessage.classList.toggle('success', type === 'success');
-    els.appointmentMessage.dataset.messageType = type;
+    const text = String(message || '').trim();
+    els.appointmentMessage.textContent = text;
+    els.appointmentMessage.hidden = !text;
+    els.appointmentMessage.classList.toggle('error', Boolean(text) && type === 'error');
+    els.appointmentMessage.classList.toggle('success', Boolean(text) && type === 'success');
+    els.appointmentMessage.dataset.messageType = text ? type : '';
   }
 
   function getFieldValue(name) {
@@ -1384,26 +1421,65 @@
     const step = els.stepPanels[stepIndex];
     if (!step) return [];
     return Array.from(step.querySelectorAll('input, select, textarea')).filter((control) => {
-      return control.type !== 'hidden' && control.name !== 'bot-field' && !control.disabled;
+      return control.type !== 'hidden'
+        && control.name !== 'bot-field'
+        && !control.disabled
+        && !control.closest('[hidden]');
     });
+  }
+
+  function getRequiredMessage(control) {
+    if (!control) return 'Please complete this field.';
+    if (Object.prototype.hasOwnProperty.call(REQUIRED_FIELD_MESSAGES, control.name)) {
+      return REQUIRED_FIELD_MESSAGES[control.name];
+    }
+    if (control.hasAttribute('data-tire-width')) return 'Please choose tire width.';
+    if (control.hasAttribute('data-tire-profile')) return 'Please choose tire profile.';
+    if (control.hasAttribute('data-tire-rim')) return 'Please choose rim size.';
+    return control.validationMessage || 'Please complete this field.';
+  }
+
+  function visibleInvalidTarget(control) {
+    return control?.closest('[data-fancy-select]')?.querySelector('[data-fancy-select-trigger]:not(:disabled)') || control;
+  }
+
+  function clearInvalidFieldStyles() {
+    els.appointmentForm?.querySelectorAll('.fancy-select.is-invalid').forEach((root) => root.classList.remove('is-invalid'));
+  }
+
+  function reportInvalidControl(control, message) {
+    const existing = String(control?.validationMessage || '').trim();
+    const isMissing = Boolean(control?.required && !String(control?.value || '').trim());
+    const text = String(message || (!isMissing && existing) || getRequiredMessage(control) || '').trim();
+    if (control && (isMissing || !control.checkValidity()) && !existing) {
+      control.setCustomValidity(text);
+    }
+    const target = visibleInvalidTarget(control);
+    target?.closest('[data-fancy-select]')?.classList.add('is-invalid');
+    if (text) showAppointmentMessage(text);
+    if (target && target !== control) {
+      target.focus();
+      return;
+    }
+    control?.reportValidity();
+    control?.focus();
   }
 
   function applyCustomRequiredMessages(controls) {
     controls.forEach((control) => {
-      if (!Object.prototype.hasOwnProperty.call(REQUIRED_FIELD_MESSAGES, control.name)) return;
+      const message = getRequiredMessage(control);
       const isMissing = control.required && !String(control.value || '').trim();
-      control.setCustomValidity(isMissing ? REQUIRED_FIELD_MESSAGES[control.name] : '');
+      if (isMissing) control.setCustomValidity(message);
+      else if (control.validationMessage === message) control.setCustomValidity('');
     });
   }
 
-  function validateStep(stepIndex) {
+  function validateStep(stepIndex, { report = true } = {}) {
     updateServicePricing(getCurrentService());
-    const dateIsValid = validatePreferredDate();
-    const timeIsValid = validatePreferredTimeWindow();
-    validateServiceArea();
+    clearInvalidFieldStyles();
 
     if (stepIndex === 0 && !state.currentService?.selections?.length) {
-      showAppointmentMessage('Please choose a service before continuing.');
+      if (report) showAppointmentMessage('Please choose a service before continuing.');
       return false;
     }
 
@@ -1411,13 +1487,15 @@
       const firstIncomplete = state.currentService.incompleteSelections[0];
       const item = els.serviceOptions?.querySelector(`[data-service-item="${firstIncomplete.id}"]`);
       const missingControl = Array.from(item?.querySelectorAll('select') || []).find((select) => !select.value);
-      showAppointmentMessage('Choose the required size and quantity for each selected service.');
-      missingControl?.focus();
+      if (report) {
+        showAppointmentMessage('Choose the required size and quantity for each selected service.');
+        missingControl?.focus();
+      }
       return false;
     }
 
     if (stepIndex === 0 && !state.currentService?.pricedSelections?.length) {
-      showAppointmentMessage('Add at least one priced service. Quote requests can be included with it.');
+      if (report) showAppointmentMessage('Add at least one priced service. Quote requests can be included with it.');
       return false;
     }
 
@@ -1426,29 +1504,37 @@
     }
 
     if (stepIndex === 2 && !selectedInstallLocation()) {
-      showAppointmentMessage('Please choose a service location.');
+      if (report) showAppointmentMessage('Please choose a service location.');
       return false;
     }
 
-    if (stepIndex === 2 && !validateParkingAccess()) {
+    if (stepIndex === 2 && !validateParkingAccess(report)) {
       return false;
     }
+
+    if (stepIndex === 2) validateServiceArea();
+
+    const dateIsValid = stepIndex === 3 ? validatePreferredDate() : true;
+    const timeIsValid = stepIndex === 3 ? validatePreferredTimeWindow() : true;
 
     const controls = getStepControls(stepIndex);
     applyCustomRequiredMessages(controls);
     const firstInvalid = controls.find((control) => !control.checkValidity());
     if (firstInvalid) {
-      firstInvalid.reportValidity();
+      if (report) reportInvalidControl(firstInvalid);
       return false;
     }
 
     if (stepIndex === 2 && !validateServiceArea()) {
-      els.citySelect?.reportValidity();
+      if (report) reportInvalidControl(els.citySelect, els.citySelect?.validationMessage);
       return false;
     }
 
     if (stepIndex === 3 && (!dateIsValid || !timeIsValid)) {
-      (els.preferredTimeWindow || els.preferredDate)?.reportValidity();
+      if (report) {
+        const target = !dateIsValid ? els.preferredDate : els.preferredTimeWindow;
+        reportInvalidControl(target, target?.validationMessage);
+      }
       return false;
     }
 
@@ -1467,14 +1553,16 @@
     state.currentStep = Math.max(0, Math.min(index, els.stepPanels.length - 1));
     els.stepPanels.forEach((step, stepIndex) => {
       const isActive = stepIndex === state.currentStep;
-      step.hidden = !isActive;
+      setA11yHidden(step, !isActive);
       step.classList.toggle('is-active', isActive);
     });
     updateProgress();
     updateServicePricing(getCurrentService());
     validatePreferredDate();
     showAppointmentMessage('', 'info');
-    if (shouldFocus) els.appointmentForm?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (shouldFocus) {
+      (document.querySelector('[data-appointment-progress]') || els.appointmentForm)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   function updateReviewSummary(service = state.currentService || getCurrentService()) {
@@ -1490,11 +1578,10 @@
     const time = getFieldValue('Preferred Time Window');
 
     if (els.reviewService) {
-      const api = window.EastCordAppointmentServices;
       els.reviewService.innerHTML = service?.selections?.length
         ? `<ul class="appointment-review-service-list">${service.selections.map((selection) => {
-          const price = api.selectionPrice(selection);
-          return `<li><span>${escapeHtml(api.selectionLabel(selection))}</span><strong>${price ? money.format(price) : 'Quote requested'}</strong></li>`;
+          const display = describeServiceSelection(selection);
+          return `<li><span>${escapeHtml(display.label)}</span><strong>${escapeHtml(display.priceText)}</strong></li>`;
         }).join('')}</ul>`
         : 'Not selected yet';
     }
@@ -1552,8 +1639,9 @@
 
   function validateAllSteps() {
     for (let index = 0; index < els.stepPanels.length; index += 1) {
-      if (!validateStep(index)) {
+      if (!validateStep(index, { report: false })) {
         showStep(index);
+        validateStep(index, { report: true });
         return false;
       }
     }
@@ -1568,6 +1656,10 @@
         if (!['form-name', 'Booking Status', 'Service area status', 'Service Name', 'Starting Price', 'Service Subtotal', 'HST Amount', 'Total With HST', 'Tax Rate', 'Booking Deposit', 'Remaining Balance'].includes(key)) {
           fields[key] = String(value || '');
         }
+      });
+      ['Vehicle Year', 'Vehicle Make', 'Vehicle Model', 'Vehicle Colour', 'Tire Size'].forEach((name) => {
+        const value = getFieldValue(name);
+        if (value) fields[name] = value;
       });
     }
 
@@ -1594,7 +1686,7 @@
     localStorage.removeItem(PENDING_APPOINTMENT_KEY);
   }
 
-  function restorePendingAppointmentDraft() {
+  async function restorePendingAppointmentDraft() {
     let draft = null;
     try {
       draft = JSON.parse(localStorage.getItem(PENDING_APPOINTMENT_KEY) || 'null');
@@ -1611,8 +1703,17 @@
 
     Object.entries(draft.fields || {}).forEach(([name, value]) => {
       const field = els.appointmentForm.elements.namedItem(name);
-      if (!field || field.disabled || name === 'Install Location' || name === 'Parking Access Type') return;
+      if (!field || name === 'Install Location' || name === 'Parking Access Type') return;
+      if (field.disabled && !['Vehicle Year', 'Vehicle Make', 'Vehicle Model', 'Vehicle Colour', 'Tire Size', 'WIDTH', 'PROFILE', 'RIM'].includes(name)) return;
       field.value = value;
+    });
+
+    await window.EastCordAppointmentVehicle?.setVehicle?.({
+      year: String(draft.fields?.['Vehicle Year'] || ''),
+      make: String(draft.fields?.['Vehicle Make'] || ''),
+      model: String(draft.fields?.['Vehicle Model'] || ''),
+      colour: String(draft.fields?.['Vehicle Colour'] || ''),
+      tireSize: String(draft.fields?.['Tire Size'] || ''),
     });
 
     if (selectedInstallLocation() === 'mobile') {
@@ -1713,7 +1814,6 @@
     updateServicePricing(getCurrentService());
 
     if (!validateAllSteps()) {
-      showAppointmentMessage('Please complete all required appointment fields before adding to cart.');
       return;
     }
 
@@ -1723,11 +1823,14 @@
     }
 
     if (!validateServiceArea()) {
+      showStep(2);
       showAppointmentMessage('EastCord mobile tire service is currently available in Milton, Oakville, Brampton, and Mississauga only.');
+      els.citySelect?.reportValidity();
       return;
     }
 
     if (!validatePreferredDate() || !validatePreferredTimeWindow()) {
+      showStep(3);
       showAppointmentMessage('Please choose a valid future appointment date and time window.');
       return;
     }
@@ -1787,12 +1890,6 @@
     }
   }
 
-  function closeMobileMenu() {
-    if (!els.menuToggle || !els.primaryNavigation) return;
-    els.menuToggle.setAttribute('aria-expanded', 'false');
-    els.primaryNavigation.classList.remove('is-open');
-  }
-
   async function initializeAppointmentPage() {
     if (state.initialized) return;
     cacheElements();
@@ -1824,19 +1921,34 @@
       }
       updateFromSelectedService();
     });
-
-    els.menuToggle?.addEventListener('click', () => {
-      const isOpen = els.menuToggle.getAttribute('aria-expanded') === 'true';
-      els.menuToggle.setAttribute('aria-expanded', String(!isOpen));
-      els.primaryNavigation?.classList.toggle('is-open', !isOpen);
+    els.serviceOptions?.addEventListener('keydown', (event) => {
+      if (event.key !== ' ' && event.key !== 'Enter') return;
+      if (event.target.closest('select, input:not([data-service-toggle])')) return;
+      const item = event.target.closest('[data-service-item]');
+      const toggle = item?.querySelector('[data-service-toggle]');
+      if (!toggle) return;
+      event.preventDefault();
+      toggle.checked = !toggle.checked;
+      toggle.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    els.primaryNavigation?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMobileMenu));
     els.nextButtons.forEach((button) => button.addEventListener('click', () => validateStep(state.currentStep) && showStep(state.currentStep + 1)));
     els.backButtons.forEach((button) => button.addEventListener('click', () => showStep(state.currentStep - 1)));
-    els.appointmentForm?.addEventListener('input', () => updateReviewSummary(state.currentService || getCurrentService()));
+    els.appointmentForm?.addEventListener('input', (event) => {
+      const root = event.target?.closest?.('[data-fancy-select]');
+      const control = root?.querySelector('select') || event.target?.closest?.('select, input, textarea');
+      if (control?.setCustomValidity) {
+        const requiredMessage = getRequiredMessage(control);
+        if (String(control.value || '').trim() && control.validationMessage === requiredMessage) {
+          control.setCustomValidity('');
+        }
+        root?.classList.remove('is-invalid');
+      }
+      updateReviewSummary(state.currentService || getCurrentService());
+    });
     els.appointmentForm?.addEventListener('change', (event) => {
       if (event.target?.closest?.('[data-service-options]')) return;
+      event.target?.closest?.('[data-fancy-select]')?.classList.remove('is-invalid');
       updateReviewSummary(state.currentService || getCurrentService());
     });
     els.citySelect?.addEventListener('change', validateServiceArea);
@@ -1844,11 +1956,13 @@
       const button = event.target.closest('[data-install-location-option]');
       if (!button || button.disabled || button.getAttribute('aria-disabled') === 'true') return;
       applyInstallLocation(button.dataset.installLocationOption, { clearMobile: true });
+      showAppointmentMessage('', 'info');
     });
     els.parkingAccessOptions?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-parking-access-option]');
       if (!button) return;
       applyParkingAccessType(button.dataset.parkingAccessOption);
+      showAppointmentMessage('', 'info');
     });
     els.parkingAccessNotesInput?.addEventListener('input', () => {
       if (selectedParkingAccessType() === 'other') {
@@ -1900,8 +2014,8 @@
     setMinimumDate();
     window.EastCordAppointmentVehicle?.init?.();
     await hydrateCustomerTires();
-    const restored = restorePendingAppointmentDraft();
-    await window.EastCordAppointmentVehicle?.hydrateFromForm?.();
+    const restored = await restorePendingAppointmentDraft();
+    if (!restored) await window.EastCordAppointmentVehicle?.hydrateFromForm?.();
     updateServicePricing(getCurrentService());
     validatePreferredDate();
     validateServiceArea();

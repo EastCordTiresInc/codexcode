@@ -527,18 +527,30 @@ function updateCheckoutButtonState() {
   button.setAttribute('aria-disabled', 'false');
 }
 
+function setA11yHidden(element, isHidden) {
+  if (!element) return;
+  element.hidden = isHidden;
+  element.toggleAttribute('inert', isHidden);
+  if (isHidden) element.setAttribute('aria-hidden', 'true');
+  else element.removeAttribute('aria-hidden');
+}
+
 function openAgreementModal() {
   if (!agreementModal) return;
-  agreementModal.hidden = false;
+  setA11yHidden(agreementModal, false);
+  agreementPanel?.setAttribute('role', 'dialog');
+  agreementPanel?.setAttribute('aria-modal', 'true');
   document.body.classList.add('agreement-modal-open');
   window.setTimeout(() => agreementPanel?.focus(), 0);
 }
 
-function closeAgreementModal() {
+function closeAgreementModal({ restoreFocus = true } = {}) {
   if (!agreementModal) return;
-  agreementModal.hidden = true;
+  setA11yHidden(agreementModal, true);
+  agreementPanel?.removeAttribute('role');
+  agreementPanel?.removeAttribute('aria-modal');
   document.body.classList.remove('agreement-modal-open');
-  agreementOpenButton?.focus();
+  if (restoreFocus) agreementOpenButton?.focus();
 }
 
 function getTimeWindowStartMinutes(value) {
@@ -593,6 +605,17 @@ function isLessThanMinimumAdvance(item) {
   return startDate.getTime() - Date.now() < getMinimumAdvanceMinutes(item) * 60 * 1000;
 }
 
+function updateStripeTestNoteVisibility(items = getCheckoutItems()) {
+  const notes = document.querySelectorAll('[data-stripe-test-note]');
+  if (!notes.length) return;
+  const isLocalDevelopment = /^(?:localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+  const show = Boolean(items.length) && isLocalDevelopment && Boolean(window.EASTCORD_AUTH_CONFIG?.stripeTestMode);
+  notes.forEach((note) => {
+    const form = note.closest('[data-appointment-pay-form]');
+    note.hidden = !show || Boolean(form?.hidden);
+  });
+}
+
 function cartNeedsMobileAgreement(items = getCheckoutItems()) {
   return items.some((item) => item && !item.isInvalidCartItem && !isShopCartItem(item));
 }
@@ -605,6 +628,7 @@ function syncAgreementVisibility(items = getCheckoutItems()) {
     agreementCheckbox.required = needsAgreement;
     if (!needsAgreement) agreementCheckbox.checked = false;
   }
+  if (!needsAgreement) closeAgreementModal({ restoreFocus: false });
 }
 
 function isNewTireInstallItem(item) {
@@ -852,6 +876,7 @@ function renderCartItemsAndTotals() {
   }
 
   syncAgreementVisibility(items);
+  updateStripeTestNoteVisibility(items);
   updateCheckoutButtonState();
   return items;
 }

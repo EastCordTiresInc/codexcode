@@ -116,12 +116,18 @@
     }
 
     applyCheckoutAuth(currentProfile);
+    syncStripeTestNote();
+  }
+
+  function syncStripeTestNote() {
     const isLocalDevelopment = /^(?:localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
-    if (isLocalDevelopment && window.EASTCORD_AUTH_CONFIG?.stripeTestMode) {
-      document.querySelectorAll('[data-stripe-test-note]').forEach((note) => {
-        note.hidden = false;
-      });
-    }
+    const formVisible = Boolean(form) && !form.hidden;
+    const hasItems = Boolean(document.querySelector('.cart-line'))
+      || Boolean(window.EastCordAccount?.getCart?.()?.length);
+    const show = formVisible && hasItems && isLocalDevelopment && Boolean(window.EASTCORD_AUTH_CONFIG?.stripeTestMode);
+    document.querySelectorAll('[data-stripe-test-note]').forEach((note) => {
+      note.hidden = !show;
+    });
   }
 
   function applyCheckoutAuth(profile) {
@@ -129,6 +135,7 @@
     if (authBlock) authBlock.hidden = Boolean(currentProfile);
     if (form) form.hidden = !currentProfile;
     if (currentProfile) fillFields(currentProfile);
+    syncStripeTestNote();
   }
 
   form?.addEventListener('submit', startPay);

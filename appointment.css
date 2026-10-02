@@ -104,6 +104,7 @@
   gap: 22px;
   padding: clamp(22px, 3vw, 34px);
   border-radius: 10px;
+  scroll-margin-top: 88px;
 }
 
 .appointment-form-card > label:first-child,
@@ -147,12 +148,16 @@ label:has(input[name="bot-field"]) {
 }
 
 .appointment-progress {
+  position: sticky;
+  top: 76px;
+  z-index: 30;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   gap: 8px;
   margin: 4px 0 8px;
-  padding: 0;
+  padding: 8px 0;
   list-style: none;
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .appointment-progress li {
@@ -434,18 +439,22 @@ label:has(input[name="bot-field"]) {
 }
 
 .appointment-service-choice > input {
-  position: absolute;
-  top: 15px;
-  left: 15px;
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
   z-index: 2;
   width: 22px;
   height: 22px;
   margin: 0;
-  opacity: 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
   cursor: pointer;
 }
 
 .appointment-service-check {
+  grid-column: 1;
+  grid-row: 1;
   display: grid;
   place-items: center;
   width: 22px;
@@ -453,6 +462,7 @@ label:has(input[name="bot-field"]) {
   border: 2px solid #b7bcc4;
   border-radius: 3px;
   background: #fff;
+  pointer-events: none;
 }
 
 .appointment-service-choice.is-selected .appointment-service-check {
@@ -468,6 +478,8 @@ label:has(input[name="bot-field"]) {
 }
 
 .appointment-service-copy {
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
   gap: 3px;
   min-width: 0;
@@ -866,6 +878,7 @@ label:has(input[name="bot-field"]) {
   z-index: 6;
 }
 
+.fancy-select.is-invalid .fancy-select-trigger,
 .fancy-select.is-open .fancy-select-trigger,
 .fancy-select-trigger:focus-visible,
 .tire-select.is-open .tire-select-trigger,
@@ -1028,6 +1041,28 @@ label:has(input[name="bot-field"]) {
   background: #f5f6f8;
   color: #333840;
   cursor: default;
+}
+
+.appointment-tire-count-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  margin: 0;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: #f5f6f8;
+  color: #333840;
+}
+
+.appointment-tire-count-display strong {
+  font-size: 1rem;
+}
+
+.appointment-tire-count-display small {
+  color: #626a76;
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .form-field[hidden] {
@@ -1477,6 +1512,8 @@ label:has(input[name="bot-field"]) {
   font-weight: 800;
 }
 
+.appointment-status-message:empty,
+.appointment-status-message[hidden] { display: none; }
 .appointment-status-message.success { color: #15803d; font-weight: 800; }
 
 [data-new-tire-order-gate][hidden] {
@@ -1523,6 +1560,10 @@ label:has(input[name="bot-field"]) {
   .appointment-hero-grid,
   .appointment-layout { grid-template-columns: 1fr; }
   .appointment-info-card { position: static; }
+}
+
+@media (max-width: 800px) {
+  .appointment-progress { top: 68px; }
 }
 
 @media (max-width: 1080px) {
