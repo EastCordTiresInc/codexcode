@@ -37,6 +37,7 @@
           <a href="/blog">Blog</a>
           <a href="/#contact">Contact</a>
           <span class="nav-carts" aria-label="Shopping carts">
+            <a href="/tire-cart" data-local-used-tire-cart hidden>Tire Cart<span data-tire-cart-count></span></a>
             <a href="/cart">Appointment Cart</a>
           </span>
           <span class="auth-nav-group" data-auth-logged-out>
@@ -58,7 +59,7 @@
     </header>
 
     <main id="main-content">
-      <section class="section" aria-labelledby="used-coming-soon-title">
+      <section class="section" data-used-coming-soon aria-labelledby="used-coming-soon-title">
         <div class="shell">
           <div class="used-coming-soon">
             <p class="used-coming-soon-eyebrow">Used tires</p>
@@ -69,6 +70,145 @@
               <a class="button button-secondary" href="/appointment">Book Appointment</a>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section class="section" data-used-shop hidden aria-labelledby="used-search-title">
+        <div class="shell">
+          <div class="used-search-widget" data-used-search-widget>
+            <div class="used-search-widget-header">
+              <h2 id="used-search-title">Find your tires</h2>
+            </div>
+
+            <div class="used-search-body">
+              <div class="used-search-form-wrap">
+                <form class="used-search-form" id="inventory-search-form" novalidate>
+                  <a class="used-search-link" href="/tire-size-guide">Need help reading your tire size?</a>
+                  <p class="used-inventory-load-status" data-inventory-load-status aria-live="polite">Starting...</p>
+
+                  <div class="used-search-fields">
+                    <label class="used-search-field">
+                      <span>Width</span>
+                      <select id="inventory-width" name="width">
+                        <option value="">Select width</option>
+                      </select>
+                    </label>
+                    <label class="used-search-field">
+                      <span>Profile</span>
+                      <select id="inventory-profile" name="profile">
+                        <option value="">Select profile</option>
+                      </select>
+                    </label>
+                    <label class="used-search-field">
+                      <span>Wheel Size</span>
+                      <select id="inventory-rim" name="rim">
+                        <option value="">Select wheel size</option>
+                      </select>
+                    </label>
+                    <label class="used-search-field">
+                      <span>Season</span>
+                      <select id="inventory-season" name="season">
+                        <option value="">Any season</option>
+                        <option value="all-season">All-season</option>
+                        <option value="winter">Winter</option>
+                        <option value="summer">Summer</option>
+                      </select>
+                    </label>
+                    <label class="used-search-field">
+                      <span>Brand</span>
+                      <select id="inventory-brand" name="brand">
+                        <option value="">Any brand</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <button class="used-search-submit" type="submit" data-inventory-submit>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7"></circle>
+                      <path d="m20 20-3.5-3.5"></path>
+                    </svg>
+                    Find your tires now
+                  </button>
+                </form>
+              </div>
+
+              <aside class="used-search-guide" aria-label="How to read tire size">
+                <h3>Where to find your size</h3>
+                <div class="tire-size-diagram">
+                  <div class="tire-size-string" aria-hidden="true">
+                    <span class="tire-size-part is-red" data-label="Width">255</span>
+                    <span>/</span>
+                    <span class="tire-size-part is-red" data-label="Profile">45</span>
+                    <span class="tire-size-part is-red" data-label="Wheel size">R18</span>
+                    <span class="tire-size-part" data-label="Load index">103</span>
+                    <span class="tire-size-part" data-label="Speed rating">H</span>
+                  </div>
+                  <div class="tire-locations">
+                    <div class="tire-location-card">
+                      <svg viewBox="0 0 120 80" aria-hidden="true">
+                        <rect x="8" y="18" width="104" height="44" rx="8" fill="#fff" stroke="#9ca3af" stroke-width="2"/>
+                        <path d="M18 28h84M18 38h84M18 48h84" stroke="#d1d5db"/>
+                        <circle cx="88" cy="40" r="6" fill="#e5242a"/>
+                      </svg>
+                      <p>Door jamb tire information sticker</p>
+                    </div>
+                    <div class="tire-location-card">
+                      <svg viewBox="0 0 120 80" aria-hidden="true">
+                        <circle cx="60" cy="40" r="28" fill="#111" stroke="#374151" stroke-width="4"/>
+                        <circle cx="60" cy="40" r="10" fill="#6b7280"/>
+                        <text x="34" y="44" fill="#fff" font-size="9" font-weight="700">255/45R18</text>
+                      </svg>
+                      <p>Tire sidewall size marking</p>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </div>
+
+          <aside class="used-markdown-banner" data-markdown-banner hidden>
+            <p class="used-markdown-banner-badge">15% off</p>
+            <div class="used-markdown-banner-copy">
+              <strong data-markdown-banner-title>Markdown used tires</strong>
+              <p>Tires with fewer than 4 left. Search still finds them by size or brand.</p>
+            </div>
+            <button class="used-markdown-banner-cta" type="button" data-markdown-prompt>
+              Browse markdowns
+            </button>
+          </aside>
+
+          <section class="used-markdown-section" aria-labelledby="markdown-tires-title" data-markdown-section hidden>
+            <div class="used-markdown-header">
+              <p class="used-markdown-eyebrow">15% off markdowns</p>
+              <h2 id="markdown-tires-title">Markdown used tires</h2>
+              <p>Tires with fewer than 4 in stock. Scan by size — these go first. Matching markdowns also appear when you search a size or brand.</p>
+              <p class="used-markdown-count" data-markdown-count></p>
+              <label class="used-markdown-filter">
+                <span>Find a size or brand</span>
+                <input
+                  type="search"
+                  data-markdown-filter
+                  placeholder="e.g. 205/75 or Toyo"
+                  autocomplete="off"
+                />
+              </label>
+              <button class="text-button used-markdown-close" type="button" data-markdown-close>
+                Hide markdown tires
+              </button>
+            </div>
+            <div class="used-markdown-board" data-markdown-list aria-live="polite"></div>
+          </section>
+
+          <section class="used-inventory-results" aria-labelledby="inventory-results-title" hidden data-inventory-results>
+            <div class="used-inventory-results-header">
+              <h2 id="inventory-results-title">Matching tires</h2>
+              <div>
+                <p class="used-inventory-status" data-inventory-status aria-live="polite"></p>
+                <button class="text-button" type="button" data-inventory-refresh>Refresh inventory</button>
+              </div>
+            </div>
+            <div id="inventory-list" class="inventory-list" aria-live="polite"></div>
+          </section>
         </div>
       </section>
     </main>
@@ -85,7 +225,7 @@
             <a href="https://www.youtube.com/@EastCordTires" target="_blank" rel="noopener noreferrer">YouTube</a>
             <a href="https://www.instagram.com/eastcordtires" target="_blank" rel="noopener noreferrer">Instagram</a>
             <a href="https://www.facebook.com/share/14cUJxJDSWD/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer">Facebook</a>
-            <a href="https://www.tiktok.com/@eastcordtires?_r=1&_t=ZS-985mxkvGCzE" target="_blank" rel="noopener noreferrer">TikTok</a>
+            <a href="https://www.tiktok.com/@eastcordtires?_r=1&amp;_t=ZS-985mxkvGCzE" target="_blank" rel="noopener noreferrer">TikTok</a>
           </div>
         </div>
         <div class="footer-info">
@@ -133,6 +273,41 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=3"></script>
     <script src="account.js?v=59"></script>
+    <script>
+      (function () {
+        var isLocal = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+        if (!isLocal) return;
+
+        document.title = 'Used Tires | EastCord Tires';
+        var description = document.querySelector('meta[name="description"]');
+        if (description) {
+          description.setAttribute('content', 'Search EastCord Tires live used tire inventory by width, profile, wheel size, and season.');
+        }
+
+        var comingSoon = document.querySelector('[data-used-coming-soon]');
+        var shop = document.querySelector('[data-used-shop]');
+        var tireCart = document.querySelector('[data-local-used-tire-cart]');
+        if (comingSoon) comingSoon.hidden = true;
+        if (shop) shop.hidden = false;
+        if (tireCart) tireCart.hidden = false;
+
+        var status = document.querySelector('[data-inventory-load-status]');
+        if (status) status.textContent = 'Connecting to inventory...';
+
+        var inventory = document.createElement('script');
+        inventory.src = 'inventory.js?v=63';
+
+        var pricing = document.createElement('script');
+        pricing.src = 'used-tire-pricing.js?v=2';
+        pricing.onload = function () {
+          document.body.appendChild(inventory);
+        };
+        pricing.onerror = function () {
+          document.body.appendChild(inventory);
+        };
+        document.body.appendChild(pricing);
+      })();
+    </script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

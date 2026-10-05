@@ -19,8 +19,6 @@ let inventoryAutoRefreshInProgress = false;
 let inventoryAutoRefreshTimer = null;
 let markdownOpen = false;
 
-bootInventory();
-
 function bootInventory() {
   const start = () => {
     init().catch((error) => {
@@ -2130,3 +2128,5 @@ function formatPrice(price) {
   }
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(price);
 }
+
+bootInventory();
