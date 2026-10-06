@@ -58,8 +58,8 @@ exports.handler = async (event) => {
   }
 
   const customer = payload.customer || {};
-  if (!required(customer.name) || !required(customer.email) || !required(customer.phone)) {
-    return json(400, { message: 'Name, email, and phone are required.' });
+  if (!required(customer.name) || !required(customer.email)) {
+    return json(400, { message: 'Name and email are required.' });
   }
 
   console.log('[EastCord new tires] save-new-tire-widget-order', {

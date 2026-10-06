@@ -23,6 +23,11 @@ class Query {
     return this;
   }
 
+  update(row) {
+    this.updated = row;
+    return this;
+  }
+
   async maybeSingle() {
     await new Promise((resolve) => setTimeout(resolve, Math.floor(Math.random() * 8)));
     const key = this.filters.stripe_session_id;
@@ -31,6 +36,12 @@ class Query {
 
   async single() {
     await new Promise((resolve) => setTimeout(resolve, Math.floor(Math.random() * 8)));
+    if (this.updated) {
+      const existing = [...this.database.orders.values()].find((order) => order.id === this.filters.id);
+      if (!existing) return { data: null, error: { message: 'missing order' } };
+      Object.assign(existing, this.updated);
+      return { data: existing, error: null };
+    }
     const key = this.inserted?.stripe_session_id;
     if (key && this.database.orders.has(key)) {
       return {
@@ -84,6 +95,33 @@ async function main() {
   assert.strictEqual(responses.filter((result) => result.alreadyPaid).length, 39);
   assert.strictEqual(new Set(responses.map((result) => result.order.id)).size, 1);
   console.log('ok  40 concurrent duplicate submissions return one order');
+
+  const pendingRequest = {
+    ...request,
+    items: [],
+    orderNumber: '',
+    notes: 'Checkout finished without tire details.',
+    totals: {},
+  };
+  const firstPending = await recordWidgetNewTireOrder(pendingRequest);
+  const secondPending = await recordWidgetNewTireOrder(pendingRequest);
+  assert.strictEqual(firstPending.ok, true);
+  assert.strictEqual(firstPending.alreadyPaid, false);
+  assert.match(firstPending.order.notes, /Tire details were not copied/i);
+  assert.strictEqual(firstPending.order.items[0].detailsPending, true);
+  assert.strictEqual(secondPending.alreadyPaid, true);
+  assert.strictEqual(secondPending.order.id, firstPending.order.id);
+
+  const upgraded = await recordWidgetNewTireOrder({
+    ...pendingRequest,
+    items: request.items,
+    totals: request.totals,
+    notes: 'Tire details arrived after checkout.',
+  });
+  assert.strictEqual(upgraded.order.id, firstPending.order.id);
+  assert.strictEqual(upgraded.order.items[0].size, '225/45R18');
+  assert.doesNotMatch(upgraded.order.notes, /Tire details were not copied/i);
+  console.log('ok  a checkout with no tire size is saved once, then updated when details arrive');
 }
 
 main().catch((error) => {

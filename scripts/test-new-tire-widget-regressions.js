@@ -274,6 +274,50 @@ async function waitForText(locator, pattern, message) {
       failures.push(`selected tire brand/model: ${error.message}`);
     }
 
+    try {
+      let savedPayload = null;
+      await page.route('**/.netlify/functions/save-new-tire-widget-order', async (route) => {
+        savedPayload = JSON.parse(route.request().postData() || '{}');
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true, saved: true, orderId: 'order-confirmed', appointmentIds: [] }),
+        });
+      });
+      await page.evaluate(() => {
+        window.EastCordAccount.getAccessToken = async () => 'test-token';
+        window.dispatchEvent(new CustomEvent('eastcord:auth-changed', {
+          detail: {
+            signedIn: true,
+            profile: {
+              customerId: 'user-1',
+              name: 'Milton Customer',
+              email: 'milton401tire@gmail.com',
+              phone: '3658225553',
+            },
+          },
+        }));
+        sessionStorage.setItem('eastcord_new_tire_checkout_snapshot_v1', JSON.stringify({
+          tires: [{ brand: 'Michelin', model: 'X-Ice Snow', size: '225/45R18', qty: 4, price: 200 }],
+          vehicle: {},
+          fulfillment: 'Pickup',
+        }));
+        (window.TCWidget?.eventHandlers?.onTireSearchResults || [])
+          .forEach((handler) => handler({ tires: [] }));
+        document.getElementById('tireconnect').innerHTML = '<section><h1>Thank you for your order</h1><p>Your order has been submitted.</p></section>';
+      });
+      await page.waitForFunction(() => {
+        const saved = sessionStorage.getItem('eastcord_confirmed_new_tire_order_v1');
+        return saved && saved.includes('order-confirmed');
+      });
+      assert.strictEqual(savedPayload.customer.email, 'milton401tire@gmail.com');
+      assert.strictEqual(savedPayload.items[0].size, '225/45R18');
+      assert.strictEqual(savedPayload.detailsPending, false);
+      console.log('ok  confirmation screen saves the captured tire when TireConnect omits the order number');
+    } catch (error) {
+      failures.push(`confirmation save: ${error.message}`);
+    }
+
     assert.deepStrictEqual(errors, []);
 
     console.log('ok  valid tire model remains visible and sidebar/spec labels are rejected');

@@ -1,6 +1,7 @@
 (() => {
   const fallbackMessage = 'New tire shopping is temporarily unavailable. Please contact EastCord Tires for assistance.';
   const QUOTE_STORAGE_KEY = 'eastcord_new_tire_quote_v1';
+  const CHECKOUT_SNAPSHOT_KEY = 'eastcord_new_tire_checkout_snapshot_v1';
   const INSTALL_SLOT_KEY = 'eastcord_new_tire_install_slot_v1';
   const NEW_TIRE_SHIPPING_DAYS = 4;
   const TIME_WINDOWS = [
@@ -434,6 +435,39 @@
     } catch (error) {
       /* keep memory copy */
     }
+    rememberCheckoutSnapshot();
+  }
+
+  function rememberCheckoutSnapshot(quote = selectedQuote) {
+    if (!hasCapturedTire(quote)) return;
+    try {
+      sessionStorage.setItem(CHECKOUT_SNAPSHOT_KEY, JSON.stringify({
+        tires: quote.tires,
+        vehicle: quote.vehicle || {},
+        hash: quote.hash || window.location.hash || '',
+        fulfillment: selectedFulfillment(),
+        savedAt: new Date().toISOString(),
+      }));
+    } catch (error) {
+      /* the in-memory quote still covers this page */
+    }
+  }
+
+  function readCheckoutSnapshot() {
+    try {
+      const snapshot = JSON.parse(sessionStorage.getItem(CHECKOUT_SNAPSHOT_KEY) || 'null');
+      return hasCapturedTire(snapshot) ? snapshot : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function clearCheckoutSnapshot() {
+    try {
+      sessionStorage.removeItem(CHECKOUT_SNAPSHOT_KEY);
+    } catch (error) {
+      /* ignore */
+    }
   }
 
   function clearQuote() {
@@ -687,6 +721,7 @@
     const explicitSearchPage = /search|vehicle|tire size|by size|home|start/i.test(page)
       && !/results?|summary|quote|order|checkout|payment/i.test(page);
     if (!explicitSearchPage && !isWidgetSearchFormPage()) return false;
+    clearCheckoutSnapshot();
     if (selectedQuote || lastClickedCard || highlightedCard) clearQuote();
     else hideHighlightOverlay({ clearHold: true });
     highlightedCard = null;
@@ -801,6 +836,7 @@
     highlightSelectedWidgetTires();
     syncDemoOrderButton();
     refreshScrapedBrand();
+    watchWidgetOrderConfirmation();
   }
 
   function isLocalCheckoutOpen() {
@@ -2073,15 +2109,54 @@
   }
 
   function isCompletedOrderStatus(status) {
-    return status === 'submitted' || status === 'success';
+    return /^(submitted|success|succeeded|paid|complete|completed|confirmed|approved)$/.test(status);
+  }
+
+  function isWidgetOrderConfirmedPage() {
+    const text = widgetPlainText().replace(/\s+/g, ' ');
+    const hash = window.location.hash || '';
+    if (isWidgetCheckoutPage() || isWidgetSearchFormPage()) return false;
+    if (/thank you for your (order|purchase)|your order (?:has been|was) (?:placed|submitted|received)|order (?:placed|submitted) successfully|payment (?:was )?successful|we (?:have )?received your order/i.test(text)) {
+      return true;
+    }
+    return /(?:thank|success|complete|confirmation)/i.test(hash)
+      && !/summary|quote|search|results/i.test(hash)
+      && /order|thank|payment/i.test(text);
+  }
+
+  function orderNumberFromText(text) {
+    const match = String(text || '').match(/order\s*(?:#|number|no\.?)\s*[:#]?\s*([A-Z0-9][A-Z0-9-]{2,})/i);
+    const value = String(match?.[1] || '').trim();
+    if (!value || /^(summary|number|submitted|placed|received|complete|completed|successful)$/i.test(value)) return '';
+    return value;
   }
 
   function itemsFromWidgetPayload(data) {
     const fromEvent = (quoteFromWidgetPayload(data)?.tires || []).filter((tire) => isUsableTire(tire));
     const fromSelected = selectedQuote?.tires || [];
-    if (!fromEvent.length) return fromSelected;
-    if (!fromSelected.length) return fromEvent;
-    return fromEvent.map((tire, index) => mergeTire(fromSelected[index] || fromSelected[0] || {}, tire));
+    const fromSnapshot = readCheckoutSnapshot()?.tires || [];
+    const saved = fromSelected.length ? fromSelected : fromSnapshot;
+    if (!fromEvent.length) return saved;
+    if (!saved.length) return fromEvent;
+    return fromEvent.map((tire, index) => mergeTire(saved[index] || saved[0] || {}, tire));
+  }
+
+  let confirmationWatchKey = '';
+
+  function watchWidgetOrderConfirmation() {
+    if (!isWidgetOrderConfirmedPage()) return;
+    const text = widgetPlainText();
+    if (lastSavedOrder?.id && !orderNumberFromText(text)) return;
+    const key = orderNumberFromText(text) || text.replace(/\s+/g, ' ').slice(0, 180);
+    if (!key || key === confirmationWatchKey) return;
+    confirmationWatchKey = key;
+    handleWidgetOrderComplete({
+      status: 'submitted',
+      order_number: orderNumberFromText(text),
+      notes_extra: 'Saved from the TireConnect confirmation screen.',
+    }, 'widget-confirmation').then((result) => {
+      if (!result?.saved && currentProfile) confirmationWatchKey = '';
+    });
   }
 
   async function handleWidgetOrderComplete(event, source = 'callback') {
@@ -2089,24 +2164,34 @@
     const status = String(data.status || data.order_status || '').toLowerCase();
     logFlow(`checkout.complete.${source}`, { status, data });
     captureQuoteFromWidgetEvent(event);
-    const gate = memberGate();
-    if (!gate.ok) {
-      logFlow('supabase.skipped', gate.message);
-      setFulfillmentMessage(gate.message, true);
+    if (!currentProfile) {
+      const message = 'Checkout finished in the tire search. Log in so EastCord can save this order to your account.';
+      logFlow('supabase.skipped', message);
+      setFulfillmentMessage(message, true);
       syncFulfillmentUi();
       scrollToFulfillment();
       return { saved: false };
     }
     const customer = customerFromWidgetPayload(event);
-    const items = itemsFromWidgetPayload(data);
-    logFlow('supabase.prepare', { customer, items, fulfillment: selectedFulfillment() });
-    if (!items.length) {
-      logFlow('supabase.skipped', 'No tire details on the completed order.');
-      setFulfillmentMessage('Checkout finished, but EastCord could not copy the tire details. Contact info@eastcordtires.ca so we can attach this order to your account.', true);
-      return { saved: false };
+    if (!customer.name) customer.name = currentProfile.name || 'EastCord customer';
+    if (!customer.email) customer.email = currentProfile.email || '';
+    if (!customer.phone) customer.phone = phoneValue() || 'Not provided';
+    let items = itemsFromWidgetPayload(data);
+    const detailsPending = !items.length;
+    if (detailsPending) {
+      items = [{
+        brand: 'New tires',
+        model: '',
+        size: '',
+        qty: 1,
+        price: 0,
+        partNumber: '',
+        detailsPending: true,
+      }];
     }
-    if (!customer.email || !customer.phone || !customer.name) {
-      logFlow('supabase.skipped', 'Missing customer name, email, or phone. Log in and complete checkout.');
+    logFlow('supabase.prepare', { customer, items, detailsPending, fulfillment: selectedFulfillment() });
+    if (!customer.email) {
+      logFlow('supabase.skipped', 'Missing customer email.');
       setFulfillmentMessage('Checkout finished in the tire search. Log in so EastCord can save this order to your account.', true);
       return { saved: false };
     }
@@ -2122,12 +2207,18 @@
       address.country,
     ].filter(Boolean).join(', ');
     const scrapedTotals = totalsFromWidget();
+    const snapshot = readCheckoutSnapshot();
+    const orderNumber = String(
+      data.order_number || nested.order_number || orderNumberFromText(widgetPlainText()) || '',
+    ).trim();
     return saveWidgetOrderToAccount({
       customer,
-      fulfillment: selectedFulfillment(),
+      fulfillment: snapshot?.fulfillment || selectedFulfillment(),
       items,
+      detailsPending,
       notes: [
-        formatQuoteSummary(selectedQuote) || fulfillmentNote(),
+        detailsPending ? '' : (formatQuoteSummary(selectedQuote) || fulfillmentNote()),
+        detailsPending ? 'Tire details were not copied from TireConnect.' : '',
         addressLine ? `Address: ${addressLine}` : '',
         widgetCustomer.notes ? `Widget notes: ${widgetCustomer.notes}` : '',
         data.notes_extra || '',
@@ -2135,8 +2226,8 @@
           ? 'Local widget test checkout. No live card was charged.'
           : 'Paid in the TireConnect widget checkout.',
       ].filter(Boolean).join('\n'),
-      vehicle: selectedQuote?.vehicle || nested.vehicle || {},
-      orderNumber: String(data.order_number || nested.order_number || ''),
+      vehicle: selectedQuote?.vehicle || snapshot?.vehicle || nested.vehicle || {},
+      orderNumber,
       recordedLocally: source === 'demo' || source === 'widget-checkout',
       appointments: [],
       totals: {
@@ -2285,6 +2376,7 @@
       }
       lastNotifiedOrderKey = key;
       rememberConfirmedOrder(data.orderId, payload.fulfillment);
+      clearCheckoutSnapshot();
       linkCartAppointmentsToOrder(data.orderId, data.appointmentIds || []);
       const goBook = payload.fulfillment === 'Installation' && data.orderId;
       setFulfillmentMessage(
@@ -2477,6 +2569,18 @@
       resolveWidgetEvent(event);
       handleWidgetOrderComplete(event, 'onOrderSubmitted');
     });
+    [
+      'onOrderComplete',
+      'onOrderCompleted',
+      'onCheckoutSuccess',
+      'onPaymentSuccess',
+      'onEcommerceOrderSuccess',
+    ].forEach((name) => {
+      listenOptional(name, (event) => {
+        resolveWidgetEvent(event);
+        handleWidgetOrderComplete(event, name);
+      });
+    });
     listen('onLead', (event) => {
       captureQuoteFromWidgetEvent(event);
       pushCustomerIntoWidget();
@@ -2635,7 +2739,7 @@
     const quote = quoteFromSelectEvent(data) || quoteFromWidgetPayload(data);
     if (quote) applyCapturedQuote(quote, { scroll: false });
     applyQuantityFromPayload(data);
-    if (isCompletedOrderStatus(status) || /order.?submitted/i.test(type)) {
+    if (isCompletedOrderStatus(status) || /order.?(submitted|complete|completed|paid|success)/i.test(type)) {
       handleWidgetOrderComplete(data, 'postMessage');
     }
   }
@@ -2655,13 +2759,16 @@
     document.querySelector('[data-new-tire-fulfillment-form]')?.addEventListener('submit', submitOrderRequest);
     document.querySelector('[data-new-tire-change]')?.addEventListener('click', () => {
       clearQuote();
+      clearCheckoutSnapshot();
       document.getElementById('tireconnect')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     window.addEventListener('eastcord:auth-changed', (event) => {
       currentProfile = event.detail?.signedIn ? event.detail.profile : null;
+      confirmationWatchKey = '';
       logFlow('auth.changed', { signedIn: Boolean(currentProfile) });
       syncFulfillmentUi();
       pushCustomerIntoWidget();
+      watchWidgetOrderConfirmation();
     });
     window.addEventListener('hashchange', () => {
       logFlow('widget.hashchange', window.location.hash);

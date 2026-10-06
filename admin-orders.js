@@ -205,6 +205,8 @@
       const phone = order.customer_phone || '';
       const email = order.customer_email || '';
       const lines = itemLines(order);
+      const detailsPending = /tire details were not copied/i.test(String(order.notes || ''))
+        || (Array.isArray(order.items) && order.items.length > 0 && order.items.every((item) => item?.detailsPending));
       const bucket = statusBucket(order);
       const fulfillment = fulfillmentOf(order);
       const readyLabel = fulfillment === 'Installation'
@@ -239,8 +241,8 @@
             <div><span>Phone</span>${phone ? `<a href="${escapeHtml(phoneHref(phone))}">${escapeHtml(phone)}</a>` : '<strong>Not provided</strong>'}</div>
             <div><span>Email</span>${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : '<strong>Not provided</strong>'}</div>
             <div><span>Type</span><strong>${order.tireKind === 'Used' ? 'Used tires' : 'New tires'}</strong></div>
-            <div><span>Tires</span><strong>${escapeHtml(lines.join(', ') || 'See notes')}</strong></div>
-            <div><span>Total</span><strong>${escapeHtml(money(order.total_with_hst))}</strong></div>
+            <div><span>Tires</span><strong>${detailsPending ? 'Tire size still needs to be confirmed' : escapeHtml(lines.join(', ') || 'See notes')}</strong></div>
+            <div><span>Total</span><strong>${detailsPending ? 'Confirming' : escapeHtml(money(order.total_with_hst))}</strong></div>
             ${order.tireconnect_order_number ? `<div><span>TireConnect</span><strong>${escapeHtml(order.tireconnect_order_number)}</strong></div>` : ''}
             ${order.pickup_ready_emailed_at ? `<div><span>Ready email</span><strong>${escapeHtml(formatDate(order.pickup_ready_emailed_at))}</strong></div>` : ''}
           </div>

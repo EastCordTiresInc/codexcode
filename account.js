@@ -1088,6 +1088,11 @@ function formatPaidDate(value) {
   return date.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function orderNeedsTireDetails(order) {
+  return /tire details were not copied/i.test(String(order?.notes || ''))
+    || (Array.isArray(order?.items) && order.items.length > 0 && order.items.every((item) => item?.detailsPending));
+}
+
 function renderPurchasedTires(orders) {
   if (!orders.length) {
     return '<p class="empty-cart">No paid tires yet. After you pay for used tires or complete a new-tire order, those tires are saved here.</p>';
@@ -1106,13 +1111,16 @@ function renderPurchasedTires(orders) {
         <b>Qty ${escapeHtml(tire.qty)}</b>
       </div>`
     )).join('');
+    const detailsPending = isNew && orderNeedsTireDetails(order);
     const fulfillment = order.fulfillment_preference || 'Pickup';
     const status = String(order.fulfillment_status || '').toLowerCase();
     const ready = Boolean(order.pickup_ready_emailed_at || order.pickup_ready_at)
       || status === 'ready_for_pickup'
       || status === 'arrived';
     const pickedUp = status === 'picked_up' || status === 'completed' || Boolean(order.picked_up_at);
-    const nextStep = pickedUp
+    const nextStep = detailsPending
+      ? '<div class="purchased-order-action"><div><strong>Confirming your order</strong><span>EastCord is matching this TireConnect checkout to the tire size. It will update here.</span></div></div>'
+      : pickedUp
       ? `<div class="purchased-order-action"><div><strong>${fulfillment === 'Installation' ? 'Installation complete' : 'Picked up'}</strong><span>This EastCord order is finished.</span></div></div>`
       : fulfillment === 'Installation' && isNew && ready
         ? `<div class="purchased-order-action">
@@ -1133,9 +1141,11 @@ function renderPurchasedTires(orders) {
       <article class="purchased-order">
         <header class="purchased-order-header">
           <div><span class="purchased-order-badge">${isNew ? 'New tires' : 'Used tires'}</span><span>Paid${paidLabel ? ` ${escapeHtml(paidLabel)}` : ''}</span></div>
-          <div class="purchased-order-total"><span>Order total</span><strong>${money(order.total_with_hst || 0)}</strong></div>
+          <div class="purchased-order-total"><span>Order total</span><strong>${detailsPending ? 'Confirming' : money(order.total_with_hst || 0)}</strong></div>
         </header>
-        <div class="purchased-tire-list">${itemLines}</div>
+        <div class="purchased-tire-list">${detailsPending
+          ? '<div class="purchased-tire-line"><div><strong>TireConnect order</strong><span>Tire size and order number are being confirmed.</span></div></div>'
+          : itemLines}</div>
         <div class="purchased-order-fulfillment"><span>Fulfillment</span><strong>${escapeHtml(fulfillment)}</strong></div>
         ${nextStep}
       </article>

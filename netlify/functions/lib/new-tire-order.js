@@ -127,11 +127,14 @@ async function notifyPaidNewTireOrder(order) {
 
   const tireconnectNumber = String(order.tireconnect_order_number || '')
     .trim() || String(order.stripe_session_id || '').replace(/^tireconnect:/, '');
+  const detailsPending = orderNeedsTireDetails(order);
+  const visibleOrderNumber = detailsPending && /^unnumbered:/i.test(tireconnectNumber) ? '' : tireconnectNumber;
   const staffText = [
     'Paid new tire order',
     '',
     `EastCord order: ${order.id}`,
-    tireconnectNumber ? `TireConnect order #: ${tireconnectNumber}` : '',
+    visibleOrderNumber ? `TireConnect order #: ${visibleOrderNumber}` : 'TireConnect order number was not copied.',
+    detailsPending ? 'Tire size was not copied. Confirm the order in TireConnect, then update this account order.' : '',
     String(order.stripe_session_id || '').includes('local-') || String(order.stripe_session_id || '').includes('demo-')
       ? 'Recorded from EastCord local/demo checkout (no live card charge required)'
       : 'Paid in the TireConnect widget',
@@ -145,7 +148,7 @@ async function notifyPaidNewTireOrder(order) {
     'Tires:',
     ...itemLines,
     '',
-    `Total charged: ${formatMoney(order.total_with_hst)}`,
+    detailsPending ? 'Total charged: not copied from TireConnect.' : `Total charged: ${formatMoney(order.total_with_hst)}`,
     '',
     nextStep(fulfillment, order.id),
   ].filter((line) => line !== undefined).join('\n');
@@ -153,7 +156,20 @@ async function notifyPaidNewTireOrder(order) {
   const bookingUrl = order.id
     ? `${APPOINTMENT_URL}?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking`
     : APPOINTMENT_URL;
-  const customerEmail = fulfillment === 'Installation'
+  const customerEmail = detailsPending
+    ? buildBrandedEmail({
+      to: order.customer_email,
+      subject: 'EastCord Tires received your tire order',
+      heading: 'We received your order',
+      body: [
+        `Hello ${customerName},`,
+        'EastCord Tires received your TireConnect order and saved it on your account. We are confirming the tire size and will email you about the next step.',
+      ],
+      actionUrl: ACCOUNT_URL,
+      actionLabel: 'View your account',
+      footer: 'If you have questions, call EastCord Tires at 365-822-5553.',
+    })
+    : fulfillment === 'Installation'
     ? buildBrandedEmail({
       to: order.customer_email,
       subject: 'EastCord Tires payment received — book installation',
@@ -186,7 +202,9 @@ async function notifyPaidNewTireOrder(order) {
   await sendEmail({
     to: config.eastcordTo || CONTACT_EMAIL,
     replyTo: order.customer_email || CONTACT_EMAIL,
-    subject: `Paid new tire order — ${fulfillment} — ${customerName}`,
+    subject: detailsPending
+      ? `New tire order needs details — ${customerName}`
+      : `Paid new tire order — ${fulfillment} — ${customerName}`,
     text: staffText,
     html: htmlFromText(staffText),
   });
@@ -309,19 +327,57 @@ function normalizeWidgetItems(items) {
     .map((item) => {
       const qty = Math.max(1, Math.min(8, Number(item.qty ?? item.quantity ?? item.selectedQuantity ?? item.selected_quantity) || 1));
       const unitPrice = Math.max(0, roundMoney(item.unitPrice ?? item.price ?? item.unit_price ?? item.price_per_tire ?? item.retail_price ?? 0));
+      const brand = cleanWidgetBrand(item.brand || item.brand_name || item.manufacturer || item.tire_brand);
+      const model = cleanWidgetModel(item.model || item.model_name || item.product_name || item.tire_model);
+      const size = cleanTireSize(item.size || item.sizeShort || item.size_short || item.tire_size || item.size_display);
+      const detailsPending = Boolean(item.detailsPending) || (!size && unitPrice <= 0 && /^new tires$/i.test(brand));
       return {
         kind: 'new_tire',
-        brand: cleanWidgetBrand(item.brand || item.brand_name || item.manufacturer || item.tire_brand),
-        model: cleanWidgetModel(item.model || item.model_name || item.product_name || item.tire_model),
-        size: cleanTireSize(item.size || item.sizeShort || item.size_short || item.tire_size || item.size_display),
+        brand,
+        model,
+        size,
         qty,
         unitPrice,
         price: unitPrice,
         partNumber: String(item.partNumber || item.part_number || '').trim().slice(0, 40),
         lineTotal: roundMoney(unitPrice * qty),
+        detailsPending,
       };
     })
-    .filter((item) => item.brand || item.model || item.size);
+    .filter((item) => item.brand || item.model || item.size || item.detailsPending);
+}
+
+function torontoDateString(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Toronto',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function pendingTireItem() {
+  return {
+    kind: 'new_tire',
+    brand: 'New tires',
+    model: '',
+    size: '',
+    qty: 1,
+    unitPrice: 0,
+    price: 0,
+    partNumber: '',
+    lineTotal: 0,
+    detailsPending: true,
+  };
+}
+
+function itemsNeedTireDetails(items) {
+  return !items.length || items.every((item) => item.detailsPending);
+}
+
+function orderNeedsTireDetails(order) {
+  return /tire details were not copied/i.test(String(order?.notes || ''))
+    || itemsNeedTireDetails(getOrderItems(order));
 }
 
 async function recordWidgetNewTireOrder({
@@ -337,8 +393,14 @@ async function recordWidgetNewTireOrder({
   totals,
   appointments,
 }) {
-  const preparedItems = normalizeWidgetItems(items);
-  const orderKey = String(orderNumber || '').trim() ? `tireconnect:${String(orderNumber).trim()}` : '';
+  let preparedItems = normalizeWidgetItems(items);
+  if (!preparedItems.length || itemsNeedTireDetails(preparedItems)) {
+    preparedItems = [pendingTireItem()];
+  }
+  const explicitOrderNumber = String(orderNumber || '').trim();
+  const orderKey = explicitOrderNumber
+    ? `tireconnect:${explicitOrderNumber}`
+    : `tireconnect:unnumbered:${userId}:${torontoDateString()}`;
 
   const findExistingOrder = async () => {
     if (!orderKey) return null;
@@ -361,28 +423,50 @@ async function recordWidgetNewTireOrder({
     return { appointmentIds, appointmentCount: appointmentIds.length };
   };
 
-  if (orderKey) {
-    const existing = await findExistingOrder();
-    if (existing) {
-      const linked = await attach(existing);
-      return { ok: true, alreadyPaid: true, order: existing, ...linked };
-    }
-  }
-
   const itemTotal = roundMoney(preparedItems.reduce((sum, item) => sum + (item.lineTotal || 0), 0));
   const subtotal = roundMoney(totals?.subtotal ?? itemTotal);
   const tax = roundMoney(totals?.tax ?? 0);
   const total = roundMoney(totals?.total ?? (subtotal + tax) ?? itemTotal);
+  const detailsPending = itemsNeedTireDetails(preparedItems);
   const noteLines = [
     String(notes || '').trim(),
-    orderNumber ? `Order #: ${orderNumber}` : '',
-    recordedLocally || /^(local-|demo-)/.test(String(orderNumber || ''))
+    detailsPending && !/tire details were not copied/i.test(String(notes || ''))
+      ? 'Tire details were not copied from TireConnect.'
+      : '',
+    explicitOrderNumber ? `Order #: ${explicitOrderNumber}` : '',
+    recordedLocally || /^(local-|demo-)/.test(explicitOrderNumber)
       ? 'Recorded from EastCord local/demo checkout (no live card charge required)'
       : 'Paid in the TireConnect widget',
   ].filter(Boolean).join('\n');
 
-  if (!preparedItems.length) {
-    return { ok: false, statusCode: 400, message: 'The widget order did not include tire details.' };
+  const upgradePendingOrder = async (existing) => {
+    if (!existing || !orderNeedsTireDetails(existing) || detailsPending) return null;
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from('new_tire_orders')
+      .update({
+        items: preparedItems,
+        subtotal,
+        hst_amount: tax,
+        total_with_hst: total || subtotal,
+        tax_rate: subtotal > 0 ? roundMoney(tax / subtotal) : 0,
+        notes: noteLines,
+        fulfillment_preference: fulfillment === 'Installation' ? 'Installation' : existing.fulfillment_preference,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+      .select('*')
+      .single();
+    if (updateError || !updated) return null;
+    return updated;
+  };
+
+  if (orderKey) {
+    const existing = await findExistingOrder();
+    if (existing) {
+      const upgraded = await upgradePendingOrder(existing);
+      const linked = await attach(upgraded || existing);
+      return { ok: true, alreadyPaid: true, order: upgraded || existing, ...linked };
+    }
   }
 
   console.log('[EastCord new tires] recordWidgetNewTireOrder', {
@@ -419,8 +503,9 @@ async function recordWidgetNewTireOrder({
   if (error?.code === '23505' && orderKey) {
     const existing = await findExistingOrder();
     if (existing) {
-      const linked = await attach(existing);
-      return { ok: true, alreadyPaid: true, order: existing, ...linked };
+      const upgraded = await upgradePendingOrder(existing);
+      const linked = await attach(upgraded || existing);
+      return { ok: true, alreadyPaid: true, order: upgraded || existing, ...linked };
     }
   }
 
