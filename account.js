@@ -1040,8 +1040,8 @@ async function getPaidNewTireOrders() {
   const profile = await getCurrentProfile();
   if (!client || !profile) return [];
 
-  const trackedSelect = 'id, items, paid_at, created_at, payment_status, fulfillment_preference, fulfillment_status, pickup_ready_at, pickup_ready_emailed_at, picked_up_at, total_with_hst, vehicle';
-  const basicSelect = 'id, items, paid_at, created_at, payment_status, fulfillment_preference, fulfillment_status, total_with_hst, vehicle';
+  const trackedSelect = 'id, items, notes, stripe_session_id, paid_at, created_at, payment_status, fulfillment_preference, fulfillment_status, pickup_ready_at, pickup_ready_emailed_at, picked_up_at, total_with_hst, vehicle';
+  const basicSelect = 'id, items, notes, stripe_session_id, paid_at, created_at, payment_status, fulfillment_preference, fulfillment_status, total_with_hst, vehicle';
   let { data, error } = await client
     .from('new_tire_orders')
     .select(trackedSelect)
@@ -1088,6 +1088,16 @@ function formatPaidDate(value) {
   return date.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function tireConnectOrderNumber(order) {
+  const fromNotes = String(order?.notes || '').match(/Order #:\s*([A-Za-z0-9-]+)/i);
+  if (fromNotes) return fromNotes[1];
+  const session = String(order?.stripe_session_id || '');
+  if (!session.startsWith('tireconnect:')) return '';
+  const number = session.slice('tireconnect:'.length);
+  if (!number || /unnumbered|demo-|local-|widget-test/i.test(number)) return '';
+  return number;
+}
+
 function orderNeedsTireDetails(order) {
   return /tire details were not copied/i.test(String(order?.notes || ''))
     || (Array.isArray(order?.items) && order.items.length > 0 && order.items.every((item) => item?.detailsPending));
@@ -1112,6 +1122,8 @@ function renderPurchasedTires(orders) {
       </div>`
     )).join('');
     const detailsPending = isNew && orderNeedsTireDetails(order);
+    const orderNumber = isNew ? tireConnectOrderNumber(order) : '';
+    const hasPrice = Number(order.total_with_hst) > 0 || tires.some((tire) => Number(tire.unitPrice) > 0);
     const fulfillment = order.fulfillment_preference || 'Pickup';
     const status = String(order.fulfillment_status || '').toLowerCase();
     const ready = Boolean(order.pickup_ready_emailed_at || order.pickup_ready_at)
@@ -1141,11 +1153,12 @@ function renderPurchasedTires(orders) {
       <article class="purchased-order">
         <header class="purchased-order-header">
           <div><span class="purchased-order-badge">${isNew ? 'New tires' : 'Used tires'}</span><span>Paid${paidLabel ? ` ${escapeHtml(paidLabel)}` : ''}</span></div>
-          <div class="purchased-order-total"><span>Order total</span><strong>${detailsPending ? 'Confirming' : money(order.total_with_hst || 0)}</strong></div>
+          <div class="purchased-order-total"><span>Order total</span><strong>${detailsPending || !hasPrice ? 'Not on file' : money(order.total_with_hst || 0)}</strong></div>
         </header>
         <div class="purchased-tire-list">${detailsPending
           ? '<div class="purchased-tire-line"><div><strong>TireConnect order</strong><span>Tire size and order number are being confirmed.</span></div></div>'
           : itemLines}</div>
+        ${orderNumber ? `<div class="purchased-order-fulfillment"><span>TireConnect order</span><strong>${escapeHtml(orderNumber)}</strong></div>` : ''}
         <div class="purchased-order-fulfillment"><span>Fulfillment</span><strong>${escapeHtml(fulfillment)}</strong></div>
         ${nextStep}
       </article>
