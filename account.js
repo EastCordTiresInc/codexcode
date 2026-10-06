@@ -1103,6 +1103,56 @@ function orderNeedsTireDetails(order) {
     || (Array.isArray(order?.items) && order.items.length > 0 && order.items.every((item) => item?.detailsPending));
 }
 
+function isLocalAccountPreview() {
+  return /localhost|127\.0\.0\.1/i.test(window.location.hostname);
+}
+
+function localPurchasedTirePreviewOrders() {
+  return [
+    {
+      id: 'local-preview-yesterday',
+      tireKind: 'New',
+      paid_at: '2026-10-05T16:00:00.000Z',
+      notes: 'Order #: 376313',
+      stripe_session_id: 'tireconnect:376313',
+      fulfillment_preference: 'Pickup',
+      total_with_hst: 0,
+      items: [{ brand: 'Maxin', model: 'All Weather', size: '215/45R17', qty: 1, unitPrice: 0 }],
+    },
+    {
+      id: 'local-preview-future',
+      tireKind: 'New',
+      paid_at: '2026-10-06T16:00:00.000Z',
+      notes: 'Order #: 376314',
+      stripe_session_id: 'tireconnect:376314',
+      fulfillment_preference: 'Pickup',
+      total_with_hst: 858.35,
+      items: [{ brand: 'Maxin', model: 'All Weather', size: '215/45R17', qty: 4, unitPrice: 189.9 }],
+    },
+  ];
+}
+
+function renderLocalPurchasedTirePreview() {
+  if (!isLocalAccountPreview()) return '';
+  const [yesterday, future] = localPurchasedTirePreviewOrders();
+  return `
+    <p class="account-section-copy">Demo preview on this computer only. These cards are samples and are not saved to an account.</p>
+    <div class="account-section-heading"><h2>Yesterday’s order</h2></div>
+    ${renderPurchasedTires([yesterday])}
+    <div class="account-section-heading"><h2>Future paid order</h2></div>
+    ${renderPurchasedTires([future])}
+  `;
+}
+
+function renderPurchasedTiresPanel(orders) {
+  const preview = renderLocalPurchasedTirePreview();
+  const saved = Array.isArray(orders) && orders.length ? renderPurchasedTires(orders) : '';
+  if (preview) {
+    return `${preview}${saved ? `<div class="account-section-heading"><h2>Saved on this account</h2></div>${saved}` : ''}`;
+  }
+  return Array.isArray(orders) ? renderPurchasedTires(orders) : '';
+}
+
 function renderPurchasedTires(orders) {
   if (!orders.length) {
     return '<p class="empty-cart">No paid tires yet. After you pay for used tires or complete a new-tire order, those tires are saved here.</p>';
@@ -2274,7 +2324,7 @@ async function hydrateAccountPage() {
     accountPanel.innerHTML = `<p>${ACCOUNT_SETUP_MESSAGE}</p>`;
     if (bookingPanel) bookingPanel.innerHTML = '';
     const purchasedPanel = document.querySelector('[data-purchased-tires]');
-    if (purchasedPanel) purchasedPanel.innerHTML = '';
+    if (purchasedPanel) purchasedPanel.innerHTML = renderPurchasedTiresPanel();
     const appointmentSummary = document.querySelector('[data-account-appointment-cart]');
     if (appointmentSummary) appointmentSummary.textContent = 'Account signup is being connected.';
     return;
@@ -2302,7 +2352,7 @@ async function hydrateAccountPage() {
       accountPanel.innerHTML = '<p>Please log in to view your account.</p><p><a class="button button-primary" href="/login.html?redirect=/account.html">Log In</a></p>';
       if (bookingPanel) bookingPanel.innerHTML = '';
       const purchasedPanel = document.querySelector('[data-purchased-tires]');
-      if (purchasedPanel) purchasedPanel.innerHTML = '';
+      if (purchasedPanel) purchasedPanel.innerHTML = renderPurchasedTiresPanel();
       const appointmentSummary = document.querySelector('[data-account-appointment-cart]');
       if (appointmentSummary) appointmentSummary.textContent = 'Log in to see appointments saved to your account.';
       return;
@@ -2328,7 +2378,7 @@ async function hydrateAccountPage() {
     const purchasedPanel = document.querySelector('[data-purchased-tires]');
     if (purchasedPanel) {
       const paidOrders = await getPaidTireOrders();
-      purchasedPanel.innerHTML = renderPurchasedTires(paidOrders);
+      purchasedPanel.innerHTML = renderPurchasedTiresPanel(paidOrders);
     }
     if (bookingPanel) {
       const bookings = await getCustomerBookings();
