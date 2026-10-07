@@ -144,16 +144,17 @@ async function waitForText(locator, pattern, message) {
     try {
       const movedFee = page.locator('[data-eastcord-eco-fee-summary]');
       await movedFee.waitFor({ state: 'visible', timeout: 5000 });
-      assert.match(await movedFee.innerText(), /Tire Eco Fee\s*\$10\.00/i);
+      assert.match(await movedFee.innerText(), /Tire Eco Fee\s*\$6\.00/i);
       assert.strictEqual(await page.locator('[data-test-eco-source]').getAttribute('data-eastcord-eco-fee-hidden'), 'true');
+      assert.match(await page.locator('[data-test-price-summary]').innerText(), /Total\s*\$169\.80/i);
 
       await page.evaluate(() => {
         document.querySelector('[data-test-eco-source] span:last-child').textContent = '$20.00';
       });
       await page.waitForFunction(() => (
-        /\$20\.00/.test(document.querySelector('[data-eastcord-eco-fee-summary]')?.innerText || '')
+        /\$6\.00/.test(document.querySelector('[data-eastcord-eco-fee-summary]')?.innerText || '')
       ));
-      console.log('ok  eco fee moves into price summary and updates dynamically');
+      console.log('ok  eco fee moves into price summary and shows $6.00');
     } catch (error) {
       failures.push(`eco fee: ${error.message}`);
     }

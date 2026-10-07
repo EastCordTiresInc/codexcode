@@ -45,6 +45,7 @@
   let currentProfile = null;
   let profileReady = false;
   let widgetOnPaymentPage = false;
+  let suppressSummaryCapture = false;
   let selectedQuote = readStoredQuote();
   let didAutoScroll = false;
   let lastClickedCard = null;
@@ -723,6 +724,7 @@
     const explicitSearchPage = /search|vehicle|tire size|by size|home|start/i.test(page)
       && !/results?|summary|quote|order|checkout|payment/i.test(page);
     if (!explicitSearchPage && !isWidgetSearchFormPage()) return false;
+    suppressSummaryCapture = true;
     clearCheckoutSnapshot();
     if (selectedQuote || lastClickedCard || highlightedCard) clearQuote();
     else hideHighlightOverlay({ clearHold: true });
@@ -739,8 +741,10 @@
     const name = String(page || '');
     if (/checkout|payment|place(?:\s|-)?order|credit/i.test(name)) {
       widgetOnPaymentPage = true;
+      suppressSummaryCapture = false;
       return;
     }
+    if (/summary|quote/i.test(name) && !/search/i.test(name)) suppressSummaryCapture = false;
     if (/search|results|summary|quote/i.test(name)) widgetOnPaymentPage = false;
   }
 
@@ -847,19 +851,12 @@
     const labels = elements.filter((element) => /^tire eco fee$/i.test(directWidgetText(element)));
     const existingSummaryRow = elements.find((element) => element.hasAttribute?.('data-eastcord-eco-fee-summary'));
     if (existingSummaryRow) {
-      const sourceLabel = labels.find((label) => !label.closest?.('[data-eastcord-eco-fee-summary]'));
-      let sourceRow = sourceLabel?.closest?.('li, tr, [role="row"]') || sourceLabel?.parentElement;
-      for (let depth = 0; sourceRow && depth < 5; depth += 1) {
-        const text = String(sourceRow.innerText || sourceRow.textContent || '').replace(/\s+/g, ' ').trim();
-        if (/tire eco fee/i.test(text) && /\$\s*\d/i.test(text) && text.length <= 180) break;
-        sourceRow = sourceRow.parentElement;
-      }
-      const latestAmount = String(sourceRow?.innerText || sourceRow?.textContent || '').match(/\$\s*[\d,.]+/)?.[0]?.replace(/\s+/g, '');
       const displayedAmount = [existingSummaryRow, ...existingSummaryRow.querySelectorAll('*')]
         .find((element) => /^\$\s*[\d,.]+$/.test(directWidgetText(element)));
-      if (latestAmount && displayedAmount && directWidgetText(displayedAmount) !== latestAmount) {
-        displayedAmount.textContent = latestAmount;
+      if (displayedAmount && directWidgetText(displayedAmount) !== '$6.00') {
+        displayedAmount.textContent = '$6.00';
       }
+      applyFixedEcoFee();
       return;
     }
 
@@ -887,7 +884,7 @@
       }
       if (!subtotalRow || subtotalRow.id === 'tireconnect' || subtotalRow.contains(row)) return;
 
-      const feeAmount = String(row.innerText || row.textContent || '').match(/\$\s*[\d,.]+/)?.[0] || '$20.00';
+      const feeAmount = '$6.00';
       const summaryRow = subtotalRow.cloneNode(true);
       summaryRow.removeAttribute?.('id');
       summaryRow.querySelectorAll?.('[id]').forEach((element) => element.removeAttribute('id'));
@@ -916,6 +913,88 @@
           requiredGroup.setAttribute('aria-hidden', 'true');
         }
       }
+    });
+    applyFixedEcoFee();
+  }
+
+  function parseWidgetMoney(value) {
+    const match = String(value || '').replace(/,/g, '').match(/\$\s*(-?\d+(?:\.\d+)?)/);
+    return match ? Number(match[1]) : null;
+  }
+
+  function rowForWidgetLabel(label) {
+    let row = label?.closest?.('li, tr, [role="row"]') || label?.parentElement;
+    for (let depth = 0; row && depth < 5; depth += 1) {
+      const text = String(row.innerText || row.textContent || '').replace(/\s+/g, ' ').trim();
+      if (/\$\s*\d/.test(text) && text.length <= 180) return row;
+      row = row.parentElement;
+    }
+    return null;
+  }
+
+  function moneyElementInRow(row) {
+    if (!row) return null;
+    return [row, ...row.querySelectorAll('*')].find((element) => /^\$\s*[\d,.]+$/.test(directWidgetText(element)));
+  }
+
+  function labeledWidgetMoney(elements, pattern) {
+    const label = elements.find((element) => (
+      pattern.test(directWidgetText(element))
+      && !element.closest('[data-eastcord-eco-fee-summary]')
+    ));
+    const row = rowForWidgetLabel(label);
+    const money = moneyElementInRow(row);
+    return { money, amount: money ? parseWidgetMoney(directWidgetText(money)) : null };
+  }
+
+  function writeWidgetMoney(entry, amount) {
+    if (!entry?.money || !Number.isFinite(amount)) return;
+    entry.money.textContent = `$${Math.max(0, amount).toFixed(2)}`;
+  }
+
+  function applyFixedEcoFee() {
+    const root = document.getElementById('tireconnect');
+    if (!root) return;
+    const elements = collectWidgetElements(root);
+    const labels = elements.filter((element) => /^tire eco fee$/i.test(directWidgetText(element)));
+    if (!labels.length) return;
+    const sourceLabel = labels.find((label) => !label.closest('[data-eastcord-eco-fee-summary]'));
+    const sourceMoney = moneyElementInRow(rowForWidgetLabel(sourceLabel));
+    const oldFee = sourceMoney ? parseWidgetMoney(directWidgetText(sourceMoney)) : null;
+    const tireTotal = labeledWidgetMoney(elements, /^tire total$/i);
+    const subtotal = labeledWidgetMoney(elements, /^sub-?total$/i);
+    const taxes = labeledWidgetMoney(elements, /^taxes?$/i);
+    const charges = [
+      labeledWidgetMoney(elements, /^total price$/i),
+      labeledWidgetMoney(elements, /^payment due$/i),
+      labeledWidgetMoney(elements, /^total$/i),
+    ];
+    labels.forEach((label) => {
+      const money = moneyElementInRow(rowForWidgetLabel(label));
+      if (money && directWidgetText(money) !== '$6.00') money.textContent = '$6.00';
+    });
+    if (oldFee == null || Math.abs(oldFee - 6) < 0.001) return;
+    if (root.dataset.eastcordEcoBase === String(oldFee)) return;
+    root.dataset.eastcordEcoBase = String(oldFee);
+    const delta = Math.round((oldFee - 6) * 100) / 100;
+    const subtotalIncludesFee = tireTotal.amount != null
+      && subtotal.amount != null
+      && Math.abs(subtotal.amount - (tireTotal.amount + oldFee)) < 0.06;
+    if (subtotalIncludesFee) {
+      writeWidgetMoney(subtotal, Math.round((subtotal.amount - delta) * 100) / 100);
+      if (taxes.amount != null) {
+        writeWidgetMoney(taxes, Math.round((taxes.amount - delta * 0.13) * 100) / 100);
+      }
+      charges.forEach((entry) => {
+        if (entry.amount == null) return;
+        writeWidgetMoney(entry, Math.round((entry.amount - delta * 1.13) * 100) / 100);
+      });
+      return;
+    }
+    charges.forEach((entry) => {
+      if (entry.amount == null || subtotal.amount == null) return;
+      if (Math.abs(entry.amount - (subtotal.amount + oldFee)) > 0.06) return;
+      writeWidgetMoney(entry, Math.round((entry.amount - delta) * 100) / 100);
     });
   }
 
@@ -1684,7 +1763,7 @@
   }
 
   function refreshScrapedBrand() {
-    if (!isWidgetSummaryPage()) return;
+    if (suppressSummaryCapture || !isWidgetSummaryPage()) return;
     const quote = quoteFromWidget();
     if (!quote?.tires?.length) return;
     const merged = mergeTire(selectedQuote?.tires?.[0] || {}, quote.tires[0]);
