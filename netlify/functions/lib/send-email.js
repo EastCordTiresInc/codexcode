@@ -386,6 +386,18 @@ async function checkAndRepairResendDomain({ alertStaff = false, repair = true } 
   return result;
 }
 
+function emailAttachments(email) {
+  return (Array.isArray(email.attachments) ? email.attachments : []).map((item) => {
+    const content = String(item.content || '').replace(/^data:[^;]+;base64,/, '').replace(/\s+/g, '');
+    return {
+      filename: String(item.filename || 'photo.jpg').slice(0, 120),
+      content,
+      contentType: String(item.contentType || 'image/jpeg'),
+      contentId: String(item.contentId || '').replace(/[^a-z0-9._-]/gi, '').slice(0, 80),
+    };
+  }).filter((item) => item.content);
+}
+
 function providerErrorMessage(body) {
   return String(body?.Message || body?.message || body?.name || body?.ErrorCode || '').slice(0, 160);
 }
@@ -410,6 +422,15 @@ async function sendWithPostmark(config, email) {
   };
   if (email.idempotencyKey) {
     body.Tag = String(email.idempotencyKey).slice(0, 80);
+  }
+  const attachments = emailAttachments(email);
+  if (attachments.length) {
+    body.Attachments = attachments.map((item) => ({
+      Name: item.filename,
+      Content: item.content,
+      ContentType: item.contentType,
+      ...(item.contentId ? { ContentID: item.contentId } : {}),
+    }));
   }
 
   const response = await postJsonWithHttps({
@@ -457,6 +478,7 @@ async function sendWithResend(config, email) {
     headers['Idempotency-Key'] = String(email.idempotencyKey).slice(0, 256);
   }
 
+  const attachments = emailAttachments(email);
   const response = await postJsonWithHttps({
     hostname: 'api.resend.com',
     path: '/emails',
@@ -468,6 +490,14 @@ async function sendWithResend(config, email) {
       subject: email.subject,
       html: email.html,
       text: email.text,
+      ...(attachments.length ? {
+        attachments: attachments.map((item) => ({
+          filename: item.filename,
+          content: item.content,
+          content_type: item.contentType,
+          ...(item.contentId ? { content_id: item.contentId } : {}),
+        })),
+      } : {}),
     },
   });
 

@@ -1077,3 +1077,160 @@
     grid-template-columns: 1fr;
   }
 }
+
+.admin-job-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.admin-job-card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #e4e7eb;
+  border-radius: 12px;
+  background: #fff;
+  color: #374151;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-job-card strong {
+  color: #111317;
+}
+
+.admin-job-card.is-selected {
+  border-color: #111317;
+  box-shadow: inset 0 0 0 1px #111317;
+}
+
+.admin-job-demo {
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-job-card.is-demo {
+  background: #fffbeb;
+}
+
+.admin-job-count {
+  color: #5b6472;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-photo-panel {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #e4e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.admin-photo-panel h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.admin-photo-panel p {
+  margin: 4px 0 0;
+}
+
+.admin-photo-progress {
+  margin: 0;
+  font-weight: 700;
+}
+
+.admin-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.admin-photo-slot {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e4e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.admin-photo-slot.is-saved {
+  border-color: #86efac;
+  background: #fff;
+}
+
+.admin-photo-slot h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.admin-photo-slot p {
+  margin: 0;
+  color: #5b6472;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.admin-photo-slot img,
+.admin-photo-empty {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  background: #eef1f4;
+}
+
+.admin-photo-slot img {
+  object-fit: cover;
+}
+
+.admin-photo-empty {
+  display: grid;
+  place-items: center;
+  color: #6b7280;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-photo-send {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.admin-photo-send p {
+  margin: 0;
+}
+
+.admin-photo-send [hidden] {
+  display: none;
+}
+
+.admin-photo-pick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+@media (max-width: 800px) {
+  .admin-job-layout {
+    grid-template-columns: 1fr;
+  }
+}

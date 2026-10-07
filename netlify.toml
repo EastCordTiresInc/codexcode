@@ -145,6 +145,18 @@
   force = true
 
 [[redirects]]
+  from = "/admin/job-photos"
+  to = "/admin-job-photos.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/admin/job-photos/"
+  to = "/admin-job-photos.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/blog"
   to = "/blog/index.html"
   status = 200

@@ -176,9 +176,10 @@ async function runHttpTests(base = 'http://localhost:8888') {
     { path: '/admin', mustInclude: ['data-admin-status-filter', 'admin.js?v=9'] },
     { path: '/admin/calendar', mustInclude: ['data-admin-calendar', 'admin-calendar.js?v=4'] },
     { path: '/admin/inventory', mustInclude: ['Low stock', 'data-admin-inventory-search', 'data-sync-to-sheet', 'admin-inventory.js?v=25'] },
-    { path: '/admin/orders', mustInclude: ['Waiting for tires', 'data-admin-orders-filter', 'admin-orders.js?v=5'] },
+    { path: '/admin/orders', mustInclude: ['Waiting for tires', 'data-admin-orders-filter', 'admin-orders.js?v=6'] },
     { path: '/admin/blog', mustInclude: ['Publish to site', 'data-admin-blog-form', 'admin-blog.js?v=1', '/admin/installers'] },
     { path: '/admin/installers', mustInclude: ['data-admin-installers-form', 'admin-installers.js?v=1', 'Public form'] },
+    { path: '/admin/job-photos', mustInclude: ['data-admin-jobs-form', 'data-admin-send-photos', 'admin-job-photos.js?v=4', 'Job photos'] },
     { path: '/blog', mustInclude: ['data-blog-featured', 'blog.js?v=2'] },
     { path: '/installer-application', mustInclude: ['data-installer-form', 'local-installers.js?v=7', 'data-required-group'] },
   ];
@@ -207,7 +208,7 @@ async function runHttpTests(base = 'http://localhost:8888') {
     '/admin.js?v=9',
     '/admin-calendar.js?v=4',
     '/admin-inventory.js?v=25',
-    '/admin-orders.js?v=5',
+    '/admin-orders.js?v=6',
   ];
 
   for (const asset of assets) {
@@ -294,6 +295,13 @@ async function runHttpTests(base = 'http://localhost:8888') {
     `admin-installer-applications should require auth, got ${installerAdmin.response.status}`,
   );
   console.log('PASS admin-installer-applications auth gate');
+
+  const jobPhotos = await fetchJson(`${base}/.netlify/functions/admin-job-photos?date=2026-10-07`);
+  assert(
+    jobPhotos.response.status === 401 || jobPhotos.response.status === 403,
+    `admin-job-photos should require auth, got ${jobPhotos.response.status}`,
+  );
+  console.log('PASS admin-job-photos auth gate');
 
   const installerSubmit = await fetchJson(`${base}/.netlify/functions/submit-installer-application`, {
     method: 'POST',
