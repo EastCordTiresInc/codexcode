@@ -135,6 +135,49 @@
   background: #fbfbfc;
 }
 
+.eastcord-checkout-login-wall {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 18px;
+}
+
+.eastcord-checkout-login-wall[hidden],
+.eastcord-checkout-login-card .new-tire-auth-actions[hidden],
+.eastcord-checkout-login-card [data-eastcord-checkout-phone][hidden] {
+  display: none;
+}
+
+.eastcord-checkout-login-card {
+  position: sticky;
+  top: 24px;
+  width: min(440px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+  text-align: center;
+}
+
+.eastcord-checkout-login-card h2 {
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
+}
+
+.eastcord-checkout-login-card .new-tire-auth-actions {
+  justify-content: center;
+}
+
+.eastcord-checkout-login-card .button {
+  min-height: 52px;
+}
+
 #eastcord-tire-highlight {
   position: fixed;
   z-index: 2147483000;

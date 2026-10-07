@@ -43,6 +43,8 @@
   } = window.EastCordNewTireBrand || {};
 
   let currentProfile = null;
+  let profileReady = false;
+  let widgetOnPaymentPage = false;
   let selectedQuote = readStoredQuote();
   let didAutoScroll = false;
   let lastClickedCard = null;
@@ -733,6 +735,98 @@
     return /PLACE YOUR ORDER|BACK TO SUMMARY|PAY WITH CREDIT CARD|CREDIT CARD NUMBER/i.test(text);
   }
 
+  function noteWidgetPage(page) {
+    const name = String(page || '');
+    if (/checkout|payment|place(?:\s|-)?order|credit/i.test(name)) {
+      widgetOnPaymentPage = true;
+      return;
+    }
+    if (/search|results|summary|quote/i.test(name)) widgetOnPaymentPage = false;
+  }
+
+  function paymentPageOpen() {
+    if (isWidgetCheckoutPage()) {
+      widgetOnPaymentPage = true;
+      return true;
+    }
+    if (isWidgetSummaryPage() || isWidgetSearchFormPage() || isWidgetResultsPage()) {
+      widgetOnPaymentPage = false;
+    }
+    return widgetOnPaymentPage;
+  }
+
+  function syncCheckoutLoginWall() {
+    const shell = document.querySelector('[data-tireconnect-shell]');
+    if (!shell) return;
+    let wall = document.getElementById('eastcord-checkout-login-wall');
+    if (!wall) {
+      wall = document.createElement('div');
+      wall.id = 'eastcord-checkout-login-wall';
+      wall.className = 'eastcord-checkout-login-wall';
+      wall.hidden = true;
+      wall.innerHTML = `
+        <div class="eastcord-checkout-login-card" role="dialog" aria-modal="true" aria-labelledby="eastcord-checkout-login-title">
+          <h2 id="eastcord-checkout-login-title">Log in to place this order</h2>
+          <p data-eastcord-checkout-login-copy></p>
+          <div class="new-tire-auth-actions" data-eastcord-checkout-login-actions>
+            <a class="button button-primary" data-new-tire-login href="/login.html?redirect=/new-tires.html">Log In</a>
+            <a class="button button-secondary" data-new-tire-signup href="/signup.html?redirect=/new-tires.html">Create Account</a>
+          </div>
+          <button class="button button-primary" type="button" data-eastcord-checkout-phone hidden>Enter phone number</button>
+        </div>
+      `;
+      shell.appendChild(wall);
+      wall.querySelector('[data-eastcord-checkout-phone]')?.addEventListener('click', () => {
+        const field = document.querySelector('[data-new-tire-phone-field]');
+        field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        field?.querySelector('input')?.focus();
+      });
+    }
+    const gate = memberGate();
+    const block = profileReady && paymentPageOpen() && !gate.ok;
+    wall.hidden = !block;
+    const widget = document.getElementById('tireconnect');
+    if (widget) {
+      if (block) widget.setAttribute('inert', '');
+      else widget.removeAttribute('inert');
+    }
+    if (!block) return;
+    const needsAccount = !currentProfile;
+    const title = wall.querySelector('#eastcord-checkout-login-title');
+    const copy = wall.querySelector('[data-eastcord-checkout-login-copy]');
+    const actions = wall.querySelector('[data-eastcord-checkout-login-actions]');
+    const phoneButton = wall.querySelector('[data-eastcord-checkout-phone]');
+    if (title) {
+      title.textContent = needsAccount
+        ? 'Log in to place this order'
+        : 'Add a phone number to place this order';
+    }
+    if (copy) {
+      copy.textContent = needsAccount
+        ? 'Log in or create an account before payment. EastCord can only save the tires to My Account after you are signed in.'
+        : 'Enter your phone number beside this checkout before payment.';
+    }
+    if (actions) actions.hidden = !needsAccount;
+    if (phoneButton) phoneButton.hidden = needsAccount;
+    updateAuthLinks();
+  }
+
+  function bindCheckoutLoginBlock() {
+    const shell = document.querySelector('[data-tireconnect-shell]');
+    if (!shell || shell.dataset.loginBlock === 'true') return;
+    shell.dataset.loginBlock = 'true';
+    const stop = (event) => {
+      const wall = document.getElementById('eastcord-checkout-login-wall');
+      if (!wall || wall.hidden) return;
+      if (event.target?.closest?.('#eastcord-checkout-login-wall')) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    ['click', 'submit', 'pointerdown', 'keydown'].forEach((type) => {
+      shell.addEventListener(type, stop, true);
+    });
+  }
+
   function syncSummaryLayout() {
     document.querySelector('.new-tires-workspace')?.classList.remove('is-widget-summary');
   }
@@ -837,6 +931,7 @@
     syncDemoOrderButton();
     refreshScrapedBrand();
     watchWidgetOrderConfirmation();
+    syncCheckoutLoginWall();
   }
 
   function isLocalCheckoutOpen() {
@@ -1823,10 +1918,12 @@
 
   function updateAuthLinks() {
     const redirect = encodeURIComponent(returnUrl());
-    const login = document.querySelector('[data-new-tire-login]');
-    const signup = document.querySelector('[data-new-tire-signup]');
-    if (login) login.href = `/login.html?redirect=${redirect}`;
-    if (signup) signup.href = `/signup.html?redirect=${redirect}`;
+    document.querySelectorAll('[data-new-tire-login]').forEach((login) => {
+      login.href = `/login.html?redirect=${redirect}`;
+    });
+    document.querySelectorAll('[data-new-tire-signup]').forEach((signup) => {
+      signup.href = `/signup.html?redirect=${redirect}`;
+    });
     try {
       localStorage.setItem('eastcord_auth_redirect', returnUrl());
     } catch (error) {
@@ -1894,10 +1991,16 @@
     updateAuthLinks();
     highlightSelectedWidgetTires();
     syncDemoOrderButton();
+    syncCheckoutLoginWall();
   }
 
   async function refreshProfile() {
-    currentProfile = await window.EastCordAccount?.getCurrentProfile?.() || null;
+    try {
+      currentProfile = await window.EastCordAccount?.getCurrentProfile?.() || null;
+    } catch (error) {
+      currentProfile = null;
+    }
+    profileReady = true;
     syncFulfillmentUi();
     pushCustomerIntoWidget();
   }
@@ -2489,11 +2592,13 @@
         resolveWidgetEvent(event);
         return;
       }
+      noteWidgetPage(page);
       if (/summary|quote|order|checkout|payment/i.test(page)) {
         applyCapturedQuote(quoteFromHash() || selectedQuote, { allowScrape: true });
         pushCustomerIntoWidget();
       }
       syncSummaryLayout();
+      syncCheckoutLoginWall();
       resolveWidgetEvent(event);
     });
     listen('onResultsReviseClick', (event) => {
@@ -2801,6 +2906,7 @@
     onWidgetDomChanged();
     bindWidgetHighlightClicks();
     bindLocalWidgetCheckout();
+    bindCheckoutLoginBlock();
     bindChoiceInfo();
     window.addEventListener('message', handleWidgetMessage);
   }
