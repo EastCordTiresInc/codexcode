@@ -1352,7 +1352,9 @@ function hasPasswordRecoveryParameters() {
     || search.get('type') === 'recovery'
     || hash.get('type') === 'recovery'
     || hash.has('access_token')
-    || Boolean(token.tokenHash && (token.type === 'recovery' || !token.type));
+    || search.get('type') === 'invite'
+    || hash.get('type') === 'invite'
+    || Boolean(token.tokenHash && (token.type === 'recovery' || token.type === 'invite' || !token.type));
 }
 
 const ALLOWED_OTP_TYPES = new Set(['signup', 'invite', 'magiclink', 'recovery', 'email_change', 'email']);
@@ -1532,7 +1534,7 @@ async function verifyRecoveryTokenHash(tokenHash, preferredType) {
   const client = getSupabaseClient();
   const types = [];
   if (preferredType) types.push(preferredType);
-  ['recovery', 'email', 'magiclink'].forEach((type) => {
+  ['invite', 'recovery', 'email', 'magiclink'].forEach((type) => {
     if (!types.includes(type)) types.push(type);
   });
 
@@ -2053,6 +2055,12 @@ function bindAuthForms() {
       if (isStaffAdminEmail(email) && goingToAccount) {
         localStorage.removeItem('eastcord_auth_redirect');
         window.location.href = '/admin';
+        return;
+      }
+      const role = session?.user?.app_metadata?.role || session?.user?.user_metadata?.role;
+      if (role === 'installer' && goingToAccount) {
+        localStorage.removeItem('eastcord_auth_redirect');
+        window.location.href = '/admin/job-photos';
         return;
       }
       goToRedirectTarget('/account.html');

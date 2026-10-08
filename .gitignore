@@ -22,6 +22,9 @@ npm-debug.log*
 # Generated email preview (local only)
 email-preview.html
 
+# Local dummy installation photos for the demo job
+local-test/
+
 # Local-only demo checkout (not for the live website)
 demo-payment.html
 demo-payment.js

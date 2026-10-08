@@ -1,4 +1,4 @@
-const { requireAdminUser } = require('./lib/admin-auth');
+const { requireJobPhotoUser } = require('./lib/admin-auth');
 const {
   sendEmail,
   buildBrandedEmail,
@@ -10,6 +10,7 @@ const MAX_BYTES = 2_500_000;
 const SIGNED_URL_SECONDS = 60 * 60;
 const MAX_EMAIL_BYTES = 9 * 1024 * 1024;
 const BLOCKED_SHOP_INBOX = 'info@eastcordtires.ca';
+const INSTALLATION_ADMIN_EMAIL = 'burnertestin@gmail.com';
 
 const PHOTO_SLOTS = Object.freeze([
   { id: 'plate', label: 'Vehicle and plate', hint: 'Front of the vehicle with the plate readable.' },
@@ -159,6 +160,7 @@ async function listJobs(supabaseAdmin, event) {
 
   return json(200, {
     date,
+    role: event.jobPhotoRole || '',
     slots: PHOTO_SLOTS,
     count: appointments.length,
     appointments,
@@ -200,33 +202,59 @@ function isBlockedShopInbox(value) {
   return String(value || '').trim().toLowerCase() === BLOCKED_SHOP_INBOX;
 }
 
+function sameInbox(left, right) {
+  return String(left || '').trim().toLowerCase() === String(right || '').trim().toLowerCase();
+}
+
 function buildInstallationPhotoEmails(appointment, photos, options = {}) {
   const customerTo = String(appointment.customer_email || '').trim();
+  const adminTo = String(options.adminTo || '').trim();
   const details = appointmentDetails(appointment);
-  const attachments = photoAttachments(photos);
   const photoList = photos.map((photo, index) => `${index + 1}. ${photo.label}`).join('\n');
   const testLine = options.test ? 'This is a test of the installation photo email.' : '';
+  const finishedBy = String(options.finishedBy || '').trim();
   const emails = [];
+  const customerAllowed = isEmailAddress(customerTo) && !isBlockedShopInbox(customerTo);
 
-  if (isEmailAddress(customerTo) && !isBlockedShopInbox(customerTo)) {
+  if (customerAllowed) {
     const customerEmail = buildBrandedEmail({
       to: customerTo,
-      subject: 'Your EastCord installation photos',
-      heading: 'Your installation photos',
+      subject: 'Your EastCord installation is finished',
+      heading: 'Your installation is finished',
       body: [
         testLine,
-        `${appointment.customer_name || 'Hello'}, these are the photos from your EastCord Tires installation.`,
+        `${appointment.customer_name || 'Hello'}, your EastCord Tires installation is finished.`,
+        'The photos from the job are below and attached.',
         ...details.slice(1),
       ].filter(Boolean),
       extraText: photoList,
       extraHtml: photoMarkup(photos),
       footer: 'Reply to this email if a photo does not look right.',
     });
-    customerEmail.attachments = attachments;
+    customerEmail.attachments = photoAttachments(photos);
     emails.push(customerEmail);
   }
 
-  return { customerTo, emails };
+  if (isEmailAddress(adminTo) && !isBlockedShopInbox(adminTo) && !(customerAllowed && sameInbox(adminTo, customerTo))) {
+    const adminEmail = buildBrandedEmail({
+      to: adminTo,
+      subject: `Installation finished — ${appointment.customer_name || 'EastCord job'}`,
+      heading: 'Installation photos are saved',
+      body: [
+        testLine,
+        'An installer finished this job. The photos are saved on the appointment and attached here.',
+        finishedBy ? `Finished by ${finishedBy}.` : '',
+        ...details,
+      ].filter(Boolean),
+      extraText: photoList,
+      extraHtml: photoMarkup(photos),
+      footer: 'The completed appointment is on the Admin Appointments page.',
+    });
+    adminEmail.attachments = photoAttachments(photos);
+    emails.push(adminEmail);
+  }
+
+  return { customerTo, adminTo, emails };
 }
 
 async function loadSavedPhotos(supabaseAdmin, appointmentId) {
@@ -252,7 +280,7 @@ async function loadSavedPhotos(supabaseAdmin, appointmentId) {
   return { photos };
 }
 
-async function sendJobPhotos(supabaseAdmin, body) {
+async function sendJobPhotos(supabaseAdmin, body, finishedBy = '') {
   const appointmentId = String(body.appointmentId || '').trim();
   if (!isUuid(appointmentId)) return json(400, { message: 'Choose an installation job before emailing the photos.' });
 
@@ -276,27 +304,37 @@ async function sendJobPhotos(supabaseAdmin, body) {
     return json(400, { message: 'Those photos are too large to email. Replace the largest ones and try again.' });
   }
 
-  const built = buildInstallationPhotoEmails(appointment, loaded.photos);
-  if (!built.emails.length) {
-    return json(400, {
-      message: 'This booking has no customer email. Photos stay on this page and are not sent to info@eastcordtires.ca.',
-    });
-  }
-
+  const built = buildInstallationPhotoEmails(appointment, loaded.photos, {
+    adminTo: INSTALLATION_ADMIN_EMAIL,
+    finishedBy,
+  });
   const sent = [];
   for (const email of built.emails) {
-    if (isBlockedShopInbox(email.to)) {
-      return json(400, { message: 'Photos are not emailed to info@eastcordtires.ca.' });
-    }
     const result = await sendEmail(email);
     if (!result.ok) {
       console.error('[EastCord job photos] Email failed.', email.to, result.providerMessage || result.reason);
-      return json(500, { message: 'The installation photos could not be emailed.' });
+      return json(500, { message: 'The installation photos could not be emailed, so the job was not marked finished.' });
     }
     sent.push(email.to);
   }
 
-  return json(200, { message: `Photos emailed to ${sent.join(', ')}.`, sent });
+  const { error: statusError } = await supabaseAdmin
+    .from('appointment_bookings')
+    .update({ booking_status: 'Completed', updated_at: new Date().toISOString() })
+    .eq('id', appointmentId);
+  if (statusError) {
+    console.error('[EastCord job photos] Could not mark the job finished.', statusError.message);
+    return json(500, {
+      message: sent.length
+        ? 'The photos were emailed, but the job could not be marked finished.'
+        : 'The job could not be marked finished.',
+    });
+  }
+
+  const message = sent.length
+    ? `Job finished. Photos are saved on the appointment and emailed to ${sent.join(' and ')}.`
+    : 'Job finished. Photos are saved on the appointment. No email address was available.';
+  return json(200, { message, sent, booking_status: 'Completed' });
 }
 
 async function savePhoto(supabaseAdmin, body, email) {
@@ -358,15 +396,18 @@ async function savePhoto(supabaseAdmin, body, email) {
 }
 
 async function handler(event) {
-  const auth = await requireAdminUser(event);
+  const auth = await requireJobPhotoUser(event);
   if (auth.error) return json(auth.error.statusCode, { message: auth.error.message });
+  event.jobPhotoRole = auth.role;
 
   try {
     if (event.httpMethod === 'GET') return await listJobs(auth.supabaseAdmin, event);
     if (event.httpMethod === 'POST') {
       const body = parseBody(event);
       if (!body) return json(400, { message: 'The photo upload could not be read.' });
-      if (body.action === 'send') return await sendJobPhotos(auth.supabaseAdmin, body);
+      if (body.action === 'finish' || body.action === 'send') {
+        return await sendJobPhotos(auth.supabaseAdmin, body, auth.email);
+      }
       return await savePhoto(auth.supabaseAdmin, body, auth.email);
     }
     return json(405, { message: 'Method not allowed.' });

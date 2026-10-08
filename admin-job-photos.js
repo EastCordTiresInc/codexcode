@@ -28,6 +28,10 @@
     destination: document.querySelector('[data-admin-photo-destination]'),
     sendButton: document.querySelector('[data-admin-send-photos]'),
     sendFeedback: document.querySelector('[data-admin-send-feedback]'),
+    sendWrap: document.querySelector('.admin-photo-send'),
+    finished: document.querySelector('[data-admin-finished]'),
+    finishedNote: document.querySelector('[data-admin-finished-note]'),
+    finishedGrid: document.querySelector('[data-admin-finished-grid]'),
   };
 
   const demoPhotos = {};
@@ -38,7 +42,33 @@
 
   function isLocalDemo() {
     const host = window.location.hostname;
-    return host === 'localhost' || host === '127.0.0.1';
+    if (host === 'eastcordtires.ca' || host === 'www.eastcordtires.ca' || host === 'updatedeastcord.netlify.app') return false;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+    if (host.endsWith('.trycloudflare.com') || host.endsWith('.loca.lt')) return true;
+    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    return /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(host);
+  }
+
+  async function loadDemoPhotos() {
+    if (!isLocalDemo()) return;
+    await Promise.all(FALLBACK_SLOTS.map(async (slot) => {
+      if (demoPhotos[slot.id]?.url) return;
+      try {
+        const response = await fetch(`/local-test/job-photos/${slot.id}.jpg`, { cache: 'no-store' });
+        if (!response.ok) return;
+        const blob = await response.blob();
+        if (!blob.size) return;
+        if (demoPhotos[slot.id]?.url?.startsWith('blob:')) URL.revokeObjectURL(demoPhotos[slot.id].url);
+        demoPhotos[slot.id] = { url: URL.createObjectURL(blob), updatedAt: new Date().toISOString() };
+      } catch (error) {
+        demoPhotos[slot.id] = null;
+      }
+    }));
+  }
+
+  function demoPhotosReady() {
+    return FALLBACK_SLOTS.every((slot) => demoPhotos[slot.id]?.url);
   }
 
   function demoAppointment() {
@@ -92,12 +122,25 @@
     if (els.gateMessage && message) els.gateMessage.textContent = message;
   }
 
+  function applyInstallerChrome(role) {
+    if (role !== 'installer') return;
+    document.querySelectorAll('.admin-tabs a').forEach((link) => {
+      const href = link.getAttribute('href') || '';
+      link.hidden = !href.includes('/admin/job-photos');
+    });
+    const brand = document.querySelector('.admin-brand');
+    if (brand) brand.href = '/admin/job-photos';
+    const label = document.querySelector('.admin-product-label');
+    if (label) label.textContent = 'Installer';
+  }
+
   function showDashboard(email = '') {
     if (els.loading) els.loading.hidden = true;
     if (els.gate) els.gate.hidden = true;
     if (els.dashboard) els.dashboard.hidden = false;
     if (els.chrome) els.chrome.hidden = false;
     if (els.staffEmail) els.staffEmail.textContent = email || ADMIN_EMAIL;
+    document.querySelector('.admin-tabs a[aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }
 
   function setStatus(message, tone = '') {
@@ -108,6 +151,10 @@
 
   function savedCount(appointment) {
     return slots.filter((slot) => appointment?.photos?.[slot.id]?.url).length;
+  }
+
+  function isFinished(appointment) {
+    return String(appointment?.booking_status || '') === 'Completed';
   }
 
   function selectedAppointment() {
@@ -134,10 +181,11 @@
         <button class="admin-job-card${selected}${appointment.demo ? ' is-demo' : ''}" type="button" data-job-id="${escapeHtml(appointment.id)}">
           <span class="admin-appointment-time">${escapeHtml(appointment.preferred_time_window || 'Time TBD')}</span>
           ${appointment.demo ? '<span class="admin-job-demo">Demo</span>' : ''}
+          ${isFinished(appointment) ? '<span class="admin-job-finished">Finished</span>' : ''}
           <strong>${escapeHtml(appointment.customer_name || 'Customer')}</strong>
           <span>${escapeHtml(appointment.service_name || 'Tire service')}</span>
           <span>${escapeHtml(jobTitle(appointment))}</span>
-          <span class="admin-job-count">${count} of ${slots.length} photos</span>
+          <span class="admin-job-count">${isFinished(appointment) ? 'Job finished' : `${count} of ${slots.length} photos`}</span>
         </button>
       `;
     }).join('');
@@ -152,6 +200,39 @@
 
     els.photos.hidden = false;
     const count = savedCount(appointment);
+    const finished = isFinished(appointment);
+    if (els.grid) els.grid.hidden = finished;
+    if (els.sendWrap) els.sendWrap.hidden = finished;
+    if (els.finished) els.finished.hidden = !finished;
+    if (finished) {
+      if (els.summary) {
+        els.summary.innerHTML = `
+          <p class="admin-kicker">Finished job</p>
+          <h2>${escapeHtml(appointment.customer_name || 'Customer')}</h2>
+          <p>${escapeHtml(appointment.service_name || 'Tire service')} · ${escapeHtml(jobTitle(appointment))}</p>
+        `;
+      }
+      if (els.progress) els.progress.textContent = 'The seven photos for this finished installation are below.';
+      if (els.finishedNote) {
+        els.finishedNote.textContent = appointment.demo
+          ? 'Demo only. Nothing was emailed.'
+          : (appointment.finishNote || 'The customer email was sent when this job was finished.');
+      }
+      if (els.finishedGrid) {
+        els.finishedGrid.innerHTML = slots.map((slot, index) => {
+          const photo = appointment.photos?.[slot.id];
+          return `
+            <article class="admin-photo-slot is-saved">
+              <h3>${index + 1}. ${escapeHtml(slot.label)}</h3>
+              ${photo?.url
+                ? `<img src="${escapeHtml(photo.url)}" alt="${escapeHtml(slot.label)}" />`
+                : '<div class="admin-photo-empty">Photo missing</div>'}
+            </article>
+          `;
+        }).join('');
+      }
+      return;
+    }
     if (els.summary) {
       els.summary.innerHTML = `
         <p class="admin-kicker">${escapeHtml(appointment.preferred_time_window || 'Installation')}</p>
@@ -165,21 +246,21 @@
         : `${count} of ${slots.length} photos saved.`;
     }
     const customerEmail = String(appointment.customer_email || '').trim();
-    const canEmailCustomer = !appointment.demo && customerEmail && customerEmail.toLowerCase() !== 'info@eastcordtires.ca';
+    const canEmailCustomer = customerEmail && customerEmail.toLowerCase() !== 'info@eastcordtires.ca';
     if (els.destination) {
-      if (appointment.demo) {
-        els.destination.textContent = 'Demo job for the installer. Photos stay in this browser and are not emailed.';
-      } else if (!canEmailCustomer) {
-        els.destination.textContent = 'These photos stay on this page. They are not emailed to info@eastcordtires.ca.';
-      } else if (count === slots.length) {
-        els.destination.textContent = `Email these photos to ${customerEmail}.`;
+      if (count !== slots.length) {
+        els.destination.textContent = 'Save all 7 photos, then finish the job.';
+      } else if (appointment.demo) {
+        els.destination.textContent = 'Finish the demo to open the completed job page. Nothing is emailed.';
+      } else if (canEmailCustomer) {
+        els.destination.textContent = `Finish the job to keep the photos here and email them to ${customerEmail}.`;
       } else {
-        els.destination.textContent = 'Save all 7 photos, then email them to the customer.';
+        els.destination.textContent = 'Finish the job to keep the photos here. This booking has no customer email.';
       }
     }
     if (els.sendButton) {
-      els.sendButton.hidden = Boolean(appointment.demo);
-      els.sendButton.disabled = sending || count !== slots.length || !canEmailCustomer;
+      els.sendButton.hidden = false;
+      els.sendButton.disabled = sending || count !== slots.length;
     }
 
     els.grid.innerHTML = slots.map((slot, index) => {
@@ -247,6 +328,7 @@
   }
 
   async function loadJobs() {
+    if (isLocalDemo()) await loadDemoPhotos();
     setStatus('Loading installation jobs...');
     try {
       const result = await request('GET', null, `?date=${encodeURIComponent(currentDate())}`);
@@ -254,15 +336,22 @@
         if (!isLocalDemo()) return;
         appointments = withDemoJob([]);
         if (!selectedId) selectedId = 'demo-install';
-        setStatus('Demo install is ready. Add the seven photos here. Nothing is emailed.');
+        setStatus(demoPhotosReady()
+          ? 'Demo install has the seven dummy photos loaded. Nothing is emailed or saved.'
+          : 'Demo install is ready. Add the seven photos here. Nothing is emailed.');
         render();
         return;
       }
       slots = Array.isArray(result.slots) && result.slots.length ? result.slots : FALLBACK_SLOTS;
+      applyInstallerChrome(result.role);
       appointments = withDemoJob(result.appointments);
       if (selectedId && !appointments.some((item) => item.id === selectedId)) selectedId = isLocalDemo() ? 'demo-install' : '';
       const realCount = appointments.filter((item) => !item.demo).length;
-      const demoNote = isLocalDemo() ? ' Demo install is included.' : '';
+      const demoNote = isLocalDemo()
+        ? (demoPhotosReady()
+          ? ' Demo install has the seven dummy photos loaded. Nothing is emailed or saved.'
+          : ' Demo install is included.')
+        : '';
       setStatus(realCount
         ? `${realCount} installation job${realCount === 1 ? '' : 's'} on this date.${demoNote}`
         : `No booked jobs on this date.${demoNote}`);
@@ -362,25 +451,35 @@
 
   async function sendPhotos() {
     const appointment = selectedAppointment();
-    if (!appointment || sending || appointment.demo) return;
+    if (!appointment || sending || isFinished(appointment) || savedCount(appointment) !== slots.length) return;
     sending = true;
     if (els.sendButton) els.sendButton.disabled = true;
-    setSendFeedback('Emailing the photos...');
+    setSendFeedback(appointment.demo ? 'Finishing the demo job...' : 'Finishing the job...');
     try {
+      if (appointment.demo) {
+        appointment.booking_status = 'Completed';
+        appointment.finishNote = 'Demo only. Nothing was emailed.';
+        render();
+        els.finished?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
       const result = await request('POST', {
-        action: 'send',
+        action: 'finish',
         appointmentId: appointment.id,
       });
       if (!result) return;
-      setSendFeedback(result.message || 'Photos emailed.', 'ok');
+      appointment.booking_status = result.booking_status || 'Completed';
+      appointment.finishNote = result.message || 'Job finished.';
+      render();
+      els.finished?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (error) {
-      setSendFeedback(error.message || 'The photos could not be emailed.', 'error');
+      setSendFeedback(error.message || 'The job could not be finished.', 'error');
     } finally {
       sending = false;
       const current = selectedAppointment();
-      const customerEmail = String(current?.customer_email || '').trim().toLowerCase();
-      const canEmailCustomer = customerEmail && customerEmail !== 'info@eastcordtires.ca';
-      if (els.sendButton) els.sendButton.disabled = savedCount(current) !== slots.length || !canEmailCustomer;
+      if (els.sendButton && current && !isFinished(current)) {
+        els.sendButton.disabled = savedCount(current) !== slots.length;
+      }
     }
   }
 
@@ -396,13 +495,16 @@
     const hashJob = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('job')
       || new URLSearchParams(window.location.hash.slice(1)).get('job');
     if (hashJob) selectedId = hashJob;
+    if (isLocalDemo()) await loadDemoPhotos();
 
     if (!window.EastCordAccount?.isAuthConfigured?.()) {
       if (isLocalDemo()) {
         showDashboard('Local demo');
         appointments = withDemoJob([]);
         selectedId = 'demo-install';
-        setStatus('Demo install is ready. Add the seven photos here. Nothing is emailed.');
+        setStatus(demoPhotosReady()
+          ? 'Demo install has the seven dummy photos loaded. Nothing is emailed or saved.'
+          : 'Demo install is ready. Add the seven photos here. Nothing is emailed.');
         render();
         return;
       }
@@ -412,21 +514,18 @@
 
     const profile = await window.EastCordAccount.getCurrentProfile?.();
     const email = String(profile?.email || '').trim().toLowerCase();
-    const isStaff = window.EastCordAccount.isStaffAdminEmail?.(email) || email === ADMIN_EMAIL;
     if (!email) {
       if (isLocalDemo()) {
         showDashboard('Local demo');
         appointments = withDemoJob([]);
         selectedId = selectedId || 'demo-install';
-        setStatus('Demo install is ready. Add the seven photos here. Nothing is emailed.');
+        setStatus(demoPhotosReady()
+          ? 'Demo install has the seven dummy photos loaded. Nothing is emailed or saved.'
+          : 'Demo install is ready. Add the seven photos here. Nothing is emailed.');
         render();
         return;
       }
-      showGate('Log in with info@eastcordtires.ca to open the admin dashboard.');
-      return;
-    }
-    if (!isStaff) {
-      showGate('Only the EastCord staff account can open this page.');
+      showGate('Log in with your EastCord installer account to submit job photos.');
       return;
     }
 

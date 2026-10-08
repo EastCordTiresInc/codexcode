@@ -15,6 +15,16 @@
     '6:00 PM - 7:00 PM',
     '7:00 PM - 8:00 PM',
   ];
+  const JOB_PHOTO_SLOTS = [
+    ['plate', 'Vehicle and plate'],
+    ['sidewall', 'Tire sidewall'],
+    ['before', 'Before the work'],
+    ['removed', 'Wheel removed'],
+    ['mounted', 'Tire mounted'],
+    ['lugs', 'Lug nuts'],
+    ['finished', 'Finished install'],
+  ];
+
   const STATUS_ACTIONS = [
     { status: 'Completed', label: 'Complete' },
     { status: 'No-Show', label: 'No-show', requiresStarted: true },
@@ -65,6 +75,73 @@
       month: '2-digit',
       day: '2-digit',
     }).format(new Date());
+  }
+
+  function isLocalDemoHost() {
+    const host = window.location.hostname;
+    if (host === 'eastcordtires.ca' || host === 'www.eastcordtires.ca' || host === 'updatedeastcord.netlify.app') return false;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+    if (host.endsWith('.trycloudflare.com') || host.endsWith('.loca.lt')) return true;
+    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    return /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(host);
+  }
+
+  function demoPhotoUrl(label, color) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const context = canvas.getContext('2d');
+    if (!context) return '';
+    context.fillStyle = color;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#172033';
+    context.font = '700 36px sans-serif';
+    context.fillText(label, 28, 250);
+    return canvas.toDataURL('image/jpeg', 0.72);
+  }
+
+  let demoPhotoCache = null;
+
+  function demoJobPhotos() {
+    if (demoPhotoCache) return demoPhotoCache;
+    const colors = ['#f4c542', '#5dade2', '#58d68d', '#e59866', '#bb8fce', '#ec7063', '#7f8c8d'];
+    demoPhotoCache = {};
+    JOB_PHOTO_SLOTS.forEach(([id, label], index) => {
+      demoPhotoCache[id] = { url: demoPhotoUrl(`${index + 1}. ${label}`, colors[index]) };
+    });
+    return demoPhotoCache;
+  }
+
+  function demoCompletedAppointment(date) {
+    return {
+      id: 'demo-install',
+      demo: true,
+      customer_name: 'Demo install',
+      customer_email: '',
+      customer_phone: '',
+      service_name: 'Off-rim tire swap',
+      preferred_date: date,
+      preferred_time_window: '2:00 PM - 3:00 PM',
+      booking_status: 'Completed',
+      vehicle_year: '2018',
+      vehicle_make: 'Honda',
+      vehicle_model: 'Civic',
+      vehicle_colour: 'Grey',
+      vehicle_plate_number: 'DEMO',
+      tire_size: '215/45R17',
+      number_of_tires: 4,
+      install_location: 'shop',
+      city: 'Milton',
+      additional_notes: 'Demo only. Nothing is saved.',
+      job_photos: demoJobPhotos(),
+    };
+  }
+
+  function withLocalDemo(appointments, date) {
+    const list = Array.isArray(appointments) ? appointments.filter((item) => item.id !== 'demo-install') : [];
+    if (!isLocalDemoHost() || date !== torontoToday()) return list;
+    return [demoCompletedAppointment(date), ...list];
   }
 
   function phoneHref(phone) {
@@ -271,13 +348,16 @@
       minute: '2-digit',
       second: '2-digit',
     });
+    const localOnly = visible.length > 0 && visible.every((item) => item.demo);
 
     setStatus(
-      total === 0
-        ? `No appointments · Live · updated ${stamp}`
-        : visible.length === total
-          ? `${total === 1 ? '1 appointment' : `${total} appointments`} · Live · updated ${stamp}`
-          : `Showing ${visible.length} of ${total}${filterLabel} · Live · updated ${stamp}`,
+      localOnly
+        ? 'Demo completed job for today. Nothing is saved.'
+        : total === 0
+          ? `No appointments · Live · updated ${stamp}`
+          : visible.length === total
+            ? `${total === 1 ? '1 appointment' : `${total} appointments`} · Live · updated ${stamp}`
+            : `Showing ${visible.length} of ${total}${filterLabel} · Live · updated ${stamp}`,
     );
     renderAppointments(visible);
   }
@@ -314,7 +394,7 @@
             </div>
             <div class="admin-badges">
               <span class="admin-badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span>
-              ${paymentBadge(appointment)}
+              ${appointment.demo ? '<span class="admin-badge is-sample">Demo</span>' : paymentBadge(appointment)}
             </div>
           </div>
           <div class="admin-grid">
@@ -335,8 +415,9 @@
             <div><span>Remaining</span><strong>${escapeHtml(money(appointment.remaining_balance))}</strong></div>
           </div>
           ${notes ? `<p class="admin-notes">${escapeHtml(notes).replace(/\n/g, '<br>')}</p>` : ''}
+          ${installationPhotosMarkup(appointment)}
 
-          <div class="admin-manage">
+          ${appointment.demo ? '' : `<div class="admin-manage">
             <div class="admin-manage-block">
               <p class="admin-manage-label">Status</p>
               <div class="admin-manage-actions">
@@ -387,12 +468,32 @@
               </div>
             </div>
             <p class="admin-manage-feedback" data-manage-feedback hidden></p>
-          </div>
+          </div>`}
         </article>
       `;
     }).join('');
 
     focusAppointmentFromHash();
+  }
+
+  function installationPhotosMarkup(appointment) {
+    if (statusBucket(appointment.booking_status) !== 'completed') return '';
+    const photos = appointment.job_photos || {};
+    const saved = JOB_PHOTO_SLOTS.filter(([id]) => photos[id]?.url);
+    if (!saved.length) return '';
+    return `
+      <div class="admin-install-photos">
+        <p class="admin-manage-label">Installation photos</p>
+        <div class="admin-install-photo-grid">
+          ${saved.map(([id, label]) => `
+            <figure>
+              <img src="${escapeHtml(photos[id].url)}" alt="${escapeHtml(label)}" />
+              <figcaption>${escapeHtml(label)}</figcaption>
+            </figure>
+          `).join('')}
+        </div>
+      </div>
+    `;
   }
 
   function focusAppointmentFromHash() {
@@ -475,6 +576,23 @@
     feedback.dataset.tone = tone;
   }
 
+  async function loadJobPhotos(date, token) {
+    try {
+      const response = await fetch(`/.netlify/functions/admin-job-photos?date=${encodeURIComponent(date)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return {};
+      const payload = await response.json();
+      const map = {};
+      (Array.isArray(payload.appointments) ? payload.appointments : []).forEach((item) => {
+        if (item?.id) map[item.id] = item.photos || {};
+      });
+      return map;
+    } catch (error) {
+      return {};
+    }
+  }
+
   async function loadAppointments(date, email, options = {}) {
     const quiet = Boolean(options.quiet);
     if (refreshInFlight) return;
@@ -485,6 +603,10 @@
       const token = await getToken();
       if (!token) {
         stopAutoRefresh();
+        if (isLocalDemoHost()) {
+          showLocalDemo(date);
+          return;
+        }
         showGate('Log in with the EastCord staff account to open the admin dashboard.');
         return;
       }
@@ -522,6 +644,11 @@
         timeWindows = payload.timeWindows;
       }
       dayAppointments = Array.isArray(payload.appointments) ? payload.appointments : [];
+      const photoMap = await loadJobPhotos(date, token);
+      dayAppointments.forEach((appointment) => {
+        appointment.job_photos = photoMap[appointment.id] || {};
+      });
+      dayAppointments = withLocalDemo(dayAppointments, date);
       lastStatusStamp = new Date().toLocaleTimeString('en-CA', {
         timeZone: 'America/Toronto',
         hour: 'numeric',
@@ -535,13 +662,26 @@
     }
   }
 
+  function showLocalDemo(date) {
+    stopAutoRefresh();
+    showDashboard('Local demo');
+    dayAppointments = withLocalDemo([], date);
+    lastStatusStamp = new Date().toLocaleTimeString('en-CA', {
+      timeZone: 'America/Toronto',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    applyAppointmentView();
+  }
+
   async function handleManageClick(event) {
     const button = event.target.closest('[data-action]');
     if (!button || !els.list?.contains(button)) return;
 
     const card = button.closest('[data-appointment-id]');
     const id = card?.dataset.appointmentId;
-    if (!id) return;
+    if (!id || id === 'demo-install') return;
 
     const action = button.dataset.action;
     setCardFeedback(card, '');
@@ -605,6 +745,12 @@
     const email = String(profile?.email || '').trim().toLowerCase();
     const isStaff = window.EastCordAccount.isStaffAdminEmail?.(email) || email === ADMIN_EMAIL;
     if (!email) {
+      if (isLocalDemoHost()) {
+        const initialDate = new URLSearchParams(window.location.search).get('date') || torontoToday();
+        if (els.dateInput) els.dateInput.value = initialDate;
+        showLocalDemo(initialDate);
+        return;
+      }
       showGate('Log in with info@eastcordtires.ca to open the admin dashboard.');
       return;
     }

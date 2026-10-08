@@ -1,10 +1,16 @@
-const { requireAdminUser } = require('./lib/admin-auth');
+const { requireAdminUser, isAdminEmail, normalizeEmail } = require('./lib/admin-auth');
 const {
   SELECT_FIELDS,
   STATUSES,
   isMissingTableError,
   clean,
 } = require('./lib/installer-applications');
+const {
+  sendEmail,
+  buildBrandedEmail,
+  RESET_PASSWORD_URL,
+  buildHashedTokenActionUrl,
+} = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -84,10 +90,84 @@ async function updateApplication(supabaseAdmin, body) {
   }
   if (!data) return json(404, { message: 'That application was not found.' });
 
+  let loginNote = '';
+  if (fields.status === 'approved') {
+    const login = await ensureInstallerLogin(supabaseAdmin, data);
+    loginNote = login.emailed
+      ? ' A login link was emailed to the installer.'
+      : ' The installer login email could not be sent.';
+  }
+
   return json(200, {
     application: data,
-    message: fields.status ? `Marked ${fields.status}.` : 'Staff note saved.',
+    message: fields.status ? `Marked ${fields.status}.${loginNote}` : 'Staff note saved.',
   });
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+async function ensureInstallerLogin(supabaseAdmin, application) {
+  const email = normalizeEmail(application.email);
+  if (!isValidEmail(email) || isAdminEmail(email)) return { emailed: false };
+
+  let generated = await supabaseAdmin.auth.admin.generateLink({
+    type: 'invite',
+    email,
+    options: {
+      redirectTo: RESET_PASSWORD_URL,
+      data: { full_name: application.full_name || '', role: 'installer' },
+    },
+  });
+  let linkType = 'invite';
+  if (generated.error && /already|registered|exists/i.test(String(generated.error.message || ''))) {
+    linkType = 'recovery';
+    generated = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo: RESET_PASSWORD_URL },
+    });
+  }
+  if (generated.error) {
+    console.error('[EastCord installers] Login link failed.', generated.error.message);
+    return { emailed: false };
+  }
+
+  const userId = generated.data?.user?.id;
+  if (userId) {
+    const updated = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      app_metadata: { role: 'installer' },
+    });
+    if (updated.error) {
+      console.error('[EastCord installers] Installer role was not saved.', updated.error.message);
+    }
+  }
+
+  const actionUrl = buildHashedTokenActionUrl(
+    RESET_PASSWORD_URL,
+    generated.data?.properties?.hashed_token,
+    linkType,
+  );
+  if (!actionUrl) return { emailed: false };
+
+  const sent = await sendEmail(buildBrandedEmail({
+    to: email,
+    subject: 'Your EastCord installer login',
+    heading: 'Your installer login is ready',
+    body: [
+      `${application.full_name || 'Hello'}, EastCord Tires approved your installer account.`,
+      'Choose a password, then log in and open Job photos to submit the installation pictures.',
+    ],
+    actionUrl,
+    actionLabel: 'Choose your password',
+    footer: 'This login is for submitting installation photos.',
+  }));
+  if (!sent.ok) {
+    console.error('[EastCord installers] Login email failed.', sent.providerMessage || sent.reason);
+    return { emailed: false };
+  }
+  return { emailed: true };
 }
 
 exports.handler = async (event) => {

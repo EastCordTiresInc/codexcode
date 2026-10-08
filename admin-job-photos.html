@@ -6,9 +6,9 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>Job photos | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=27" />
+    <link rel="stylesheet" href="admin.css?v=30" />
   </head>
-  <body class="admin-app">
+  <body class="admin-app admin-job-photos-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
 
     <header class="admin-topbar" data-admin-chrome hidden>
@@ -48,7 +48,7 @@
         <section class="admin-panel admin-gate" data-admin-gate hidden>
           <p class="admin-kicker">EastCord staff</p>
           <h1>Staff access required</h1>
-          <p data-admin-gate-message>Log in with info@eastcordtires.ca to open the admin dashboard.</p>
+          <p data-admin-gate-message>Log in with your EastCord installer account to submit job photos.</p>
           <div class="admin-actions">
             <a class="button button-primary" href="/login.html?redirect=/admin/job-photos">Log in</a>
             <a class="button button-secondary" href="/">Public site</a>
@@ -60,7 +60,7 @@
             <div>
               <p class="admin-kicker">Installation record</p>
               <h1>Job photos</h1>
-              <p>Attach the seven installation photos, then email them to the customer on the booking.</p>
+              <p>Add the seven photos, then finish the job. The photos are saved on the appointment and emailed to the customer and the shop.</p>
             </div>
             <form class="admin-toolbar" data-admin-jobs-form>
               <label>
@@ -80,8 +80,13 @@
               <div class="admin-photo-grid" data-admin-photo-grid></div>
               <div class="admin-photo-send">
                 <p data-admin-photo-destination></p>
-                <button class="button button-primary" type="button" data-admin-send-photos disabled>Email customer</button>
+                <button class="button button-primary" type="button" data-admin-send-photos disabled>Finish job</button>
                 <p class="admin-manage-feedback" data-admin-send-feedback hidden></p>
+              </div>
+              <div data-admin-finished hidden>
+                <p class="admin-finished-banner">This installation is finished.</p>
+                <p data-admin-finished-note></p>
+                <div class="admin-photo-grid" data-admin-finished-grid></div>
               </div>
             </section>
           </div>
@@ -95,7 +100,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
-    <script src="account.js?v=69"></script>
-    <script src="admin-job-photos.js?v=4"></script>
+    <script src="account.js?v=70"></script>
+    <script src="admin-job-photos.js?v=10"></script>
   </body>
 </html>

@@ -25,7 +25,7 @@ function getSupabaseAdmin() {
   });
 }
 
-async function requireAdminUser(event) {
+async function requireSignedInUser(event) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return {
@@ -41,7 +41,7 @@ async function requireAdminUser(event) {
     return {
       error: {
         statusCode: 401,
-        message: 'Log in with the EastCord staff account to open the admin dashboard.',
+        message: 'Log in to continue.',
       },
     };
   }
@@ -51,17 +51,7 @@ async function requireAdminUser(event) {
     return {
       error: {
         statusCode: 401,
-        message: 'Your login session expired. Log in again to open the admin dashboard.',
-      },
-    };
-  }
-
-  const email = normalizeEmail(authData.user.email);
-  if (!isAdminEmail(email)) {
-    return {
-      error: {
-        statusCode: 403,
-        message: 'This account is not allowed to open the admin dashboard.',
+        message: 'Your login session expired. Log in again.',
       },
     };
   }
@@ -69,14 +59,63 @@ async function requireAdminUser(event) {
   return {
     supabaseAdmin,
     user: authData.user,
-    email,
+    email: normalizeEmail(authData.user.email),
   };
+}
+
+async function isApprovedInstaller(supabaseAdmin, email) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('installer_applications')
+      .select('email')
+      .eq('status', 'approved');
+    if (error) {
+      console.error('[EastCord installers] Approved installer list failed.', error.message);
+      return false;
+    }
+    return (data || []).some((row) => normalizeEmail(row.email) === email);
+  } catch (error) {
+    console.error('[EastCord installers] Approved installer list failed.', error.message);
+    return false;
+  }
+}
+
+async function requireAdminUser(event) {
+  const auth = await requireSignedInUser(event);
+  if (auth.error) return auth;
+  if (!isAdminEmail(auth.email)) {
+    return {
+      error: {
+        statusCode: 403,
+        message: 'This account is not allowed to open the admin dashboard.',
+      },
+    };
+  }
+  return { ...auth, role: 'admin' };
+}
+
+async function requireJobPhotoUser(event) {
+  const auth = await requireSignedInUser(event);
+  if (auth.error) return auth;
+  if (isAdminEmail(auth.email)) return { ...auth, role: 'admin' };
+  const approved = await isApprovedInstaller(auth.supabaseAdmin, auth.email);
+  if (!approved) {
+    return {
+      error: {
+        statusCode: 403,
+        message: 'This login cannot submit installation photos.',
+      },
+    };
+  }
+  return { ...auth, role: 'installer' };
 }
 
 module.exports = {
   ADMIN_EMAILS,
   isAdminEmail,
   requireAdminUser,
+  requireJobPhotoUser,
+  isApprovedInstaller,
   getSupabaseAdmin,
   getBearerToken,
   normalizeEmail,
