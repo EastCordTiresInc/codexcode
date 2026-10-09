@@ -335,8 +335,13 @@
   border-style: dashed;
 }
 
+.admin-status-row,
 .admin-manage {
   display: grid;
+  gap: 8px;
+}
+
+.admin-manage {
   gap: 14px;
   padding-top: 12px;
   border-top: 1px solid #eef0f3;
@@ -402,15 +407,28 @@
   width: 100%;
 }
 
-.admin-mini-btn {
+.admin-app .admin-appointment .admin-mini-btn {
   min-height: 36px;
   padding: 0 12px;
+  color: #111317;
+  background: #fff;
+  border: 1px solid #c5cad3;
+  box-shadow: none;
   font-size: 0.85rem;
 }
 
-.admin-mini-btn.is-current,
-.admin-mini-btn:disabled.is-current {
-  opacity: 0.7;
+.admin-app .admin-status-actions .admin-mini-btn:hover:not(:disabled),
+.admin-app .admin-status-actions .admin-mini-btn:focus-visible:not(:disabled) {
+  border-color: #ba151b;
+  color: #ba151b;
+}
+
+.admin-app .admin-status-actions .admin-mini-btn.is-current,
+.admin-app .admin-status-actions .admin-mini-btn:disabled.is-current {
+  color: #fff;
+  background: #111317;
+  border-color: #111317;
+  opacity: 1;
 }
 
 .admin-manage-feedback {

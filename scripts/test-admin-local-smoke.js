@@ -173,7 +173,7 @@ function runUnitTests() {
 
 async function runHttpTests(base = 'http://localhost:8888') {
   const pages = [
-    { path: '/admin', mustInclude: ['data-admin-status-filter', 'admin.js?v=13'] },
+    { path: '/admin', mustInclude: ['data-admin-status-filter', 'admin.js?v=14', 'admin.css?v=34'] },
     { path: '/admin/calendar', mustInclude: ['data-admin-calendar', 'data-admin-calendar-grid="shop"', 'data-admin-calendar-grid="mobile"', 'admin-calendar.js?v=5'] },
     { path: '/admin/inventory', mustInclude: ['Low stock', 'data-admin-inventory-search', 'data-sync-to-sheet', 'admin-inventory.js?v=25'] },
     { path: '/admin/orders', mustInclude: ['Waiting for tires', 'data-admin-orders-filter', 'admin-orders.js?v=6'] },
@@ -201,11 +201,11 @@ async function runHttpTests(base = 'http://localhost:8888') {
   console.log('PASS homepage title');
 
   const assets = [
-    '/admin.css?v=24',
+    '/admin.css?v=34',
     '/admin-blog.js?v=1',
     '/admin-installers.js?v=1',
     '/blog.js?v=2',
-    '/admin.js?v=13',
+    '/admin.js?v=14',
     '/admin-calendar.js?v=5',
     '/admin-inventory.js?v=25',
     '/admin-orders.js?v=6',
@@ -226,7 +226,8 @@ async function runHttpTests(base = 'http://localhost:8888') {
   assert(inventoryJs.text.includes('syncToSheet'), 'inventory js missing syncToSheet');
   assert(inventoryJs.text.includes('admin-drive-link'), 'inventory js missing compact drive link');
 
-  const adminJs = await fetchText(`${base}/admin.js?v=13`);
+  const adminJs = await fetchText(`${base}/admin.js?v=14`);
+  assert(adminJs.text.includes('statusActionsMarkup'), 'admin js missing appointment status buttons');
   assert(adminJs.text.includes('mapsHref'), 'admin js missing mapsHref');
   assert(adminJs.text.includes('installationPhotosMarkup'), 'admin js missing installation photos');
   assert(adminJs.text.includes('demoCompletedAppointment'), 'admin js missing local completed demo');

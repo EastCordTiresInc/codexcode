@@ -16,6 +16,7 @@
     '7:00 PM - 8:00 PM',
   ];
   const STATUS_ACTIONS = [
+    { status: 'Confirmed', label: 'Confirm' },
     { status: 'Completed', label: 'Complete' },
     { status: 'No-Show', label: 'No-show', requiresStarted: true },
     { status: 'Cancelled', label: 'Cancel' },
@@ -360,6 +361,28 @@
     renderAppointments(visible);
   }
 
+  function statusActionsMarkup(status, appointment) {
+    return STATUS_ACTIONS.map((action) => {
+      const isCurrent = action.status === status;
+      const started = hasAppointmentStarted(appointment);
+      const waitingToStart = Boolean(action.requiresStarted && !started);
+      const disabled = (isCurrent && !action.alwaysEnabled) || waitingToStart;
+      const title = waitingToStart
+        ? 'No-show is available after this appointment time begins'
+        : '';
+      return `
+        <button
+          type="button"
+          class="button admin-mini-btn${isCurrent ? ' is-current' : ''}"
+          data-action="status"
+          data-status="${escapeHtml(action.status)}"
+          ${disabled ? 'disabled' : ''}
+          ${title ? `title="${escapeHtml(title)}"` : ''}
+        >${escapeHtml(action.label)}</button>
+      `;
+    }).join('');
+  }
+
   function renderAppointments(appointments) {
     if (!els.list) return;
 
@@ -395,6 +418,12 @@
               ${appointment.demo ? '<span class="admin-badge is-sample">Demo</span>' : paymentBadge(appointment)}
             </div>
           </div>
+          ${appointment.demo ? '' : `<div class="admin-status-row">
+            <p class="admin-manage-label">Status</p>
+            <div class="admin-manage-actions admin-status-actions">
+              ${statusActionsMarkup(status, appointment)}
+            </div>
+          </div>`}
           <div class="admin-grid">
             <div><span>Customer</span><strong>${escapeHtml(appointment.customer_name || 'Not provided')}</strong></div>
             <div><span>Phone</span>${renderPhone(appointment.customer_phone)}</div>
@@ -416,31 +445,6 @@
           ${installationPhotosMarkup(appointment)}
 
           ${appointment.demo ? '' : `<div class="admin-manage">
-            <div class="admin-manage-block">
-              <p class="admin-manage-label">Status</p>
-              <div class="admin-manage-actions">
-                ${STATUS_ACTIONS.map((action) => {
-                  const isCurrent = action.status === status;
-                  const started = hasAppointmentStarted(appointment);
-                  const waitingToStart = Boolean(action.requiresStarted && !started);
-                  const disabled = (isCurrent && !action.alwaysEnabled) || waitingToStart;
-                  const title = waitingToStart
-                    ? 'No-show is available after this appointment time begins'
-                    : '';
-                  return `
-                  <button
-                    type="button"
-                    class="button button-secondary admin-mini-btn${isCurrent ? ' is-current' : ''}"
-                    data-action="status"
-                    data-status="${escapeHtml(action.status)}"
-                    ${disabled ? 'disabled' : ''}
-                    ${title ? `title="${escapeHtml(title)}"` : ''}
-                  >${escapeHtml(action.label)}</button>
-                `;
-                }).join('')}
-              </div>
-            </div>
-
             <div class="admin-manage-block">
               <p class="admin-manage-label">Reschedule</p>
               <div class="admin-reschedule">
