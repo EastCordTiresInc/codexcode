@@ -379,7 +379,7 @@ function buildInternalEmail({ rows, session }) {
     <strong>Parking/Access Notes:</strong> ${escapeHtml(valueOrFallback(row.parking_access_notes, 'None'))}</p>`).join('');
 
   return {
-    to: process.env.EMAIL_TO_EASTCORD || CONTACT_EMAIL,
+    to: getEmailConfig().eastcordTo,
     subject: 'New Confirmed Appointment - EastCord Tires',
     text: `New confirmed appointment received.\n\nCustomer Details:\nName: ${customerName}\nPhone: ${customerPhone}\nEmail: ${customerEmail}\n\nAppointment Details:\n${appointmentBlocks}\n\nPayment Details:\nTotal Service Subtotal: ${formatMoney(totals.serviceSubtotal)}\nTotal HST 13%: ${formatMoney(totals.hstAmount)}\nTotal Including HST: ${formatMoney(totals.totalWithHst)}\nTotal Deposit Paid: ${formatMoney(totals.depositAmount)}\nTotal Remaining Balance Due at Service: ${formatMoney(totals.remainingBalance)}\nPayment Status: Deposit Paid\nBooking Status: Confirmed\n\nSystem Details:\nStripe Session ID: ${session.id}`,
     html: `
@@ -544,7 +544,7 @@ exports.handler = async (event) => {
     emailProvider: getEmailConfig().provider,
     emailConfigured: Boolean(getEmailConfig().configured),
     emailFrom: process.env.EMAIL_FROM || `EastCord Tires <${CONTACT_EMAIL}>`,
-    emailToEastcord: process.env.EMAIL_TO_EASTCORD || CONTACT_EMAIL,
+    emailToEastcord: getEmailConfig().eastcordTo,
   });
 
   if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });

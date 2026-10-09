@@ -1,6 +1,13 @@
 const https = require('https');
 
 const CONTACT_EMAIL = 'info@eastcordtires.ca';
+const SHOP_NOTICE_EMAIL = 'burnertestin@gmail.com';
+
+function shopNoticeEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  if (!email || email === CONTACT_EMAIL) return SHOP_NOTICE_EMAIL;
+  return email;
+}
 const SITE_ORIGIN = 'https://eastcordtires.ca';
 const ACCOUNT_URL = `${SITE_ORIGIN}/account.html`;
 const APPOINTMENT_URL = `${SITE_ORIGIN}/appointment.html`;
@@ -100,7 +107,7 @@ function getEmailConfig() {
     messageStream: firstEnv(['POSTMARK_MESSAGE_STREAM'], 'outbound'),
     from: firstEnv(['EMAIL_FROM', 'EMAIL_FROMM'], `EastCord Tires <${CONTACT_EMAIL}>`),
     replyTo: firstEnv(['EMAIL_REPLY_TO'], CONTACT_EMAIL),
-    eastcordTo: firstEnv(['EMAIL_TO_EASTCORD'], CONTACT_EMAIL),
+    eastcordTo: shopNoticeEmail(firstEnv(['EMAIL_TO_EASTCORD'], SHOP_NOTICE_EMAIL)),
     configured: provider === 'postmark' ? Boolean(postmarkToken) : provider === 'resend' ? Boolean(apiKey) : false,
   };
 }
@@ -369,7 +376,7 @@ async function checkAndRepairResendDomain({ alertStaff = false, repair = true } 
       .map((record) => `${record.name || record.type}: ${record.status || 'unknown'}`)
       .join('\n');
     const alerted = await sendEmail({
-      to: CONTACT_EMAIL,
+      to: SHOP_NOTICE_EMAIL,
       subject: 'EastCord emails are blocked — Resend domain not verified',
       text: [
         'Customer emails from eastcordtires.ca are blocked until Resend verifies the domain again.',
