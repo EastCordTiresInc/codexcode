@@ -1047,28 +1047,6 @@ label:has(input[name="bot-field"]) {
   cursor: default;
 }
 
-.appointment-tire-count-display {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 50px;
-  margin: 0;
-  padding: 0 14px;
-  border-radius: 14px;
-  background: #f5f6f8;
-  color: #333840;
-}
-
-.appointment-tire-count-display strong {
-  font-size: 1rem;
-}
-
-.appointment-tire-count-display small {
-  color: #626a76;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
 .form-field[hidden] {
   display: none !important;
 }

@@ -482,8 +482,36 @@
 
     if (alternativeForm) {
       setAlternativeInputBounds(alternativeForm);
-      setDefaultSingleValues(alternativeForm);
-      renderAlternativeResults(calculator, alternativeForm, 'same');
+      const startEmpty = calculator.hasAttribute('data-start-empty');
+      if (!startEmpty) {
+        setDefaultSingleValues(alternativeForm);
+        renderAlternativeResults(calculator, alternativeForm, 'same');
+      }
+
+      const hideAlternativeResults = () => {
+        const message = alternativeForm.querySelector('[data-message]');
+        const results = calculator.querySelector('[data-alternative-results]');
+        if (message) message.textContent = '';
+        if (results) {
+          results.hidden = true;
+          results.innerHTML = '';
+        }
+      };
+
+      const showAlternativesWhenFilled = () => {
+        const width = String(alternativeForm.querySelector('[data-width]')?.value || '').trim();
+        const aspect = String(alternativeForm.querySelector('[data-aspect]')?.value || '').trim();
+        const rim = String(alternativeForm.querySelector('[data-rim]')?.value || '').trim();
+        if (!width || !aspect || !rim) {
+          hideAlternativeResults();
+          return;
+        }
+        renderAlternativeResults(calculator, alternativeForm, 'same');
+      };
+
+      if (startEmpty) {
+        alternativeForm.addEventListener('input', showAlternativesWhenFilled);
+      }
 
       alternativeForm.addEventListener('submit', (event) => {
         event.preventDefault();

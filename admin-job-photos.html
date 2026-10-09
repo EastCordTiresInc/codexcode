@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>Job photos | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=30" />
+    <link rel="stylesheet" href="admin.css?v=33" />
   </head>
   <body class="admin-app admin-job-photos-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -46,12 +46,12 @@
         </div>
 
         <section class="admin-panel admin-gate" data-admin-gate hidden>
-          <p class="admin-kicker">EastCord staff</p>
-          <h1>Staff access required</h1>
-          <p data-admin-gate-message>Log in with your EastCord installer account to submit job photos.</p>
+          <p class="admin-kicker">Service installer</p>
+          <h1>Installer login required</h1>
+          <p data-admin-gate-message>Log in with the service installer account to open job photos.</p>
           <div class="admin-actions">
             <a class="button button-primary" href="/login.html?redirect=/admin/job-photos">Log in</a>
-            <a class="button button-secondary" href="/">Public site</a>
+            <button class="button button-secondary" type="button" data-installer-logout hidden>Log out</button>
           </div>
         </section>
 
@@ -60,7 +60,7 @@
             <div>
               <p class="admin-kicker">Installation record</p>
               <h1>Job photos</h1>
-              <p>Add the seven photos, then finish the job. The photos are saved on the appointment and emailed to the customer and the shop.</p>
+              <p>Add an after photo for each tire. Add a before photo only if you see scratches or visible damage. The photos are saved on the appointment and emailed to the customer and the shop.</p>
             </div>
             <form class="admin-toolbar" data-admin-jobs-form>
               <label>
@@ -100,7 +100,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
-    <script src="account.js?v=70"></script>
-    <script src="admin-job-photos.js?v=10"></script>
+    <script src="account.js?v=71"></script>
+    <script src="admin-job-photos.js?v=14"></script>
   </body>
 </html>

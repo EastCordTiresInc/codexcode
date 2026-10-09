@@ -3,6 +3,12 @@ const { createClient } = require('@supabase/supabase-js');
 const { isStripeTestMode } = require('./lib/stripe-mode');
 const { isPreferredDateInShippingHold } = require('./lib/new-tire-shipping-hold');
 const { resolveService: resolveCatalogService } = require('../../appointment-services');
+const {
+  bookingLocation,
+  isSlotConflict,
+  listCalendarSlots,
+  slotKey,
+} = require('./lib/appointment-calendars');
 
 const TAX_RATE = 0.13;
 const SERVICE_START_MINUTES = 8 * 60;
@@ -147,6 +153,43 @@ function isOutsideServiceHours(item) {
   return startMinutes < SERVICE_START_MINUTES || startMinutes >= SERVICE_END_MINUTES;
 }
 
+async function findLocationSlotConflicts(supabaseAdmin, items) {
+  const dates = [...new Set(items.map((item) => item.preferredDate || item.preferred_date).filter(Boolean))];
+  const requested = new Set(items.map((item) => slotKey(
+    item.preferredDate || item.preferred_date,
+    item.preferredTimeWindow || item.preferred_time_window,
+    bookingLocation(item),
+  )));
+  const calendarSlots = await listCalendarSlots(supabaseAdmin, dates);
+  if (calendarSlots.error) return [{ reason: 'lookup_failed' }];
+  if (!calendarSlots.missing) {
+    return calendarSlots.slots
+      .filter((row) => requested.has(slotKey(row.slot_date, row.time_window, row.calendar)))
+      .map((row) => ({ id: row.appointment_id, slot: slotKey(row.slot_date, row.time_window, row.calendar) }));
+  }
+
+  const conflicts = [];
+
+  for (const date of dates) {
+    const { data, error } = await supabaseAdmin
+      .from('appointment_bookings')
+      .select('id, preferred_date, preferred_time_window, install_location, city')
+      .eq('preferred_date', date)
+      .eq('payment_status', 'paid_deposit')
+      .eq('booking_status', 'Confirmed');
+    if (error) {
+      console.error('[EastCord appointment pay] Confirmed slot lookup failed.', error.message);
+      return [{ reason: 'lookup_failed' }];
+    }
+    (data || []).forEach((row) => {
+      const key = slotKey(row.preferred_date, row.preferred_time_window, bookingLocation(row));
+      if (requested.has(key)) conflicts.push({ id: row.id, slot: key });
+    });
+  }
+
+  return conflicts;
+}
+
 function validateInstallSlots(items, ordersById = {}) {
   for (const item of items) {
     if (isOutsideServiceHours(item)) {
@@ -216,6 +259,16 @@ exports.handler = async (event) => {
 
   const bookingIds = [];
   if (supabaseAdmin) {
+    const slotConflicts = await findLocationSlotConflicts(supabaseAdmin, items);
+    if (slotConflicts.some((conflict) => conflict.reason === 'lookup_failed')) {
+      return json(500, { message: 'Appointment times could not be checked. Please try again.' });
+    }
+    if (slotConflicts.length) {
+      return json(409, {
+        message: 'That time is already booked on this calendar. A shop visit and a mobile service call can share the same hour.',
+      });
+    }
+
     const { data: pendingRows } = await supabaseAdmin
       .from('appointment_bookings')
       .select('id, service_id, preferred_date, preferred_time_window')
@@ -292,6 +345,11 @@ exports.handler = async (event) => {
           .insert(bookingRow)
           .select('id')
           .single());
+      }
+      if (error && isSlotConflict(error)) {
+        return json(409, {
+          message: 'That time is already booked on this calendar. A shop visit and a mobile service call can share the same hour.',
+        });
       }
       if (error) {
         console.error('[EastCord appointment pay] Booking insert failed; continuing to Stripe.', error);

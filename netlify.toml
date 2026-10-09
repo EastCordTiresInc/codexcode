@@ -12,6 +12,9 @@
 [functions."watch-resend-domain"]
   schedule = "0 */6 * * *"
 
+[functions."send-appointment-reminders"]
+  schedule = "*/15 * * * *"
+
 [[redirects]]
   from = "/used-tires"
   to = "/used-tires.html"

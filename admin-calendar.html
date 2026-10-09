@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>Calendar | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=24" />
+    <link rel="stylesheet" href="admin.css?v=32" />
   </head>
   <body class="admin-app">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -60,7 +60,7 @@
             <div>
               <p class="admin-kicker">Week view</p>
               <h1>Calendar</h1>
-              <p>Appointment slots from 8:00 AM to 8:00 PM. Open a day for the full schedule details.</p>
+              <p>Shop and mobile each have their own calendar. The same hour can hold one shop appointment and one service call. Open a day for the full schedule.</p>
             </div>
             <div class="admin-toolbar admin-calendar-toolbar">
               <button class="button button-secondary" type="button" data-cal-prev>Previous week</button>
@@ -70,8 +70,21 @@
           </div>
 
           <p class="admin-status" data-admin-status aria-live="polite">Loading calendar...</p>
-          <div class="admin-calendar-scroll">
-            <div class="admin-calendar" data-admin-calendar></div>
+          <div class="admin-calendar-boards" data-admin-calendar>
+            <section class="admin-calendar-board" aria-labelledby="shop-calendar-title">
+              <h2 id="shop-calendar-title">Shop calendar</h2>
+              <p>One appointment in the shop for each hour.</p>
+              <div class="admin-calendar-scroll">
+                <div class="admin-calendar" data-admin-calendar-grid="shop"></div>
+              </div>
+            </section>
+            <section class="admin-calendar-board" aria-labelledby="mobile-calendar-title">
+              <h2 id="mobile-calendar-title">Mobile service calendar</h2>
+              <p>One service call for each hour. This hour can also be booked in the shop.</p>
+              <div class="admin-calendar-scroll">
+                <div class="admin-calendar" data-admin-calendar-grid="mobile"></div>
+              </div>
+            </section>
           </div>
         </section>
       </div>
@@ -84,6 +97,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
     <script src="account.js?v=59"></script>
-    <script src="admin-calendar.js?v=4"></script>
+    <script src="admin-calendar.js?v=5"></script>
   </body>
 </html>

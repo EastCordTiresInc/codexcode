@@ -15,16 +15,6 @@
     '6:00 PM - 7:00 PM',
     '7:00 PM - 8:00 PM',
   ];
-  const JOB_PHOTO_SLOTS = [
-    ['plate', 'Vehicle and plate'],
-    ['sidewall', 'Tire sidewall'],
-    ['before', 'Before the work'],
-    ['removed', 'Wheel removed'],
-    ['mounted', 'Tire mounted'],
-    ['lugs', 'Lug nuts'],
-    ['finished', 'Finished install'],
-  ];
-
   const STATUS_ACTIONS = [
     { status: 'Completed', label: 'Complete' },
     { status: 'No-Show', label: 'No-show', requiresStarted: true },
@@ -105,12 +95,20 @@
 
   function demoJobPhotos() {
     if (demoPhotoCache) return demoPhotoCache;
-    const colors = ['#f4c542', '#5dade2', '#58d68d', '#e59866', '#bb8fce', '#ec7063', '#7f8c8d'];
-    demoPhotoCache = {};
-    JOB_PHOTO_SLOTS.forEach(([id, label], index) => {
-      demoPhotoCache[id] = { url: demoPhotoUrl(`${index + 1}. ${label}`, colors[index]) };
-    });
+    demoPhotoCache = {
+      'after-1': { url: demoPhotoUrl('After installation', '#58d68d') },
+    };
     return demoPhotoCache;
+  }
+
+  function installationPhotoLabel(id, photos) {
+    const match = String(id || '').match(/^(before|after)-(\d+)$/);
+    if (!match) return 'Installation photo';
+    const kind = match[1] === 'before' ? 'before' : 'after';
+    const index = Number(match[2]);
+    const multi = Object.keys(photos || {}).some((key) => /^(before|after)-([2-9]|\d{2,})$/.test(key));
+    if (!multi && index === 1) return kind === 'before' ? 'Before installation' : 'After installation';
+    return `Tire ${index} ${kind}`;
   }
 
   function demoCompletedAppointment(date) {
@@ -130,7 +128,7 @@
       vehicle_colour: 'Grey',
       vehicle_plate_number: 'DEMO',
       tire_size: '215/45R17',
-      number_of_tires: 4,
+      number_of_tires: 1,
       install_location: 'shop',
       city: 'Milton',
       additional_notes: 'Demo only. Nothing is saved.',
@@ -479,18 +477,28 @@
   function installationPhotosMarkup(appointment) {
     if (statusBucket(appointment.booking_status) !== 'completed') return '';
     const photos = appointment.job_photos || {};
-    const saved = JOB_PHOTO_SLOTS.filter(([id]) => photos[id]?.url);
+    const saved = Object.keys(photos)
+      .filter((id) => /^(before|after)-\d+$/.test(id) && photos[id]?.url)
+      .sort((left, right) => {
+        const leftIndex = Number(left.split('-')[1]);
+        const rightIndex = Number(right.split('-')[1]);
+        if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+        return left.startsWith('after') ? -1 : 1;
+      });
     if (!saved.length) return '';
     return `
       <div class="admin-install-photos">
         <p class="admin-manage-label">Installation photos</p>
         <div class="admin-install-photo-grid">
-          ${saved.map(([id, label]) => `
+          ${saved.map((id) => {
+            const label = installationPhotoLabel(id, photos);
+            return `
             <figure>
               <img src="${escapeHtml(photos[id].url)}" alt="${escapeHtml(label)}" />
               <figcaption>${escapeHtml(label)}</figcaption>
             </figure>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
       </div>
     `;
@@ -743,6 +751,13 @@
 
     const profile = await window.EastCordAccount.getCurrentProfile?.();
     const email = String(profile?.email || '').trim().toLowerCase();
+    const client = window.EastCordAccount.getSupabaseClient?.();
+    const userResult = client ? await client.auth.getUser() : null;
+    const role = userResult?.data?.user?.app_metadata?.role || userResult?.data?.user?.user_metadata?.role || '';
+    if (role === 'installer') {
+      window.location.replace('/admin/job-photos');
+      return;
+    }
     const isStaff = window.EastCordAccount.isStaffAdminEmail?.(email) || email === ADMIN_EMAIL;
     if (!email) {
       if (isLocalDemoHost()) {

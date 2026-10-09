@@ -1,4 +1,11 @@
 const { requireAdminUser } = require('./lib/admin-auth');
+const {
+  bookingLocation,
+  isSlotConflict,
+  listCalendarSlots,
+  slotConflictMessage,
+  slotKey,
+} = require('./lib/appointment-calendars');
 
 const TIME_WINDOWS = Object.freeze([
   '8:00 AM - 9:00 AM',
@@ -293,6 +300,40 @@ async function updateAppointment(supabaseAdmin, event, staffEmail) {
     return json(400, { message: 'Appointment must keep a valid date and time window.' });
   }
 
+  if (preferredDate !== undefined || preferredTimeWindow !== undefined) {
+    const location = bookingLocation(existing);
+    const calendarSlots = await listCalendarSlots(supabaseAdmin, [nextDate]);
+    if (calendarSlots.error) {
+      console.error('[EastCord admin] slot check failed.', calendarSlots.error);
+      return json(500, { message: 'That time could not be checked.' });
+    }
+    if (!calendarSlots.missing) {
+      const key = slotKey(nextDate, nextWindow, location);
+      const taken = calendarSlots.slots.some((row) => (
+        slotKey(row.slot_date, row.time_window, row.calendar) === key
+        && row.appointment_id !== id
+      ));
+      if (taken) return json(409, { message: slotConflictMessage(location) });
+    } else {
+      const { data: sameSlot, error: slotError } = await supabaseAdmin
+        .from('appointment_bookings')
+        .select('id, install_location, city, booking_status')
+        .eq('preferred_date', nextDate)
+        .eq('preferred_time_window', nextWindow)
+        .neq('id', id);
+      if (slotError) {
+        console.error('[EastCord admin] slot check failed.', slotError);
+        return json(500, { message: 'That time could not be checked.' });
+      }
+      const taken = (sameSlot || []).some((row) => {
+        const status = String(row.booking_status || '');
+        if (status === 'Cancelled' || status === 'No-Show') return false;
+        return bookingLocation(row) === location;
+      });
+      if (taken) return json(409, { message: slotConflictMessage(location) });
+    }
+  }
+
   if (staffNote) {
     const line = `[Staff ${torontoStamp()} · ${staffEmail}] ${staffNote}`;
     const previous = String(existing.additional_notes || '').trim();
@@ -307,6 +348,9 @@ async function updateAppointment(supabaseAdmin, event, staffEmail) {
     .maybeSingle();
 
   if (updateError) {
+    if (isSlotConflict(updateError)) {
+      return json(409, { message: slotConflictMessage(bookingLocation(existing)) });
+    }
     console.error('[EastCord admin] appointment update failed.', updateError);
     return json(500, { message: 'Appointment could not be updated right now.' });
   }

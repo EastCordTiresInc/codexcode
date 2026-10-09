@@ -152,3 +152,6 @@ alter table public.appointment_bookings
   add column if not exists new_tire_order_id uuid,
   add column if not exists new_tire_purchased_at timestamptz,
   add column if not exists install_location text;
+
+-- Shop and mobile calendars live in supabase/appointment-calendars.sql.
+-- The one-hour customer reminder column lives in supabase/appointment-reminder.sql.

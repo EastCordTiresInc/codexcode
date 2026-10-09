@@ -12,17 +12,45 @@ const MAX_EMAIL_BYTES = 9 * 1024 * 1024;
 const BLOCKED_SHOP_INBOX = 'info@eastcordtires.ca';
 const INSTALLATION_ADMIN_EMAIL = 'burnertestin@gmail.com';
 
-const PHOTO_SLOTS = Object.freeze([
-  { id: 'plate', label: 'Vehicle and plate', hint: 'Front of the vehicle with the plate readable.' },
-  { id: 'sidewall', label: 'Tire sidewall', hint: 'Size and brand of the tire being installed.' },
-  { id: 'before', label: 'Before the work', hint: 'The wheel on the vehicle before it comes off.' },
-  { id: 'removed', label: 'Wheel removed', hint: 'The wheel or tire off the vehicle.' },
-  { id: 'mounted', label: 'Tire mounted', hint: 'The tire seated on the rim.' },
-  { id: 'lugs', label: 'Lug nuts', hint: 'Lugs seated, or the torque mark after they are tightened.' },
-  { id: 'finished', label: 'Finished install', hint: 'The wheel back on the vehicle after the job.' },
-]);
+const MAX_TIRES = 8;
 
-const SLOT_IDS = new Set(PHOTO_SLOTS.map((slot) => slot.id));
+function tireQuantity(value) {
+  const qty = Math.floor(Number(value));
+  if (!Number.isFinite(qty) || qty < 1) return 1;
+  return Math.min(MAX_TIRES, qty);
+}
+
+function slotsForQuantity(value) {
+  const qty = tireQuantity(value);
+  const slots = [];
+  for (let index = 1; index <= qty; index += 1) {
+    const single = qty === 1;
+    slots.push({
+      id: `after-${index}`,
+      label: single ? 'After installation' : `Tire ${index} after`,
+      hint: 'Photo of the tire after it is installed.',
+      required: true,
+    });
+    slots.push({
+      id: `before-${index}`,
+      label: single ? 'Before installation' : `Tire ${index} before`,
+      hint: 'Only if you see scratches or visible damage. Otherwise skip this photo.',
+      required: false,
+    });
+  }
+  return slots;
+}
+
+function parsePhotoSlot(slotId) {
+  const match = String(slotId || '').match(/^(before|after)-([1-8])$/);
+  if (!match) return null;
+  return { kind: match[1], index: Number(match[2]) };
+}
+
+function isAllowedSlot(slotId, quantity) {
+  const parsed = parsePhotoSlot(slotId);
+  return Boolean(parsed && parsed.index <= tireQuantity(quantity));
+}
 
 function json(statusCode, payload) {
   return {
@@ -97,7 +125,7 @@ async function photosForAppointment(supabaseAdmin, appointmentId) {
   }
 
   const photos = {};
-  const files = (listed.data || []).filter((file) => SLOT_IDS.has(String(file.name || '').replace(/\.jpe?g$/i, '')));
+  const files = (listed.data || []).filter((file) => parsePhotoSlot(String(file.name || '').replace(/\.jpe?g$/i, '')));
   await Promise.all(files.map(async (file) => {
     const slot = String(file.name).replace(/\.jpe?g$/i, '');
     const path = `${appointmentId}/${file.name}`;
@@ -124,7 +152,8 @@ function publicAppointment(row, photos) {
     vehicle: vehicleLabel(row),
     vehicle_plate_number: row.vehicle_plate_number || '',
     tire_size: row.tire_size || '',
-    number_of_tires: row.number_of_tires || null,
+    number_of_tires: tireQuantity(row.number_of_tires),
+    slots: slotsForQuantity(row.number_of_tires),
     install_location: row.install_location || '',
     city: row.city || '',
     photos,
@@ -161,7 +190,6 @@ async function listJobs(supabaseAdmin, event) {
   return json(200, {
     date,
     role: event.jobPhotoRole || '',
-    slots: PHOTO_SLOTS,
     count: appointments.length,
     appointments,
   });
@@ -257,13 +285,20 @@ function buildInstallationPhotoEmails(appointment, photos, options = {}) {
   return { customerTo, adminTo, emails };
 }
 
-async function loadSavedPhotos(supabaseAdmin, appointmentId) {
+async function loadSavedPhotos(supabaseAdmin, appointmentId, quantity) {
   const photos = [];
-  for (const slot of PHOTO_SLOTS) {
+  for (const slot of slotsForQuantity(quantity)) {
     const downloaded = await supabaseAdmin.storage.from(BUCKET).download(`${appointmentId}/${slot.id}.jpg`);
-    if (downloaded.error || !downloaded.data) return { missing: slot.label };
+    const missing = downloaded.error || !downloaded.data;
+    if (missing) {
+      if (slot.required) return { missing: slot.label };
+      continue;
+    }
     const buffer = Buffer.from(await downloaded.data.arrayBuffer());
-    if (!buffer.length) return { missing: slot.label };
+    if (!buffer.length) {
+      if (slot.required) return { missing: slot.label };
+      continue;
+    }
     photos.push({
       id: slot.id,
       label: slot.label,
@@ -286,7 +321,7 @@ async function sendJobPhotos(supabaseAdmin, body, finishedBy = '') {
 
   const { data: appointment, error } = await supabaseAdmin
     .from('appointment_bookings')
-    .select('id, customer_name, customer_email, customer_phone, service_name, preferred_date, preferred_time_window, vehicle_year, vehicle_make, vehicle_model, vehicle_plate_number')
+    .select('id, customer_name, customer_email, customer_phone, service_name, preferred_date, preferred_time_window, vehicle_year, vehicle_make, vehicle_model, vehicle_plate_number, number_of_tires')
     .eq('id', appointmentId)
     .maybeSingle();
 
@@ -296,9 +331,9 @@ async function sendJobPhotos(supabaseAdmin, body, finishedBy = '') {
   }
   if (!appointment) return json(404, { message: 'That installation job was not found.' });
 
-  const loaded = await loadSavedPhotos(supabaseAdmin, appointmentId);
+  const loaded = await loadSavedPhotos(supabaseAdmin, appointmentId, appointment.number_of_tires);
   if (loaded.missing) {
-    return json(400, { message: `Add the ${loaded.missing} photo before emailing this job.` });
+    return json(400, { message: `Add the ${loaded.missing} photo before finishing this job.` });
   }
   if (loaded.tooLarge) {
     return json(400, { message: 'Those photos are too large to email. Replace the largest ones and try again.' });
@@ -341,7 +376,7 @@ async function savePhoto(supabaseAdmin, body, email) {
 
   const appointmentId = String(body.appointmentId || '').trim();
   const slot = String(body.slot || '').trim();
-  if (!isUuid(appointmentId) || !SLOT_IDS.has(slot)) {
+  if (!isUuid(appointmentId) || !parsePhotoSlot(slot)) {
     return json(400, { message: 'Choose a job and a photo slot before uploading.' });
   }
 
@@ -352,7 +387,7 @@ async function savePhoto(supabaseAdmin, body, email) {
 
   const { data: appointment, error: appointmentError } = await supabaseAdmin
     .from('appointment_bookings')
-    .select('id')
+    .select('id, number_of_tires')
     .eq('id', appointmentId)
     .maybeSingle();
 
@@ -361,6 +396,9 @@ async function savePhoto(supabaseAdmin, body, email) {
     return json(500, { message: 'That installation job could not be checked.' });
   }
   if (!appointment) return json(404, { message: 'That installation job was not found.' });
+  if (!isAllowedSlot(slot, appointment.number_of_tires)) {
+    return json(400, { message: 'That photo does not match the number of tires on this job.' });
+  }
 
   const bucketError = await ensureBucket(supabaseAdmin);
   if (bucketError) {
@@ -419,6 +457,7 @@ async function handler(event) {
 
 module.exports = {
   handler,
-  PHOTO_SLOTS,
+  slotsForQuantity,
+  tireQuantity,
   buildInstallationPhotoEmails,
 };

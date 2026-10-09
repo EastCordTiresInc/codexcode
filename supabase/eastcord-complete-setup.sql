@@ -369,6 +369,8 @@ where table_schema = 'public'
     'customer_carts',
     'new_tire_orders',
     'appointment_bookings',
+    'shop_calendar_slots',
+    'mobile_calendar_slots',
     'used_tire_orders'
   )
 order by table_name;

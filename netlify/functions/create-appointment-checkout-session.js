@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { isStripeTestMode } = require('./lib/stripe-mode');
 const { isPreferredDateInShippingHold } = require('./lib/new-tire-shipping-hold');
 const { resolveService } = require('../../appointment-services');
+const { listCalendarSlots, slotKey, isSlotConflict } = require('./lib/appointment-calendars');
 
 const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
@@ -238,8 +239,16 @@ function isWithinNewTireShippingHold(booking, purchaseIso) {
   return isPreferredDateInShippingHold(booking.preferredDate, purchaseIso);
 }
 
-function getSlotKey(date, timeWindow) {
-  return `${date || ''}__${timeWindow || ''}`;
+function bookingLocation(row) {
+  const explicit = String(row?.installLocation || row?.install_location || '').trim().toLowerCase();
+  if (explicit === 'shop') return 'shop';
+  if (explicit === 'mobile') return 'mobile';
+  if (String(row?.city || '').trim().toLowerCase() === 'eastcord shop') return 'shop';
+  return 'mobile';
+}
+
+function getSlotKey(date, timeWindow, location) {
+  return slotKey(date, timeWindow, location);
 }
 
 function validateCartSlotAvailability(bookings, ordersById = {}) {
@@ -262,7 +271,7 @@ function validateCartSlotAvailability(bookings, ordersById = {}) {
       return { valid: false, reason: 'minimum_advance_time', message: SLOT_UNAVAILABLE_MESSAGE };
     }
 
-    const slotKey = getSlotKey(booking.preferredDate, booking.preferredTimeWindow);
+    const slotKey = getSlotKey(booking.preferredDate, booking.preferredTimeWindow, bookingLocation(booking));
     if (seenSlots.has(slotKey)) {
       return { valid: false, reason: 'duplicate_cart_time', message: SLOT_UNAVAILABLE_MESSAGE };
     }
@@ -277,13 +286,43 @@ async function findPaidSlotConflicts(supabaseAdmin, preparedItems) {
 
   const dates = Array.from(new Set(preparedItems.map((item) => item.booking.preferredDate).filter(Boolean)));
   const activeBookingIds = new Set(preparedItems.map((item) => item.effectiveBookingId).filter(Boolean));
-  const requestedSlots = new Set(preparedItems.map((item) => getSlotKey(item.booking.preferredDate, item.booking.preferredTimeWindow)));
+  const calendarSlots = await listCalendarSlots(supabaseAdmin, dates);
+  if (calendarSlots.error) {
+    logDeveloperError('Calendar slot lookup failed before Stripe checkout.', calendarSlots.error);
+    return [{ reason: 'supabase_slot_lookup_failed' }];
+  }
+  if (!calendarSlots.missing) {
+    const conflicts = [];
+    const requested = new Map(preparedItems.map((item) => [
+      getSlotKey(item.booking.preferredDate, item.booking.preferredTimeWindow, bookingLocation(item.booking)),
+      item,
+    ]));
+    calendarSlots.slots.forEach((row) => {
+      const key = getSlotKey(row.slot_date, row.time_window, row.calendar);
+      if (requested.has(key) && !activeBookingIds.has(row.appointment_id)) {
+        conflicts.push({
+          reason: 'confirmed_paid_slot_conflict',
+          bookingId: row.appointment_id,
+          date: row.slot_date,
+          timeWindow: row.time_window,
+          calendar: row.calendar,
+        });
+      }
+    });
+    return conflicts;
+  }
+
+  const requestedSlots = new Set(preparedItems.map((item) => getSlotKey(
+    item.booking.preferredDate,
+    item.booking.preferredTimeWindow,
+    bookingLocation(item.booking),
+  )));
   const conflicts = [];
 
   for (const date of dates) {
     const { data, error } = await supabaseAdmin
       .from('appointment_bookings')
-      .select('id, preferred_date, preferred_time_window, payment_status, booking_status')
+      .select('id, preferred_date, preferred_time_window, payment_status, booking_status, install_location, city')
       .eq('preferred_date', date)
       .eq('payment_status', 'paid_deposit')
       .eq('booking_status', 'Confirmed');
@@ -297,7 +336,7 @@ async function findPaidSlotConflicts(supabaseAdmin, preparedItems) {
     }
 
     (data || []).forEach((row) => {
-      const slotKey = getSlotKey(row.preferred_date, row.preferred_time_window);
+      const slotKey = getSlotKey(row.preferred_date, row.preferred_time_window, bookingLocation(row));
       if (requestedSlots.has(slotKey) && !activeBookingIds.has(row.id)) {
         conflicts.push({
           reason: 'confirmed_paid_slot_conflict',
@@ -460,6 +499,14 @@ async function findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifi
     buildBookingRecord({ booking, customer, service, amounts, verifiedUser }),
     'id, customer_id, payment_status'
   );
+
+  if (repairError && isSlotConflict(repairError)) {
+    return {
+      errorResponse: json(409, {
+        message: 'That time is already booked on this calendar. A shop visit and a mobile service call can share the same hour.',
+      }),
+    };
+  }
 
   if (repairError || !repairedRow) {
     const repairDiagnostics = buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError: repairError, rowFound: false, reason: 'booking_repair_insert_failed_checkout_allowed' });

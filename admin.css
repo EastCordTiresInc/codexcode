@@ -94,6 +94,10 @@
   text-decoration: none;
 }
 
+.admin-tabs a[hidden] {
+  display: none;
+}
+
 .admin-tabs a[aria-current="page"],
 .admin-tabs a:hover,
 .admin-tabs a:focus-visible {
@@ -601,6 +605,20 @@
 
 .admin-calendar-toolbar .button {
   min-width: 0;
+}
+
+.admin-calendar-board + .admin-calendar-board {
+  margin-top: 28px;
+}
+
+.admin-calendar-board h2 {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+}
+
+.admin-calendar-board > p {
+  margin: 0 0 12px;
+  color: #5b6472;
 }
 
 .admin-calendar-scroll {
@@ -1235,6 +1253,19 @@
 .admin-photo-slot h3 {
   margin: 0;
   font-size: 1rem;
+}
+
+.admin-photo-optional {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #eef1f4;
+  color: #5b6472;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
 }
 
 .admin-photo-slot p {

@@ -2050,17 +2050,17 @@ function bindAuthForms() {
         password: formData.get('Password'),
       });
       const email = String(formData.get('Email') || session?.user?.email || '').trim().toLowerCase();
+      const role = session?.user?.app_metadata?.role || session?.user?.user_metadata?.role;
+      if (role === 'installer') {
+        localStorage.removeItem('eastcord_auth_redirect');
+        window.location.href = '/admin/job-photos';
+        return;
+      }
       const redirectTarget = getRedirectTarget('/account.html');
       const goingToAccount = redirectTarget === '/account.html' || redirectTarget === '/account';
       if (isStaffAdminEmail(email) && goingToAccount) {
         localStorage.removeItem('eastcord_auth_redirect');
         window.location.href = '/admin';
-        return;
-      }
-      const role = session?.user?.app_metadata?.role || session?.user?.user_metadata?.role;
-      if (role === 'installer' && goingToAccount) {
-        localStorage.removeItem('eastcord_auth_redirect');
-        window.location.href = '/admin/job-photos';
         return;
       }
       goToRedirectTarget('/account.html');

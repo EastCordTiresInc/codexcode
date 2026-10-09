@@ -104,8 +104,6 @@
     els.serviceOptions = document.querySelector('[data-service-options]');
     els.selectedServices = document.querySelector('[data-selected-services]');
     els.rimsField = document.querySelector('[data-rims-field]');
-    els.tireCountField = document.querySelector('[data-tire-count-field]');
-    els.tireCountDisplay = document.querySelector('[data-tire-count-display]');
     els.serviceIdField = document.querySelector('[data-hidden-service-id]');
     els.serviceNameField = document.querySelector('[data-hidden-service-name]');
     els.startingPriceField = document.querySelector('[data-hidden-starting-price]');
@@ -334,7 +332,6 @@
 
     if (rimsField) rimsField.value = tiresOnRims;
     if (qtyField) qtyField.value = String(tireCount);
-    if (els.tireCountDisplay) els.tireCountDisplay.textContent = String(tireCount);
     if (els.rimsField) els.rimsField.hidden = true;
   }
 
@@ -696,8 +693,17 @@
     return startDate.getTime() - Date.now() < getMinimumAdvanceMinutes() * 60 * 1000;
   }
 
-  function getSlotKey(date, timeWindow) {
-    return `${date || ''}__${timeWindow || ''}`;
+  function bookingLocation(row) {
+    const explicit = String(row?.installLocation || row?.install_location || '').trim().toLowerCase();
+    if (explicit === 'shop') return 'shop';
+    if (explicit === 'mobile') return 'mobile';
+    if (String(row?.city || '').trim().toLowerCase() === 'eastcord shop') return 'shop';
+    return explicit ? 'mobile' : '';
+  }
+
+  function getSlotKey(date, timeWindow, location) {
+    const calendar = location === 'shop' ? 'shop' : 'mobile';
+    return `${date || ''}__${timeWindow || ''}__${calendar}`;
   }
 
   function getLocalUsedTireCart() {
@@ -1001,24 +1007,38 @@
     }
   }
 
-  function getCartBlockedSlots(date) {
+  function currentCalendar() {
+    return selectedInstallLocation() === 'shop' ? 'shop' : (selectedInstallLocation() === 'mobile' ? 'mobile' : '');
+  }
+
+  function getCartBlockedSlots(date, location) {
+    if (!location) return new Set();
     return new Set(
       getCartAppointmentItems()
-        .filter((item) => item.preferredDate === date && item.preferredTimeWindow)
-        .map((item) => getSlotKey(item.preferredDate, item.preferredTimeWindow))
+        .filter((item) => item.preferredDate === date && item.preferredTimeWindow && bookingLocation(item) === location)
+        .map((item) => getSlotKey(item.preferredDate, item.preferredTimeWindow, location))
     );
   }
 
   function getSlotUnavailableReason(date, timeWindow) {
     if (!date || !timeWindow) return '';
-    const key = getSlotKey(date, timeWindow);
+    const location = currentCalendar();
+    const key = location ? getSlotKey(date, timeWindow, location) : '';
 
     if (isPastTimeSlot(date, timeWindow)) return 'Please choose a future time window.';
     if (isOutsideServiceHours(timeWindow)) return SERVICE_HOURS_MESSAGE;
     if (isWithinNewTireShippingHold(date)) return SHIPPING_HOLD_MESSAGE;
     if (isLessThanMinimumAdvance(date, timeWindow)) return getMinimumAdvanceMessage();
-    if (getCartBlockedSlots(date).has(key)) return 'This time is already in your cart. Please choose another time slot for this vehicle.';
-    if (state.paidBookedSlotsDate === date && state.paidBookedSlots.has(key)) return 'This time is already booked. Please choose another time slot.';
+    if (location && getCartBlockedSlots(date, location).has(key)) {
+      return location === 'shop'
+        ? 'This shop time is already in your cart. A mobile service call can still use this hour.'
+        : 'This mobile time is already in your cart. A shop visit can still use this hour.';
+    }
+    if (location && state.paidBookedSlotsDate === date && state.paidBookedSlots.has(key)) {
+      return location === 'shop'
+        ? 'This shop time is already booked. A mobile service call can still use this hour.'
+        : 'This mobile time is already booked. A shop visit can still use this hour.';
+    }
     return '';
   }
 

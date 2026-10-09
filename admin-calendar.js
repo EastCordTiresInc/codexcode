@@ -23,7 +23,9 @@
     gateMessage: document.querySelector('[data-admin-gate-message]'),
     dashboard: document.querySelector('[data-admin-dashboard]'),
     status: document.querySelector('[data-admin-status]'),
-    calendar: document.querySelector('[data-admin-calendar]'),
+    calendarBoards: document.querySelector('[data-admin-calendar]'),
+    shopCalendar: document.querySelector('[data-admin-calendar-grid="shop"]'),
+    mobileCalendar: document.querySelector('[data-admin-calendar-grid="mobile"]'),
     prev: document.querySelector('[data-cal-prev]'),
     today: document.querySelector('[data-cal-today]'),
     next: document.querySelector('[data-cal-next]'),
@@ -151,6 +153,14 @@
     window.history.replaceState({}, '', url);
   }
 
+  function bookingLocation(appointment) {
+    const explicit = String(appointment?.install_location || '').trim().toLowerCase();
+    if (explicit === 'shop') return 'shop';
+    if (explicit === 'mobile') return 'mobile';
+    if (String(appointment?.city || '').trim().toLowerCase() === 'eastcord shop') return 'shop';
+    return 'mobile';
+  }
+
   function groupAppointments(appointments) {
     const map = new Map();
     appointments.forEach((appointment) => {
@@ -184,7 +194,18 @@
   }
 
   function renderCalendar({ days, timeWindows, appointments }) {
-    if (!els.calendar) return;
+    const boards = [
+      ['shop', els.shopCalendar],
+      ['mobile', els.mobileCalendar],
+    ];
+    boards.forEach(([location, target]) => {
+      if (!target) return;
+      const filtered = appointments.filter((appointment) => bookingLocation(appointment) === location);
+      target.innerHTML = calendarGrid({ days, timeWindows, appointments: filtered });
+    });
+  }
+
+  function calendarGrid({ days, timeWindows, appointments }) {
     const grouped = groupAppointments(appointments);
     const today = torontoToday();
 
@@ -214,7 +235,7 @@
       }).join('')}
     `).join('');
 
-    els.calendar.innerHTML = `<div class="admin-cal-grid">${head}${rows}</div>`;
+    return `<div class="admin-cal-grid">${head}${rows}</div>`;
   }
 
   function stopAutoRefresh() {
@@ -272,7 +293,8 @@
       if (!response.ok) {
         if (!quiet) {
           setStatus(payload.message || 'Calendar could not be loaded.', 'error');
-          if (els.calendar) els.calendar.innerHTML = '';
+          if (els.shopCalendar) els.shopCalendar.innerHTML = '';
+          if (els.mobileCalendar) els.mobileCalendar.innerHTML = '';
         }
         return;
       }
