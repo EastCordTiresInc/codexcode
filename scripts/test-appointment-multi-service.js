@@ -185,11 +185,7 @@ async function main() {
   await anonymous.goto(SITE, { waitUntil: 'networkidle' });
   await selectService(anonymous, 'on-rim-swap', { quantity: 4 });
   await anonymous.locator('[data-booking-step="0"] [data-next-step]').click();
-  await anonymous.locator('select[name="Vehicle Year"]').selectOption('2022');
-  await anonymous.locator('select[name="Vehicle Make"]').selectOption('Toyota');
-  await anonymous.locator('select[name="Vehicle Model"]').selectOption('Corolla');
   await anonymous.locator('input[name="Vehicle Plate Number"]').fill('TEST123');
-  await anonymous.locator('select[name="Vehicle Colour"]').selectOption('Blue');
   await anonymous.locator('[data-tire-width]').selectOption('205');
   await anonymous.locator('[data-tire-profile]').selectOption('55');
   await anonymous.locator('[data-tire-rim]').selectOption('16');

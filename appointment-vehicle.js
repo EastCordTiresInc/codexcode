@@ -633,27 +633,30 @@
 
   function init() {
     cacheElements();
-    if (!els.year || !els.make || !els.model) return;
+    if (!els.width || !els.profile || !els.rim) return;
 
-    const years = [];
-    for (let year = CURRENT_YEAR + 1; year >= YEAR_START; year -= 1) years.push(String(year));
-    fillSelect(els.year, years, 'Select or type year');
-    fillSelect(els.make, cache.makes, 'Select or type make');
-    fillSelect(els.model, [], 'Select or type model');
+    if (els.year && els.make && els.model) {
+      const years = [];
+      for (let year = CURRENT_YEAR + 1; year >= YEAR_START; year -= 1) years.push(String(year));
+      fillSelect(els.year, years, 'Select or type year');
+      fillSelect(els.make, cache.makes, 'Select or type make');
+      fillSelect(els.model, [], 'Select or type model');
+      els.make.disabled = !els.year.value;
+      els.model.disabled = !els.year.value || !els.make.value;
+      els.year.addEventListener('change', onYearChange);
+      els.make.addEventListener('change', onMakeChange);
+      els.model.addEventListener('change', () => refreshTireSizeSuggestions());
+      loadMakes();
+    }
     if (els.colour) fillSelect(els.colour, COLOURS, 'Select or type colour');
-    if (els.width) fillSelect(els.width, WIDTHS.map(String), 'Width');
-    if (els.profile) fillSelect(els.profile, PROFILES.map(String), 'Profile');
-    if (els.rim) fillSelect(els.rim, RIMS.map(String), 'Rim');
+    fillSelect(els.width, WIDTHS.map(String), 'Width');
+    fillSelect(els.profile, PROFILES.map(String), 'Profile');
+    fillSelect(els.rim, RIMS.map(String), 'Rim');
     syncTireSize();
 
-    els.make.disabled = !els.year.value;
-    els.model.disabled = !els.year.value || !els.make.value;
     if (els.profile) els.profile.disabled = !els.width?.value;
     if (els.rim) els.rim.disabled = !els.profile?.value;
 
-    els.year.addEventListener('change', onYearChange);
-    els.make.addEventListener('change', onMakeChange);
-    els.model.addEventListener('change', () => refreshTireSizeSuggestions());
     els.width?.addEventListener('change', () => {
       if (els.profile) {
         els.profile.disabled = !els.width.value;
@@ -675,7 +678,6 @@
     els.rim?.addEventListener('change', syncTireSize);
     bindFancySelects();
     bindTireSizeSuggestions();
-    loadMakes();
     [els.year, els.make, els.model, els.colour, els.width, els.profile, els.rim].forEach(syncFancySelect);
     refreshTireSizeSuggestions();
   }

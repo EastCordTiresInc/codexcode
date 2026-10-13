@@ -20,11 +20,7 @@
     parking: 'Customer will bring the vehicle to the EastCord shop at 600 Harrop Drive, Milton, Ontario.',
   };
   const REQUIRED_FIELD_MESSAGES = {
-    'Vehicle Year': 'Please choose your vehicle year.',
-    'Vehicle Make': 'Please choose your vehicle make.',
-    'Vehicle Model': 'Please choose your vehicle model.',
-    'Vehicle Plate Number': 'Please enter your vehicle plate number.',
-    'Vehicle Colour': 'Please choose your vehicle colour.',
+    'Vehicle Plate Number': 'Please enter the license plate.',
     'Tires Already On Rims': 'Please tell us if the tires are already on rims.',
     'Full Service Address': 'Please enter the service address.',
     'City': 'Please choose a city.',
@@ -1442,15 +1438,13 @@
     const year = getFieldValue('Vehicle Year');
     const make = getFieldValue('Vehicle Make');
     const model = getFieldValue('Vehicle Model');
-    const vehicle = [year, make, model].filter(Boolean).join(' ');
-    const tireCount = getFieldValue('Number of Tires');
 
     return {
-      vehicle: vehicle || 'Vehicle details',
+      vehicle: [year, make, model].filter(Boolean).join(' '),
       plate: formatPlate(getFieldValue('Vehicle Plate Number')),
       colour: getFieldValue('Vehicle Colour'),
       tireSize: formatTireSize(getFieldValue('Tire Size')),
-      tireCount,
+      tireCount: getFieldValue('Number of Tires'),
     };
   }
 
@@ -1615,8 +1609,8 @@
   function updateReviewSummary(service = state.currentService || getCurrentService()) {
     if (!els.appointmentForm) return;
     const vehicleDetails = getCleanVehicleDetails();
-    const hasVehicleDetails = [vehicleDetails.vehicle, vehicleDetails.plate, vehicleDetails.colour, vehicleDetails.tireSize, vehicleDetails.tireCount]
-      .some((value) => value && value !== 'Vehicle details');
+    const hasVehicleDetails = [vehicleDetails.vehicle, vehicleDetails.plate, vehicleDetails.colour, vehicleDetails.tireSize]
+      .some(Boolean);
     const shop = isShopInstall();
     const address = shop ? SHOP_LOCATION.address : getFieldValue('Full Service Address');
     const city = shop ? SHOP_LOCATION.city : getFieldValue('City');
@@ -1636,10 +1630,9 @@
       els.reviewVehicle.innerHTML = hasVehicleDetails
         ? buildDetailsHtml([
           ['Year / make / model', vehicleDetails.vehicle],
-          ['Plate Number', vehicleDetails.plate],
+          ['License plate', vehicleDetails.plate],
           ['Colour', vehicleDetails.colour],
-          ['Tire Size', vehicleDetails.tireSize],
-          ['Tires', vehicleDetails.tireCount],
+          ['Tire size', vehicleDetails.tireSize],
         ])
         : 'Not entered yet';
     }

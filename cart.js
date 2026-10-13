@@ -432,7 +432,7 @@ function displayText(value) {
 
 function getVehicleDetails(item) {
   return {
-    vehicle: [item.vehicleYear, displayText(item.vehicleMake), displayText(item.vehicleModel)].filter(Boolean).join(' ') || 'Vehicle details submitted',
+    vehicle: [item.vehicleYear, displayText(item.vehicleMake), displayText(item.vehicleModel)].filter(Boolean).join(' '),
     plate: formatPlate(item.vehiclePlateNumber) || 'Not provided',
     colour: displayText(item.vehicleColour) || 'Not provided',
     tireSize: formatTireSize(item.tireSize) || 'Not provided',
@@ -755,11 +755,12 @@ function formatTimeStart(value) {
 }
 
 function compactAppointmentMeta(item) {
-  const vehicle = getVehicleDetails(item).vehicle;
+  const details = getVehicleDetails(item);
+  const identity = details.vehicle || [details.plate, details.tireSize].filter(Boolean).join(' · ');
   const date = formatAppointmentDate(item.preferredDate);
   const time = formatTimeStart(item.preferredTimeWindow);
   const place = isShopCartItem(item) ? 'EastCord shop' : String(item.city || '').trim();
-  return [vehicle, date, time, place].filter(Boolean).join(' · ');
+  return [identity, date, time, place].filter(Boolean).join(' · ');
 }
 
 function compactAppointmentAddress(item) {

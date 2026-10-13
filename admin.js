@@ -401,7 +401,8 @@
       const tireCount = appointment.number_of_tires == null || appointment.number_of_tires === ''
         ? 'Not provided'
         : String(appointment.number_of_tires);
-      const colour = appointment.vehicle_colour || 'Not provided';
+      const vehicle = vehicleLabel(appointment);
+      const colour = String(appointment.vehicle_colour || '').trim();
       const linked = formatLinkedTires(appointment.linked_tires);
       const subtotal = appointment.service_subtotal ?? appointment.starting_price;
       const hst = appointment.hst_amount;
@@ -428,8 +429,8 @@
             <div><span>Customer</span><strong>${escapeHtml(appointment.customer_name || 'Not provided')}</strong></div>
             <div><span>Phone</span>${renderPhone(appointment.customer_phone)}</div>
             <div><span>Email</span><strong>${escapeHtml(appointment.customer_email || 'Not provided')}</strong></div>
-            <div><span>Vehicle</span><strong>${escapeHtml(vehicleLabel(appointment))}</strong></div>
-            <div><span>Colour</span><strong>${escapeHtml(colour)}</strong></div>
+            ${vehicle === 'Not provided' ? '' : `<div><span>Vehicle</span><strong>${escapeHtml(vehicle)}</strong></div>`}
+            ${colour ? `<div><span>Colour</span><strong>${escapeHtml(colour)}</strong></div>` : ''}
             <div><span>Plate</span><strong>${escapeHtml(appointment.vehicle_plate_number || 'Not provided')}</strong></div>
             <div><span>Tire size</span><strong>${escapeHtml(appointment.tire_size || 'Not provided')}</strong></div>
             <div><span># of tires</span><strong>${escapeHtml(tireCount)}</strong></div>

@@ -230,7 +230,7 @@ function valueOrFallback(value, fallback = 'Not provided') {
 }
 
 function getVehicle(row) {
-  return [row.vehicle_year, row.vehicle_make, row.vehicle_model].filter(Boolean).join(' ') || 'Vehicle details provided';
+  return [row.vehicle_year, row.vehicle_make, row.vehicle_model].filter(Boolean).join(' ');
 }
 
 function getLocation(row) {
@@ -275,9 +275,9 @@ function buildAppointmentText(row, index) {
   return [
     `Appointment ${index + 1}:`,
     `Service: ${valueOrFallback(row.service_name)}`,
-    `Vehicle: ${getVehicle(row)}`,
+    getVehicle(row) ? `Vehicle: ${getVehicle(row)}` : '',
     `Plate Number: ${valueOrFallback(row.vehicle_plate_number, 'Not provided')}`,
-    `Vehicle Colour: ${valueOrFallback(row.vehicle_colour, 'Not provided')}`,
+    String(row.vehicle_colour || '').trim() ? `Vehicle Colour: ${String(row.vehicle_colour).trim()}` : '',
     `Tire Size: ${valueOrFallback(row.tire_size, 'Not provided')}`,
     `Date: ${valueOrFallback(row.preferred_date)}`,
     `Time: ${valueOrFallback(row.preferred_time_window)}`,
@@ -287,7 +287,7 @@ function buildAppointmentText(row, index) {
     `Total Including HST: ${formatMoney(tax.totalWithHst)}`,
     `Deposit Paid: ${formatMoney(tax.depositAmount)}`,
     `Remaining Balance Due at Service: ${formatMoney(tax.remainingBalance)}`,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 function buildAppointmentHtml(row, index) {
@@ -296,9 +296,9 @@ function buildAppointmentHtml(row, index) {
     <h3>Appointment ${index + 1}</h3>
     <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 18px;">
       <tr><td style="padding:6px 0;font-weight:700;">Service:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.service_name))}</td></tr>
-      <tr><td style="padding:6px 0;font-weight:700;">Vehicle:</td><td style="padding:6px 0;">${escapeHtml(getVehicle(row))}</td></tr>
+      ${getVehicle(row) ? `<tr><td style="padding:6px 0;font-weight:700;">Vehicle:</td><td style="padding:6px 0;">${escapeHtml(getVehicle(row))}</td></tr>` : ''}
       <tr><td style="padding:6px 0;font-weight:700;">Plate Number:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.vehicle_plate_number, 'Not provided'))}</td></tr>
-      <tr><td style="padding:6px 0;font-weight:700;">Vehicle Colour:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.vehicle_colour, 'Not provided'))}</td></tr>
+      ${String(row.vehicle_colour || '').trim() ? `<tr><td style="padding:6px 0;font-weight:700;">Vehicle Colour:</td><td style="padding:6px 0;">${escapeHtml(String(row.vehicle_colour).trim())}</td></tr>` : ''}
       <tr><td style="padding:6px 0;font-weight:700;">Tire Size:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.tire_size, 'Not provided'))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Date:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.preferred_date))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Time:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.preferred_time_window))}</td></tr>

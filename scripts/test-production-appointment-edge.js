@@ -40,11 +40,7 @@ async function assertStep(page, index) {
     await page.locator('[data-booking-step="0"] [data-next-step]').click();
 
     await assertStep(page, 1);
-    await page.locator('select[name="Vehicle Year"]').selectOption('2021');
-    await page.locator('select[name="Vehicle Make"]').selectOption('Toyota');
-    await page.locator('select[name="Vehicle Model"]').selectOption('Corolla');
     await page.locator('input[name="Vehicle Plate Number"]').fill('PROD 123');
-    await page.locator('select[name="Vehicle Colour"]').selectOption('Blue');
     await page.locator('[data-tire-width]').selectOption('205');
     await page.locator('[data-tire-profile]').selectOption('55');
     await page.locator('[data-tire-rim]').selectOption('16');
@@ -77,7 +73,8 @@ async function assertStep(page, index) {
 
     await assertStep(page, 4);
     assert.match(await page.locator('[data-review-service]').innerText(), /Air fill-up/i);
-    assert.match(await page.locator('[data-review-vehicle]').innerText(), /Toyota|Corolla/i);
+    assert.match(await page.locator('[data-review-vehicle]').innerText(), /PROD 123/);
+    assert.match(await page.locator('[data-review-vehicle]').innerText(), /205\/55R16/);
     assert.match(await page.locator('[data-review-location]').innerText(), /123 Test Street|Milton/i);
     assert.match(await page.locator('[data-review-date]').innerText(), /2026|Sep|September/i);
     await page.locator('.appointment-submit').click();
