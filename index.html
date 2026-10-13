@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="used-tires-card.css?v=15" />
     <link rel="stylesheet" href="video-section.css?v=3" />
     <link rel="stylesheet" href="warranty-section.css?v=1" />
-    <link rel="stylesheet" href="popular-brands.css" />
+    <link rel="stylesheet" href="popular-brands.css?v=8" />
     <link rel="stylesheet" href="shopping-guides.css" />
     <link rel="stylesheet" href="tire-size-calculator.css" />
     <link rel="stylesheet" href="inspection-section.css" />
@@ -179,48 +179,18 @@
 
       <section class="popular-brands section" id="tire-brands" aria-labelledby="tire-brands-title">
         <div class="shell popular-brands-shell">
-          <div class="section-heading brand-card-heading">
-            <div>
-              <h2 id="tire-brands-title"><span>Popular Tire Brands</span> <span>We Can Source</span></h2>
+          <div class="brand-intro">
+            <h2 id="tire-brands-title"><span>Popular Tire Brands</span><span>We Can Source</span></h2>
+            <p>Used and new tires, matched to size, season, and current supplier stock.</p>
+          </div>
+
+          <div class="brand-reel" data-brand-reel>
+            <div class="brand-reel-stage" aria-hidden="true">
+              <img src="/assets/popular-brands/michelin.svg" alt="" />
             </div>
-            <p>
-              We help customers find used and new tires from popular brands based on size, season, and current supplier availability.
-            </p>
           </div>
 
-          <div class="brand-text-grid" aria-label="Popular tire brands EastCord can help source">
-            <article class="brand-text-card brand-style-michelin">
-              <strong>MICHELIN</strong>
-            </article>
-            <article class="brand-text-card brand-style-bridgestone">
-              <strong>Bridgestone</strong>
-            </article>
-            <article class="brand-text-card brand-style-goodyear">
-              <strong>GOODYEAR</strong>
-            </article>
-            <article class="brand-text-card brand-style-continental">
-              <strong>Continental</strong>
-            </article>
-            <article class="brand-text-card brand-style-yokohama">
-              <strong>YOKOHAMA</strong>
-            </article>
-            <article class="brand-text-card brand-style-hankook">
-              <strong>HANKOOK</strong>
-            </article>
-            <article class="brand-text-card brand-style-firestone">
-              <strong>Firestone</strong>
-            </article>
-            <article class="brand-text-card brand-style-bfgoodrich">
-              <strong>BFGoodrich</strong>
-            </article>
-            <article class="brand-text-card brand-style-general">
-              <strong>GENERAL TIRE</strong>
-            </article>
-          </div>
-
-          <p class="brand-note">
-            Brand names are trademarks of their respective owners. Availability may vary by size, season, and supplier stock.
-          </p>
+          <p class="brand-note">Brand names are trademarks of their respective owners.</p>
 
           <div class="brand-actions" aria-label="Tire brand section actions">
             <a class="button button-primary" href="/used-tires.html">Check Used Tires</a>
@@ -497,6 +467,7 @@
     <script src="account.js?v=58"></script>
     <script type="module" src="auth.js"></script>
     <script src="tire-size-calculator.js?v=3" defer></script>
+    <script src="popular-brands.js?v=4" defer></script>
     <script src="chat.js?v=4" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
