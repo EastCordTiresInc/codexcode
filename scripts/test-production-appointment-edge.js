@@ -41,13 +41,7 @@ async function assertStep(page, index) {
 
     await assertStep(page, 1);
     await page.locator('input[name="Vehicle Plate Number"]').fill('PROD 123');
-    await page.locator('[data-tire-width]').selectOption('205');
-    await page.locator('[data-tire-profile]').selectOption('55');
-    await page.locator('[data-tire-rim]').selectOption('16');
     await page.locator('textarea[name="Additional Notes"]').fill('Automated production UI test; no cart write expected.');
-    await page.locator('[data-booking-step="1"] [data-next-step]').click();
-
-    await assertStep(page, 2);
     await page.locator('[data-install-location-option="mobile"]').click();
     await page.locator('input[name="Full Service Address"]').fill('123 Test Street');
     await page.locator('select[name="City"]').selectOption('Other');
@@ -56,25 +50,24 @@ async function assertStep(page, index) {
     const parking = page.locator('textarea[name="Parking Driveway Access Notes"]');
     if (await parking.count()) await parking.fill('Driveway access is clear.');
     assert.ok(await page.locator('[data-service-area-warning]').isVisible());
-    await page.locator('[data-booking-step="2"] [data-next-step]').click();
-    await assertStep(page, 2);
+    await page.locator('[data-booking-step="1"] [data-next-step]').click();
+    await assertStep(page, 1);
 
     await page.locator('select[name="City"]').selectOption('Milton');
     assert.ok(await page.locator('[data-service-area-warning]').isHidden());
-    await page.locator('[data-booking-step="2"] [data-next-step]').click();
+    await page.locator('[data-booking-step="1"] [data-next-step]').click();
 
-    await assertStep(page, 3);
+    await assertStep(page, 2);
     await page.locator('input[name="Preferred Date"]').fill(dateAhead(21));
     const firstAvailableTime = await page.locator('select[name="Preferred Time Window"] option:not([disabled])')
       .evaluateAll((options) => options.map((option) => option.value).find(Boolean));
     assert.ok(firstAvailableTime, 'No production appointment time is available.');
     await page.locator('select[name="Preferred Time Window"]').selectOption(firstAvailableTime);
-    await page.locator('[data-booking-step="3"] [data-next-step]').click();
+    await page.locator('[data-booking-step="2"] [data-next-step]').click();
 
-    await assertStep(page, 4);
+    await assertStep(page, 3);
     assert.match(await page.locator('[data-review-service]').innerText(), /Air fill-up/i);
-    assert.match(await page.locator('[data-review-vehicle]').innerText(), /PROD 123/);
-    assert.match(await page.locator('[data-review-vehicle]').innerText(), /205\/55R16/);
+    assert.match(await page.locator('[data-review-location]').innerText(), /PROD 123/);
     assert.match(await page.locator('[data-review-location]').innerText(), /123 Test Street|Milton/i);
     assert.match(await page.locator('[data-review-date]').innerText(), /2026|Sep|September/i);
     await page.locator('.appointment-submit').click();

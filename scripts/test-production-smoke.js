@@ -50,7 +50,7 @@ async function checkPage(browser, pathname, viewport) {
   }
 
   if (pathname === '/appointment.html') {
-    assert.strictEqual(await page.locator('[data-booking-step]').count(), 5);
+    assert.strictEqual(await page.locator('[data-booking-step]').count(), 4);
     if (viewport.width <= 800) {
       const menu = page.locator('.menu-toggle');
       await menu.click();

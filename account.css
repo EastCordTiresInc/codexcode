@@ -537,6 +537,38 @@
   color: #14783d;
 }
 
+.appointment-balance-action {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.appointment-balance-action p {
+  margin: 0;
+  margin-right: auto;
+  color: #9f1239;
+  font-size: 0.82rem;
+}
+
+.appointment-balance-action button {
+  border: 0;
+  border-radius: 999px;
+  background: #df1f2d;
+  color: #fff;
+  font-weight: 800;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.appointment-balance-action button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .account-cart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -844,6 +876,53 @@
   color: #626a76;
   font-size: 0.8rem;
   line-height: 1.45;
+}
+
+.cart-pay-choice {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+}
+
+.cart-pay-choice label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e4e5e7;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.cart-pay-choice label:has(input:checked) {
+  border-color: #df1f2d;
+  background: #fff7f7;
+}
+
+.cart-pay-choice input {
+  margin-top: 3px;
+}
+
+.cart-pay-choice strong,
+.cart-pay-choice small {
+  display: block;
+}
+
+.cart-pay-choice strong {
+  color: #111317;
+  font-size: 0.92rem;
+}
+
+.cart-pay-choice small {
+  margin-top: 2px;
+  color: #626a76;
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .cart-layout .cart-contact-heading {
@@ -1311,6 +1390,16 @@ button[disabled].button-primary,
   .appointment-history-payment > div {
     padding-right: 18px;
     padding-left: 18px;
+  }
+
+  .appointment-balance-action {
+    justify-content: stretch;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .appointment-balance-action button {
+    width: 100%;
   }
 }
 

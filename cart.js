@@ -435,7 +435,7 @@ function getVehicleDetails(item) {
     vehicle: [item.vehicleYear, displayText(item.vehicleMake), displayText(item.vehicleModel)].filter(Boolean).join(' '),
     plate: formatPlate(item.vehiclePlateNumber) || 'Not provided',
     colour: displayText(item.vehicleColour) || 'Not provided',
-    tireSize: formatTireSize(item.tireSize) || 'Not provided',
+    tireSize: formatTireSize(item.tireSize),
     tireCount: item.numberOfTires || 'Not provided',
   };
 }
@@ -837,6 +837,38 @@ function renderCartItem(item) {
   `;
 }
 
+let lastCartMoney = { deposit: 0, total: 0, balance: 0 };
+
+function selectedPayChoice() {
+  return document.querySelector('[data-pay-choice]:checked')?.value === 'full' ? 'full' : 'deposit';
+}
+
+function syncPayChoiceDisplay() {
+  const payInFull = selectedPayChoice() === 'full';
+  const due = payInFull ? lastCartMoney.total : lastCartMoney.deposit;
+  const balance = payInFull ? 0 : lastCartMoney.balance;
+  if (cartDeposit) cartDeposit.textContent = formatMoney(due);
+  if (cartBalance) cartBalance.textContent = formatMoney(balance);
+  const dueLabel = document.querySelector('.cart-receipt-due dt');
+  if (dueLabel) dueLabel.textContent = 'Due today';
+  const note = document.querySelector('.cart-receipt-note');
+  if (note) {
+    note.textContent = payInFull
+      ? 'Full amount online, including HST. Nothing is left to pay after service.'
+      : '20% deposit online, including HST. Balance is due after service.';
+  }
+  const remainingLine = document.querySelector('.cart-receipt-remaining');
+  if (remainingLine) remainingLine.hidden = payInFull;
+  const payButton = document.querySelector('[data-appointment-pay-button]');
+  if (payButton && !payButton.disabled) {
+    const label = due > 0
+      ? (payInFull ? `Pay ${formatMoney(due)} in full` : `Pay ${formatMoney(due)} deposit`)
+      : (payInFull ? 'Pay in full' : 'Pay deposit');
+    payButton.dataset.idleLabel = label;
+    payButton.textContent = label;
+  }
+}
+
 function renderCartTotals(items) {
   const validItems = items.filter((item) => !item.isInvalidCartItem);
   const subtotalTotal = roundMoney(validItems.reduce((sum, item) => sum + Number(item.serviceSubtotal || 0), 0));
@@ -844,19 +876,12 @@ function renderCartTotals(items) {
   const totalWithHst = roundMoney(validItems.reduce((sum, item) => sum + Number(item.totalWithHst || 0), 0));
   const depositTotal = roundMoney(validItems.reduce((sum, item) => sum + Number(item.depositAmount || 0), 0));
   const balanceTotal = roundMoney(validItems.reduce((sum, item) => sum + Number(item.remainingBalance || 0), 0));
+  lastCartMoney = { deposit: depositTotal, total: totalWithHst, balance: balanceTotal };
 
   if (cartSubtotal) cartSubtotal.textContent = formatMoney(subtotalTotal);
   if (cartHst) cartHst.textContent = formatMoney(hstTotal);
   if (cartTotal) cartTotal.textContent = formatMoney(totalWithHst);
-  if (cartDeposit) cartDeposit.textContent = formatMoney(depositTotal);
-  if (cartBalance) cartBalance.textContent = formatMoney(balanceTotal);
-
-  const payButton = document.querySelector('[data-appointment-pay-button]');
-  if (payButton && !payButton.disabled) {
-    const label = depositTotal > 0 ? `Pay ${formatMoney(depositTotal)} deposit` : 'Pay deposit';
-    payButton.dataset.idleLabel = label;
-    payButton.textContent = label;
-  }
+  syncPayChoiceDisplay();
 }
 
 function renderCartItemsAndTotals() {
@@ -1206,7 +1231,11 @@ async function startCheckout(event) {
         'Content-Type': 'application/json',
         Authorization: token ? `Bearer ${token}` : '',
       },
-      body: JSON.stringify({ items: bookingItems, customer }),
+      body: JSON.stringify({
+        items: bookingItems,
+        customer,
+        payInFull: selectedPayChoice() === 'full',
+      }),
     });
     const data = await response.json().catch(() => ({}));
 
@@ -1243,6 +1272,9 @@ clearCartButton?.addEventListener('click', () => {
   resetAgreement();
   showCartMessage('Cart cleared.', 'success');
   renderCart();
+});
+document.querySelectorAll('[data-pay-choice]').forEach((input) => {
+  input.addEventListener('change', syncPayChoiceDisplay);
 });
 
 renderCart();

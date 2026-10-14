@@ -121,6 +121,54 @@ function isStaffAdminEmail(email) {
   return String(email || '').trim().toLowerCase() === STAFF_ADMIN_EMAIL;
 }
 
+function isInstallerUser(user) {
+  const role = user?.app_metadata?.role || user?.user_metadata?.role || '';
+  return role === 'installer';
+}
+
+function isInstallerProfile(profile) {
+  return profile?.role === 'installer';
+}
+
+function isInstallerCustomerPage() {
+  const path = window.location.pathname.replace(/\/$/, '') || '/';
+  return [
+    '/account',
+    '/account.html',
+    '/cart',
+    '/cart.html',
+    '/appointment',
+    '/appointment.html',
+    '/tire-cart',
+    '/tire-cart.html',
+  ].includes(path);
+}
+
+function syncInstallerNav(profile) {
+  const installer = isInstallerProfile(profile);
+  document.body.dataset.eastcordInstaller = installer ? 'true' : 'false';
+  document.querySelectorAll('.nav-carts').forEach((element) => {
+    element.hidden = installer;
+    element.style.display = installer ? 'none' : '';
+  });
+  document.querySelectorAll('a[href="/account"], a[href="/account.html"], a[data-installer-job-link]').forEach((link) => {
+    if (!link.dataset.customerHref) link.dataset.customerHref = link.getAttribute('href') || '/account';
+    if (!link.dataset.customerLabel) link.dataset.customerLabel = link.textContent;
+    if (installer) {
+      link.href = '/admin/job-photos';
+      link.setAttribute('data-installer-job-link', '');
+      if (/view account/i.test(link.dataset.customerLabel || '')) link.textContent = 'Job photos';
+    } else if (link.dataset.customerHref) {
+      link.href = link.dataset.customerHref;
+      link.textContent = link.dataset.customerLabel || link.textContent;
+      link.removeAttribute('data-installer-job-link');
+    }
+  });
+  if (installer && isInstallerCustomerPage()) {
+    window.location.replace('/admin/job-photos');
+  }
+}
+
 function syncStaffAdminNav(profile) {
   const isStaff = isStaffAdminEmail(profile?.email);
   document.body.dataset.eastcordStaffAdmin = isStaff ? 'true' : 'false';
@@ -673,6 +721,7 @@ function profileFromUser(user) {
     name: user.user_metadata?.full_name || user.user_metadata?.name || '',
     email: user.email || '',
     phone: user.user_metadata?.phone || '',
+    role: user.app_metadata?.role || user.user_metadata?.role || '',
   };
 }
 
@@ -685,6 +734,7 @@ function profileFromRow(row, fallbackUser) {
     name: row.full_name || fallback.name || '',
     email: row.email || fallback.email || '',
     phone: row.phone || fallback.phone || '',
+    role: fallback.role || '',
   };
 }
 
@@ -799,6 +849,7 @@ async function getCurrentProfile() {
   const client = getSupabaseClient();
   const user = await getCurrentUser();
   if (!client || !user) return null;
+  if (isInstallerUser(user)) return profileFromUser(user);
 
   const { data, error } = await client
     .from('customer_profiles')
@@ -1339,7 +1390,7 @@ async function signInCustomer({ email, password }) {
   }
 
   const profile = profileFromUser(data?.user);
-  if (profile) await upsertCustomerProfile(profile);
+  if (profile && !isInstallerUser(data?.user)) await upsertCustomerProfile(profile);
   await hydrateSignedInCarts();
   return data;
 }
@@ -1865,6 +1916,7 @@ function applySignedInProfile(profile) {
   });
 
   syncStaffAdminNav(signedIn ? profile : null);
+  syncInstallerNav(signedIn ? profile : null);
 
   if (signedIn) fillKnownCustomerFields(profile);
   window.dispatchEvent(new CustomEvent('eastcord:auth-changed', { detail: { profile, signedIn } }));
@@ -2135,7 +2187,16 @@ function bindAuthForms() {
 function isPaidAppointment(booking) {
   const payment = String(booking.payment_status || '').toLowerCase();
   const status = String(booking.booking_status || '').toLowerCase();
-  return payment === 'paid_deposit' || status === 'confirmed';
+  return payment === 'paid_deposit' || payment === 'paid_in_full' || status === 'confirmed';
+}
+
+function canPayAppointmentBalance(booking) {
+  const remaining = Number(booking.remaining_balance || 0);
+  const payment = String(booking.payment_status || '').toLowerCase();
+  const status = String(booking.booking_status || '');
+  if (!booking.id || remaining <= 0.009) return false;
+  if (payment !== 'paid_deposit') return false;
+  return !['Cancelled', 'Abandoned', 'No-show'].includes(status);
 }
 
 function formatAppointmentDate(value) {
@@ -2152,18 +2213,30 @@ function renderBookingHistory(bookings) {
 
   return bookings.map((booking) => {
     const paid = isPaidAppointment(booking);
+    const payBalance = canPayAppointmentBalance(booking);
+    const remaining = Number(booking.remaining_balance || 0);
     const vehicle = [booking.vehicle_year, booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(' ');
     const location = booking.install_location === 'shop' || booking.city === 'EastCord shop'
       ? 'EastCord Tires shop'
       : [booking.city, booking.postal_code].filter(Boolean).join(', ') || 'Mobile service';
     const appointmentDate = formatAppointmentDate(booking.preferred_date);
     const badge = paid ? (booking.booking_status || 'Confirmed') : 'Awaiting deposit';
+    const balanceLabel = remaining > 0.009 ? 'Remaining' : 'Paid in full';
+    const balanceAction = payBalance
+      ? `
+          <div class="appointment-balance-action">
+            <p data-balance-error hidden></p>
+            <button type="button" data-pay-balance="${escapeHtml(booking.id)}">Pay ${money(remaining)} online</button>
+          </div>
+        `
+      : '';
     const paymentFooter = paid
       ? `
         <footer class="appointment-history-payment">
-          <div><span>Deposit paid</span><strong>${money(booking.deposit_amount)}</strong></div>
-          <div><span>Pay after service</span><strong>${money(booking.remaining_balance)}</strong></div>
+          <div><span>Paid online</span><strong>${money(booking.deposit_amount)}</strong></div>
+          <div><span>${balanceLabel}</span><strong>${money(remaining)}</strong></div>
           <div><span>HST included</span><strong>${money(booking.hst_amount || 0)}</strong></div>
+          ${balanceAction}
         </footer>
       `
       : `
@@ -2186,7 +2259,7 @@ function renderBookingHistory(bookings) {
         <div class="appointment-history-details">
           <div><span>Vehicle</span><strong>${escapeHtml(vehicle || 'Vehicle details submitted')}</strong></div>
           <div><span>Plate</span><strong>${escapeHtml(booking.vehicle_plate_number || 'Not provided')}</strong></div>
-          <div><span>Tire size</span><strong>${escapeHtml(booking.tire_size || 'Not provided')}</strong></div>
+          ${booking.tire_size ? `<div><span>Tire size</span><strong>${escapeHtml(booking.tire_size)}</strong></div>` : ''}
           <div><span>Location</span><strong>${escapeHtml(location)}</strong></div>
         </div>
         ${paymentFooter}
@@ -2356,6 +2429,10 @@ async function hydrateAccountPage() {
     }
 
     const profile = await getCurrentProfile();
+    if (isInstallerProfile(profile)) {
+      window.location.replace('/admin/job-photos');
+      return;
+    }
     if (!profile) {
       accountPanel.innerHTML = '<p>Please log in to view your account.</p><p><a class="button button-primary" href="/login.html?redirect=/account.html">Log In</a></p>';
       if (bookingPanel) bookingPanel.innerHTML = '';
@@ -2500,6 +2577,49 @@ window.EastCordAccount = {
   setupMessage: ACCOUNT_SETUP_MESSAGE,
 };
 
+function bindBalancePayments() {
+  const panel = document.querySelector('[data-booking-history]');
+  if (!panel || panel.dataset.balanceBound === 'true') return;
+  panel.dataset.balanceBound = 'true';
+  panel.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-pay-balance]');
+    if (!button || button.disabled) return;
+    const bookingId = button.getAttribute('data-pay-balance');
+    const errorText = button.parentElement?.querySelector('[data-balance-error]');
+    const idleLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Opening secure checkout...';
+    if (errorText) {
+      errorText.hidden = true;
+      errorText.textContent = '';
+    }
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Please log in before paying the remaining balance.');
+      const response = await fetch('/.netlify/functions/pay-appointment-balance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bookingId }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.url) {
+        throw new Error(payload.message || 'Secure checkout could not be started.');
+      }
+      window.location.href = payload.url;
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = idleLabel;
+      if (errorText) {
+        errorText.hidden = false;
+        errorText.textContent = error.message || 'Secure checkout could not be started.';
+      }
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   logAuthConfigStatus();
   preserveAuthSwitchLinks();
@@ -2509,6 +2629,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindCartClearButtons();
   bindAuthStateChanges();
   bindAccountCartPersistence();
+  bindBalancePayments();
   hydrateAccountPage();
   updateAuthNavigation();
 });

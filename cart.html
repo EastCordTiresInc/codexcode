@@ -6,7 +6,7 @@
     <title>Cart | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=8" />
     <link rel="stylesheet" href="appointment.css?v=46" />
-    <link rel="stylesheet" href="account.css?v=13" />
+    <link rel="stylesheet" href="account.css?v=17" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
   </head>
   <body class="account-page appointment-cart-page">
@@ -54,7 +54,7 @@
       <div class="shell cart-layout">
         <section class="account-card cart-panel" aria-labelledby="cart-title">
           <h1 id="cart-title">Appointment cart</h1>
-          <p>Review your appointment, then pay the 20% deposit.</p>
+          <p>Review your appointment, then choose a deposit or the full amount.</p>
           <div class="cart-items" data-cart-items>
             <p class="empty-cart">Your cart is empty. Add an appointment to continue.</p>
           </div>
@@ -64,8 +64,24 @@
           </div>
         </section>
 
-        <aside class="account-card cart-summary" aria-label="Pay 20% deposit">
-          <h2>Pay 20% deposit</h2>
+        <aside class="account-card cart-summary" aria-label="Appointment payment">
+          <h2>Payment</h2>
+          <fieldset class="cart-pay-choice">
+            <label>
+              <input type="radio" name="appointment-pay-choice" value="deposit" checked data-pay-choice />
+              <span>
+                <strong>20% deposit</strong>
+                <small data-pay-choice-deposit>Pay the deposit now. The rest is due after service.</small>
+              </span>
+            </label>
+            <label>
+              <input type="radio" name="appointment-pay-choice" value="full" data-pay-choice />
+              <span>
+                <strong>Full amount</strong>
+                <small data-pay-choice-full>Pay the full appointment total now, including HST.</small>
+              </span>
+            </label>
+          </fieldset>
           <dl class="cart-receipt">
             <div>
               <dt>Subtotal</dt>
@@ -358,12 +374,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
     <script src="appointment-services.js?v=3"></script>
-    <script src="account.js?v=60"></script>
+    <script src="account.js?v=72"></script>
     <script>
       window.EastCordAccount?.updateCartCount?.();
     </script>
-    <script src="cart.js?v=56"></script>
-    <script src="appointment-pay.js?v=7"></script>
+    <script src="cart.js?v=57"></script>
+    <script src="appointment-pay.js?v=8"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

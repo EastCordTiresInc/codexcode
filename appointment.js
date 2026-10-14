@@ -1544,19 +1544,19 @@
       return false;
     }
 
-    if (stepIndex === 2 && !selectedInstallLocation()) {
+    if (stepIndex === 1 && !selectedInstallLocation()) {
       if (report) showAppointmentMessage('Please choose a service location.');
       return false;
     }
 
-    if (stepIndex === 2 && !validateParkingAccess(report)) {
+    if (stepIndex === 1 && !validateParkingAccess(report)) {
       return false;
     }
 
-    if (stepIndex === 2) validateServiceArea();
+    if (stepIndex === 1) validateServiceArea();
 
-    const dateIsValid = stepIndex === 3 ? validatePreferredDate() : true;
-    const timeIsValid = stepIndex === 3 ? validatePreferredTimeWindow() : true;
+    const dateIsValid = stepIndex === 2 ? validatePreferredDate() : true;
+    const timeIsValid = stepIndex === 2 ? validatePreferredTimeWindow() : true;
 
     const controls = getStepControls(stepIndex);
     applyCustomRequiredMessages(controls);
@@ -1566,12 +1566,12 @@
       return false;
     }
 
-    if (stepIndex === 2 && !validateServiceArea()) {
+    if (stepIndex === 1 && !validateServiceArea()) {
       if (report) reportInvalidControl(els.citySelect, els.citySelect?.validationMessage);
       return false;
     }
 
-    if (stepIndex === 3 && (!dateIsValid || !timeIsValid)) {
+    if (stepIndex === 2 && (!dateIsValid || !timeIsValid)) {
       if (report) {
         const target = !dateIsValid ? els.preferredDate : els.preferredTimeWindow;
         reportInvalidControl(target, target?.validationMessage);
@@ -1609,8 +1609,6 @@
   function updateReviewSummary(service = state.currentService || getCurrentService()) {
     if (!els.appointmentForm) return;
     const vehicleDetails = getCleanVehicleDetails();
-    const hasVehicleDetails = [vehicleDetails.vehicle, vehicleDetails.plate, vehicleDetails.colour, vehicleDetails.tireSize]
-      .some(Boolean);
     const shop = isShopInstall();
     const address = shop ? SHOP_LOCATION.address : getFieldValue('Full Service Address');
     const city = shop ? SHOP_LOCATION.city : getFieldValue('City');
@@ -1626,27 +1624,19 @@
         }).join('')}</ul>`
         : 'Not selected yet';
     }
-    if (els.reviewVehicle) {
-      els.reviewVehicle.innerHTML = hasVehicleDetails
-        ? buildDetailsHtml([
-          ['Year / make / model', vehicleDetails.vehicle],
-          ['License plate', vehicleDetails.plate],
-          ['Colour', vehicleDetails.colour],
-          ['Tire size', vehicleDetails.tireSize],
-        ])
-        : 'Not entered yet';
-    }
     const parkingNotes = shop ? '' : getFieldValue('Parking Driveway Access Notes');
     const parkingType = shop ? '' : parkingAccessLabel();
     if (els.reviewLocation) {
       els.reviewLocation.innerHTML = shop
         ? buildDetailsHtml([
+          ['License plate', vehicleDetails.plate],
           ['Shop', 'EastCord Tires'],
           ['Address', '600 Harrop Drive, Milton, Ontario'],
           ['Type', 'Bring vehicle to the shop'],
         ])
-        : address || city || postalCode
+        : address || city || postalCode || vehicleDetails.plate
           ? buildDetailsHtml([
+            ['License plate', vehicleDetails.plate],
             ['Address', address],
             ['City/Postal', [city, postalCode].filter(Boolean).join(', ')],
             ['Type', 'Mobile service'],

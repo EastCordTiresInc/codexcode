@@ -71,6 +71,19 @@ function amountsFor(startingPrice) {
   };
 }
 
+function applyOnlinePayment(amounts, payInFull) {
+  if (!payInFull) return amounts;
+  return {
+    ...amounts,
+    depositAmount: amounts.totalWithHst,
+    remainingBalance: 0,
+  };
+}
+
+function wantsFullPayment(payload) {
+  return payload?.payInFull === true || payload?.paymentChoice === 'full';
+}
+
 function resolveService(item) {
   return resolveCatalogService(item);
 }
@@ -175,7 +188,7 @@ async function findLocationSlotConflicts(supabaseAdmin, items) {
       .from('appointment_bookings')
       .select('id, preferred_date, preferred_time_window, install_location, city')
       .eq('preferred_date', date)
-      .eq('payment_status', 'paid_deposit')
+      .in('payment_status', ['paid_deposit', 'paid_in_full'])
       .eq('booking_status', 'Confirmed');
     if (error) {
       console.error('[EastCord appointment pay] Confirmed slot lookup failed.', error.message);
@@ -218,6 +231,7 @@ exports.handler = async (event) => {
 
   const customer = payload.customer || {};
   const items = Array.isArray(payload.items) ? payload.items : [];
+  const payInFull = wantsFullPayment(payload);
   if (!items.length) return json(400, { message: 'Add an appointment before paying.' });
   if (!text(customer.name) || !text(customer.email) || !text(customer.phone)) {
     return json(400, { message: 'Please complete your name, email, and phone before paying.' });
@@ -250,7 +264,7 @@ exports.handler = async (event) => {
   for (const item of items) {
     const service = resolveService(item);
     if (!service) return json(400, { message: 'Please choose a valid tire service.' });
-    const amounts = amountsFor(service.serviceSubtotal ?? service.startingPrice);
+    const amounts = applyOnlinePayment(amountsFor(service.serviceSubtotal ?? service.startingPrice), payInFull);
     if (amounts.depositAmount <= 0) {
       return json(400, { message: 'The booking deposit could not be calculated. Add the appointment again.' });
     }
@@ -290,6 +304,21 @@ exports.handler = async (event) => {
       if (existing?.id) {
         unusedPendingIds.delete(existing.id);
         bookingIds.push(existing.id);
+        const { error: amountError } = await supabaseAdmin
+          .from('appointment_bookings')
+          .update({
+            deposit_amount: prepared.depositAmount,
+            remaining_balance: prepared.remainingBalance,
+            service_subtotal: prepared.serviceSubtotal,
+            hst_amount: prepared.hstAmount,
+            total_with_hst: prepared.totalWithHst,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id)
+          .eq('customer_id', verifiedUser.id);
+        if (amountError) {
+          console.error('[EastCord appointment pay] Pending booking amount could not be updated.', amountError);
+        }
         continue;
       }
 
@@ -377,7 +406,8 @@ exports.handler = async (event) => {
 
   const siteUrl = getSiteUrl(event);
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  const totalDeposit = roundMoney(preparedItems.reduce((sum, item) => sum + item.depositAmount, 0));
+  const totalCharged = roundMoney(preparedItems.reduce((sum, item) => sum + item.depositAmount, 0));
+  const totalRemaining = roundMoney(preparedItems.reduce((sum, item) => sum + item.remainingBalance, 0));
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -388,17 +418,22 @@ exports.handler = async (event) => {
         price_data: {
           currency: 'cad',
           product_data: {
-            name: `Vehicle ${index + 1}: ${prepared.service.name} - 20% Booking Deposit`,
-            description: '20% booking deposit, including applicable HST. Remaining balance is paid on-site after service.',
+            name: payInFull
+              ? `Vehicle ${index + 1}: ${prepared.service.name} - Full payment`
+              : `Vehicle ${index + 1}: ${prepared.service.name} - 20% Booking Deposit`,
+            description: payInFull
+              ? 'Full appointment payment, including applicable HST.'
+              : '20% booking deposit, including applicable HST. Remaining balance is paid on-site after service.',
           },
           unit_amount: Math.round(prepared.depositAmount * 100),
         },
         quantity: 1,
       })),
-      success_url: `${siteUrl}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${siteUrl}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}&paid=${payInFull ? 'full' : 'deposit'}`,
       cancel_url: `${siteUrl}/cart.html`,
       metadata: {
         order_type: 'appointment',
+        payment_choice: payInFull ? 'full' : 'deposit',
         supabase_booking_id: String(bookingIds[0] || '').slice(0, 500),
         supabase_booking_ids: JSON.stringify(bookingIds).slice(0, 500),
         appointment_count: String(preparedItems.length),
@@ -406,7 +441,8 @@ exports.handler = async (event) => {
         customer_name: text(customer.name).slice(0, 500),
         customer_email: text(customer.email).slice(0, 500),
         customer_phone: text(customer.phone).slice(0, 500),
-        total_deposit_amount: totalDeposit.toFixed(2),
+        total_deposit_amount: totalCharged.toFixed(2),
+        total_remaining_balance: totalRemaining.toFixed(2),
       },
     });
 

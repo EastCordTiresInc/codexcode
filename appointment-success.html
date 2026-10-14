@@ -57,7 +57,7 @@
           <div class="appointment-form-card confirmation-card">
             <div class="appointment-form-heading confirmation-heading">
               <h1>Appointment confirmed</h1>
-              <p>Your deposit has been received and your appointment is booked.</p>
+              <p data-confirmation-lead>Your payment has been received and your appointment is booked.</p>
             </div>
 
             <div class="confirmation-list" data-confirmation-details aria-live="polite"></div>
@@ -145,8 +145,19 @@
           maximumFractionDigits: 2,
         });
         const details = document.querySelector('[data-confirmation-details]');
+        const lead = document.querySelector('[data-confirmation-lead]');
         const params = new URLSearchParams(window.location.search);
         const sessionId = params.get('session_id') || '';
+        const paidKind = params.get('paid');
+        if (lead && paidKind === 'full') {
+          lead.textContent = 'Your full payment has been received and your appointment is booked.';
+        } else if (lead && paidKind === 'deposit') {
+          lead.textContent = 'Your deposit has been received and your appointment is booked.';
+        } else if (paidKind === 'balance') {
+          const heading = document.querySelector('.confirmation-heading h1');
+          if (heading) heading.textContent = 'Balance paid';
+          if (lead) lead.textContent = 'The rest of this appointment is paid. Nothing is left to pay after service.';
+        }
 
         async function confirmAppointmentPayment() {
           if (!sessionId) return;
@@ -238,6 +249,12 @@
         appointments = (Array.isArray(appointments) ? appointments : []).filter((item) => (
           item && (item.type === 'appointment' || item.serviceId || item.serviceName)
         ));
+
+        if (paidKind === 'balance') {
+          confirmAppointmentPayment();
+          details.innerHTML = '<p class="confirmation-empty">Your remaining balance was paid online. This appointment stays booked for the same date and time.</p>';
+          return;
+        }
 
         confirmAppointmentPayment().finally(() => {
           window.EastCordAccount?.clearCart?.();

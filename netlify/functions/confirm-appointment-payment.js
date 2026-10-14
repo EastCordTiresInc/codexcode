@@ -1,6 +1,6 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
-const { fulfillPaidAppointmentCheckout } = require('./stripe-webhook');
+const { fulfillAppointmentBalance, fulfillPaidAppointmentCheckout } = require('./stripe-webhook');
 
 function json(statusCode, payload) {
   return {
@@ -54,6 +54,19 @@ exports.handler = async (event) => {
   }
   if (session.payment_status !== 'paid') {
     return json(202, { message: 'Payment is not complete yet.', paymentStatus: session.payment_status });
+  }
+
+  if (session.metadata?.order_type === 'appointment_balance') {
+    const balanceResult = await fulfillAppointmentBalance({ supabaseAdmin, session });
+    if (!balanceResult.ok) {
+      return json(balanceResult.statusCode || 500, { message: balanceResult.message || 'The remaining balance could not be recorded.' });
+    }
+    return json(200, {
+      ok: true,
+      ignored: Boolean(balanceResult.ignored),
+      bookingIds: balanceResult.bookingIds || [],
+      paymentStatus: 'paid_in_full',
+    });
   }
 
   const result = await fulfillPaidAppointmentCheckout({ supabaseAdmin, session });

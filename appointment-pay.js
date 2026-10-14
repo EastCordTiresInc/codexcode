@@ -85,13 +85,14 @@
       }
 
       const token = await window.EastCordAccount.getAccessToken();
+      const payInFull = document.querySelector('[data-pay-choice]:checked')?.value === 'full';
       const response = await fetch('/.netlify/functions/pay-appointment-deposit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: token ? `Bearer ${token}` : '',
         },
-        body: JSON.stringify({ customer, items }),
+        body: JSON.stringify({ customer, items, payInFull }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.url) {

@@ -59,7 +59,7 @@ exports.handler = async (event) => {
     .from('appointment_bookings')
     .select('preferred_date, preferred_time_window, install_location, city')
     .eq('preferred_date', date)
-    .eq('payment_status', 'paid_deposit')
+    .in('payment_status', ['paid_deposit', 'paid_in_full'])
     .eq('booking_status', 'Confirmed');
 
   if (error) {

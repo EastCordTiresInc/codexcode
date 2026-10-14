@@ -432,14 +432,14 @@
             ${vehicle === 'Not provided' ? '' : `<div><span>Vehicle</span><strong>${escapeHtml(vehicle)}</strong></div>`}
             ${colour ? `<div><span>Colour</span><strong>${escapeHtml(colour)}</strong></div>` : ''}
             <div><span>Plate</span><strong>${escapeHtml(appointment.vehicle_plate_number || 'Not provided')}</strong></div>
-            <div><span>Tire size</span><strong>${escapeHtml(appointment.tire_size || 'Not provided')}</strong></div>
+            ${appointment.tire_size ? `<div><span>Tire size</span><strong>${escapeHtml(appointment.tire_size)}</strong></div>` : ''}
             <div><span># of tires</span><strong>${escapeHtml(tireCount)}</strong></div>
             <div><span>Linked tires</span><strong>${escapeHtml(linked)}</strong></div>
             <div><span>Location</span>${renderLocation(appointment)}</div>
             <div><span>Subtotal</span><strong>${escapeHtml(money(subtotal))}</strong></div>
             <div><span>HST</span><strong>${escapeHtml(money(hst))}</strong></div>
             <div><span>Total</span><strong>${escapeHtml(money(total))}</strong></div>
-            <div><span>Deposit</span><strong>${escapeHtml(money(appointment.deposit_amount))}</strong></div>
+            <div><span>Paid online</span><strong>${escapeHtml(money(appointment.deposit_amount))}</strong></div>
             <div><span>Remaining</span><strong>${escapeHtml(money(appointment.remaining_balance))}</strong></div>
           </div>
           ${notes ? `<p class="admin-notes">${escapeHtml(notes).replace(/\n/g, '<br>')}</p>` : ''}

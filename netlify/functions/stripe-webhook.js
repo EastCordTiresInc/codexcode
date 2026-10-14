@@ -84,7 +84,9 @@ function buildUpdatePayload(row, session) {
   const columns = new Set(Object.keys(row || {}));
   const payload = {};
 
-  if (columns.has('payment_status')) payload.payment_status = 'paid_deposit';
+  if (columns.has('payment_status')) {
+    payload.payment_status = row?.payment_status === 'paid_in_full' ? 'paid_in_full' : 'paid_deposit';
+  }
   if (columns.has('stripe_session_id')) payload.stripe_session_id = session.id;
   if (columns.has('updated_at')) payload.updated_at = new Date().toISOString();
   if (columns.has('booking_status')) payload.booking_status = 'Confirmed';
@@ -93,7 +95,9 @@ function buildUpdatePayload(row, session) {
 }
 
 function wasAlreadyConfirmed(row) {
-  return row?.payment_status === 'paid_deposit' && row?.booking_status === 'Confirmed';
+  const paymentStatus = row?.payment_status;
+  const paid = paymentStatus === 'paid_deposit' || paymentStatus === 'paid_in_full';
+  return paid && row?.booking_status === 'Confirmed';
 }
 
 async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session }) {
@@ -278,14 +282,14 @@ function buildAppointmentText(row, index) {
     getVehicle(row) ? `Vehicle: ${getVehicle(row)}` : '',
     `Plate Number: ${valueOrFallback(row.vehicle_plate_number, 'Not provided')}`,
     String(row.vehicle_colour || '').trim() ? `Vehicle Colour: ${String(row.vehicle_colour).trim()}` : '',
-    `Tire Size: ${valueOrFallback(row.tire_size, 'Not provided')}`,
+    String(row.tire_size || '').trim() ? `Tire Size: ${String(row.tire_size).trim()}` : '',
     `Date: ${valueOrFallback(row.preferred_date)}`,
     `Time: ${valueOrFallback(row.preferred_time_window)}`,
     `Service Location: ${getLocation(row)}`,
     `Service Subtotal: ${formatMoney(tax.serviceSubtotal)}`,
     `HST 13%: ${formatMoney(tax.hstAmount)}`,
     `Total Including HST: ${formatMoney(tax.totalWithHst)}`,
-    `Deposit Paid: ${formatMoney(tax.depositAmount)}`,
+    `Paid Online: ${formatMoney(tax.depositAmount)}`,
     `Remaining Balance Due at Service: ${formatMoney(tax.remainingBalance)}`,
   ].filter(Boolean).join('\n');
 }
@@ -299,14 +303,14 @@ function buildAppointmentHtml(row, index) {
       ${getVehicle(row) ? `<tr><td style="padding:6px 0;font-weight:700;">Vehicle:</td><td style="padding:6px 0;">${escapeHtml(getVehicle(row))}</td></tr>` : ''}
       <tr><td style="padding:6px 0;font-weight:700;">Plate Number:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.vehicle_plate_number, 'Not provided'))}</td></tr>
       ${String(row.vehicle_colour || '').trim() ? `<tr><td style="padding:6px 0;font-weight:700;">Vehicle Colour:</td><td style="padding:6px 0;">${escapeHtml(String(row.vehicle_colour).trim())}</td></tr>` : ''}
-      <tr><td style="padding:6px 0;font-weight:700;">Tire Size:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.tire_size, 'Not provided'))}</td></tr>
+      ${String(row.tire_size || '').trim() ? `<tr><td style="padding:6px 0;font-weight:700;">Tire Size:</td><td style="padding:6px 0;">${escapeHtml(String(row.tire_size).trim())}</td></tr>` : ''}
       <tr><td style="padding:6px 0;font-weight:700;">Date:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.preferred_date))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Time:</td><td style="padding:6px 0;">${escapeHtml(valueOrFallback(row.preferred_time_window))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Service Location:</td><td style="padding:6px 0;">${escapeHtml(getLocation(row))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Service Subtotal:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.serviceSubtotal))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">HST 13%:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.hstAmount))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Total Including HST:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.totalWithHst))}</td></tr>
-      <tr><td style="padding:6px 0;font-weight:700;">Deposit Paid:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.depositAmount))}</td></tr>
+      <tr><td style="padding:6px 0;font-weight:700;">Paid Online:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.depositAmount))}</td></tr>
       <tr><td style="padding:6px 0;font-weight:700;">Remaining Balance:</td><td style="padding:6px 0;">${escapeHtml(formatMoney(tax.remainingBalance))}</td></tr>
     </table>
   `;
@@ -587,6 +591,19 @@ exports.handler = async (event) => {
     return json(200, { received: true, orderType: 'used_tire', alreadyPaid: Boolean(result.alreadyPaid) });
   }
 
+  if (session.metadata?.order_type === 'appointment_balance') {
+    if (session.payment_status && session.payment_status !== 'paid') {
+      return json(200, { received: true, ignored: true, reason: 'payment_not_paid', paymentStatus: session.payment_status });
+    }
+    const result = await fulfillAppointmentBalance({ supabaseAdmin, session });
+    if (!result.ok) {
+      return json(result.statusCode || 500, {
+        message: result.message || 'The remaining balance could not be recorded.',
+      });
+    }
+    return json(200, { received: true, orderType: 'appointment_balance', alreadyPaid: Boolean(result.alreadyPaid) });
+  }
+
   if (session.metadata?.order_type === 'new_tire') {
     if (session.payment_status && session.payment_status !== 'paid') {
       return json(200, { received: true, ignored: true, reason: 'payment_not_paid', paymentStatus: session.payment_status });
@@ -686,3 +703,65 @@ async function fulfillPaidAppointmentCheckout({ supabaseAdmin, session }) {
 }
 
 exports.fulfillPaidAppointmentCheckout = fulfillPaidAppointmentCheckout;
+
+async function fulfillAppointmentBalance({ supabaseAdmin, session }) {
+  if (session.payment_status && session.payment_status !== 'paid') {
+    return { ok: true, ignored: true, reason: 'payment_not_paid', paymentStatus: session.payment_status };
+  }
+
+  const bookingId = String(session.metadata?.supabase_booking_id || '').trim();
+  if (!bookingId) {
+    return { ok: false, statusCode: 400, message: 'Missing Supabase booking id in Stripe metadata.' };
+  }
+
+  const { data: row, error } = await supabaseAdmin
+    .from('appointment_bookings')
+    .select('id, deposit_amount, remaining_balance, payment_status, booking_status')
+    .eq('id', bookingId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[EastCord appointment automation] Balance payment booking lookup failed.', error.message);
+    return { ok: false, statusCode: 500, message: 'The appointment could not be loaded.' };
+  }
+  if (!row) return { ok: false, statusCode: 404, message: 'The appointment was not found.' };
+
+  const remaining = roundMoney(row.remaining_balance);
+  if (remaining <= 0 || row.payment_status === 'paid_in_full') {
+    return { ok: true, alreadyPaid: true, bookingIds: [bookingId] };
+  }
+
+  const charged = roundMoney(Number(session.amount_total || 0) / 100);
+  if (Math.abs(charged - remaining) > 0.01) {
+    console.error('[EastCord appointment automation] Balance payment amount did not match the booking.', {
+      bookingId,
+      charged,
+      remaining,
+    });
+    return { ok: false, statusCode: 409, message: 'The payment does not match the remaining balance.' };
+  }
+
+  const paidOnline = roundMoney(Number(row.deposit_amount || 0) + remaining);
+  const { data: updated, error: updateError } = await supabaseAdmin
+    .from('appointment_bookings')
+    .update({
+      deposit_amount: paidOnline,
+      remaining_balance: 0,
+      payment_status: 'paid_in_full',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bookingId)
+    .gt('remaining_balance', 0)
+    .select('id')
+    .maybeSingle();
+
+  if (updateError) {
+    console.error('[EastCord appointment automation] Balance payment update failed.', updateError.message);
+    return { ok: false, statusCode: 500, message: 'The remaining balance could not be recorded.' };
+  }
+  if (!updated) return { ok: true, alreadyPaid: true, bookingIds: [bookingId] };
+
+  return { ok: true, bookingIds: [bookingId], paymentStatus: 'paid_in_full' };
+}
+
+exports.fulfillAppointmentBalance = fulfillAppointmentBalance;

@@ -105,7 +105,6 @@
 
             <ol class="appointment-progress" aria-label="Booking progress" data-appointment-progress>
               <li class="is-active">Service</li>
-              <li>Tire size</li>
               <li>Location</li>
               <li>Date &amp; Time</li>
               <li>Review</li>
@@ -113,7 +112,7 @@
             <p class="appointment-status-message" data-appointment-message aria-live="polite" hidden></p>
 
             <section class="appointment-step" data-booking-step="0" aria-label="Step 1: Select Service">
-              <div class="appointment-step-heading"><span>Step 1 of 5</span><h3>Choose your services</h3><p>Select everything you need for this vehicle. Your total updates automatically.</p></div>
+              <div class="appointment-step-heading"><span>Step 1 of 4</span><h3>Choose your services</h3><p>Select everything you need for this vehicle. Your total updates automatically.</p></div>
               <div class="appointment-service-workspace">
                 <div class="appointment-service-main">
                   <div class="appointment-service-builder" data-service-options>
@@ -201,84 +200,26 @@
                       </div>
                     </div>
                   </div>
-                  <p class="appointment-payment-note">Your deposit reserves the appointment. We will confirm any additional work or fees with you before service.</p>
+                  <p class="appointment-payment-note">Your deposit reserves the appointment. At checkout you can pay this 20% deposit or the full amount. We will confirm any additional work or fees with you before service.</p>
                 </aside>
               </div>
-              <div class="appointment-step-actions"><button class="button button-primary" type="button" data-next-step>Next: Tire Size</button></div>
+              <div class="appointment-step-actions"><button class="button button-primary" type="button" data-next-step>Next: Location</button></div>
             </section>
 
-            <section class="appointment-step" data-booking-step="1" aria-label="Step 2: Plate and Tire Size" hidden inert aria-hidden="true">
-              <div class="appointment-step-heading"><span>Step 2 of 5</span><h3>Plate &amp; Tire Size</h3><p>Enter the license plate and the tire size for this appointment.</p></div>
-              <div class="appointment-field-grid">
-                <label class="form-field"><span>License plate</span><input name="Vehicle Plate Number" type="text" placeholder="ABCD 123" autocomplete="off" required /></label>
-                <div class="tire-size-picker" data-tire-size-group>
-                  <div class="tire-size-picker-top">
-                    <span>Tire size</span>
-                    <strong class="tire-size-preview" data-tire-size-preview>— / — R —</strong>
-                  </div>
-                  <div class="tire-size-suggestions" data-tire-size-suggestions hidden>
-                    <span class="tire-size-suggestions-label" data-tire-size-suggestions-label>Common sizes for this vehicle</span>
-                    <div class="tire-size-suggestion-list" data-tire-size-suggestion-list></div>
-                  </div>
-                  <div class="tire-size-picker-grid">
-                    <div class="tire-size-part">
-                      <span id="tire-width-label">Width</span>
-                      <div class="fancy-select" data-fancy-select="tiles">
-                        <select class="visually-hidden" data-tire-width required aria-labelledby="tire-width-label"><option value="">Width</option></select>
-                        <div class="fancy-select-combobox">
-                          <input class="fancy-select-trigger" type="text" inputmode="numeric" data-fancy-select-trigger autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-haspopup="listbox" aria-labelledby="tire-width-label" placeholder="Width" />
-                          <span class="fancy-select-chevron" aria-hidden="true"></span>
-                        </div>
-                        <div class="fancy-select-menu" data-fancy-select-menu role="listbox" hidden></div>
-                      </div>
-                      <small>mm</small>
-                    </div>
-                    <span class="tire-size-sep" aria-hidden="true">/</span>
-                    <div class="tire-size-part">
-                      <span id="tire-profile-label">Profile</span>
-                      <div class="fancy-select" data-fancy-select="tiles">
-                        <select class="visually-hidden" data-tire-profile required disabled aria-labelledby="tire-profile-label"><option value="">Profile</option></select>
-                        <div class="fancy-select-combobox">
-                          <input class="fancy-select-trigger" type="text" inputmode="numeric" data-fancy-select-trigger autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-haspopup="listbox" aria-labelledby="tire-profile-label" placeholder="Profile" disabled />
-                          <span class="fancy-select-chevron" aria-hidden="true"></span>
-                        </div>
-                        <div class="fancy-select-menu" data-fancy-select-menu role="listbox" hidden></div>
-                      </div>
-                      <small>%</small>
-                    </div>
-                    <span class="tire-size-sep" aria-hidden="true">R</span>
-                    <div class="tire-size-part">
-                      <span id="tire-rim-label">Rim</span>
-                      <div class="fancy-select" data-fancy-select="tiles">
-                        <select class="visually-hidden" data-tire-rim required disabled aria-labelledby="tire-rim-label"><option value="">Rim</option></select>
-                        <div class="fancy-select-combobox">
-                          <input class="fancy-select-trigger" type="text" inputmode="numeric" data-fancy-select-trigger autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-haspopup="listbox" aria-labelledby="tire-rim-label" placeholder="Rim" disabled />
-                          <span class="fancy-select-chevron" aria-hidden="true"></span>
-                        </div>
-                        <div class="fancy-select-menu" data-fancy-select-menu role="listbox" hidden></div>
-                      </div>
-                      <small>in</small>
-                    </div>
-                  </div>
-                </div>
-                <input type="hidden" name="Tire Size" data-tire-size-value value="" />
-                <input name="Number of Tires" type="hidden" value="4" />
-                <label class="form-field" data-rims-field hidden>
-                  <span>Are tires already on rims?</span>
-                  <select name="Tires Already On Rims" required>
-                    <option value="">Select one</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                    <option value="Not sure">Not sure</option>
-                  </select>
-                </label>
-              </div>
-              <label class="form-field form-field-full"><span>Additional notes</span><textarea name="Additional Notes" rows="4" placeholder="Tire condition, special instructions, or anything else EastCord should know."></textarea></label>
-              <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next: Location</button></div>
-            </section>
-
-            <section class="appointment-step" data-booking-step="2" aria-label="Step 3: Service Location" hidden inert aria-hidden="true">
-              <div class="appointment-step-heading"><span>Step 3 of 5</span><h3>Service Location</h3><p>Choose mobile service at your home or workplace, or bring your vehicle to the EastCord shop.</p></div>
+            <section class="appointment-step" data-booking-step="1" aria-label="Step 2: Service Location" hidden inert aria-hidden="true">
+              <div class="appointment-step-heading"><span>Step 2 of 4</span><h3>Service Location</h3><p>Enter the license plate, then choose mobile service or the EastCord shop.</p></div>
+              <label class="form-field"><span>License plate</span><input name="Vehicle Plate Number" type="text" placeholder="ABCD 123" autocomplete="off" required /></label>
+              <input type="hidden" name="Tire Size" data-tire-size-value value="" />
+              <input name="Number of Tires" type="hidden" value="4" />
+              <label class="form-field" data-rims-field hidden>
+                <span>Are tires already on rims?</span>
+                <select name="Tires Already On Rims" required>
+                  <option value="">Select one</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                  <option value="Not sure">Not sure</option>
+                </select>
+              </label>
               <input type="hidden" name="Install Location" data-install-location value="" />
               <fieldset class="appointment-service-menu">
                 <legend>Where should we install?</legend>
@@ -320,11 +261,12 @@
                   <textarea name="Parking Driveway Access Notes" rows="3" placeholder="Tell us where the vehicle will be and any access instructions."></textarea>
                 </label>
               </div>
+              <label class="form-field form-field-full"><span>Additional notes</span><textarea name="Additional Notes" rows="4" placeholder="Tire condition, special instructions, or anything else EastCord should know."></textarea></label>
               <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next: Date &amp; Time</button></div>
             </section>
 
-            <section class="appointment-step" data-booking-step="3" aria-label="Step 4: Date and Time" hidden inert aria-hidden="true">
-              <div class="appointment-step-heading"><span>Step 4 of 5</span><h3>Date &amp; Time</h3><p>Shop visits and mobile service calls use separate calendars. The same hour can be booked once in the shop and once as a service call. Hours are 8:00 AM to 8:00 PM, seven days a week.</p></div>
+            <section class="appointment-step" data-booking-step="2" aria-label="Step 3: Date and Time" hidden inert aria-hidden="true">
+              <div class="appointment-step-heading"><span>Step 3 of 4</span><h3>Date &amp; Time</h3><p>Shop visits and mobile service calls use separate calendars. The same hour can be booked once in the shop and once as a service call. Hours are 8:00 AM to 8:00 PM, seven days a week.</p></div>
               <p class="appointment-payment-note">Each vehicle appointment takes approximately 1 hour. Two vehicles on the same calendar need different hours. A shop visit and a mobile service call can share an hour.</p>
               <p class="appointment-payment-note" data-appointment-date-note>Mobile appointments need 2 hours’ notice. Shop appointments need 1 hour’s notice. Hours are 8:00 AM to 8:00 PM.</p>
               <div class="appointment-field-grid">
@@ -334,11 +276,10 @@
               <div class="appointment-step-actions"><button class="button button-secondary" type="button" data-back-step>Back</button><button class="button button-primary" type="button" data-next-step>Next: Review</button></div>
             </section>
 
-            <section class="appointment-step" data-booking-step="4" aria-label="Step 5: Review and Add to Cart" hidden inert aria-hidden="true">
-              <div class="appointment-step-heading"><span>Step 5 of 5</span><h3>Review &amp; Add to Cart</h3><p>Your customer name, email, and phone will come from your signed-in account profile.</p></div>
+            <section class="appointment-step" data-booking-step="3" aria-label="Step 4: Review and Add to Cart" hidden inert aria-hidden="true">
+              <div class="appointment-step-heading"><span>Step 4 of 4</span><h3>Review &amp; Add to Cart</h3><p>Your customer name, email, and phone will come from your signed-in account profile.</p></div>
               <div class="appointment-review-grid" aria-live="polite">
                 <div class="appointment-review-card appointment-review-card-wide appointment-review-service"><h4>Service</h4><div class="appointment-review-value" data-review-service>Seasonal Changeover - All 4 Tires Pre-Mounted on Rims</div></div>
-                <div class="appointment-review-card appointment-review-vehicle"><h4>Plate &amp; tire size</h4><div class="appointment-review-details" data-review-vehicle>Not entered yet</div></div>
                 <div class="appointment-review-card appointment-review-location"><h4>Location</h4><div class="appointment-review-details" data-review-location>Not entered yet</div></div>
                 <div class="appointment-review-card appointment-review-card-wide appointment-review-date"><h4>Date &amp; time</h4><div class="appointment-review-details" data-review-date>Not entered yet</div></div>
                 <div class="appointment-review-card appointment-review-card-wide appointment-review-tires" data-review-tires-card hidden><h4>Linked tires</h4><div class="appointment-review-value" data-review-tires>No tires selected</div></div>
@@ -412,11 +353,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
-    <script src="account.js?v=67"></script>
+    <script src="account.js?v=72"></script>
     <script src="appointment-services.js?v=4" defer></script>
     <script src="appointment-tire-sizes.js?v=3" defer></script>
     <script src="appointment-vehicle.js?v=16" defer></script>
-    <script src="appointment.js?v=89" defer></script>
+    <script src="appointment.js?v=90" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

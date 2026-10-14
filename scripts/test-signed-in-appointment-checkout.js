@@ -203,26 +203,20 @@ async function main() {
     await page.locator('[data-service-item="flat-patch-plug"] [data-service-quantity]').selectOption('1');
     assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$192.10');
     await page.locator('[data-booking-step="0"] [data-next-step]').click();
-    await assertNoHorizontalOverflow(page, 'appointment vehicle step');
-
-    await page.locator('input[name="Vehicle Plate Number"]').fill('TEST123');
-    await page.locator('[data-tire-width]').selectOption('205');
-    await page.locator('[data-tire-profile]').selectOption('55');
-    await page.locator('[data-tire-rim]').selectOption('16');
-    await page.locator('textarea[name="Additional Notes"]').fill('AUTOMATED STRIPE TEST - SAFE TO DELETE');
-    await page.locator('[data-booking-step="1"] [data-next-step]').click();
     await assertNoHorizontalOverflow(page, 'appointment location step');
 
+    await page.locator('input[name="Vehicle Plate Number"]').fill('TEST123');
+    await page.locator('textarea[name="Additional Notes"]').fill('AUTOMATED STRIPE TEST - SAFE TO DELETE');
     await page.locator('[data-install-location-option="mobile"]').click();
     await page.locator('input[name="Full Service Address"]').fill('123 Main Street');
     await page.locator('select[name="City"]').selectOption('Milton');
     await page.locator('input[name="Postal Code"]').fill('L9T 2X5');
     await page.locator('[data-parking-access-option="driveway"]').click();
-    await page.locator('[data-booking-step="2"] [data-next-step]').click();
+    await page.locator('[data-booking-step="1"] [data-next-step]').click();
     await assertNoHorizontalOverflow(page, 'appointment date step');
     await page.locator('input[name="Preferred Date"]').fill(slot.date);
     await page.locator('select[name="Preferred Time Window"]').selectOption({ label: slot.time });
-    await page.locator('[data-booking-step="3"] [data-next-step]').click();
+    await page.locator('[data-booking-step="2"] [data-next-step]').click();
     await assertNoHorizontalOverflow(page, 'appointment review step');
 
     assert.match(await page.locator('[data-review-service]').textContent(), /On-rim swap/);

@@ -324,7 +324,7 @@ async function findPaidSlotConflicts(supabaseAdmin, preparedItems) {
       .from('appointment_bookings')
       .select('id, preferred_date, preferred_time_window, payment_status, booking_status, install_location, city')
       .eq('preferred_date', date)
-      .eq('payment_status', 'paid_deposit')
+      .in('payment_status', ['paid_deposit', 'paid_in_full'])
       .eq('booking_status', 'Confirmed');
 
     if (error) {
@@ -536,7 +536,6 @@ function validateBookingFields(booking, customer, ordersById = {}) {
     'appointment date': fieldValue(booking.preferredDate),
     'appointment time': fieldValue(booking.preferredTimeWindow),
     'plate number': fieldValue(booking.vehiclePlateNumber),
-    'tire size': fieldValue(booking.tireSize),
     'tires on rims': fieldValue(booking.tiresAlreadyOnRims),
     'number of tires': fieldValue(booking.numberOfTires),
   };
@@ -596,6 +595,7 @@ exports.handler = async (event) => {
   }
 
   const bookingItems = normalizeBookingItems(payload);
+  const payInFull = payload.payInFull === true || payload.paymentChoice === 'full';
   const customer = payload.customer || bookingItems[0]?.customer || {};
   customer.customerId = fieldValue(customer.customerId || customer.id);
   customer.email = fieldValue(customer.email);
@@ -646,11 +646,15 @@ exports.handler = async (event) => {
     const validationMessage = validateBookingFields(booking, customer, orderGate.ordersById);
     if (validationMessage) return json(400, { message: validationMessage });
 
-    const amounts = calculateServiceAmounts(service.serviceSubtotal ?? service.startingPrice);
+    const baseAmounts = calculateServiceAmounts(service.serviceSubtotal ?? service.startingPrice);
 
-    if (amounts.depositAmount <= 0) {
+    if (baseAmounts.depositAmount <= 0) {
       return json(400, { message: 'The booking deposit amount is missing. Please return to the appointment page and add the service again.' });
     }
+
+    const amounts = payInFull
+      ? { ...baseAmounts, depositAmount: baseAmounts.totalWithHst, remainingBalance: 0 }
+      : baseAmounts;
 
     const lookupResult = await findOrRepairBookingRow({ supabaseAdmin, booking, customer, verifiedUser, service, amounts });
     if (lookupResult?.errorResponse) return lookupResult.errorResponse;
@@ -688,17 +692,22 @@ exports.handler = async (event) => {
         price_data: {
           currency: 'cad',
           product_data: {
-            name: `Vehicle ${index + 1}: ${item.service.name} - 20% Booking Deposit`,
-            description: '20% booking deposit, including applicable HST. Remaining balance, including applicable HST, is paid on-site after service.',
+            name: payInFull
+              ? `Vehicle ${index + 1}: ${item.service.name} - Full payment`
+              : `Vehicle ${index + 1}: ${item.service.name} - 20% Booking Deposit`,
+            description: payInFull
+              ? 'Full appointment payment, including applicable HST.'
+              : '20% booking deposit, including applicable HST. Remaining balance, including applicable HST, is paid on-site after service.',
           },
           unit_amount: Math.round(item.depositAmount * 100),
         },
         quantity: 1,
       })),
-      success_url: `${siteUrl}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${siteUrl}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}&paid=${payInFull ? 'full' : 'deposit'}`,
       cancel_url: `${siteUrl}/cart.html`,
       metadata: {
         order_type: 'appointment',
+        payment_choice: payInFull ? 'full' : 'deposit',
         supabase_booking_id: String(bookingIds[0] || '').slice(0, 500),
         supabase_booking_ids: JSON.stringify(bookingIds).slice(0, 500),
         appointment_count: String(preparedItems.length),
