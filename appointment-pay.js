@@ -10,25 +10,6 @@
     if (messageEl) messageEl.textContent = message || '';
   }
 
-  function fieldValue(name) {
-    const field = form?.elements?.namedItem(name);
-    return String(field?.value || '').trim();
-  }
-
-  function fillFields(profile) {
-    if (!form || !profile) return;
-    const values = {
-      'Full Name': profile.name || '',
-      'Email Address': profile.email || '',
-      'Phone Number': profile.phone || '',
-    };
-    Object.entries(values).forEach(([name, value]) => {
-      if (!value) return;
-      const field = form.elements.namedItem(name);
-      if (field && 'value' in field && !field.value) field.value = value;
-    });
-  }
-
   function readCart() {
     try {
       const accountCart = window.EastCordAccount?.getCart?.();
@@ -76,12 +57,12 @@
 
       const customer = {
         customerId: profile.customerId || profile.id || '',
-        name: fieldValue('Full Name') || profile.name || '',
-        email: fieldValue('Email Address') || profile.email || '',
-        phone: fieldValue('Phone Number') || profile.phone || '',
+        name: String(profile.name || '').trim(),
+        email: String(profile.email || '').trim(),
+        phone: String(profile.phone || '').trim(),
       };
       if (!customer.customerId || !customer.name || !customer.email || !customer.phone) {
-        throw new Error('Please complete your name, email, and phone before paying.');
+        throw new Error('Your account needs a name, email, and phone before you can pay. Update them on My Account.');
       }
 
       const token = await window.EastCordAccount.getAccessToken();
@@ -135,7 +116,6 @@
     currentProfile = profile || null;
     if (authBlock) authBlock.hidden = Boolean(currentProfile);
     if (form) form.hidden = !currentProfile;
-    if (currentProfile) fillFields(currentProfile);
     syncStripeTestNote();
   }
 

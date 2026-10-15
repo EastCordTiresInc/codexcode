@@ -925,22 +925,9 @@
   line-height: 1.4;
 }
 
-.cart-layout .cart-contact-heading {
-  margin: 4px 0 0;
-  color: #111317;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 .cart-layout .appointment-pay-form {
   gap: 10px;
   margin-top: 8px;
-}
-
-.cart-layout .appointment-pay-form .form-field input {
-  min-height: 42px;
 }
 
 .cart-layout .checkout-agreement {
