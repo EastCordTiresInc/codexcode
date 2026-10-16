@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { calculateTax, roundMoney } = require('./lib/used-tire-order');
 const { isStripeTestMode } = require('./lib/stripe-mode');
 const { getUsedTireUnitPrice, isMarkdownStock, MARKDOWN_PERCENT } = require('./lib/used-tire-pricing');
+const { inventoryTableName, isDevInventoryTable } = require('./lib/inventory-table');
 
 function json(statusCode, payload) {
   return {
@@ -96,16 +97,20 @@ exports.handler = async (event) => {
 
   const preparedItems = [];
   for (const item of cartItems) {
+    const devInventory = isDevInventoryTable();
     const { data: row, error } = await supabaseAdmin
-      .from('usedtireinventory')
-      .select('id, brand, tire_size, selling_price, current_stock')
+      .from(inventoryTableName())
+      .select(devInventory
+        ? 'id, brand, model, tire_size, selling_price, current_stock, price_is_final, note'
+        : 'id, brand, tire_size, selling_price, current_stock')
       .eq('id', item.inventoryId)
       .maybeSingle();
 
     if (error) return json(500, { message: error.message });
     const stock = Math.max(0, Number(row?.current_stock) || 0);
     const listPrice = Number(row?.selling_price);
-    const price = getUsedTireUnitPrice(listPrice, stock);
+    const priceIsFinal = devInventory && row?.price_is_final === true;
+    const price = getUsedTireUnitPrice(listPrice, stock, { priceIsFinal });
     if (!row || !stock || price === null) {
       return json(409, { message: `${item.brand || 'A selected tire'} is no longer available. Remove it and try again.` });
     }
@@ -113,11 +118,13 @@ exports.handler = async (event) => {
       return json(409, { message: `Only ${stock} ${row.brand} ${row.tire_size} tire(s) are left.` });
     }
 
-    const markdown = isMarkdownStock(stock);
+    const markdown = priceIsFinal ? false : isMarkdownStock(stock);
     preparedItems.push({
       inventoryId: row.id,
       qty: item.qty,
       brand: row.brand || item.brand,
+      model: row.model || item.model || '',
+      note: row.note || item.note || '',
       size: row.tire_size || item.size,
       listPrice: roundMoney(listPrice),
       unitPrice: price,

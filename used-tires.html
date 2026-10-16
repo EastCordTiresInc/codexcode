@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
-    <link rel="stylesheet" href="used-tires.css?v=34" />
+    <link rel="stylesheet" href="used-tires.css?v=37" />
   </head>
   <body class="used-tires-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -77,7 +77,7 @@
         <div class="shell">
           <div class="used-search-widget" data-used-search-widget>
             <div class="used-search-widget-header">
-              <h2 id="used-search-title">Find your tires</h2>
+              <h2 id="used-search-title">Filter</h2>
             </div>
 
             <div class="used-search-body">
@@ -90,19 +90,19 @@
                     <label class="used-search-field">
                       <span>Width</span>
                       <select id="inventory-width" name="width">
-                        <option value="">Select width</option>
+                        <option value="">Any width</option>
                       </select>
                     </label>
                     <label class="used-search-field">
                       <span>Profile</span>
                       <select id="inventory-profile" name="profile">
-                        <option value="">Select profile</option>
+                        <option value="">Any profile</option>
                       </select>
                     </label>
                     <label class="used-search-field">
                       <span>Wheel Size</span>
                       <select id="inventory-rim" name="rim">
-                        <option value="">Select wheel size</option>
+                        <option value="">Any wheel size</option>
                       </select>
                     </label>
                     <label class="used-search-field">
@@ -122,17 +122,11 @@
                     </label>
                   </div>
 
-                  <button class="used-search-submit" type="submit" data-inventory-submit>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
-                      <circle cx="11" cy="11" r="7"></circle>
-                      <path d="m20 20-3.5-3.5"></path>
-                    </svg>
-                    Find your tires now
-                  </button>
+                  <button class="used-search-submit" type="button" data-clear-inventory-filters>Clear filters</button>
                 </form>
               </div>
 
-              <aside class="used-search-guide" aria-label="How to read tire size">
+              <aside class="used-search-guide" hidden aria-label="How to read tire size">
                 <h3>Where to find your size</h3>
                 <div class="tire-size-diagram">
                   <div class="tire-size-string" aria-hidden="true">
@@ -170,7 +164,7 @@
             <p class="used-markdown-banner-badge">15% off</p>
             <div class="used-markdown-banner-copy">
               <strong data-markdown-banner-title>Markdown used tires</strong>
-              <p>Tires with fewer than 4 left. Search still finds them by size or brand.</p>
+              <p>Tires with fewer than 4 left. They are included in the list below.</p>
             </div>
             <button class="used-markdown-banner-cta" type="button" data-markdown-prompt>
               Browse markdowns
@@ -201,7 +195,7 @@
 
           <section class="used-inventory-results" aria-labelledby="inventory-results-title" hidden data-inventory-results>
             <div class="used-inventory-results-header">
-              <h2 id="inventory-results-title">Matching tires</h2>
+              <h2 id="inventory-results-title">Used tires</h2>
               <div>
                 <p class="used-inventory-status" data-inventory-status aria-live="polite"></p>
                 <button class="text-button" type="button" data-inventory-refresh>Refresh inventory</button>
@@ -295,7 +289,7 @@
         if (status) status.textContent = 'Connecting to inventory...';
 
         var inventory = document.createElement('script');
-        inventory.src = 'inventory.js?v=63';
+        inventory.src = 'inventory.js?v=68';
 
         var pricing = document.createElement('script');
         pricing.src = 'used-tire-pricing.js?v=2';

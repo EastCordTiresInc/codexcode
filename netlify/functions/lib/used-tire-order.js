@@ -1,4 +1,6 @@
 const { applyWebsiteSalesToSheet } = require('./google-sheets-inventory');
+const { inventoryTableName, isDevInventoryTable } = require('./inventory-table');
+const { updateDevSheetStock } = require('./dev-inventory-sheet');
 const { sendEmail, getEmailConfig, CONTACT_EMAIL, htmlFromText } = require('./send-email');
 
 const TAX_RATE = 0;
@@ -39,9 +41,12 @@ async function applyUsedTireInventorySale({ supabaseAdmin, items, restore = fals
   const sheetSales = [];
 
   for (const item of normalizeSaleItems(items)) {
+    const devInventory = isDevInventoryTable();
     const { data: row, error: stockError } = await supabaseAdmin
-      .from('usedtireinventory')
-      .select('id, brand, tire_size, current_stock')
+      .from(inventoryTableName())
+      .select(devInventory
+        ? 'id, brand, tire_size, current_stock, sheet_tab, sheet_row'
+        : 'id, brand, tire_size, current_stock')
       .eq('id', item.inventoryId)
       .maybeSingle();
 
@@ -64,8 +69,10 @@ async function applyUsedTireInventorySale({ supabaseAdmin, items, restore = fals
 
     const nextStock = Math.max(0, currentStock - signedQty);
     const { error: updateStockError } = await supabaseAdmin
-      .from('usedtireinventory')
-      .update({ current_stock: nextStock })
+      .from(inventoryTableName())
+      .update(devInventory
+        ? { current_stock: nextStock, updated_at: new Date().toISOString() }
+        : { current_stock: nextStock })
       .eq('id', item.inventoryId);
 
     if (updateStockError) {
@@ -86,11 +93,32 @@ async function applyUsedTireInventorySale({ supabaseAdmin, items, restore = fals
       qty: signedQty,
       brand: row.brand,
       tireSize: row.tire_size,
+      sheetTab: row.sheet_tab || '',
+      sheetRow: row.sheet_row || null,
+      nextStock,
+      devInventory,
     });
   }
 
   let sheet = { ok: true, updated: [], skipped: [], error: null };
-  if (sheetSales.length) {
+  if (sheetSales.length && sheetSales.every((sale) => sale.devInventory)) {
+    const updated = [];
+    const skipped = [];
+    for (const sale of sheetSales) {
+      try {
+        const result = await updateDevSheetStock({
+          sheetTab: sale.sheetTab,
+          sheetRow: sale.sheetRow,
+          nextStock: sale.nextStock,
+        });
+        if (result.ok) updated.push({ id: sale.id, range: result.range });
+        else skipped.push({ id: sale.id, reason: result.reason || 'Development sheet was not updated.' });
+      } catch (error) {
+        skipped.push({ id: sale.id, reason: error.message || 'Development sheet was not updated.' });
+      }
+    }
+    sheet = { ok: !skipped.length, updated, skipped, error: null };
+  } else if (sheetSales.length) {
     try {
       const sheetResult = await applyWebsiteSalesToSheet(sheetSales);
       sheet = {

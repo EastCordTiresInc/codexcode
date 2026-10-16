@@ -176,7 +176,7 @@
 
 .used-search-body {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
   background: #ececec;
 }
@@ -206,7 +206,7 @@
 
 .used-search-fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -279,9 +279,11 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  width: 100%;
-  min-height: 52px;
+  width: auto;
+  min-height: 44px;
   margin-top: 4px;
+  padding: 0 18px;
+  justify-self: start;
   border: 0;
   border-radius: 4px;
   background: #6f7277;
@@ -728,6 +730,11 @@
   align-items: start;
 }
 
+.used-inventory-results .inventory-list.used-catalog-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
 .used-inventory-results .inventory-list:has(.used-inventory-group + .used-inventory-group) {
   grid-template-columns: minmax(0, 1fr) 280px;
 }
@@ -784,10 +791,14 @@
   box-shadow: 0 8px 24px rgba(229, 36, 42, 0.08);
 }
 
+.used-tire-card-media {
+  position: relative;
+}
+
 .used-tire-card-sale-badge {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 10px;
+  left: 10px;
   z-index: 2;
   margin: 0;
   padding: 5px 9px;
@@ -804,8 +815,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 56px;
-  margin-bottom: 8px;
+  min-height: 48px;
+  margin-bottom: 10px;
   text-align: center;
 }
 
@@ -1315,11 +1326,6 @@
   border: 1px solid #efb8ba;
 }
 
-.used-tire-card-stock-alert.is-placeholder {
-  visibility: hidden;
-  border: 1px solid transparent;
-}
-
 @media (max-width: 900px) {
   .used-inventory-results .inventory-list:has(.used-inventory-group + .used-inventory-group) {
     grid-template-columns: minmax(0, 1fr);
@@ -1335,6 +1341,10 @@
 
   .used-search-body {
     grid-template-columns: 1fr;
+  }
+
+  .used-search-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .used-search-guide {
