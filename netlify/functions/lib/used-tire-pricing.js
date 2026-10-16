@@ -12,10 +12,10 @@ function isMarkdownStock(stock) {
   return count > 0 && count < MARKDOWN_STOCK_LIMIT;
 }
 
-function getUsedTireUnitPrice(listPrice, stock, options = {}) {
+function getUsedTireUnitPrice(listPrice, stock) {
   const price = Number(listPrice);
   if (!Number.isFinite(price) || price <= 0) return null;
-  if (options.priceIsFinal || !isMarkdownStock(stock)) return roundMoney(price);
+  if (!isMarkdownStock(stock)) return roundMoney(price);
   return roundMoney(price * (1 - MARKDOWN_RATE));
 }
 

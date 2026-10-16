@@ -208,8 +208,7 @@ function renderTireCartItem(item) {
   return `
     <article class="tire-cart-item${item.unavailable ? ' is-unavailable' : ''}${markdown ? ' is-markdown' : ''}">
       <div>
-        <h3>${escapeHtml([item.brand, item.model, item.size].filter(Boolean).join(' '))}</h3>
-        ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ''}
+        <h3>${escapeHtml(item.brand)} ${escapeHtml(item.size)}</h3>
         ${markdownNote}
         <dl class="tire-cart-item-summary">
           <div>
@@ -337,18 +336,12 @@ async function refreshCartAvailability() {
       if (!row || !stock) return { ...item, unavailable: true, maxStock: 0 };
 
       const listPrice = Number(row.selling_price);
-      const priceIsFinal = row.price_is_final === true || String(row.price_is_final || '').toLowerCase() === 'true';
-      const unitPrice = priceIsFinal
-        ? (Number.isFinite(listPrice) && listPrice > 0 ? Math.round(listPrice * 100) / 100 : null)
-        : getPricing().getUsedTireUnitPrice(listPrice, stock);
-      const markdown = priceIsFinal ? false : getPricing().isMarkdownStock(stock);
+      const unitPrice = getPricing().getUsedTireUnitPrice(listPrice, stock);
+      const markdown = getPricing().isMarkdownStock(stock);
 
       return {
         ...item,
         brand: row.brand || item.brand,
-        model: row.model || item.model || '',
-        note: row.note || item.note || '',
-        priceIsFinal,
         size: item.size || row.size_label || item.size,
         maxStock: stock,
         qty: Math.min(Math.max(1, Number(item.qty) || 1), stock, 4),

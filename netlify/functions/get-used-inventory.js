@@ -1,7 +1,4 @@
-const { inventoryTableName, isDevInventoryTable } = require('./lib/inventory-table');
-
-const LIVE_INVENTORY_SELECT = 'id,tire_size,rim_size,type,brand,current_stock,selling_price,drive_link,is_flotation,width,profile,wheel_size,size_label,season';
-const DEV_INVENTORY_SELECT = `${LIVE_INVENTORY_SELECT},model,dot,note,price_is_final,sheet_tab,sheet_row`;
+const INVENTORY_SELECT = 'id,tire_size,rim_size,type,brand,current_stock,selling_price,drive_link,is_flotation,width,profile,wheel_size,size_label,season';
 
 exports.handler = async function getUsedInventory(event) {
   if (event.httpMethod !== 'GET') {
@@ -16,11 +13,11 @@ exports.handler = async function getUsedInventory(event) {
   }
 
   const params = new URLSearchParams();
-  params.set('select', isDevInventoryTable() ? DEV_INVENTORY_SELECT : LIVE_INVENTORY_SELECT);
+  params.set('select', INVENTORY_SELECT);
   params.append('order', 'brand.asc');
   params.append('order', 'tire_size.asc');
 
-  const url = `${supabaseUrl}/rest/v1/${inventoryTableName()}?${params.toString()}`;
+  const url = `${supabaseUrl}/rest/v1/usedtireinventory?${params.toString()}`;
 
   try {
     const response = await fetch(url, {

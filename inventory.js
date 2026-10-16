@@ -301,10 +301,7 @@ function normalizeInventoryRow(row) {
     type: 'Used',
     title: title || 'Tire',
     brand,
-    model: clean(row.model),
-    dot: clean(row.dot),
-    note: clean(row.note),
-    priceIsFinal: row.price_is_final === true || String(row.price_is_final || '').toLowerCase() === 'true',
+    model: '',
     size,
     width,
     profile,
@@ -432,9 +429,9 @@ function normalizeRimSize(value) {
 function normalizeSeason(value) {
   const season = clean(value).toLowerCase();
   if (!season) return '';
-  if (season === 'w' || season.includes('winter')) return 'winter';
-  if (season === 's' || season.includes('summer')) return 'summer';
-  if (season === 'as' || season === 'at' || season.includes('terrain') || season.includes('all')) return 'all-season';
+  if (season.includes('winter')) return 'winter';
+  if (season.includes('summer')) return 'summer';
+  if (season.includes('terrain') || season.includes('all')) return 'all-season';
   return season;
 }
 
@@ -607,16 +604,10 @@ function markdownOffLabel() {
 }
 
 function isMarkdownTire(item) {
-  if (item?.priceIsFinal) return false;
   return getPricing().isMarkdownStock(item?.stock);
 }
 
 function getTireSalePrice(item) {
-  if (item?.priceIsFinal) {
-    const price = Number(item?.price);
-    if (!Number.isFinite(price) || price <= 0) return null;
-    return Math.round(price * 100) / 100;
-  }
   return getPricing().getUsedTireUnitPrice(item?.price, item?.stock);
 }
 
@@ -1173,13 +1164,10 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
           <span class="used-tire-card-label">Brand:</span>
           <strong>${escapeHtml(brandLabel)}</strong>
         </p>
-        ${item.model ? `<p class="used-tire-card-line"><span class="used-tire-card-label">Model:</span><strong>${escapeHtml(item.model)}</strong></p>` : ''}
-        ${item.dot ? `<p class="used-tire-card-line"><span class="used-tire-card-label">DOT:</span><strong>${escapeHtml(item.dot)}</strong></p>` : ''}
         <p class="used-tire-card-line">
           <span class="used-tire-card-label">Weather type:</span>
           <strong>${escapeHtml(seasonLabel)}</strong>
         </p>
-        ${item.note ? `<p class="used-tire-card-line"><span class="used-tire-card-label">Note:</span><strong>${escapeHtml(item.note)}</strong></p>` : ''}
         <p class="used-tire-card-line">
           <span class="used-tire-card-label">Stock:</span>
           <strong>${escapeHtml(stockCount ? `${stockCount} in stock` : 'Out of stock')}</strong>
@@ -1322,10 +1310,6 @@ function addUsedTireToCart(item, qty) {
       markdown: isMarkdownTire(item),
       title: item.title,
       brand: item.brand,
-      model: item.model || '',
-      note: item.note || '',
-      dot: item.dot || '',
-      priceIsFinal: Boolean(item.priceIsFinal),
       size: item.size,
       season: item.season,
     });
