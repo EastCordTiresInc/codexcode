@@ -42,24 +42,27 @@
 }
 
 .brand-reel-stage {
+  position: relative;
   height: 148px;
-  display: grid;
-  place-items: center;
   background: transparent;
 }
 
 .brand-reel-stage img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
   width: auto;
   height: auto;
   max-width: min(820px, 96%);
   max-height: 128px;
   object-fit: contain;
-  opacity: 1;
-  transition: opacity 420ms ease;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 900ms ease-in-out;
 }
 
-.brand-reel.is-fading img {
-  opacity: 0;
+.brand-reel-stage img.is-shown {
+  opacity: 1;
 }
 
 .brand-note {
@@ -116,9 +119,14 @@
 
   .brand-reel-stage img {
     position: static;
+    transform: none;
     max-height: 72px;
     max-width: 240px;
     opacity: 1;
     transition: none;
+  }
+
+  .brand-reel-stage img:not(.is-shown) {
+    display: none;
   }
 }
