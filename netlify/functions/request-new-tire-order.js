@@ -1,4 +1,4 @@
-const { sendEmail, getEmailConfig, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, SITE_ORIGIN, htmlFromText, buildBrandedEmail } = require('./lib/send-email');
+const { sendEmail, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, SITE_ORIGIN, htmlFromText, buildBrandedEmail } = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -180,10 +180,9 @@ exports.handler = async function requestNewTireOrder(event) {
       extraText: [...itemLines, orderNumber ? `TireConnect order #: ${orderNumber}` : ''].filter(Boolean).join('\n'),
     });
 
-  const config = getEmailConfig();
   const subjectBits = ['New tire order', fulfillment, customer.name, orderNumber].filter(Boolean);
   const staffEmail = await sendEmail({
-    to: config.eastcordTo || CONTACT_EMAIL,
+    to: CONTACT_EMAIL,
     replyTo: customer.email,
     subject: subjectBits.join(' — '),
     text,

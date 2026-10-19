@@ -383,7 +383,7 @@ function buildInternalEmail({ rows, session }) {
     <strong>Parking/Access Notes:</strong> ${escapeHtml(valueOrFallback(row.parking_access_notes, 'None'))}</p>`).join('');
 
   return {
-    to: getEmailConfig().eastcordTo,
+    to: CONTACT_EMAIL,
     subject: 'New Confirmed Appointment - EastCord Tires',
     text: `New confirmed appointment received.\n\nCustomer Details:\nName: ${customerName}\nPhone: ${customerPhone}\nEmail: ${customerEmail}\n\nAppointment Details:\n${appointmentBlocks}\n\nPayment Details:\nTotal Service Subtotal: ${formatMoney(totals.serviceSubtotal)}\nTotal HST 13%: ${formatMoney(totals.hstAmount)}\nTotal Including HST: ${formatMoney(totals.totalWithHst)}\nTotal Deposit Paid: ${formatMoney(totals.depositAmount)}\nTotal Remaining Balance Due at Service: ${formatMoney(totals.remainingBalance)}\nPayment Status: Deposit Paid\nBooking Status: Confirmed\n\nSystem Details:\nStripe Session ID: ${session.id}`,
     html: `
@@ -483,7 +483,7 @@ async function sendAppointmentEmails({ supabaseAdmin, rows, session, allRowsAlre
     provider: config.provider,
     emailConfigured: Boolean(config.configured),
     emailFrom: config.from,
-    emailToEastcord: config.eastcordTo,
+    emailToEastcord: CONTACT_EMAIL,
     bookingIds: rows.map((row) => row.id),
     bookingCount: rows.length,
     allRowsAlreadyConfirmed,

@@ -1,4 +1,4 @@
-const { sendEmail, getEmailConfig, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, htmlFromText, buildBrandedEmail } = require('./send-email');
+const { sendEmail, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, htmlFromText, buildBrandedEmail } = require('./send-email');
 
 function roundMoney(value) {
   const amount = Number(value);
@@ -123,7 +123,6 @@ async function notifyPaidNewTireOrder(order) {
   const vehicle = order.vehicle || {};
   const vehicleLine = [vehicle.year, vehicle.make, vehicle.model, vehicle.submodel].filter(Boolean).join(' ');
   const customerName = String(order.customer_name || 'Customer').trim() || 'Customer';
-  const config = getEmailConfig();
 
   const tireconnectNumber = String(order.tireconnect_order_number || '')
     .trim() || String(order.stripe_session_id || '').replace(/^tireconnect:/, '');
@@ -200,7 +199,7 @@ async function notifyPaidNewTireOrder(order) {
     });
 
   await sendEmail({
-    to: config.eastcordTo || CONTACT_EMAIL,
+    to: CONTACT_EMAIL,
     replyTo: order.customer_email || CONTACT_EMAIL,
     subject: detailsPending
       ? `New tire order needs details — ${customerName}`

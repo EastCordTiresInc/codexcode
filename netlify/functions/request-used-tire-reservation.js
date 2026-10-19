@@ -1,4 +1,4 @@
-const { sendEmail, getEmailConfig, CONTACT_EMAIL, APPOINTMENT_URL, htmlFromText } = require('./lib/send-email');
+const { sendEmail, CONTACT_EMAIL, APPOINTMENT_URL, htmlFromText } = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -67,9 +67,8 @@ exports.handler = async function requestUsedTireReservation(event) {
     `Total: ${clean(totals.total) || ''}`,
   ].join('\n');
 
-  const config = getEmailConfig();
   const email = await sendEmail({
-    to: config.eastcordTo || CONTACT_EMAIL,
+    to: CONTACT_EMAIL,
     replyTo: customer.email,
     subject: `Used tire reservation request — ${customer.name}`,
     text,
