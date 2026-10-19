@@ -155,8 +155,8 @@
             }
             if (status) {
               status.textContent = data.fulfillment === 'Installation' && data.orderId
-                ? 'Your new tire payment was received and saved to your account. You can book installation now with this confirmed order.'
-                : 'Your new tire payment was received and saved to your account. If you chose pickup, we will confirm when the order is ready. If you chose installation, book from My Account using this order.';
+                ? 'Your new tire payment was received and saved to your account. You can book installation now. The first appointment is 1:00 PM the day after you order.'
+                : 'Your new tire payment was received and saved to your account. Pickup starts at 1:00 PM the day after you order. If you chose installation, book from My Account using this order.';
             }
             clearQuote();
           } catch (error) {

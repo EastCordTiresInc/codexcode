@@ -1242,14 +1242,14 @@ function renderPurchasedTires(orders) {
         </div>`
       : fulfillment === 'Installation' && isNew
       ? `<div class="purchased-order-action">
-          <div><strong>Schedule installation</strong><span>Available after the 4-day shipping hold · 8:00 AM–8:00 PM</span></div>
+          <div><strong>Schedule installation</strong><span>First appointment is 1:00 PM the day after your order. Later days are 8:00 AM–8:00 PM.</span></div>
           <a class="button button-primary" href="/appointment.html?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking">Book installation</a>
         </div>`
       : fulfillment === 'Installation'
         ? '<div class="purchased-order-action"><div><strong>Installation selected</strong><span>EastCord will confirm your next steps.</span></div></div>'
         : ready
           ? '<div class="purchased-order-action"><div><strong>Ready for pickup</strong><span>Your tires are at 600 Harrop Drive, Milton. Shop hours 8:00 AM–8:00 PM. No appointment needed.</span></div></div>'
-        : '<div class="purchased-order-action"><div><strong>Waiting for tires</strong><span>EastCord will email you when this order is ready for pickup. No appointment needed.</span></div></div>';
+        : '<div class="purchased-order-action"><div><strong>Pickup the next day</strong><span>Pickup starts at 1:00 PM the day after your order, no matter what time you ordered. Shop hours 8:00 AM–8:00 PM. No appointment needed.</span></div></div>';
     return `
       <article class="purchased-order">
         <header class="purchased-order-header">

@@ -2,7 +2,7 @@
 -- Safe to re-run. Creates/updates every table the site writes to:
 --   customer_profiles, customer_carts, new_tire_orders,
 --   appointment_bookings, used_tire_orders
--- New-tire installation cannot be booked until 4 days after paid_at
+-- New-tire installation opens at 1:00 PM the day after paid_at
 -- (Toronto calendar date) on the linked new_tire_orders row.
 
 create extension if not exists pgcrypto;
@@ -102,7 +102,7 @@ using (auth.uid() = customer_id);
 
 -- ---------------------------------------------------------------------------
 -- New tire orders (saved after a successful TireConnect widget ORDER)
--- paid_at is the purchase date used for the 4-day installation hold.
+-- paid_at is the purchase date. Installation opens at 1:00 PM the next day.
 -- ---------------------------------------------------------------------------
 create table if not exists public.new_tire_orders (
   id uuid primary key default gen_random_uuid(),
@@ -288,13 +288,17 @@ create index if not exists appointment_bookings_new_tire_order_id_idx
 create index if not exists appointment_bookings_payment_status_idx
   on public.appointment_bookings (payment_status, booking_status);
 
--- Block the purchase date and the next 4 days. First bookable day is purchase + 5.
+-- The purchase day is closed. The next day opens at 1:00 PM.
 create or replace function public.assert_new_tire_install_hold()
 returns trigger
 language plpgsql
 as $$
 declare
   purchased date;
+  start_text text;
+  hour_part int;
+  minute_part int;
+  period text;
 begin
   if new.new_tire_order_id is null or new.preferred_date is null then
     return new;
@@ -305,11 +309,33 @@ begin
   from public.new_tire_orders
   where id = new.new_tire_order_id;
 
-  if purchased is not null and new.preferred_date <= (purchased + 4) then
+  if purchased is not null and new.preferred_date < (purchased + 1) then
     raise exception
-      'New tire installation cannot be booked until 4 days after the tire purchase date (%).',
+      'New tire installation starts at 1:00 PM the day after the purchase date (%).',
       purchased
       using errcode = 'P0001';
+  end if;
+
+  if purchased is not null
+     and new.preferred_date = (purchased + 1)
+     and coalesce(new.preferred_time_window, '') <> '' then
+    start_text := btrim(split_part(new.preferred_time_window, '-', 1));
+    if start_text ~* '^[0-9]{1,2}:[0-9]{2}\s+(AM|PM)$' then
+      hour_part := split_part(start_text, ':', 1)::int;
+      minute_part := split_part(split_part(start_text, ':', 2), ' ', 1)::int;
+      period := upper((regexp_match(start_text, '(AM|PM)$', 'i'))[1]);
+      if period = 'AM' and hour_part = 12 then
+        hour_part := 0;
+      elsif period = 'PM' and hour_part <> 12 then
+        hour_part := hour_part + 12;
+      end if;
+      if (hour_part * 60 + minute_part) < (13 * 60) then
+        raise exception
+          'New tire installation on the day after purchase starts at 1:00 PM. Purchase date: %.',
+          purchased
+          using errcode = 'P0001';
+      end if;
+    end if;
   end if;
 
   return new;
@@ -318,7 +344,7 @@ $$;
 
 drop trigger if exists appointment_new_tire_install_hold on public.appointment_bookings;
 create trigger appointment_new_tire_install_hold
-before insert or update of preferred_date, new_tire_order_id
+before insert or update of preferred_date, preferred_time_window, new_tire_order_id
 on public.appointment_bookings
 for each row execute procedure public.assert_new_tire_install_hold();
 

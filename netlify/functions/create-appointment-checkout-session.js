@@ -1,7 +1,7 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { isStripeTestMode } = require('./lib/stripe-mode');
-const { isPreferredDateInShippingHold } = require('./lib/new-tire-shipping-hold');
+const { isNewTireInstallTooEarly, NEW_TIRE_HOLD_MESSAGE } = require('./lib/new-tire-shipping-hold');
 const { resolveService } = require('../../appointment-services');
 const { listCalendarSlots, slotKey, isSlotConflict } = require('./lib/appointment-calendars');
 
@@ -236,7 +236,7 @@ function isOutsideServiceHours(booking) {
 
 function isWithinNewTireShippingHold(booking, purchaseIso) {
   if (!isNewTireInstallBooking(booking) || !booking.preferredDate) return false;
-  return isPreferredDateInShippingHold(booking.preferredDate, purchaseIso);
+  return isNewTireInstallTooEarly(booking.preferredDate, booking.preferredTimeWindow, purchaseIso);
 }
 
 function bookingLocation(row) {
@@ -264,7 +264,7 @@ function validateCartSlotAvailability(bookings, ordersById = {}) {
     }
 
     if (isWithinNewTireShippingHold(booking, purchaseIsoForBooking(booking, ordersById))) {
-      return { valid: false, reason: 'shipping_hold', message: 'New tire installation cannot be booked on the purchase date or the following 4 days. Please choose a later date.' };
+      return { valid: false, reason: 'shipping_hold', message: NEW_TIRE_HOLD_MESSAGE };
     }
 
     if (isLessThanMinimumAdvance(booking)) {
@@ -567,7 +567,7 @@ function validateBookingFields(booking, customer, ordersById = {}) {
   }
 
   if (isWithinNewTireShippingHold(booking, purchaseIsoForBooking(booking, ordersById))) {
-    return 'New tire installation cannot be booked on the purchase date or the following 4 days. Please choose a later date.';
+    return NEW_TIRE_HOLD_MESSAGE;
   }
 
   return '';

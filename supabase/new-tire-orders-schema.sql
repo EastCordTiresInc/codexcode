@@ -51,6 +51,10 @@ language plpgsql
 as $$
 declare
   purchased date;
+  start_text text;
+  hour_part int;
+  minute_part int;
+  period text;
 begin
   if new.new_tire_order_id is null or new.preferred_date is null then
     return new;
@@ -61,11 +65,33 @@ begin
   from public.new_tire_orders
   where id = new.new_tire_order_id;
 
-  if purchased is not null and new.preferred_date <= (purchased + 4) then
+  if purchased is not null and new.preferred_date < (purchased + 1) then
     raise exception
-      'New tire installation cannot be booked until 4 days after the tire purchase date (%).',
+      'New tire installation starts at 1:00 PM the day after the purchase date (%).',
       purchased
       using errcode = 'P0001';
+  end if;
+
+  if purchased is not null
+     and new.preferred_date = (purchased + 1)
+     and coalesce(new.preferred_time_window, '') <> '' then
+    start_text := btrim(split_part(new.preferred_time_window, '-', 1));
+    if start_text ~* '^[0-9]{1,2}:[0-9]{2}\s+(AM|PM)$' then
+      hour_part := split_part(start_text, ':', 1)::int;
+      minute_part := split_part(split_part(start_text, ':', 2), ' ', 1)::int;
+      period := upper((regexp_match(start_text, '(AM|PM)$', 'i'))[1]);
+      if period = 'AM' and hour_part = 12 then
+        hour_part := 0;
+      elsif period = 'PM' and hour_part <> 12 then
+        hour_part := hour_part + 12;
+      end if;
+      if (hour_part * 60 + minute_part) < (13 * 60) then
+        raise exception
+          'New tire installation on the day after purchase starts at 1:00 PM. Purchase date: %.',
+          purchased
+          using errcode = 'P0001';
+      end if;
+    end if;
   end if;
 
   return new;
@@ -74,6 +100,6 @@ $$;
 
 drop trigger if exists appointment_new_tire_install_hold on public.appointment_bookings;
 create trigger appointment_new_tire_install_hold
-before insert or update of preferred_date, new_tire_order_id
+before insert or update of preferred_date, preferred_time_window, new_tire_order_id
 on public.appointment_bookings
 for each row execute procedure public.assert_new_tire_install_hold();

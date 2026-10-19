@@ -3,7 +3,7 @@
   const QUOTE_STORAGE_KEY = 'eastcord_new_tire_quote_v1';
   const CHECKOUT_SNAPSHOT_KEY = 'eastcord_new_tire_checkout_snapshot_v1';
   const INSTALL_SLOT_KEY = 'eastcord_new_tire_install_slot_v1';
-  const NEW_TIRE_SHIPPING_DAYS = 4;
+  const NEW_TIRE_ARRIVAL_START_MINUTES = 13 * 60;
   const TIME_WINDOWS = [
     '8:00 AM - 9:00 AM',
     '9:00 AM - 10:00 AM',
@@ -180,8 +180,24 @@
 
   function earliestInstallDate() {
     const date = startOfLocalDay();
-    date.setDate(date.getDate() + NEW_TIRE_SHIPPING_DAYS + 1);
+    date.setDate(date.getDate() + 1);
     return date;
+  }
+
+  function timeWindowStartMinutes(value) {
+    const startText = String(value || '').split('-')[0].trim();
+    const match = startText.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return null;
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const period = match[3].toUpperCase();
+    if (period === 'AM' && hours === 12) hours = 0;
+    if (period === 'PM' && hours !== 12) hours += 12;
+    return (hours * 60) + minutes;
+  }
+
+  function isArrivalDay(dateValue) {
+    return String(dateValue || '') === formatDateValue(earliestInstallDate());
   }
 
   function parseDateValue(value) {
@@ -196,6 +212,10 @@
       if (!saved?.date || !saved?.time) return null;
       if (startOfLocalDay(saved.date) < earliestInstallDate()) return null;
       if (!TIME_WINDOWS.includes(saved.time)) return null;
+      if (isArrivalDay(saved.date)) {
+        const start = timeWindowStartMinutes(saved.time);
+        if (start !== null && start < NEW_TIRE_ARRIVAL_START_MINUTES) return null;
+      }
       return { date: saved.date, time: saved.time };
     } catch (error) {
       return null;
@@ -238,6 +258,24 @@
       .concat(TIME_WINDOWS.map((slot) => `<option value="${slot}">${slot}</option>`))
       .join('');
     select.dataset.filled = 'true';
+    applyArrivalTimeLimits();
+  }
+
+  function applyArrivalTimeLimits() {
+    const select = datetimeEls().time;
+    if (!select) return;
+    const arrivalDay = isArrivalDay(installSlot?.date || '');
+    Array.from(select.options).forEach((option) => {
+      if (!option.value) return;
+      const start = timeWindowStartMinutes(option.value);
+      const tooEarly = arrivalDay && start !== null && start < NEW_TIRE_ARRIVAL_START_MINUTES;
+      option.disabled = tooEarly;
+      option.textContent = tooEarly ? `${option.value} (from 1:00 PM)` : option.value;
+    });
+    if (select.selectedOptions[0]?.disabled) {
+      select.value = '';
+      if (installSlot) installSlot.time = '';
+    }
   }
 
   function renderCalendar() {
@@ -331,6 +369,7 @@
       const button = event.target.closest('[data-cal-day]');
       if (!button || button.disabled) return;
       installSlot = { date: button.getAttribute('data-cal-day'), time: els.time?.value || installSlot?.time || '' };
+      applyArrivalTimeLimits();
       renderCalendar();
       syncDatetimeFields();
     });
@@ -2101,11 +2140,11 @@
   function fulfillmentNote() {
     const order = lastSavedOrder || readConfirmedOrder();
     if (selectedFulfillment() === 'Installation' && order?.id) {
-      return `EastCord fulfillment: Installation. Order ${order.id} is confirmed. Book installation at ${window.location.origin}${installationBookingUrl(order.id)}. Linked new tires. Next 4 days after purchase cannot be booked. Hours 8:00 AM to 8:00 PM.`;
+      return `EastCord fulfillment: Installation. Order ${order.id} is confirmed. Book installation at ${window.location.origin}${installationBookingUrl(order.id)}. Linked new tires. First appointment is 1:00 PM the day after purchase. Later days are 8:00 AM to 8:00 PM.`;
     }
     return selectedFulfillment() === 'Installation'
-      ? 'EastCord fulfillment: Installation. After the tire ORDER is saved, send the customer to book installation. Linked new tires. Next 4 days after purchase cannot be booked. Hours 8:00 AM to 8:00 PM.'
-      : 'EastCord fulfillment: Pickup. Email or text the customer when tires arrive. No appointment.';
+      ? 'EastCord fulfillment: Installation. After the tire ORDER is saved, send the customer to book installation. Linked new tires. First appointment is 1:00 PM the day after purchase. Later days are 8:00 AM to 8:00 PM.'
+      : 'EastCord fulfillment: Pickup. Customer can pick up starting at 1:00 PM the day after the order. No appointment.';
   }
 
   function rememberWidget(target) {
@@ -2185,8 +2224,8 @@
 
   function successMessage(fulfillment) {
     return fulfillment === 'Installation'
-      ? 'Tires saved to your account. Opening installation booking next. You cannot book on the purchase date or the following 4 days.'
-      : 'Order placed. We will email you when your tires are ready for pickup. No appointment is needed.';
+      ? 'Tires saved to your account. Opening installation booking next. The first appointment is 1:00 PM the day after you order.'
+      : 'Order placed. You can pick up the tires starting at 1:00 PM the day after you order. No appointment is needed.';
   }
 
   function roundMoney(value) {
