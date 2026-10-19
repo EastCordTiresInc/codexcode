@@ -8,7 +8,7 @@
 }
 
 .used-tires-page .section {
-  padding-top: clamp(28px, 4vw, 48px);
+  padding: 28px 0 56px;
 }
 
 .used-coming-soon {
@@ -52,16 +52,15 @@
 }
 
 .used-tires-page .section {
-  padding-top: clamp(28px, 4vw, 48px);
+  padding: 28px 0 56px;
 }
 
 .used-search-widget {
-  max-width: 1180px;
-  margin: 0 auto;
-  border: 1px solid #d8dade;
-  border-radius: 4px;
-  background: #ececec;
-  box-shadow: 0 18px 40px rgba(17, 18, 20, 0.08);
+  margin: 0;
+  border: 1px solid #e4e5e7;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -111,8 +110,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 14px 18px;
-  max-width: 1180px;
-  margin: 18px auto 0;
+  margin: 18px 0 0;
   padding: 16px 18px;
   border: 1px solid #efb8ba;
   border-left: 6px solid var(--red);
@@ -175,20 +173,29 @@
 }
 
 .used-search-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-  background: #ececec;
+  display: block;
+  background: #fff;
 }
 
 .used-search-form-wrap {
-  padding: 22px 24px 24px;
-  background: #ececec;
+  padding: 16px 18px 18px;
+  background: #fff;
 }
 
 .used-search-form {
   display: grid;
-  gap: 16px;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  gap: 12px 14px;
+  align-items: end;
+}
+
+.used-search-link,
+.used-inventory-load-status {
+  grid-column: 1 / -1;
+}
+
+.used-search-fields {
+  display: contents;
 }
 
 .used-search-link {
@@ -202,12 +209,6 @@
 
 .used-search-link:hover {
   text-decoration: underline;
-}
-
-.used-search-fields {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
 }
 
 .used-search-field {
@@ -281,7 +282,7 @@
   gap: 10px;
   width: auto;
   min-height: 44px;
-  margin-top: 4px;
+  margin-top: 0;
   padding: 0 18px;
   justify-self: start;
   border: 0;
@@ -393,8 +394,7 @@
 }
 
 .used-inventory-results {
-  max-width: 1180px;
-  margin: 28px auto 0;
+  margin: 22px 0 0;
 }
 
 .used-markdown-section {
@@ -731,8 +731,9 @@
 }
 
 .used-inventory-results .inventory-list.used-catalog-grid {
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
+  align-items: stretch;
 }
 
 .used-inventory-results .inventory-list:has(.used-inventory-group + .used-inventory-group) {
@@ -777,13 +778,14 @@
 
 .used-tire-card {
   position: relative;
-  display: grid;
-  gap: 0;
-  padding: 16px 16px 14px;
-  border: 1px solid #cfd3d8;
-  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 12px 14px;
+  border: 1px solid #e4e5e7;
+  border-radius: 8px;
   background: #fff;
-  box-shadow: 0 8px 24px rgba(17, 18, 20, 0.06);
+  box-shadow: none;
 }
 
 .used-tire-card.is-markdown {
@@ -815,8 +817,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
-  margin-bottom: 10px;
+  min-height: 42px;
+  margin-bottom: 8px;
   text-align: center;
 }
 
@@ -829,17 +831,17 @@
 }
 
 .used-tire-card-brand img {
-  max-width: 230px;
-  max-height: 56px;
+  max-width: 180px;
+  max-height: 42px;
   width: auto;
   height: auto;
   object-fit: contain;
 }
 
 .used-tire-card-photos {
-  margin: 0 -16px 12px;
+  margin: 0 -12px;
   overflow: hidden;
-  background: #eef0f2;
+  background: #f3f4f6;
   border-top: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
 }
@@ -847,7 +849,7 @@
 .used-tire-card-photo-track {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 5 / 4;
   overflow: hidden;
   background: #eef0f2;
 }
@@ -1005,51 +1007,81 @@
   text-align: center;
 }
 
-.used-tire-card-heading {
-  margin-bottom: 12px;
-}
-
-.used-tire-card-type {
-  margin: 0 0 4px;
-  color: #6f7277;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.used-tire-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  padding-top: 12px;
 }
 
 .used-tire-card-heading h3 {
   margin: 0;
   color: #111214;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.01em;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
-.used-tire-card-divider {
-  width: 100%;
-  height: 0;
-  margin: 10px 0 0;
-  border: 0;
-  border-top: 2px solid var(--red);
-}
-
-.used-tire-card-details {
+.used-tire-card-facts {
   display: grid;
-  gap: 8px;
-  margin-bottom: 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.used-tire-card-facts div {
+  min-width: 0;
+}
+
+.used-tire-card-facts dt {
+  margin: 0;
+  color: #6f7277;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.used-tire-card-facts dd {
+  margin: 2px 0 0;
+  color: #111214;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.used-tire-card-facts dd.is-low {
+  color: #8b1e1e;
+}
+
+.used-tire-card-note {
+  margin: 0;
+  color: #34363a;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.used-tire-card-note span {
+  display: block;
+  margin-bottom: 2px;
+  color: #6f7277;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .used-tire-card-season {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   color: #111214;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .used-tire-card-season-icon {
@@ -1084,7 +1116,6 @@
 }
 
 .used-tire-card-size-value {
-  border-bottom: 1px dashed #111214;
   font-weight: 700;
 }
 
@@ -1092,12 +1123,9 @@
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 12px;
-  align-items: center;
-  margin-bottom: 12px;
-  padding: 12px;
-  border: 1px solid #cfd3d8;
-  border-radius: 4px;
-  background: #fff;
+  align-items: end;
+  margin-top: auto;
+  padding-top: 4px;
 }
 
 .used-tire-card-qty-row {
@@ -1140,7 +1168,7 @@
 .used-tire-card-price {
   display: block;
   color: var(--red);
-  font-size: clamp(1.55rem, 4vw, 1.85rem);
+  font-size: 1.45rem;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -1173,8 +1201,8 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 46px;
-  padding: 10px 12px;
+  min-height: 40px;
+  padding: 8px 8px;
   border: 0;
   border-radius: 4px;
   background: var(--red);
@@ -1199,7 +1227,6 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-bottom: 8px;
 }
 
 .used-tire-card-cta.is-secondary {
@@ -1298,8 +1325,8 @@
 }
 
 .used-tire-card-stock-alert {
-  margin: 0 0 12px;
-  padding: 10px 12px;
+  margin: 0;
+  padding: 8px 10px;
   border-radius: 4px;
   font-size: 0.78rem;
   font-weight: 800;
@@ -1339,12 +1366,12 @@
     border-top: 1px solid #e4e5e7;
   }
 
-  .used-search-body {
-    grid-template-columns: 1fr;
+  .used-search-form {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .used-search-fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .used-search-submit {
+    grid-column: 1 / -1;
   }
 
   .used-search-guide {
@@ -1389,7 +1416,11 @@
 }
 
 @media (max-width: 620px) {
-  .used-search-fields {
+  .used-search-form {
+    grid-template-columns: 1fr;
+  }
+
+  .used-tire-card-actions {
     grid-template-columns: 1fr;
   }
 

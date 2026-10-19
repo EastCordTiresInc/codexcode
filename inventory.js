@@ -1142,44 +1142,35 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
     : `<span>${escapeHtml(brandLabel)}</span>`}
       </div>
 
-      ${stockAlert}
-
       <div class="used-tire-card-media">
         ${markdown ? `<p class="used-tire-card-sale-badge">${escapeHtml(markdownOffLabel())}</p>` : ''}
         ${renderTirePhotoGallery(item, photoLink, cardIndex)}
       </div>
 
+      <div class="used-tire-card-body">
       <div class="used-tire-card-heading">
-        <p class="used-tire-card-type">${escapeHtml(item.type || 'Used')}</p>
         <h3>${escapeHtml(item.title)}</h3>
-        <hr class="used-tire-card-divider" />
-        </div>
+      </div>
 
-      <div class="used-tire-card-details">
-        <div class="used-tire-card-season">
-          ${renderSeasonIcon(item.seasonKey)}
-          <span>${escapeHtml(seasonLabel)}</span>
-      </div>
-        <p class="used-tire-card-line">
-          <span class="used-tire-card-label">Size:</span>
-          <span class="used-tire-card-size-value">${escapeHtml(item.size || 'N/A')}</span>
-        </p>
-        <p class="used-tire-card-line">
-          <span class="used-tire-card-label">Brand:</span>
-          <strong>${escapeHtml(brandLabel)}</strong>
-        </p>
-        ${item.model ? `<p class="used-tire-card-line"><span class="used-tire-card-label">Model:</span><strong>${escapeHtml(item.model)}</strong></p>` : ''}
-        ${item.dot ? `<p class="used-tire-card-line"><span class="used-tire-card-label">DOT:</span><strong>${escapeHtml(item.dot)}</strong></p>` : ''}
-        <p class="used-tire-card-line">
-          <span class="used-tire-card-label">Weather type:</span>
-          <strong>${escapeHtml(seasonLabel)}</strong>
-        </p>
-        ${item.note ? `<p class="used-tire-card-line"><span class="used-tire-card-label">Note:</span><strong>${escapeHtml(item.note)}</strong></p>` : ''}
-        <p class="used-tire-card-line">
-          <span class="used-tire-card-label">Stock:</span>
-          <strong>${escapeHtml(stockCount ? `${stockCount} in stock` : 'Out of stock')}</strong>
-        </p>
-      </div>
+      ${stockCount ? '' : stockAlert}
+
+      <dl class="used-tire-card-facts">
+        <div>
+          <dt>Size</dt>
+          <dd class="used-tire-card-size-value">${escapeHtml(item.size || 'N/A')}</dd>
+        </div>
+        <div>
+          <dt>Season</dt>
+          <dd class="used-tire-card-season">${renderSeasonIcon(item.seasonKey)}<span>${escapeHtml(seasonLabel)}</span></dd>
+        </div>
+        <div>
+          <dt>Stock</dt>
+          <dd class="${markdown || (stockCount > 0 && stockCount < 4) ? 'is-low' : ''}">${escapeHtml(stockCount ? `${stockCount} in stock` : 'Out of stock')}</dd>
+        </div>
+        ${item.model ? `<div><dt>Model</dt><dd>${escapeHtml(item.model)}</dd></div>` : ''}
+        ${item.dot ? `<div><dt>DOT</dt><dd>${escapeHtml(item.dot)}</dd></div>` : ''}
+      </dl>
+      ${item.note ? `<p class="used-tire-card-note"><span>Note</span> ${escapeHtml(item.note)}</p>` : ''}
 
       <div class="used-tire-card-pricing">
         <div class="used-tire-card-qty-row">
@@ -1225,6 +1216,7 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
         >Reserve</button>
       </div>
       <p class="used-tire-card-cart-status" data-tire-cart-status aria-live="polite"></p>
+      </div>
     </article>
   `;
 }
