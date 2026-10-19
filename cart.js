@@ -16,7 +16,8 @@ const agreementCloseButtons = Array.from(document.querySelectorAll('[data-agreem
 const agreementPanel = agreementModal?.querySelector('.agreement-modal-panel');
 const MIN_ADVANCE_MINUTES_MOBILE = 120;
 const MIN_ADVANCE_MINUTES_SHOP = 60;
-const NEW_TIRE_SHIPPING_DAYS = 4;
+const NEW_TIRE_ARRIVAL_START_MINUTES = 13 * 60;
+const NEW_TIRE_HOLD_MESSAGE = 'New tire installation starts at 1:00 PM the day after purchase. Please choose 1:00 PM or later that day, or any time from 8:00 AM on a later day.';
 const SERVICE_START_MINUTES = 8 * 60;
 const SERVICE_END_MINUTES = 20 * 60;
 const SERVICE_TIME_ZONE = 'America/Toronto';
@@ -702,7 +703,7 @@ function purchaseIsoFromCartItem(item) {
 
 function earliestNewTireInstallYmd(item) {
   const raw = purchaseIsoFromCartItem(item);
-  return addDaysYmd(raw ? torontoYmd(raw) : torontoYmd(), NEW_TIRE_SHIPPING_DAYS + 1);
+  return addDaysYmd(raw ? torontoYmd(raw) : torontoYmd(), 1);
 }
 
 function earliestNewTireInstallDate(item) {
@@ -711,7 +712,12 @@ function earliestNewTireInstallDate(item) {
 
 function isWithinNewTireShippingHold(item) {
   if (!isNewTireInstallItem(item) || !item.preferredDate) return false;
-  return String(item.preferredDate) < earliestNewTireInstallYmd(item);
+  const earliest = earliestNewTireInstallYmd(item);
+  if (String(item.preferredDate) < earliest) return true;
+  if (String(item.preferredDate) !== earliest) return false;
+  const startMinutes = getTimeWindowStartMinutes(item.preferredTimeWindow);
+  if (startMinutes === null) return false;
+  return startMinutes < NEW_TIRE_ARRIVAL_START_MINUTES;
 }
 
 function validateCartSlots(items) {
@@ -729,7 +735,7 @@ function validateCartSlots(items) {
       return 'Installation hours are 8:00 AM to 8:00 PM. Please choose a time in that window.';
     }
     if (isWithinNewTireShippingHold(item)) {
-      return 'New tire installation cannot be booked on the purchase date or the following 4 days. Please choose a later date.';
+      return NEW_TIRE_HOLD_MESSAGE;
     }
 
     const slotKey = `${item.preferredDate}__${item.preferredTimeWindow}`;

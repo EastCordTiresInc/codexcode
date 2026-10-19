@@ -1,7 +1,7 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { isStripeTestMode } = require('./lib/stripe-mode');
-const { isPreferredDateInShippingHold } = require('./lib/new-tire-shipping-hold');
+const { isNewTireInstallTooEarly, NEW_TIRE_HOLD_MESSAGE } = require('./lib/new-tire-shipping-hold');
 const { resolveService: resolveCatalogService } = require('../../appointment-services');
 const {
   bookingLocation,
@@ -138,7 +138,11 @@ function isWithinNewTireShippingHold(item, purchaseIso) {
   if (!isNewTireInstallItem(item)) return false;
   const dateValue = text(item.preferredDate || item.preferred_date);
   if (!dateValue) return false;
-  return isPreferredDateInShippingHold(dateValue, purchaseIso);
+  return isNewTireInstallTooEarly(
+    dateValue,
+    item.preferredTimeWindow || item.preferred_time_window,
+    purchaseIso,
+  );
 }
 
 function getTimeWindowStartMinutes(value) {
@@ -209,7 +213,7 @@ function validateInstallSlots(items, ordersById = {}) {
       return 'Installation hours are 8:00 AM to 8:00 PM. Please choose a time in that window.';
     }
     if (isWithinNewTireShippingHold(item, purchaseIsoForItem(item, ordersById))) {
-      return 'New tire installation cannot be booked on the purchase date or the following 4 days. Please choose a later date.';
+      return NEW_TIRE_HOLD_MESSAGE;
     }
   }
   return '';

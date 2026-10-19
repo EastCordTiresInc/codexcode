@@ -95,7 +95,7 @@ const emails = [
       heading: 'Your new tires are confirmed',
       body: [
         'Hello Nikki,',
-        'EastCord Tires received your new tire payment. You can book installation now. Booking is not available on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.',
+        'EastCord Tires received your new tire payment. You can book installation now. The first appointment is 1:00 PM the day after you order, no matter what time you order. Later days are 8:00 AM to 8:00 PM.',
         'Total paid: $812.47',
       ],
       actionUrl: bookingUrl,
@@ -132,7 +132,7 @@ const emails = [
       heading: 'Your pickup order is confirmed',
       body: [
         'Hello Nikki,',
-        'EastCord Tires received your new tire payment for store pickup at 600 Harrop Drive, Milton. We will email you when the tires are ready. No appointment is needed.',
+        'EastCord Tires received your new tire payment for store pickup at 600 Harrop Drive, Milton. You can pick up the tires starting at 1:00 PM the day after you order, no matter what time you order. No appointment is needed.',
         'Total paid: $812.47',
       ],
       actionUrl: ACCOUNT_URL,

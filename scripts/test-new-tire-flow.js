@@ -14,7 +14,8 @@ const {
   addDaysYmd,
   earliestInstallYmd,
   isPreferredDateInShippingHold,
-  NEW_TIRE_SHIPPING_DAYS,
+  isNewTireInstallTooEarly,
+  getTimeWindowStartMinutes,
 } = require('../netlify/functions/lib/new-tire-shipping-hold');
 
 let failed = 0;
@@ -84,22 +85,69 @@ test('normalizeWidgetItems drops empty junk-only rows', () => {
   assert.deepStrictEqual(items, []);
 });
 
-test('4-day hold uses Toronto purchase date, not UTC clock', () => {
+test('next-day 1pm hold uses Toronto purchase date, not UTC clock', () => {
   // Aug 28, 2026 8:00 PM Toronto = Aug 29, 2026 00:00 UTC
   const paidAt = '2026-08-29T00:00:00.000Z';
   assert.strictEqual(torontoYmd(paidAt), '2026-08-28');
-  assert.strictEqual(earliestInstallYmd(paidAt), '2026-09-02');
+  assert.strictEqual(earliestInstallYmd(paidAt), '2026-08-29');
   assert.strictEqual(isPreferredDateInShippingHold('2026-08-28', paidAt), true);
-  assert.strictEqual(isPreferredDateInShippingHold('2026-08-31', paidAt), true);
-  assert.strictEqual(isPreferredDateInShippingHold('2026-09-01', paidAt), true);
-  assert.strictEqual(isPreferredDateInShippingHold('2026-09-02', paidAt), false);
+  assert.strictEqual(isPreferredDateInShippingHold('2026-08-29', paidAt), false);
+  assert.strictEqual(isNewTireInstallTooEarly('2026-08-28', '1:00 PM - 2:00 PM', paidAt), true);
+  assert.strictEqual(isNewTireInstallTooEarly('2026-08-29', '12:00 PM - 1:00 PM', paidAt), true);
+  assert.strictEqual(isNewTireInstallTooEarly('2026-08-29', '1:00 PM - 2:00 PM', paidAt), false);
+  assert.strictEqual(isNewTireInstallTooEarly('2026-08-30', '8:00 AM - 9:00 AM', paidAt), false);
 });
 
-test('SQL-equivalent: first bookable day is the day after the 4-day hold', () => {
-  const purchased = '2026-08-28';
-  const firstBookable = addDaysYmd(purchased, NEW_TIRE_SHIPPING_DAYS + 1);
-  assert.strictEqual(firstBookable, '2026-09-02');
-  assert.strictEqual(addDaysYmd('2026-01-30', 4), '2026-02-03');
+test('a late purchase still opens at 1:00 PM the next Toronto day', () => {
+  // Aug 28, 2026 11:30 PM Toronto = Aug 29, 2026 03:30 UTC
+  const paidAt = '2026-08-29T03:30:00.000Z';
+  assert.strictEqual(torontoYmd(paidAt), '2026-08-28');
+  assert.strictEqual(earliestInstallYmd(paidAt), '2026-08-29');
+  assert.strictEqual(isNewTireInstallTooEarly('2026-08-29', '1:00 PM - 2:00 PM', paidAt), false);
+  assert.strictEqual(addDaysYmd('2026-01-30', 1), '2026-01-31');
+});
+
+test('arrival rule holds across midnight, DST, and leap day', () => {
+  const cases = [
+    ['2026-10-20T03:59:59.000Z', '2026-10-19', '2026-10-20'],
+    ['2026-10-20T04:00:00.000Z', '2026-10-20', '2026-10-21'],
+    ['2026-03-08T03:30:00.000Z', '2026-03-07', '2026-03-08'],
+    ['2026-03-08T06:30:00.000Z', '2026-03-08', '2026-03-09'],
+    ['2026-03-08T07:30:00.000Z', '2026-03-08', '2026-03-09'],
+    ['2026-11-01T05:30:00.000Z', '2026-11-01', '2026-11-02'],
+    ['2026-11-01T06:30:00.000Z', '2026-11-01', '2026-11-02'],
+    ['2024-02-29T21:00:00.000Z', '2024-02-29', '2024-03-01'],
+  ];
+  cases.forEach(([paidAt, purchased, firstDay]) => {
+    assert.strictEqual(torontoYmd(paidAt), purchased, paidAt);
+    assert.strictEqual(earliestInstallYmd(paidAt), firstDay, paidAt);
+    assert.strictEqual(isNewTireInstallTooEarly(purchased, '8:00 PM - 9:00 PM', paidAt), true);
+    assert.strictEqual(isNewTireInstallTooEarly(firstDay, '12:00 PM - 1:00 PM', paidAt), true);
+    assert.strictEqual(isNewTireInstallTooEarly(firstDay, '1:00 pm - 2:00 pm', paidAt), false);
+    assert.strictEqual(isNewTireInstallTooEarly(addDaysYmd(firstDay, 1), '8:00 AM - 9:00 AM', paidAt), false);
+  });
+  const today = torontoYmd(new Date());
+  const tomorrow = addDaysYmd(today, 1);
+  assert.strictEqual(earliestInstallYmd('not-a-date'), tomorrow);
+  assert.strictEqual(earliestInstallYmd(''), tomorrow);
+  assert.strictEqual(isNewTireInstallTooEarly(today, '1:00 PM - 2:00 PM', 'not-a-date'), true);
+  assert.strictEqual(isNewTireInstallTooEarly(tomorrow, '12:00 PM - 1:00 PM', 'not-a-date'), true);
+  assert.strictEqual(isNewTireInstallTooEarly(tomorrow, '1:00 PM - 2:00 PM', 'not-a-date'), false);
+  const windows = [
+    '8:00 AM - 9:00 AM',
+    '12:00 PM - 1:00 PM',
+    '1:00 PM - 2:00 PM',
+    '7:00 PM - 8:00 PM',
+  ];
+  cases.forEach(([paidAt, purchased, firstDay]) => {
+    [purchased, firstDay, addDaysYmd(firstDay, 1)].forEach((day) => {
+      windows.forEach((window) => {
+        const jsBlocked = isNewTireInstallTooEarly(day, window, paidAt);
+        const sqlBlocked = day < firstDay || (day === firstDay && getTimeWindowStartMinutes(window) < 13 * 60);
+        assert.strictEqual(jsBlocked, sqlBlocked, `${paidAt} ${day} ${window}`);
+      });
+    });
+  });
 });
 
 test('appointment email link includes source and order id', () => {
@@ -274,15 +322,12 @@ test(`runs ${widgetPayloads.length} widget order payloads through the live save 
 
 const holdCases = [
   ['2026-08-28', '2026-08-28', true],
-  ['2026-08-28', '2026-08-29', true],
-  ['2026-08-28', '2026-08-30', true],
-  ['2026-08-28', '2026-08-31', true],
-  ['2026-08-28', '2026-09-01', true],
-  ['2026-08-28', '2026-09-02', false],
-  ['2026-12-30', '2027-01-03', true],
-  ['2026-12-30', '2027-01-04', false],
-  ['2026-02-26', '2026-03-02', true],
-  ['2026-02-26', '2026-03-03', false],
+  ['2026-08-28', '2026-08-29', false],
+  ['2026-08-28', '2026-08-30', false],
+  ['2026-12-31', '2026-12-31', true],
+  ['2026-12-31', '2027-01-01', false],
+  ['2026-02-28', '2026-02-28', true],
+  ['2026-02-28', '2026-03-01', false],
 ];
 
 test('booking hold covers month and year boundaries', () => {
@@ -294,6 +339,13 @@ test('booking hold covers month and year boundaries', () => {
       `${purchased} booking ${preferred} should ${blocked ? 'be blocked' : 'be allowed'}`,
     );
   });
+  const august = '2026-08-28T16:00:00.000-04:00';
+  assert.strictEqual(isNewTireInstallTooEarly('2026-08-29', '12:00 PM - 1:00 PM', august), true);
+  assert.strictEqual(isNewTireInstallTooEarly('2026-08-29', '1:00 PM - 2:00 PM', august), false);
+  const yearEnd = '2026-12-31T16:00:00.000-05:00';
+  assert.strictEqual(isNewTireInstallTooEarly('2027-01-01', '8:00 AM - 9:00 AM', yearEnd), true);
+  assert.strictEqual(isNewTireInstallTooEarly('2027-01-01', '1:00 PM - 2:00 PM', yearEnd), false);
+  assert.strictEqual(isNewTireInstallTooEarly('2027-01-02', '8:00 AM - 9:00 AM', yearEnd), false);
 });
 
 test('keeps Ovation as a real brand and strips FILTER RESULTS from it', () => {
@@ -721,11 +773,11 @@ test('new-tires capture keeps Ovation, strips widget chrome, and does not fake a
   assert.match(page, /moveDisplayedEcoFeeToPriceSummary/);
   assert.match(page, /data-eastcord-eco-fee-hidden/);
   assert.match(page, /data-eastcord-eco-fee-summary/);
-  assert.match(page, /latestAmount && displayedAmount/);
+  assert.match(page, /displayedAmount && directWidgetText\(displayedAmount\)/);
   assert.match(page, /Keep npm run dev running/);
   assert.doesNotMatch(page, /The demo order could not be saved\. Log in and try again/);
   assert.match(html, /new-tire-brand\.js\?v=/);
-  assert.match(html, /You cannot book on the purchase date or the following 4 days/);
+  assert.match(html, /The first appointment is 1:00 PM the next day, no matter what time you order/);
   assert.doesNotMatch(html, /Search tires in the widget/);
   assert.doesNotMatch(html, /If the tire above is blank/);
   assert.doesNotMatch(html, /data-new-tire-details/);

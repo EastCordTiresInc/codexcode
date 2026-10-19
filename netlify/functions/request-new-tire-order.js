@@ -161,7 +161,7 @@ exports.handler = async function requestNewTireOrder(event) {
       heading: 'We received your new tire order',
       body: [
         `Hello ${customer.name},`,
-        'EastCord Tires received your new tire order with installation. You can book after this order is saved. Booking is not available on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.',
+        'EastCord Tires received your new tire order with installation. You can book after this order is saved. The first appointment is 1:00 PM the day after you order, no matter what time you order. Later days are 8:00 AM to 8:00 PM.',
       ],
       actionUrl: APPOINTMENT_URL,
       actionLabel: 'Book installation',
@@ -173,7 +173,7 @@ exports.handler = async function requestNewTireOrder(event) {
       heading: 'We received your pickup order',
       body: [
         `Hello ${customer.name},`,
-        'EastCord Tires received your new tire order for store pickup at 600 Harrop Drive, Milton. We will email you when the tires are ready. No appointment is needed.',
+        'EastCord Tires received your new tire order for store pickup at 600 Harrop Drive, Milton. You can pick up the tires starting at 1:00 PM the day after you order, no matter what time you order. No appointment is needed.',
       ],
       actionUrl: ACCOUNT_URL,
       actionLabel: 'View your account',

@@ -4,14 +4,15 @@
   const APPOINTMENT_RESTORE_PATH = '/appointment.html';
   const MIN_ADVANCE_MINUTES_MOBILE = 120;
   const MIN_ADVANCE_MINUTES_SHOP = 60;
-  const NEW_TIRE_SHIPPING_DAYS = 4;
+  const NEW_TIRE_ARRIVAL_START_MINUTES = 13 * 60;
   const SERVICE_START_MINUTES = 8 * 60;
   const SERVICE_END_MINUTES = 20 * 60;
   const SERVICE_TIME_ZONE = 'America/Toronto';
   const TAX_RATE = 0.13;
   const MIN_ADVANCE_MESSAGE_MOBILE = 'Mobile appointments must be booked at least 2 hours in advance to allow technician scheduling and travel time.';
   const MIN_ADVANCE_MESSAGE_SHOP = 'Shop appointments must be booked at least 1 hour in advance.';
-  const SHIPPING_HOLD_MESSAGE = 'You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.';
+  const SHIPPING_HOLD_MESSAGE = 'The first installation appointment is 1:00 PM the day after you order, no matter what time you order. Later days are 8:00 AM to 8:00 PM.';
+  const ARRIVAL_TIME_MESSAGE = 'On the day after purchase, the first appointment is 1:00 PM.';
   const SERVICE_HOURS_MESSAGE = 'Installation hours are 8:00 AM to 8:00 PM. Please choose a time in that window.';
   const SHOP_LOCATION = {
     address: '600 Harrop Drive',
@@ -552,7 +553,7 @@
   }
 
   function earliestNewTireInstallYmd() {
-    return addDaysYmd(newTirePurchaseYmd(), NEW_TIRE_SHIPPING_DAYS + 1);
+    return addDaysYmd(newTirePurchaseYmd(), 1);
   }
 
   function earliestNewTireInstallDate() {
@@ -562,9 +563,9 @@
   function newTireHoldCopy() {
     const purchased = formatPaidDate(state.requiredNewTireOrder?.paid_at || state.requiredNewTireOrder?.created_at);
     if (purchased) {
-      return `These are new tires. Purchase date: ${purchased}. This booking is linked to that order. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.`;
+      return `These are new tires. Purchase date: ${purchased}. This booking is linked to that order. ${SHIPPING_HOLD_MESSAGE}`;
     }
-    return 'These are new tires. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.';
+    return `These are new tires. ${SHIPPING_HOLD_MESSAGE}`;
   }
 
   function updateDateNote() {
@@ -597,6 +598,14 @@
     return String(dateValue) < earliestNewTireInstallYmd();
   }
 
+  function isBeforeNewTireArrivalTime(dateValue, timeWindow) {
+    if (!isNewTireInstallationBooking() || !dateValue || !timeWindow) return false;
+    if (String(dateValue) !== earliestNewTireInstallYmd()) return false;
+    const startMinutes = getTimeWindowStartMinutes(timeWindow);
+    if (startMinutes === null) return false;
+    return startMinutes < NEW_TIRE_ARRIVAL_START_MINUTES;
+  }
+
   function isOutsideServiceHours(timeWindow) {
     const startMinutes = getTimeWindowStartMinutes(timeWindow);
     if (startMinutes === null) return false;
@@ -610,9 +619,16 @@
     return `${year}-${month}-${day}`;
   }
 
+  function bookingMinimumYmd() {
+    const today = torontoYmd();
+    if (!isNewTireInstallationBooking()) return today;
+    const earliest = earliestNewTireInstallYmd();
+    return earliest > today ? earliest : today;
+  }
+
   function setMinimumDate() {
     if (!els.preferredDate) return;
-    els.preferredDate.min = isNewTireInstallationBooking() ? earliestNewTireInstallYmd() : torontoYmd();
+    els.preferredDate.min = bookingMinimumYmd();
     if (els.preferredDate.value && String(els.preferredDate.value) < els.preferredDate.min) {
       els.preferredDate.value = '';
     }
@@ -899,7 +915,7 @@
       setSelectedService('mount-balance-4');
       updateFromSelectedService();
       setMinimumDate();
-      updateNewTireOrderGateMessage('Log in with the account that bought these new tires. Installation stays linked to that purchase date. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.');
+      updateNewTireOrderGateMessage(`Log in with the account that bought these new tires. Installation stays linked to that purchase date. ${SHIPPING_HOLD_MESSAGE}`);
       showLoginRequiredBlock();
       return true;
     }
@@ -938,8 +954,8 @@
     const purchased = formatPaidDate(order.paid_at || order.created_at);
     updateNewTireOrderGateMessage(
       purchased
-        ? `These are new tires from your purchase on ${purchased}. This booking is linked to that order. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.`
-        : 'These are new tires linked to your confirmed order. You cannot book on the purchase date or the following 4 days. Hours are 8:00 AM to 8:00 PM.',
+        ? `These are new tires from your purchase on ${purchased}. This booking is linked to that order. ${SHIPPING_HOLD_MESSAGE}`
+        : `These are new tires linked to your confirmed order. ${SHIPPING_HOLD_MESSAGE}`,
     );
     return true;
   }
@@ -1024,6 +1040,7 @@
     if (isPastTimeSlot(date, timeWindow)) return 'Please choose a future time window.';
     if (isOutsideServiceHours(timeWindow)) return SERVICE_HOURS_MESSAGE;
     if (isWithinNewTireShippingHold(date)) return SHIPPING_HOLD_MESSAGE;
+    if (isBeforeNewTireArrivalTime(date, timeWindow)) return ARRIVAL_TIME_MESSAGE;
     if (isLessThanMinimumAdvance(date, timeWindow)) return getMinimumAdvanceMessage();
     if (location && getCartBlockedSlots(date, location).has(key)) {
       return location === 'shop'
@@ -1044,7 +1061,8 @@
     if (unavailableMessage.includes('already booked')) return 'Booked';
     if (unavailableMessage.includes('2 hours')) return '2-hour notice required';
     if (unavailableMessage.includes('1 hour')) return '1-hour notice required';
-    if (/next \d+ days after your tire purchase|shipping/i.test(unavailableMessage)) return 'Unavailable for shipping';
+    if (unavailableMessage.includes('first appointment is 1:00 PM')) return 'From 1:00 PM';
+    if (unavailableMessage.includes('day after you order')) return 'Next day at 1:00 PM';
     if (unavailableMessage.includes('8:00 AM')) return 'Outside 8 AM–8 PM';
     return 'Unavailable';
   }
