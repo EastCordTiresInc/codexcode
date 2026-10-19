@@ -1,7 +1,7 @@
 const { applyWebsiteSalesToSheet } = require('./google-sheets-inventory');
 const { inventoryTableName, isDevInventoryTable } = require('./inventory-table');
 const { updateDevSheetStock } = require('./dev-inventory-sheet');
-const { sendEmail, getEmailConfig, CONTACT_EMAIL, htmlFromText } = require('./send-email');
+const { sendEmail, CONTACT_EMAIL, htmlFromText } = require('./send-email');
 
 const TAX_RATE = 0;
 
@@ -220,7 +220,6 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
       items,
       websiteUpdates: saleResult.websiteUpdates || [],
     });
-    const config = getEmailConfig();
     if (paidOrder.customer_email) {
       await sendEmail({
         to: paidOrder.customer_email,
@@ -231,7 +230,7 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
       });
     }
     await sendEmail({
-      to: config.eastcordTo || CONTACT_EMAIL,
+      to: CONTACT_EMAIL,
       replyTo: paidOrder.customer_email || CONTACT_EMAIL,
       subject: `Paid used tire order — ${paidOrder.customer_name || 'Customer'}`,
       text: [
