@@ -28,6 +28,7 @@ function loadEnvFile(filePath) {
 const root = path.join(__dirname, '..');
 loadEnvFile(path.join(root, '.env'));
 loadEnvFile(path.join(root, '.netlify', '.env'));
+process.env.INVENTORY_TABLE = 'usedtireinventory_dev';
 
 if (process.env.POSTMARK_SERVER_TOKEN) {
   console.log('[EastCord dev] Postmark server token loaded.');

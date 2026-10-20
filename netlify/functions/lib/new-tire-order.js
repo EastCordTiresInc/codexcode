@@ -1,4 +1,4 @@
-const { sendEmail, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, htmlFromText, buildBrandedEmail } = require('./send-email');
+const { sendEmail, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, buildBrandedEmail, detailRowsHtml } = require('./send-email');
 
 function roundMoney(value) {
   const amount = Number(value);
@@ -189,7 +189,7 @@ async function notifyPaidNewTireOrder(order) {
       heading: 'Your pickup order is confirmed',
       body: [
         `Hello ${customerName},`,
-        'EastCord Tires received your new tire payment for store pickup at 600 Harrop Drive, Milton. You can pick up the tires starting at 1:00 PM the day after you order, no matter what time you order. No appointment is needed.',
+        'EastCord Tires received your new tire payment for store pickup at 600 Harrop Drive, Milton. Pick the tires up whenever the shop is open, 8:00 AM to 8:00 PM. No appointment is needed.',
         `Total paid: ${formatMoney(order.total_with_hst)}`,
       ],
       actionUrl: ACCOUNT_URL,
@@ -198,14 +198,34 @@ async function notifyPaidNewTireOrder(order) {
       extraHtml: `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4b5563;">${itemLines.map((line) => escapeHtml(line)).join('<br />')}</p>`,
     });
 
+  const staffSubject = detailsPending
+    ? `New tire order needs details — ${customerName}`
+    : `Paid new tire order — ${fulfillment} — ${customerName}`;
   await sendEmail({
-    to: CONTACT_EMAIL,
+    ...buildBrandedEmail({
+      to: CONTACT_EMAIL,
+      subject: staffSubject,
+      heading: detailsPending ? 'New tire order needs details' : `Paid new tire order — ${fulfillment}`,
+      body: [
+        `${customerName} placed a ${fulfillment.toLowerCase()} order.`,
+        detailsPending
+          ? 'Tire size was not copied. Confirm the order in TireConnect, then update this account order.'
+          : `Total charged: ${formatMoney(order.total_with_hst)}`,
+      ],
+      extraText: staffText,
+      extraHtml: detailRowsHtml([
+        { label: 'Name', value: customerName },
+        { label: 'Email', value: order.customer_email || '' },
+        { label: 'Phone', value: order.customer_phone || '' },
+        { label: 'Fulfillment', value: fulfillment },
+        { label: 'Vehicle', value: vehicleLine },
+        { label: 'Order', value: order.id },
+        { label: 'TireConnect', value: visibleOrderNumber },
+        { label: 'Tires', value: itemLines.join(', ') },
+        { label: 'Notes', value: order.notes || '' },
+      ]),
+    }),
     replyTo: order.customer_email || CONTACT_EMAIL,
-    subject: detailsPending
-      ? `New tire order needs details — ${customerName}`
-      : `Paid new tire order — ${fulfillment} — ${customerName}`,
-    text: staffText,
-    html: htmlFromText(staffText),
   });
 
   if (order.customer_email) {

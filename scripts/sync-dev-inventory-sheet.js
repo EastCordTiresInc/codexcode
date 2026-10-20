@@ -6,6 +6,7 @@ if (process.platform === 'win32') process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 const {
   loadProjectEnv,
   pullDevInventoryRows,
+  clearDevInventoryRows,
   upsertDevInventoryRows,
 } = require('../netlify/functions/lib/dev-inventory-sheet');
 const { getConfig } = require('../netlify/functions/lib/google-sheets-inventory');
@@ -38,10 +39,9 @@ async function ensureDevTable() {
     await ensureDevTable();
     console.log('usedtireinventory_dev is ready');
   } catch (error) {
-    console.error(error.message);
-    process.exitCode = 1;
-    return;
+    console.warn(error.message);
   }
+  await clearDevInventoryRows();
   await upsertDevInventoryRows(rows);
   console.log(JSON.stringify({ synced: rows.length }));
 })().catch((error) => {

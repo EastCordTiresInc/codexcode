@@ -142,7 +142,7 @@ function parseTab(title, values) {
     model: headerIndex(headers, 'model'),
     season: headerIndex(headers, 'treadpattern', 'season'),
     dot: headerIndex(headers, 'dot'),
-    stock: headerIndex(headers, 'set', 'qty'),
+    stock: headerIndex(headers, 'set', 'qty', 'quantity'),
     price: headerIndex(headers, 'price'),
     note: headerIndex(headers, 'additionalnote', 'description', 'note'),
     category: headerIndex(headers, 'category'),
@@ -213,6 +213,21 @@ function supabaseHeaders(config, extra = {}) {
   };
 }
 
+async function clearDevInventoryRows() {
+  const config = getConfig();
+  if (!config.supabaseUrl || !config.supabaseServiceRoleKey) {
+    throw httpError(501, 'Supabase is not configured for the development inventory sync.');
+  }
+  const endpoint = `${config.supabaseUrl.replace(/\/+$/, '')}/rest/v1/${DEV_TABLE}?id=not.is.null`;
+  const response = await fetch(endpoint, {
+    method: 'DELETE',
+    headers: supabaseHeaders(config, { Prefer: 'return=minimal' }),
+  });
+  if (!response.ok) {
+    throw httpError(502, `Development inventory clear failed (${response.status}): ${await response.text()}`);
+  }
+}
+
 async function upsertDevInventoryRows(rows) {
   const config = getConfig();
   if (!config.supabaseUrl || !config.supabaseServiceRoleKey) {
@@ -270,6 +285,7 @@ function loadProjectEnv() {
 module.exports = {
   DEV_TABLE,
   pullDevInventoryRows,
+  clearDevInventoryRows,
   upsertDevInventoryRows,
   updateDevSheetStock,
   loadProjectEnv,

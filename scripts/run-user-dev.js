@@ -27,6 +27,7 @@ function loadEnvFile(filePath) {
 const root = path.join(__dirname, '..');
 loadEnvFile(path.join(root, '.env'));
 loadEnvFile(path.join(root, '.netlify', '.env'));
+process.env.INVENTORY_TABLE = 'usedtireinventory_dev';
 
 const stripeKey = String(process.env.STRIPE_SECRET_KEY || '');
 if (!stripeKey) {

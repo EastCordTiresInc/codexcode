@@ -1,5 +1,5 @@
 const { getSupabaseAdmin } = require('./lib/admin-auth');
-const { sendEmail, getEmailConfig, CONTACT_EMAIL, htmlFromText } = require('./lib/send-email');
+const { sendEmail, getEmailConfig, CONTACT_EMAIL, buildBrandedEmail, detailRowsHtml } = require('./lib/send-email');
 const {
   SELECT_FIELDS,
   isMissingTableError,
@@ -89,12 +89,23 @@ exports.handler = async (event) => {
   }
 
   const config = getEmailConfig();
+  const applicationLines = applicationText(input).split('\n').slice(1);
   const emailed = await sendEmail({
-    to: config.eastcordTo || CONTACT_EMAIL,
+    ...buildBrandedEmail({
+      to: config.eastcordTo || CONTACT_EMAIL,
+      subject: `New installer application — ${input.full_name}`,
+      heading: 'New installer application',
+      body: [
+        `${input.full_name} applied to work as an EastCord tire technician.`,
+      ],
+      extraText: applicationText(input),
+      extraHtml: detailRowsHtml(applicationLines.map((line) => {
+        const splitAt = line.indexOf(':');
+        if (splitAt < 0) return { label: line, value: line };
+        return { label: line.slice(0, splitAt), value: line.slice(splitAt + 1).trim() };
+      })),
+    }),
     replyTo: input.email || CONTACT_EMAIL,
-    subject: `New installer application — ${input.full_name}`,
-    text: applicationText(input),
-    html: htmlFromText(applicationText(input)),
   });
 
   if (!saved && !emailed.ok) {

@@ -1,6 +1,3 @@
-const INVENTORY_TABLE = 'usedtireinventory';
-const INVENTORY_SELECT = 'id, tire_size, rim_size, type, brand, current_stock, selling_price, drive_link, is_flotation, width, profile, wheel_size, size_label, season';
-const STATIC_INVENTORY_URL = '/assets/used-inventory.json';
 const EMPTY_MESSAGE = 'No tires are listed right now. Please contact EastCord Tires for current availability.';
 const SETUP_MESSAGE = 'Inventory is being connected. Supabase credentials are not configured yet.';
 const NO_MATCH_MESSAGE = 'No tires match that search. Try different options or contact EastCord Tires.';
@@ -107,38 +104,8 @@ function isInventoryConfigured() {
 }
 
 async function fetchInventoryRows() {
-  try {
-    inventorySource = 'live';
-    return await fetchInventoryFromUrl('/.netlify/functions/get-used-inventory');
-  } catch (proxyError) {
-    console.warn('[EastCord inventory] Server proxy failed, trying Supabase directly.', proxyError);
-  }
-
-  if (isInventoryConfigured()) {
-    try {
-      inventorySource = 'live';
-      return await fetchInventoryDirect();
-    } catch (directError) {
-      console.warn('[EastCord inventory] Direct Supabase failed, using saved inventory file.', directError);
-    }
-  }
-
-  inventorySource = 'static';
-  return fetchInventoryFromUrl(STATIC_INVENTORY_URL);
-}
-
-async function fetchInventoryDirect() {
-  const { supabaseUrl, supabaseAnonKey } = getAuthConfig();
-  const params = new URLSearchParams();
-  params.set('select', INVENTORY_SELECT);
-  params.append('order', 'brand.asc');
-  params.append('order', 'tire_size.asc');
-
-  const url = `${supabaseUrl}/rest/v1/${INVENTORY_TABLE}?${params.toString()}`;
-  return fetchInventoryFromUrl(url, {
-    apikey: supabaseAnonKey,
-    Authorization: `Bearer ${supabaseAnonKey}`,
-  });
+  inventorySource = 'sheet';
+  return fetchInventoryFromUrl('/.netlify/functions/get-used-inventory');
 }
 
 async function fetchInventoryFromUrl(url, authHeaders = {}) {
