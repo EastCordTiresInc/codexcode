@@ -132,7 +132,7 @@ const emails = [
       heading: 'Your pickup order is confirmed',
       body: [
         'Hello Nikki,',
-        'EastCord Tires received your new tire payment for store pickup at 600 Harrop Drive, Milton. You can pick up the tires starting at 1:00 PM the day after you order, no matter what time you order. No appointment is needed.',
+        'EastCord Tires received your new tire payment for store pickup at 600 Harrop Drive, Milton. Pick the tires up whenever the shop is open, 8:00 AM to 8:00 PM. No appointment is needed.',
         'Total paid: $812.47',
       ],
       actionUrl: ACCOUNT_URL,

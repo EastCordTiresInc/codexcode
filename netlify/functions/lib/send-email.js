@@ -165,6 +165,16 @@ function emailCta(href, label) {
   return `<a href="${safeHref}" style="color:#ba151b;font-weight:700;font-size:16px;text-decoration:underline;">${escapeHtml(label)}</a>`;
 }
 
+function detailRowsHtml(rows) {
+  const lines = (Array.isArray(rows) ? rows : []).filter((row) => String(row?.value ?? '').trim());
+  if (!lines.length) return '';
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 18px;">${
+    lines.map((row) => (
+      `<tr><td style="padding:6px 0;font-weight:700;vertical-align:top;padding-right:12px;">${escapeHtml(row.label)}</td><td style="padding:6px 0;">${escapeHtml(row.value)}</td></tr>`
+    )).join('')
+  }</table>`;
+}
+
 const LOGO_URL = `${SITE_ORIGIN}/assets/eastcord-logo-email.png`;
 
 function buildBrandedEmail({
@@ -577,6 +587,7 @@ module.exports = {
   escapeHtml,
   htmlFromText,
   emailCta,
+  detailRowsHtml,
   buildAuthEmail,
   buildBrandedEmail,
   sendEmail,

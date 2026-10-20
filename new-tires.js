@@ -2144,7 +2144,7 @@
     }
     return selectedFulfillment() === 'Installation'
       ? 'EastCord fulfillment: Installation. After the tire ORDER is saved, send the customer to book installation. Linked new tires. First appointment is 1:00 PM the day after purchase. Later days are 8:00 AM to 8:00 PM.'
-      : 'EastCord fulfillment: Pickup. Customer can pick up starting at 1:00 PM the day after the order. No appointment.';
+      : 'EastCord fulfillment: Pickup. Customer can pick up whenever the shop is open, 8:00 AM to 8:00 PM. No appointment.';
   }
 
   function rememberWidget(target) {
@@ -2225,7 +2225,7 @@
   function successMessage(fulfillment) {
     return fulfillment === 'Installation'
       ? 'Tires saved to your account. Opening installation booking next. The first appointment is 1:00 PM the day after you order.'
-      : 'Order placed. You can pick up the tires starting at 1:00 PM the day after you order. No appointment is needed.';
+      : 'Order placed. You can pick up the tires whenever the shop is open, 8:00 AM to 8:00 PM. No appointment is needed.';
   }
 
   function roundMoney(value) {

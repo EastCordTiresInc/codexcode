@@ -1,4 +1,4 @@
-const { sendEmail, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, SITE_ORIGIN, htmlFromText, buildBrandedEmail } = require('./lib/send-email');
+const { sendEmail, CONTACT_EMAIL, ACCOUNT_URL, APPOINTMENT_URL, SITE_ORIGIN, buildBrandedEmail, detailRowsHtml } = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -173,7 +173,7 @@ exports.handler = async function requestNewTireOrder(event) {
       heading: 'We received your pickup order',
       body: [
         `Hello ${customer.name},`,
-        'EastCord Tires received your new tire order for store pickup at 600 Harrop Drive, Milton. You can pick up the tires starting at 1:00 PM the day after you order, no matter what time you order. No appointment is needed.',
+        'EastCord Tires received your new tire order for store pickup at 600 Harrop Drive, Milton. Pick the tires up whenever the shop is open, 8:00 AM to 8:00 PM. No appointment is needed.',
       ],
       actionUrl: ACCOUNT_URL,
       actionLabel: 'View your account',
@@ -182,11 +182,27 @@ exports.handler = async function requestNewTireOrder(event) {
 
   const subjectBits = ['New tire order', fulfillment, customer.name, orderNumber].filter(Boolean);
   const staffEmail = await sendEmail({
-    to: CONTACT_EMAIL,
+    ...buildBrandedEmail({
+      to: CONTACT_EMAIL,
+      subject: subjectBits.join(' — '),
+      heading: 'New tire order',
+      body: [
+        `${customer.name} sent a ${fulfillment.toLowerCase()} order.`,
+        nextStep,
+      ],
+      extraText: text,
+      extraHtml: detailRowsHtml([
+        { label: 'Name', value: customer.name },
+        { label: 'Email', value: customer.email },
+        { label: 'Phone', value: customer.phone },
+        { label: 'Fulfillment', value: fulfillment },
+        { label: 'Vehicle', value: vehicleLine },
+        { label: 'TireConnect', value: orderNumber },
+        { label: 'Tires', value: itemLines.join(', ') || notes },
+        { label: 'Notes', value: notes },
+      ]),
+    }),
     replyTo: customer.email,
-    subject: subjectBits.join(' — '),
-    text,
-    html: htmlFromText(text),
   });
 
   if (staffEmail.ok) {

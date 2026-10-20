@@ -1249,7 +1249,7 @@ function renderPurchasedTires(orders) {
         ? '<div class="purchased-order-action"><div><strong>Installation selected</strong><span>EastCord will confirm your next steps.</span></div></div>'
         : ready
           ? '<div class="purchased-order-action"><div><strong>Ready for pickup</strong><span>Your tires are at 600 Harrop Drive, Milton. Shop hours 8:00 AM–8:00 PM. No appointment needed.</span></div></div>'
-        : '<div class="purchased-order-action"><div><strong>Pickup the next day</strong><span>Pickup starts at 1:00 PM the day after your order, no matter what time you ordered. Shop hours 8:00 AM–8:00 PM. No appointment needed.</span></div></div>';
+        : '<div class="purchased-order-action"><div><strong>Pickup</strong><span>Pick up whenever the shop is open, 8:00 AM–8:00 PM. No appointment needed.</span></div></div>';
     return `
       <article class="purchased-order">
         <header class="purchased-order-header">

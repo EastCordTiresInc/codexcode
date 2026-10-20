@@ -1,4 +1,4 @@
-const { sendEmail, CONTACT_EMAIL, APPOINTMENT_URL, htmlFromText } = require('./lib/send-email');
+const { sendEmail, CONTACT_EMAIL, APPOINTMENT_URL, buildBrandedEmail, detailRowsHtml } = require('./lib/send-email');
 
 function json(statusCode, payload) {
   return {
@@ -68,11 +68,28 @@ exports.handler = async function requestUsedTireReservation(event) {
   ].join('\n');
 
   const email = await sendEmail({
-    to: CONTACT_EMAIL,
+    ...buildBrandedEmail({
+      to: CONTACT_EMAIL,
+      subject: `Used tire reservation request — ${customer.name}`,
+      heading: 'Used tire reservation request',
+      body: [
+        `${customer.name} asked to reserve used tires for ${fulfillment.toLowerCase()}.`,
+        fulfillment === 'Installation'
+          ? 'When the tires are in, send the customer the booking link.'
+          : 'Confirm with the customer when the order is ready for pickup. No appointment is required.',
+      ],
+      extraText: text,
+      extraHtml: detailRowsHtml([
+        { label: 'Name', value: customer.name },
+        { label: 'Email', value: customer.email },
+        { label: 'Phone', value: customer.phone },
+        { label: 'Fulfillment', value: fulfillment },
+        { label: 'Tires', value: itemLines.join(', ') },
+        { label: 'Subtotal', value: clean(totals.subtotal) },
+        { label: 'Total', value: clean(totals.total) },
+      ]),
+    }),
     replyTo: customer.email,
-    subject: `Used tire reservation request — ${customer.name}`,
-    text,
-    html: htmlFromText(text),
   });
 
   if (email.ok) {

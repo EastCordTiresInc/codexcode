@@ -1,5 +1,5 @@
 const { applyWebsiteSalesToSheet } = require('./google-sheets-inventory');
-const { sendEmail, CONTACT_EMAIL, htmlFromText } = require('./send-email');
+const { sendEmail, CONTACT_EMAIL, buildBrandedEmail, detailRowsHtml } = require('./send-email');
 
 const TAX_RATE = 0;
 
@@ -201,26 +201,35 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
         html: receipt.html,
       });
     }
+    const tireLines = (items || []).map((item) => {
+      const qty = Math.max(1, Number(item.qty) || 1);
+      const label = [item.brand, item.size || item.tire_size].filter(Boolean).join(' ') || 'Used tire';
+      return `${qty} x ${label}`;
+    });
     await sendEmail({
-      to: CONTACT_EMAIL,
+      ...buildBrandedEmail({
+        to: CONTACT_EMAIL,
+        subject: `Paid used tire order — ${paidOrder.customer_name || 'Customer'}`,
+        heading: 'Paid used tire order',
+        body: [
+          `${paidOrder.customer_name || 'A customer'} paid for used tires.`,
+        ],
+        extraText: [
+          `Order: ${paidOrder.id}`,
+          `Name: ${paidOrder.customer_name || ''}`,
+          `Email: ${paidOrder.customer_email || ''}`,
+          `Phone: ${paidOrder.customer_phone || ''}`,
+          receipt.text,
+        ].join('\n'),
+        extraHtml: detailRowsHtml([
+          { label: 'Name', value: paidOrder.customer_name || '' },
+          { label: 'Email', value: paidOrder.customer_email || '' },
+          { label: 'Phone', value: paidOrder.customer_phone || '' },
+          { label: 'Order', value: paidOrder.id },
+          { label: 'Tires', value: tireLines.join(', ') },
+        ]),
+      }),
       replyTo: paidOrder.customer_email || CONTACT_EMAIL,
-      subject: `Paid used tire order — ${paidOrder.customer_name || 'Customer'}`,
-      text: [
-        'Paid used tire order',
-        `Order: ${paidOrder.id}`,
-        `Name: ${paidOrder.customer_name || ''}`,
-        `Email: ${paidOrder.customer_email || ''}`,
-        `Phone: ${paidOrder.customer_phone || ''}`,
-        receipt.text,
-      ].join('\n'),
-      html: htmlFromText([
-        'Paid used tire order',
-        `Order: ${paidOrder.id}`,
-        `Name: ${paidOrder.customer_name || ''}`,
-        `Email: ${paidOrder.customer_email || ''}`,
-        `Phone: ${paidOrder.customer_phone || ''}`,
-        receipt.text,
-      ].join('\n')),
     });
   } catch (error) {
     console.error('[EastCord used tires] Receipt email failed after paid order.', error);

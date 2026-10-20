@@ -1,6 +1,6 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
-const { buildBrandedEmail, sendEmail, getEmailConfig } = require('./lib/send-email');
+const { buildBrandedEmail, detailRowsHtml, sendEmail, getEmailConfig } = require('./lib/send-email');
 
 const CONTACT_EMAIL = 'info@eastcordtires.ca';
 const CONTACT_PHONE = '365-822-5553';
@@ -382,31 +382,51 @@ function buildInternalEmail({ rows, session }) {
     <strong>Customer Notes:</strong> ${escapeHtml(valueOrFallback(row.additional_notes, 'None'))}<br />
     <strong>Parking/Access Notes:</strong> ${escapeHtml(valueOrFallback(row.parking_access_notes, 'None'))}</p>`).join('');
 
-  return {
+  return buildBrandedEmail({
     to: CONTACT_EMAIL,
     subject: 'New Confirmed Appointment - EastCord Tires',
-    text: `New confirmed appointment received.\n\nCustomer Details:\nName: ${customerName}\nPhone: ${customerPhone}\nEmail: ${customerEmail}\n\nAppointment Details:\n${appointmentBlocks}\n\nPayment Details:\nTotal Service Subtotal: ${formatMoney(totals.serviceSubtotal)}\nTotal HST 13%: ${formatMoney(totals.hstAmount)}\nTotal Including HST: ${formatMoney(totals.totalWithHst)}\nTotal Deposit Paid: ${formatMoney(totals.depositAmount)}\nTotal Remaining Balance Due at Service: ${formatMoney(totals.remainingBalance)}\nPayment Status: Deposit Paid\nBooking Status: Confirmed\n\nSystem Details:\nStripe Session ID: ${session.id}`,
-    html: `
-      <div style="font-family:Arial,sans-serif;color:#111317;line-height:1.6;max-width:760px;margin:0 auto;">
-        <h2>New confirmed appointment received.</h2>
-        <h3>Customer Details</h3>
-        <p><strong>Name:</strong> ${escapeHtml(customerName)}<br />
-        <strong>Phone:</strong> ${escapeHtml(customerPhone)}<br />
-        <strong>Email:</strong> ${escapeHtml(customerEmail)}</p>
-        ${appointmentHtml}
-        <h3>Payment Details</h3>
-        <p><strong>Total Service Subtotal:</strong> ${escapeHtml(formatMoney(totals.serviceSubtotal))}<br />
+    heading: 'New confirmed appointment',
+    body: [
+      `${customerName} paid the deposit. The appointment is confirmed.`,
+    ],
+    extraText: [
+      'Customer Details:',
+      `Name: ${customerName}`,
+      `Phone: ${customerPhone}`,
+      `Email: ${customerEmail}`,
+      '',
+      'Appointment Details:',
+      appointmentBlocks,
+      '',
+      'Payment Details:',
+      `Total Service Subtotal: ${formatMoney(totals.serviceSubtotal)}`,
+      `Total HST 13%: ${formatMoney(totals.hstAmount)}`,
+      `Total Including HST: ${formatMoney(totals.totalWithHst)}`,
+      `Total Deposit Paid: ${formatMoney(totals.depositAmount)}`,
+      `Total Remaining Balance Due at Service: ${formatMoney(totals.remainingBalance)}`,
+      'Payment Status: Deposit Paid',
+      'Booking Status: Confirmed',
+      '',
+      `Stripe Session ID: ${session.id}`,
+    ].join('\n'),
+    extraHtml: `
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4b5563;"><strong>Name:</strong> ${escapeHtml(customerName)}<br />
+      <strong>Phone:</strong> ${escapeHtml(customerPhone)}<br />
+      <strong>Email:</strong> ${escapeHtml(customerEmail)}</p>
+      ${appointmentHtml}
+      <h3 style="font-size:16px;margin:20px 0 8px;">Payment Details</h3>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">
+        <strong>Total Service Subtotal:</strong> ${escapeHtml(formatMoney(totals.serviceSubtotal))}<br />
         <strong>Total HST 13%:</strong> ${escapeHtml(formatMoney(totals.hstAmount))}<br />
         <strong>Total Including HST:</strong> ${escapeHtml(formatMoney(totals.totalWithHst))}<br />
         <strong>Total Deposit Paid:</strong> ${escapeHtml(formatMoney(totals.depositAmount))}<br />
         <strong>Total Remaining Balance Due at Service:</strong> ${escapeHtml(formatMoney(totals.remainingBalance))}<br />
         <strong>Payment Status:</strong> Deposit Paid<br />
-        <strong>Booking Status:</strong> Confirmed</p>
-        <h3>System Details</h3>
-        <p><strong>Stripe Session ID:</strong> ${escapeHtml(session.id)}</p>
-      </div>
+        <strong>Booking Status:</strong> Confirmed
+      </p>
+      <p style="margin:0 0 16px;font-size:13px;line-height:1.5;color:#6b7280;"><strong>Stripe Session ID:</strong> ${escapeHtml(session.id)}</p>
     `,
-  };
+  });
 }
 
 function hasColumn(rows, columnName) {
@@ -538,6 +558,10 @@ async function sendAppointmentEmails({ supabaseAdmin, rows, session, allRowsAlre
   return emailResults;
 }
 
+exports.buildCustomerEmail = buildCustomerEmail;
+exports.buildInternalEmail = buildInternalEmail;
+exports.buildBalancePaidEmail = buildBalancePaidEmail;
+
 exports.handler = async (event) => {
   console.log('[EastCord appointment automation] Stripe webhook received.', {
     method: event.httpMethod,
@@ -548,7 +572,7 @@ exports.handler = async (event) => {
     emailProvider: getEmailConfig().provider,
     emailConfigured: Boolean(getEmailConfig().configured),
     emailFrom: process.env.EMAIL_FROM || `EastCord Tires <${CONTACT_EMAIL}>`,
-    emailToEastcord: getEmailConfig().eastcordTo,
+    emailToEastcord: CONTACT_EMAIL,
   });
 
   if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
@@ -716,7 +740,7 @@ async function fulfillAppointmentBalance({ supabaseAdmin, session }) {
 
   const { data: row, error } = await supabaseAdmin
     .from('appointment_bookings')
-    .select('id, deposit_amount, remaining_balance, payment_status, booking_status')
+    .select('id, customer_name, customer_email, customer_phone, service_name, preferred_date, preferred_time_window, vehicle_plate_number, deposit_amount, remaining_balance, total_with_hst, payment_status, booking_status')
     .eq('id', bookingId)
     .maybeSingle();
 
@@ -761,7 +785,43 @@ async function fulfillAppointmentBalance({ supabaseAdmin, session }) {
   }
   if (!updated) return { ok: true, alreadyPaid: true, bookingIds: [bookingId] };
 
-  return { ok: true, bookingIds: [bookingId], paymentStatus: 'paid_in_full' };
+  const emailResult = await sendEmail({
+    ...buildBalancePaidEmail(row, charged),
+    replyTo: row.customer_email || CONTACT_EMAIL,
+    idempotencyKey: `eastcord-appt-balance-${session.id}`,
+  }).catch((error) => {
+    console.error('[EastCord appointment automation] Balance payment email failed.', error.message);
+    return { ok: false, reason: error.message || 'email_failed' };
+  });
+  if (!emailResult.ok) {
+    console.error('[EastCord appointment automation] Balance payment email was not sent.', emailResult.reason || emailResult.providerMessage || '');
+  }
+
+  return { ok: true, bookingIds: [bookingId], paymentStatus: 'paid_in_full', emailResult };
+}
+
+function buildBalancePaidEmail(row, amountPaid) {
+  const name = String(row.customer_name || 'Customer').trim() || 'Customer';
+  return buildBrandedEmail({
+    to: CONTACT_EMAIL,
+    subject: `Remaining balance paid — ${name}`,
+    heading: 'Remaining balance paid',
+    body: [
+      `${name} paid the remaining balance online. Nothing is left to collect.`,
+    ],
+    extraHtml: detailRowsHtml([
+      { label: 'Name', value: name },
+      { label: 'Email', value: row.customer_email || '' },
+      { label: 'Phone', value: row.customer_phone || '' },
+      { label: 'Service', value: row.service_name || '' },
+      { label: 'Plate', value: row.vehicle_plate_number || '' },
+      { label: 'Date', value: row.preferred_date || '' },
+      { label: 'Time', value: row.preferred_time_window || '' },
+      { label: 'Amount paid', value: formatMoney(amountPaid) },
+      { label: 'Appointment total', value: formatMoney(row.total_with_hst) },
+      { label: 'Booking', value: row.id },
+    ]),
+  });
 }
 
 exports.fulfillAppointmentBalance = fulfillAppointmentBalance;
