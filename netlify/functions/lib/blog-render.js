@@ -27,6 +27,46 @@ function sanitizeUrl(value) {
   return '';
 }
 
+function youtubeEmbedId(id) {
+  return /^[a-zA-Z0-9_-]{6,20}$/.test(String(id || '')) ? String(id) : '';
+}
+
+function videoEmbedUrl(value) {
+  const raw = sanitizeUrl(value);
+  if (!raw || !/^https?:/i.test(raw)) return '';
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch (error) {
+    return '';
+  }
+  const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+  if (host === 'youtu.be') {
+    const id = youtubeEmbedId(parsed.pathname.split('/').filter(Boolean)[0]);
+    return id ? `https://www.youtube-nocookie.com/embed/${id}` : '';
+  }
+  if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com') {
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    const id = parts[0] === 'watch'
+      ? youtubeEmbedId(parsed.searchParams.get('v'))
+      : (parts[0] === 'embed' || parts[0] === 'shorts' || parts[0] === 'live')
+        ? youtubeEmbedId(parts[1])
+        : '';
+    return id ? `https://www.youtube-nocookie.com/embed/${id}` : '';
+  }
+  if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+    const id = parsed.pathname.split('/').filter(Boolean).pop();
+    return /^\d+$/.test(id || '') ? `https://player.vimeo.com/video/${id}` : '';
+  }
+  return '';
+}
+
+function videoEmbedHtml(value) {
+  const src = videoEmbedUrl(value);
+  if (!src) return '';
+  return `<div class="blog-video"><iframe src="${escapeAttribute(src)}" title="Video" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>`;
+}
+
 function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -148,6 +188,10 @@ function renderSafeMarkdown(markdown) {
       paragraph.push(lines[index].trim());
       index += 1;
     }
+    if (paragraph.length === 1 && videoEmbedUrl(paragraph[0])) {
+      blocks.push(videoEmbedHtml(paragraph[0]));
+      continue;
+    }
     blocks.push(`<p>${renderInline(paragraph.join(' '))}</p>`);
   }
 
@@ -159,6 +203,8 @@ module.exports = {
   escapeAttribute,
   slugify,
   sanitizeUrl,
+  videoEmbedUrl,
+  videoEmbedHtml,
   formatDate,
   renderSafeMarkdown,
 };

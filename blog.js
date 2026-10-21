@@ -163,6 +163,7 @@
         </div>
         <section class="blog-post-content-section">
           <div class="shell">
+            ${blog.videoEmbedHtml ? blog.videoEmbedHtml(post.videoUrl) : ''}
             <div class="blog-post-content">${post.html || ''}</div>
             <div class="blog-post-actions">
               <a class="button button-secondary" href="/blog">Back to blog</a>

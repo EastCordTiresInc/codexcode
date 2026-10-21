@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-const { PUBLIC_FIELDS, isMissingTableError, publicPost } = require('./lib/blog-posts');
+const { PUBLIC_FIELDS, PUBLIC_FIELDS_WITHOUT_VIDEO, isMissingTableError, isMissingVideoColumn, publicPost } = require('./lib/blog-posts');
 
 function json(statusCode, payload) {
   return {
@@ -45,7 +45,16 @@ exports.handler = async (event) => {
       .order('created_at', { ascending: false });
   }
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+  if (isMissingVideoColumn(error)) {
+    let retry = client.from('blog_posts').select(PUBLIC_FIELDS_WITHOUT_VIDEO).eq('status', 'published');
+    retry = slug
+      ? retry.eq('slug', slug).maybeSingle()
+      : retry.order('published_at', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
+    const fallback = await retry;
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (error) {
     if (isMissingTableError(error)) {
       return json(200, { posts: [], post: null, setupRequired: true });

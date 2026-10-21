@@ -21,6 +21,7 @@
     description: document.querySelector('[data-admin-blog-description]'),
     image: document.querySelector('[data-admin-blog-image]'),
     imageAlt: document.querySelector('[data-admin-blog-image-alt]'),
+    video: document.querySelector('[data-admin-blog-video]'),
     body: document.querySelector('[data-admin-blog-body]'),
     preview: document.querySelector('[data-admin-blog-preview]'),
     newPost: document.querySelector('[data-admin-new-post]'),
@@ -74,6 +75,7 @@
       description: els.description?.value || '',
       featured_image: els.image?.value || '',
       featured_image_alt: els.imageAlt?.value || '',
+      video_url: els.video?.value || '',
       body: els.body?.value || '',
       published_at: dateValue ? `${dateValue}T12:00:00.000-04:00` : null,
     };
@@ -89,6 +91,7 @@
     if (els.description) els.description.value = post?.description || '';
     if (els.image) els.image.value = post?.featuredImage || '';
     if (els.imageAlt) els.imageAlt.value = post?.featuredImageAlt || '';
+    if (els.video) els.video.value = post?.videoUrl || '';
     if (els.body) els.body.value = post?.body || '';
     if (els.date) {
       const raw = post?.publishedAt || post?.createdAt || '';
@@ -102,8 +105,9 @@
 
   function renderPreview() {
     if (!els.preview) return;
+    const video = blog.videoEmbedHtml ? blog.videoEmbedHtml(els.video?.value || '') : '';
     const html = blog.renderSafeMarkdown ? blog.renderSafeMarkdown(els.body?.value || '') : '';
-    els.preview.innerHTML = html || '<p>Start writing to see a preview.</p>';
+    els.preview.innerHTML = `${video}${html}` || '<p>Start writing to see a preview.</p>';
   }
 
   function visiblePosts() {
@@ -236,6 +240,7 @@
       slugTouched = true;
     });
     els.body?.addEventListener('input', renderPreview);
+    els.video?.addEventListener('input', renderPreview);
     els.saveDraft?.addEventListener('click', () => save('draft'));
     els.publish?.addEventListener('click', () => save('published'));
     els.unpublish?.addEventListener('click', () => save('draft'));

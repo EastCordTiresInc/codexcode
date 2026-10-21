@@ -7,7 +7,7 @@ const assert = (condition, message) => {
   console.log(`PASS ${message}`);
 };
 
-const { slugify, sanitizeUrl, renderSafeMarkdown } = require('../blog-render');
+const { slugify, sanitizeUrl, videoEmbedUrl, videoEmbedHtml, renderSafeMarkdown } = require('../blog-render');
 const { readPostInput, validatePost, publicPost } = require('../netlify/functions/lib/blog-posts');
 
 assert(slugify('Winter Tire Guide!') === 'winter-tire-guide', 'slug from title');
@@ -52,6 +52,25 @@ const post = publicPost({
 assert(post.featuredImage === '', 'bad featured image stripped');
 assert(post.html.includes('&lt;img'), 'raw html in body is escaped');
 assert(post.url === '/blog/hi/', 'public url uses slug');
+assert(videoEmbedUrl('https://www.youtube.com/watch?v=uR5QWHyqN90') === 'https://www.youtube-nocookie.com/embed/uR5QWHyqN90', 'youtube watch link becomes an embed');
+assert(videoEmbedUrl('https://youtu.be/uR5QWHyqN90') === 'https://www.youtube-nocookie.com/embed/uR5QWHyqN90', 'youtu.be link becomes an embed');
+assert(videoEmbedUrl('https://www.youtube.com/shorts/uR5QWHyqN90') === 'https://www.youtube-nocookie.com/embed/uR5QWHyqN90', 'youtube short becomes an embed');
+assert(videoEmbedUrl('https://vimeo.com/123456789') === 'https://player.vimeo.com/video/123456789', 'vimeo link becomes an embed');
+assert(videoEmbedUrl('javascript:alert(1)') === '', 'javascript video url blocked');
+assert(videoEmbedUrl('https://example.com/video') === '', 'other websites are not embedded');
+assert(videoEmbedHtml('https://youtu.be/uR5QWHyqN90').includes('youtube-nocookie.com/embed/uR5QWHyqN90'), 'video html uses the embed player');
+assert(renderSafeMarkdown('https://www.youtube.com/watch?v=uR5QWHyqN90').includes('youtube-nocookie.com/embed/uR5QWHyqN90'), 'a video link on its own line becomes a player');
+assert(!videoEmbedHtml('https://example.com/video'), 'rejected video url has no player');
+
+const withVideo = readPostInput({
+  title: 'Video post',
+  video_url: 'https://www.youtube.com/watch?v=uR5QWHyqN90',
+  status: 'published',
+});
+assert(withVideo.video_url === 'https://www.youtube.com/watch?v=uR5QWHyqN90', 'youtube url is saved');
+const badVideo = { title: 'Video post', video_url: 'https://example.com/clip' };
+assert(validatePost(readPostInput(badVideo), badVideo) === 'Use a YouTube or Vimeo link for the video.', 'other video sites are rejected');
+assert(publicPost({ ...withVideo, id: '2', published_at: '2026-10-21T16:00:00.000Z' }).videoUrl.includes('youtube.com'), 'public post keeps the video url');
 
 async function checkServer(base) {
   const list = await fetch(`${base}/.netlify/functions/get-blog-posts`);

@@ -1,7 +1,9 @@
 const { requireAdminUser } = require('./lib/admin-auth');
 const {
   PUBLIC_FIELDS,
+  PUBLIC_FIELDS_WITHOUT_VIDEO,
   isMissingTableError,
+  isMissingVideoColumn,
   publicPost,
   readPostInput,
   validatePost,
@@ -32,10 +34,19 @@ function setupMessage() {
 }
 
 async function listPosts(supabaseAdmin) {
-  const { data, error } = await supabaseAdmin
+  let { data, error } = await supabaseAdmin
     .from('blog_posts')
     .select(PUBLIC_FIELDS)
     .order('updated_at', { ascending: false });
+
+  if (isMissingVideoColumn(error)) {
+    const fallback = await supabaseAdmin
+      .from('blog_posts')
+      .select(PUBLIC_FIELDS_WITHOUT_VIDEO)
+      .order('updated_at', { ascending: false });
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     if (isMissingTableError(error)) {
@@ -48,19 +59,43 @@ async function listPosts(supabaseAdmin) {
   return json(200, { posts: (data || []).map(publicPost) });
 }
 
+function payloadWithoutVideoColumn(input) {
+  const payload = { ...input };
+  const videoUrl = payload.video_url;
+  delete payload.video_url;
+  if (!videoUrl) return payload;
+
+  const lines = String(payload.body || '').split(/\r?\n/).map((line) => line.trim());
+  if (!lines.includes(videoUrl)) {
+    payload.body = `${videoUrl}\n\n${payload.body || ''}`.trim();
+  }
+  return payload;
+}
+
+async function writePost(supabaseAdmin, action, input, id) {
+  const stamp = { ...input, updated_at: new Date().toISOString() };
+  const first = action === 'insert'
+    ? supabaseAdmin.from('blog_posts').insert(stamp)
+    : supabaseAdmin.from('blog_posts').update(stamp).eq('id', id);
+  let { data, error } = await first.select(PUBLIC_FIELDS).maybeSingle();
+
+  if (isMissingVideoColumn(error)) {
+    const fallback = { ...payloadWithoutVideoColumn(input), updated_at: stamp.updated_at };
+    const retry = action === 'insert'
+      ? supabaseAdmin.from('blog_posts').insert(fallback)
+      : supabaseAdmin.from('blog_posts').update(fallback).eq('id', id);
+    ({ data, error } = await retry.select(PUBLIC_FIELDS_WITHOUT_VIDEO).maybeSingle());
+  }
+
+  return { data, error };
+}
+
 async function createPost(supabaseAdmin, body) {
   const input = readPostInput(body);
-  const invalid = validatePost(input);
+  const invalid = validatePost(input, body);
   if (invalid) return json(400, { message: invalid });
 
-  const { data, error } = await supabaseAdmin
-    .from('blog_posts')
-    .insert({
-      ...input,
-      updated_at: new Date().toISOString(),
-    })
-    .select(PUBLIC_FIELDS)
-    .maybeSingle();
+  const { data, error } = await writePost(supabaseAdmin, 'insert', input);
 
   if (error) {
     if (isMissingTableError(error)) {
@@ -84,18 +119,10 @@ async function updatePost(supabaseAdmin, body) {
   if (!id) return json(400, { message: 'A post id is required.' });
 
   const input = readPostInput(body);
-  const invalid = validatePost(input);
+  const invalid = validatePost(input, body);
   if (invalid) return json(400, { message: invalid });
 
-  const { data, error } = await supabaseAdmin
-    .from('blog_posts')
-    .update({
-      ...input,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .select(PUBLIC_FIELDS)
-    .maybeSingle();
+  const { data, error } = await writePost(supabaseAdmin, 'update', input, id);
 
   if (error) {
     if (isMissingTableError(error)) {

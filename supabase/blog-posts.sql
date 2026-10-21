@@ -9,6 +9,7 @@ create table if not exists public.blog_posts (
   category text not null default 'Tire Tips',
   featured_image text,
   featured_image_alt text,
+  video_url text,
   body text not null default '',
   status text not null default 'draft' check (status in ('draft', 'published')),
   published_at timestamptz,
@@ -18,6 +19,9 @@ create table if not exists public.blog_posts (
 
 create index if not exists blog_posts_status_published_at_idx
   on public.blog_posts (status, published_at desc);
+
+alter table public.blog_posts
+  add column if not exists video_url text;
 
 alter table public.blog_posts enable row level security;
 

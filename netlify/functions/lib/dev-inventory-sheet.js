@@ -31,6 +31,12 @@ function cell(row, index) {
   return String(row?.[index] ?? '').trim();
 }
 
+function cleanBrand(value) {
+  const raw = String(value || '').trim();
+  const brand = raw.replace(/^\d+\s*/, '').trim();
+  return brand || raw;
+}
+
 function parsePrice(value) {
   const match = String(value || '').replace(/,/g, '').match(/\d+(?:\.\d+)?/);
   if (!match) return null;
@@ -169,7 +175,7 @@ function parseTab(title, values) {
       sheet_row: sheetRow,
       tire_size: parsedSize?.label || tireSize,
       rim_size: rimSize,
-      brand,
+      brand: cleanBrand(brand),
       model: cell(row, columns.model),
       type: seasonSource,
       season: normalizeSeason(seasonSource),

@@ -251,7 +251,7 @@ async function loadInventory(options = {}) {
 function normalizeInventoryRow(row) {
   if (!row) return null;
 
-  const brand = clean(row.brand);
+  const brand = stripLeadingCount(row.brand);
   const tireSizeRaw = clean(row.tire_size);
   const rimSize = clean(row.rim_size);
   const isFlotation = parseBoolean(row.is_flotation);
@@ -2000,10 +2000,14 @@ function parseDriveLink(url) {
   return null;
 }
 
+function stripLeadingCount(brand) {
+  return clean(brand).replace(/^\d+\s*/, '').trim();
+}
+
 function formatBrandLabel(brand) {
-  const label = clean(brand);
+  const label = stripLeadingCount(brand);
   if (!label) return 'Tire';
-  return label.split('/')[0].trim();
+  return label.split('/')[0].trim() || 'Tire';
 }
 
 function formatSeasonLabel(season) {
