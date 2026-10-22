@@ -26,6 +26,24 @@ function headerIndex(headers, ...names) {
   return -1;
 }
 
+function quantityColumnIndex(headers) {
+  return headerIndex(headers, 'quantity', 'qty');
+}
+
+function setColumnIndex(headers) {
+  return headerIndex(headers, 'set');
+}
+
+function stockColumnIndex(headers) {
+  const quantityIndex = quantityColumnIndex(headers);
+  if (quantityIndex >= 0) return quantityIndex;
+  return setColumnIndex(headers);
+}
+
+function setCountForQuantity(quantity) {
+  return Number(quantity) > 4 ? 1 : 0;
+}
+
 function cell(row, index) {
   if (index < 0) return '';
   return String(row?.[index] ?? '').trim();
@@ -148,7 +166,7 @@ function parseTab(title, values) {
     model: headerIndex(headers, 'model'),
     season: headerIndex(headers, 'treadpattern', 'season'),
     dot: headerIndex(headers, 'dot'),
-    stock: headerIndex(headers, 'set', 'qty', 'quantity'),
+    stock: stockColumnIndex(headers),
     price: headerIndex(headers, 'price'),
     note: headerIndex(headers, 'additionalnote', 'description', 'note'),
     category: headerIndex(headers, 'category'),
@@ -260,21 +278,33 @@ async function updateDevSheetStock({ sheetTab, sheetRow, nextStock }) {
   const accessToken = await getGoogleAccessToken(config);
   const headerValues = await readTab(accessToken, sheetTab);
   const headers = headerValues[0] || [];
-  const stockIndex = headerIndex(headers, 'set', 'qty');
+  const quantityIndex = quantityColumnIndex(headers);
+  const setIndex = setColumnIndex(headers);
+  const stockIndex = quantityIndex >= 0 ? quantityIndex : setIndex;
   if (stockIndex < 0) {
-    return { ok: false, skipped: true, reason: `Tab ${sheetTab} has no Set or QTY column.` };
+    return { ok: false, skipped: true, reason: `Tab ${sheetTab} has no Quantity column.` };
   }
-  const range = `${quoteTitle(sheetTab)}!${columnLetter(stockIndex)}${sheetRow}`;
+  const next = Math.max(0, Number(nextStock) || 0);
+  const data = [{
+    range: `${quoteTitle(sheetTab)}!${columnLetter(stockIndex)}${sheetRow}`,
+    values: [[next]],
+  }];
+  if (quantityIndex >= 0 && setIndex >= 0) {
+    data.push({
+      range: `${quoteTitle(sheetTab)}!${columnLetter(setIndex)}${sheetRow}`,
+      values: [[setCountForQuantity(next)]],
+    });
+  }
   await sheetsFetch(
     accessToken,
-    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(devSpreadsheetId())}/values/${encodeURIComponent(range)}?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(devSpreadsheetId())}/values:batchUpdate`,
     {
-      method: 'PUT',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values: [[Math.max(0, Number(nextStock) || 0)]] }),
+      body: JSON.stringify({ valueInputOption: 'RAW', data }),
     },
   );
-  return { ok: true, range };
+  return { ok: true, range: data[0].range };
 }
 
 function loadProjectEnv() {
@@ -295,4 +325,5 @@ module.exports = {
   upsertDevInventoryRows,
   updateDevSheetStock,
   loadProjectEnv,
+  setCountForQuantity,
 };
