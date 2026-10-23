@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { isStripeTestMode } = require('./lib/stripe-mode');
 const { isNewTireInstallTooEarly, NEW_TIRE_HOLD_MESSAGE } = require('./lib/new-tire-shipping-hold');
 const { resolveService: resolveCatalogService } = require('../../appointment-services');
+const { ensureCheckoutCustomer } = require('./lib/guest-customer');
 const {
   bookingLocation,
   isSlotConflict,
@@ -248,7 +249,17 @@ exports.handler = async (event) => {
     const { data, error } = await supabaseAdmin.auth.getUser(token);
     if (!error) verifiedUser = data?.user || null;
   }
-  if (!verifiedUser) return json(401, { message: 'Please log in before paying the appointment deposit.' });
+  if (!verifiedUser) {
+    if (!supabaseAdmin) return json(500, { message: 'Checkout could not be saved.' });
+    const guest = await ensureCheckoutCustomer(supabaseAdmin, customer);
+    if (guest.error) return json(guest.statusCode || 400, { message: guest.error });
+    verifiedUser = { id: guest.id };
+    customer.customerId = guest.id;
+  } else if (text(customer.customerId) && text(customer.customerId) !== verifiedUser.id) {
+    return json(403, { message: 'This cart does not match the logged-in customer.' });
+  } else {
+    customer.customerId = verifiedUser.id;
+  }
 
   if (supabaseAdmin) {
     const orderGate = await assertConfirmedNewTireOrders({

@@ -6,7 +6,7 @@
     <title>Cart | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=8" />
     <link rel="stylesheet" href="appointment.css?v=46" />
-    <link rel="stylesheet" href="account.css?v=18" />
+    <link rel="stylesheet" href="account.css?v=20" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
   </head>
   <body class="account-page appointment-cart-page">
@@ -101,15 +101,21 @@
             </div>
           </dl>
           <p class="cart-receipt-remaining">Pay on-site after service <strong data-cart-balance>$0.00</strong></p>
-          <p class="cart-receipt-note">20% deposit online, including HST. Balance is due after service.</p>
+          <p class="cart-receipt-note">20% deposit online, including HST. Balance is due after service. You can pay the rest online if you have an account.</p>
           <div class="appointment-pay-auth" data-appointment-pay-auth hidden>
-            <strong>Please sign up or log in before paying.</strong>
+            <strong>Paying as a guest. Enter your details below, or log in if you already have an account.</strong>
             <div class="account-actions">
               <a class="button button-primary" href="/login.html?redirect=/cart.html">Log In</a>
               <a class="button button-secondary" href="/signup.html?redirect=/cart.html">Create Account</a>
             </div>
           </div>
           <form class="appointment-pay-form" data-appointment-pay-form hidden>
+            <div class="guest-checkout-fields" data-guest-checkout-fields hidden>
+              <p>Guest checkout. These details are saved with the appointment.</p>
+              <label class="form-field"><span>Name</span><input name="guest-name" data-guest-name autocomplete="name" /></label>
+              <label class="form-field"><span>Email</span><input name="guest-email" data-guest-email type="email" autocomplete="email" /></label>
+              <label class="form-field"><span>Phone</span><input name="guest-phone" data-guest-phone type="tel" autocomplete="tel" /></label>
+            </div>
             <div class="checkout-agreement">
               <label class="agreement-checkbox">
                 <input type="checkbox" data-agreement-checkbox required />
@@ -365,8 +371,8 @@
     <script>
       window.EastCordAccount?.updateCartCount?.();
     </script>
-    <script src="cart.js?v=58"></script>
-    <script src="appointment-pay.js?v=9"></script>
+    <script src="cart.js?v=60"></script>
+    <script src="appointment-pay.js?v=10"></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

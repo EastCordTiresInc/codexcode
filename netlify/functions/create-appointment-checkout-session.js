@@ -4,6 +4,7 @@ const { isStripeTestMode } = require('./lib/stripe-mode');
 const { isNewTireInstallTooEarly, NEW_TIRE_HOLD_MESSAGE } = require('./lib/new-tire-shipping-hold');
 const { resolveService } = require('../../appointment-services');
 const { listCalendarSlots, slotKey, isSlotConflict } = require('./lib/appointment-calendars');
+const { ensureCheckoutCustomer } = require('./lib/guest-customer');
 
 const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
@@ -610,15 +611,23 @@ exports.handler = async (event) => {
   });
 
   if (!bookingItems.length) return json(400, { message: 'Add an appointment service before checkout.' });
-  if (!required(customer.customerId) || !required(customer.email)) {
-    return json(401, { message: 'Please log in before checkout.' });
+  if (!required(customer.name) || !required(customer.email) || !required(customer.phone)) {
+    return json(400, { message: 'Enter your name, email, and phone before payment.' });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
-  const verifiedUser = await getVerifiedUser(event, supabaseAdmin);
+  let verifiedUser = await getVerifiedUser(event, supabaseAdmin);
 
-  if (verifiedUser && verifiedUser.id !== customer.customerId) {
+  if (!verifiedUser) {
+    if (!supabaseAdmin) return json(500, { message: 'Checkout could not be saved.' });
+    const guest = await ensureCheckoutCustomer(supabaseAdmin, customer);
+    if (guest.error) return json(guest.statusCode || 400, { message: guest.error });
+    verifiedUser = { id: guest.id };
+    customer.customerId = guest.id;
+  } else if (customer.customerId && customer.customerId !== verifiedUser.id) {
     return json(403, { message: 'This cart does not match the logged-in customer.' });
+  } else {
+    customer.customerId = verifiedUser.id;
   }
 
   const orderGate = await assertConfirmedNewTireOrders({

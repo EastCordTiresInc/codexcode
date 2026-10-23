@@ -2,6 +2,7 @@ const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { isStripeTestMode } = require('./lib/stripe-mode');
 const { roundMoney } = require('./lib/new-tire-order');
+const { ensureCheckoutCustomer } = require('./lib/guest-customer');
 
 const MAX_UNIT_PRICE = 2500;
 const MAX_QTY = 8;
@@ -101,13 +102,20 @@ exports.handler = async (event) => {
   if (!preparedItems.length) {
     return json(400, { message: 'Tap Add to Cart on a tire with a price before paying.' });
   }
-  if (!required(customer.customerId) || !required(customer.email) || !required(customer.name) || !required(customer.phone)) {
-    return json(400, { message: 'Please complete your name, email, and phone before checkout.' });
+  if (!required(customer.email) || !required(customer.name) || !required(customer.phone)) {
+    return json(400, { message: 'Enter your name, email, and phone before payment.' });
   }
 
-  const verifiedUser = await getVerifiedUser(event, supabaseAdmin);
-  if (!verifiedUser || verifiedUser.id !== customer.customerId) {
-    return json(401, { message: 'Please log in before buying new tires.' });
+  let verifiedUser = await getVerifiedUser(event, supabaseAdmin);
+  if (!verifiedUser) {
+    const guest = await ensureCheckoutCustomer(supabaseAdmin, customer);
+    if (guest.error) return json(guest.statusCode || 400, { message: guest.error });
+    verifiedUser = { id: guest.id };
+    customer.customerId = guest.id;
+  } else if (customer.customerId && verifiedUser.id !== customer.customerId) {
+    return json(403, { message: 'This order does not match the logged-in customer.' });
+  } else {
+    customer.customerId = verifiedUser.id;
   }
 
   const subtotal = roundMoney(preparedItems.reduce((sum, item) => sum + item.lineTotal, 0));

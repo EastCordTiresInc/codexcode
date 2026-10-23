@@ -1896,12 +1896,6 @@
     }
 
     const profile = await window.EastCordAccount?.getCurrentProfile?.();
-    if (!profile) {
-      savePendingAppointmentDraft();
-      showLoginRequiredBlock();
-      showAppointmentMessage('Your appointment details are saved on this device. Please log in or create an account, then you will return to review this appointment.');
-      return;
-    }
 
     if (state.fromNewTires && !state.requiredNewTireOrder?.id) {
       showAppointmentMessage('Finish Order on New Tires first. After that purchase is saved, we will send you here to book installation for those new tires.');
@@ -1915,8 +1909,15 @@
       }
       showAppointmentMessage('Saving your booking details...', 'info');
 
-      const appointmentItem = buildAppointmentItem(profile);
-      appointmentItem.bookingId = await window.EastCordAccount.saveAppointmentBooking(appointmentItem, profile);
+      const appointmentItem = buildAppointmentItem(profile || {
+        customerId: '',
+        name: '',
+        email: '',
+        phone: '',
+      });
+      if (profile?.customerId) {
+        appointmentItem.bookingId = await window.EastCordAccount.saveAppointmentBooking(appointmentItem, profile);
+      }
 
       const cart = window.EastCordAccount.getCart();
       cart.push(appointmentItem);

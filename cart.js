@@ -861,7 +861,7 @@ function syncPayChoiceDisplay() {
   if (note) {
     note.textContent = payInFull
       ? 'Full amount online, including HST. Nothing is left to pay after service.'
-      : '20% deposit online, including HST. Balance is due after service.';
+      : '20% deposit online, including HST. Balance is due after service. You can pay the rest online if you have an account.';
   }
   const remainingLine = document.querySelector('.cart-receipt-remaining');
   if (remainingLine) remainingLine.hidden = payInFull;
@@ -950,7 +950,7 @@ function applyCartAuthState(profile, { allowSignedOut = false } = {}) {
   if (cartCustomer) {
     cartCustomer.textContent = activeProfile
       ? `${activeProfile.name || 'Customer'} - ${activeProfile.email}${activeProfile.phone ? ` - ${activeProfile.phone}` : ''}`
-      : 'Please sign up or log in before checkout.';
+      : 'Guest checkout. Enter your name, email, and phone before payment.';
   }
     if (authBlock) {
       authBlock.hidden = Boolean(activeProfile);
@@ -1209,11 +1209,18 @@ async function startCheckout(event) {
     }
 
     if (!profile) {
-      if (authBlock) {
-        authBlock.hidden = false;
-        authBlock.classList.add('is-visible');
+      const guestFields = document.querySelector('[data-guest-checkout-fields]');
+      const customer = {
+        customerId: '',
+        name: String(document.querySelector('[data-guest-name]')?.value || '').trim(),
+        email: String(document.querySelector('[data-guest-email]')?.value || '').trim(),
+        phone: String(document.querySelector('[data-guest-phone]')?.value || '').trim(),
+      };
+      if (guestFields) guestFields.hidden = false;
+      if (!customer.name || !customer.email || !customer.phone) {
+        throw new Error('Enter your name, email, and phone before payment.');
       }
-      throw new Error('Please sign up or log in before checkout.');
+      profile = customer;
     }
 
     applyCartAuthState(profile);

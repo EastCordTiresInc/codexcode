@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { recordWidgetNewTireOrder } = require('./lib/new-tire-order');
+const { ensureCheckoutCustomer } = require('./lib/guest-customer');
 
 function json(statusCode, payload) {
   return {
@@ -37,17 +38,15 @@ exports.handler = async (event) => {
   if (!supabaseAdmin) return json(500, { message: 'Supabase admin configuration is missing.' });
 
   const token = getBearerToken(event);
-  if (!token) {
-    return json(401, {
-      message: 'Your login session could not be read. Log out, log in, then try again.',
-    });
-  }
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !authData?.user) {
-    return json(401, {
-      message: 'Your login session expired. Log out, log in, then try again.',
-    });
+  let authUser = null;
+  if (token) {
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !authData?.user) {
+      return json(401, {
+        message: 'Your login session expired. Log out, log in, then try again.',
+      });
+    }
+    authUser = authData.user;
   }
 
   let payload;
@@ -58,12 +57,19 @@ exports.handler = async (event) => {
   }
 
   const customer = payload.customer || {};
-  if (!required(customer.name) || !required(customer.email)) {
-    return json(400, { message: 'Name and email are required.' });
+  if (!required(customer.name) || !required(customer.email) || !required(customer.phone)) {
+    return json(400, { message: 'Enter your name, email, and phone before payment.' });
+  }
+
+  let userId = authUser?.id || '';
+  if (!userId) {
+    const guest = await ensureCheckoutCustomer(supabaseAdmin, customer);
+    if (guest.error) return json(guest.statusCode || 400, { message: guest.error });
+    userId = guest.id;
   }
 
   console.log('[EastCord new tires] save-new-tire-widget-order', {
-    userId: authData.user.id,
+    userId,
     orderNumber: payload.orderNumber || '',
     recordedLocally: Boolean(payload.recordedLocally),
     fulfillment: payload.fulfillment || '',
@@ -72,7 +78,7 @@ exports.handler = async (event) => {
 
   const result = await recordWidgetNewTireOrder({
     supabaseAdmin,
-    userId: authData.user.id,
+    userId,
     customer,
     items: payload.items,
     fulfillment: payload.fulfillment,

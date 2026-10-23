@@ -44,6 +44,8 @@
 
   let currentProfile = null;
   let profileReady = false;
+  let guestCheckoutReady = false;
+  let guestCustomer = { name: '', email: '', phone: '' };
   let widgetOnPaymentPage = false;
   let suppressSummaryCapture = false;
   let selectedQuote = readStoredQuote();
@@ -809,16 +811,30 @@
       wall.hidden = true;
       wall.innerHTML = `
         <div class="eastcord-checkout-login-card" role="dialog" aria-modal="true" aria-labelledby="eastcord-checkout-login-title">
-          <h2 id="eastcord-checkout-login-title">Log in to place this order</h2>
-          <p data-eastcord-checkout-login-copy></p>
-          <div class="new-tire-auth-actions" data-eastcord-checkout-login-actions>
-            <a class="button button-primary" data-new-tire-login href="/login.html?redirect=/new-tires.html">Log In</a>
-            <a class="button button-secondary" data-new-tire-signup href="/signup.html?redirect=/new-tires.html">Create Account</a>
-          </div>
+          <h2 id="eastcord-checkout-login-title">Your details</h2>
+          <p data-eastcord-checkout-login-copy>Enter your name, email, and phone to pay as a guest.</p>
+          <form class="guest-pay-fields" data-guest-pay-wall>
+            <label><span>Name</span><input data-guest-name name="name" autocomplete="name" /></label>
+            <label><span>Email</span><input data-guest-email name="email" type="email" autocomplete="email" /></label>
+            <label><span>Phone</span><input data-guest-phone name="phone" type="tel" autocomplete="tel" /></label>
+            <button class="button button-primary" type="submit">Continue to payment</button>
+          </form>
           <button class="button button-primary" type="button" data-eastcord-checkout-phone hidden>Enter phone number</button>
         </div>
       `;
       shell.appendChild(wall);
+      wall.querySelector('[data-guest-pay-wall]')?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const guest = readGuestCustomer(wall);
+        if (!guest.ok) {
+          setFulfillmentMessage(guest.message, true);
+          return;
+        }
+        guestCustomer = guest.customer;
+        guestCheckoutReady = true;
+        copyGuestIntoCheckout(guest.customer);
+        syncCheckoutLoginWall();
+      });
       wall.querySelector('[data-eastcord-checkout-phone]')?.addEventListener('click', () => {
         const field = document.querySelector('[data-new-tire-phone-field]');
         field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -837,19 +853,19 @@
     const needsAccount = !currentProfile;
     const title = wall.querySelector('#eastcord-checkout-login-title');
     const copy = wall.querySelector('[data-eastcord-checkout-login-copy]');
-    const actions = wall.querySelector('[data-eastcord-checkout-login-actions]');
+    const guestForm = wall.querySelector('[data-guest-pay-wall]');
     const phoneButton = wall.querySelector('[data-eastcord-checkout-phone]');
     if (title) {
       title.textContent = needsAccount
-        ? 'Log in to place this order'
+        ? 'Your details'
         : 'Add a phone number to place this order';
     }
     if (copy) {
       copy.textContent = needsAccount
-        ? 'Log in or create an account before payment. EastCord can only save the tires to My Account after you are signed in.'
+        ? 'Enter your name, email, and phone to pay as a guest.'
         : 'Enter your phone number beside this checkout before payment.';
     }
-    if (actions) actions.hidden = !needsAccount;
+    if (guestForm) guestForm.hidden = !needsAccount;
     if (phoneButton) phoneButton.hidden = needsAccount;
     updateAuthLinks();
   }
@@ -1227,9 +1243,11 @@
     highlightHoldUntil = 0;
     hideHighlightOverlay({ clearHold: true });
     fillCheckoutSummary();
+    const guestFields = overlay.querySelector('[data-guest-checkout-fields]');
+    if (guestFields) guestFields.hidden = Boolean(currentProfile);
     overlay.hidden = false;
     overlay.scrollTop = 0;
-    overlay.querySelector('[name="card"]')?.focus();
+    (guestFields && !guestFields.hidden ? guestFields.querySelector('[data-guest-name]') : overlay.querySelector('[name="card"]'))?.focus();
   }
 
   function closeLocalWidgetCheckout() {
@@ -1262,6 +1280,15 @@
   async function payLocalWidgetCheckout(method) {
     logFlow('checkout.localPay', method);
     if (!isDemoOrderEnabled()) return;
+    if (!currentProfile) {
+      const guest = readGuestCustomer(document.querySelector('[data-eastcord-checkout-form]') || document);
+      if (!guest.ok) {
+        setFulfillmentMessage(guest.message, true);
+        return;
+      }
+      guestCustomer = guest.customer;
+      guestCheckoutReady = true;
+    }
     const gate = memberGate();
     if (!gate.ok) {
       setFulfillmentMessage(gate.message, true);
@@ -2106,6 +2133,10 @@
       phoneInput.required = needsPhone;
       if (!needsPhone) phoneInput.value = currentProfile?.phone || '';
     }
+    document.querySelectorAll('[data-guest-checkout-fields]').forEach((fields) => {
+      fields.hidden = signedIn;
+    });
+    if (signedIn) guestCheckoutReady = false;
     updateAuthLinks();
     highlightSelectedWidgetTires();
     syncDemoOrderButton();
@@ -2310,12 +2341,39 @@
     window.EastCordAccount.saveCustomerCart?.('appointment', next).catch(() => {});
   }
 
+  function readGuestCustomer(root = document) {
+    const name = String(root.querySelector('[data-guest-name]')?.value || guestCustomer.name || '').trim();
+    const email = String(root.querySelector('[data-guest-email]')?.value || guestCustomer.email || '').trim();
+    const phone = String(root.querySelector('[data-guest-phone]')?.value || guestCustomer.phone || '').trim();
+    if (!name || !email || !phone) {
+      return { ok: false, message: 'Enter your name, email, and phone before payment.', customer: { name, email, phone } };
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { ok: false, message: 'Enter a valid email address.', customer: { name, email, phone } };
+    }
+    if (phone.replace(/\D/g, '').length < 10) {
+      return { ok: false, message: 'Enter a phone number with at least 10 digits.', customer: { name, email, phone } };
+    }
+    return { ok: true, customer: { name, email, phone } };
+  }
+
+  function copyGuestIntoCheckout(customer) {
+    const form = document.querySelector('[data-eastcord-checkout-form]');
+    if (!form || !customer) return;
+    const name = form.querySelector('[data-guest-name]');
+    const email = form.querySelector('[data-guest-email]');
+    const phone = form.querySelector('[data-guest-phone]');
+    if (name) name.value = customer.name || '';
+    if (email) email.value = customer.email || '';
+    if (phone) phone.value = customer.phone || '';
+  }
+
   function memberGate() {
     if (!currentProfile) {
-      return {
-        ok: false,
-        message: 'Please log in or create an account first. Then finish checkout in the tire search.',
-      };
+      if (!guestCheckoutReady) {
+        return { ok: false, message: 'Enter your name, email, and phone to pay as a guest.' };
+      }
+      return { ok: true };
     }
     if (!phoneValue()) {
       return { ok: false, message: 'Please enter a phone number, then finish checkout in the tire search.' };
@@ -2385,18 +2443,25 @@
     const status = String(data.status || data.order_status || '').toLowerCase();
     logFlow(`checkout.complete.${source}`, { status, data });
     captureQuoteFromWidgetEvent(event);
-    if (!currentProfile) {
-      const message = 'Checkout finished in the tire search. Log in so EastCord can save this order to your account.';
-      logFlow('supabase.skipped', message);
-      setFulfillmentMessage(message, true);
-      syncFulfillmentUi();
-      scrollToFulfillment();
-      return { saved: false };
-    }
     const customer = customerFromWidgetPayload(event);
-    if (!customer.name) customer.name = currentProfile.name || 'EastCord customer';
-    if (!customer.email) customer.email = currentProfile.email || '';
-    if (!customer.phone) customer.phone = phoneValue() || 'Not provided';
+    if (!currentProfile) {
+      const guest = readGuestCustomer(document.querySelector('[data-eastcord-checkout-form]') || document);
+      if (!guest.ok) {
+        logFlow('supabase.skipped', guest.message);
+        setFulfillmentMessage(guest.message, true);
+        syncFulfillmentUi();
+        return { saved: false };
+      }
+      guestCustomer = guest.customer;
+      guestCheckoutReady = true;
+      customer.name = guest.customer.name;
+      customer.email = guest.customer.email;
+      customer.phone = guest.customer.phone;
+    } else {
+      if (!customer.name) customer.name = currentProfile.name || 'EastCord customer';
+      if (!customer.email) customer.email = currentProfile.email || '';
+      if (!customer.phone) customer.phone = phoneValue() || 'Not provided';
+    }
     let items = itemsFromWidgetPayload(data);
     const detailsPending = !items.length;
     if (detailsPending) {
@@ -2411,9 +2476,9 @@
       }];
     }
     logFlow('supabase.prepare', { customer, items, detailsPending, fulfillment: selectedFulfillment() });
-    if (!customer.email) {
-      logFlow('supabase.skipped', 'Missing customer email.');
-      setFulfillmentMessage('Checkout finished in the tire search. Log in so EastCord can save this order to your account.', true);
+    if (!customer.email || !customer.name || !customer.phone) {
+      logFlow('supabase.skipped', 'Missing guest customer details.');
+      setFulfillmentMessage('Enter your name, email, and phone before payment.', true);
       return { saved: false };
     }
     const nested = data.quote && typeof data.quote === 'object' ? data.quote : data;
@@ -2564,13 +2629,11 @@
     }
 
     try {
-      const token = await window.EastCordAccount?.getAccessToken?.();
-      logFlow('supabase.submit.auth', { hasToken: Boolean(token) });
-      if (!token) {
+      const token = currentProfile ? await window.EastCordAccount?.getAccessToken?.() : '';
+      logFlow('supabase.submit.auth', { hasToken: Boolean(token), guest: !currentProfile });
+      if (currentProfile && !token) {
         setFulfillmentMessage(
-          currentProfile
-            ? 'The header still shows you as signed in, but EastCord could not read your login token. Log out, log in, then try Mock order again.'
-            : 'Please log in, then try again.',
+          'The header still shows you as signed in, but EastCord could not read your login token. Log out, log in, then try Mock order again.',
           true,
         );
         return { saved: false };
@@ -2579,7 +2642,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -2599,13 +2662,18 @@
       rememberConfirmedOrder(data.orderId, payload.fulfillment);
       clearCheckoutSnapshot();
       linkCartAppointmentsToOrder(data.orderId, data.appointmentIds || []);
-      const goBook = payload.fulfillment === 'Installation' && data.orderId;
+      const guestOrder = !currentProfile;
+      const goBook = payload.fulfillment === 'Installation' && data.orderId && !guestOrder;
       setFulfillmentMessage(
         goBook
           ? 'Tires saved to your account. Opening installation booking for these new tires…'
-          : (payload.recordedLocally
-            ? `Mock order saved. Tire order ${data.orderId || ''} is in your account.`
-            : successMessage(payload.fulfillment)),
+          : (guestOrder && payload.fulfillment === 'Installation'
+            ? 'Order placed. We will email a link to book installation.'
+            : (guestOrder
+              ? 'Order placed. We will email your confirmation.'
+              : (payload.recordedLocally
+                ? `Mock order saved. Tire order ${data.orderId || ''} is in your account.`
+                : successMessage(payload.fulfillment)))),
         false,
       );
       if (!payload.recordedLocally) {

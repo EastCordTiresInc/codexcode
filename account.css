@@ -1115,7 +1115,8 @@
 }
 
 .appointment-pay-auth[hidden],
-.appointment-pay-form[hidden] {
+.appointment-pay-form[hidden],
+.checkout-agreement[hidden] {
   display: none !important;
 }
 
@@ -1123,6 +1124,20 @@
   display: grid;
   gap: 14px;
   margin-top: 16px;
+}
+
+.guest-checkout-fields[hidden] {
+  display: none !important;
+}
+
+.guest-checkout-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.guest-checkout-fields p {
+  margin: 0;
+  color: #4f5663;
 }
 
 .appointment-pay-form .form-field {

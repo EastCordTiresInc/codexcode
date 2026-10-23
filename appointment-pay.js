@@ -53,19 +53,28 @@
       }
 
       const profile = currentProfile || await window.EastCordAccount?.getCurrentProfile?.();
-      if (!profile) throw new Error('Please log in before paying the appointment deposit.');
-
-      const customer = {
-        customerId: profile.customerId || profile.id || '',
-        name: String(profile.name || '').trim(),
-        email: String(profile.email || '').trim(),
-        phone: String(profile.phone || '').trim(),
-      };
-      if (!customer.customerId || !customer.name || !customer.email || !customer.phone) {
-        throw new Error('Your account needs a name, email, and phone before you can pay. Update them on My Account.');
+      const guest = readGuestCustomer();
+      const customer = profile
+        ? {
+          customerId: profile.customerId || profile.id || '',
+          name: String(profile.name || '').trim(),
+          email: String(profile.email || '').trim(),
+          phone: String(profile.phone || '').trim(),
+        }
+        : guest;
+      if (!customer.name || !customer.email || !customer.phone) {
+        throw new Error(profile
+          ? 'Your account needs a name, email, and phone before you can pay. Update them on My Account.'
+          : 'Enter your name, email, and phone before payment.');
+      }
+      if (!profile && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
+        throw new Error('Enter a valid email address.');
+      }
+      if (!profile && customer.phone.replace(/\D/g, '').length < 10) {
+        throw new Error('Enter a phone number with at least 10 digits.');
       }
 
-      const token = await window.EastCordAccount.getAccessToken();
+      const token = profile ? await window.EastCordAccount.getAccessToken() : '';
       const payInFull = document.querySelector('[data-pay-choice]:checked')?.value === 'full';
       const response = await fetch('/.netlify/functions/pay-appointment-deposit', {
         method: 'POST',
@@ -112,10 +121,22 @@
     });
   }
 
+  function readGuestCustomer() {
+    return {
+      customerId: '',
+      name: String(form?.querySelector('[data-guest-name]')?.value || '').trim(),
+      email: String(form?.querySelector('[data-guest-email]')?.value || '').trim(),
+      phone: String(form?.querySelector('[data-guest-phone]')?.value || '').trim(),
+    };
+  }
+
   function applyCheckoutAuth(profile) {
     currentProfile = profile || null;
-    if (authBlock) authBlock.hidden = Boolean(currentProfile);
-    if (form) form.hidden = !currentProfile;
+    const guest = !currentProfile;
+    if (authBlock) authBlock.hidden = !guest;
+    if (form) form.hidden = false;
+    const guestFields = form?.querySelector('[data-guest-checkout-fields]');
+    if (guestFields) guestFields.hidden = !guest;
     syncStripeTestNote();
   }
 

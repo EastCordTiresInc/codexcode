@@ -148,8 +148,39 @@
 
 .eastcord-checkout-login-wall[hidden],
 .eastcord-checkout-login-card .new-tire-auth-actions[hidden],
-.eastcord-checkout-login-card [data-eastcord-checkout-phone][hidden] {
+.eastcord-checkout-login-card [data-eastcord-checkout-phone][hidden],
+.eastcord-checkout-login-card [data-guest-pay-wall][hidden],
+.eastcord-checkout-login-card .guest-pay-or[hidden],
+.guest-checkout-fields[hidden] {
   display: none;
+}
+
+.guest-pay-fields,
+.guest-checkout-fields {
+  display: grid;
+  gap: 10px;
+  text-align: left;
+}
+
+.guest-pay-fields label,
+.guest-checkout-fields label {
+  display: grid;
+  gap: 4px;
+}
+
+.guest-pay-fields input,
+.guest-checkout-fields input {
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 12px;
+  font: inherit;
+}
+
+.guest-pay-or,
+.guest-checkout-fields p {
+  margin: 0;
+  color: #4f5663;
 }
 
 .eastcord-checkout-login-card {
