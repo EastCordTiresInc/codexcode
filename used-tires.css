@@ -184,7 +184,7 @@
 
 .used-search-form {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) auto;
   gap: 12px 14px;
   align-items: end;
 }
@@ -721,6 +721,17 @@
 
 .used-inventory-status[data-status-type='success'] {
   color: #237146;
+}
+
+.used-inventory-sale-note {
+  margin: 0 0 6px;
+  color: #34363a;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.used-inventory-sale-note[hidden] {
+  display: none;
 }
 
 .used-inventory-results .inventory-list {

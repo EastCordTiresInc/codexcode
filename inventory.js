@@ -160,6 +160,7 @@ function getElements() {
     rim: document.querySelector('#inventory-rim'),
     season: document.querySelector('#inventory-season'),
     brand: document.querySelector('#inventory-brand'),
+    listing: document.querySelector('#inventory-listing'),
     list: document.querySelector('#inventory-list'),
     status: document.querySelector('[data-inventory-status]'),
     loadStatus: document.querySelector('[data-inventory-load-status]'),
@@ -271,6 +272,7 @@ function normalizeInventoryRow(row) {
     brand,
     model: clean(row.model),
     dot: clean(row.dot),
+    dotSale: isOlderDot(row.dot),
     note: clean(row.note),
     priceIsFinal: row.price_is_final === true || String(row.price_is_final || '').toLowerCase() === 'true',
     size,
@@ -427,6 +429,32 @@ function parseStock(value) {
   return Number.isFinite(amount) ? amount : 0;
 }
 
+const DOT_SALE_BEFORE_YEAR = 2020;
+
+function dotYearFromCode(code) {
+  const digits = String(code || '').replace(/\D/g, '');
+  if (!digits || digits.length > 4) return null;
+  const yearDigits = digits.length >= 3 ? digits.slice(-2) : digits;
+  const yearNumber = Number(yearDigits);
+  if (!Number.isInteger(yearNumber)) return null;
+  const currentTwoDigitYear = new Date().getFullYear() % 100;
+  return yearNumber <= currentTwoDigitYear ? 2000 + yearNumber : 1900 + yearNumber;
+}
+
+function dotCodes(value) {
+  return clean(value).split(/[^0-9]+/).filter(Boolean).flatMap((part) => (
+    part.length === 8 ? [part.slice(0, 4), part.slice(4)] : [part]
+  ));
+}
+
+function isOlderDot(value) {
+  const codes = dotCodes(value);
+  if (!codes.length) return false;
+  const years = codes.map(dotYearFromCode);
+  if (years.some((year) => year === null)) return false;
+  return years.every((year) => year < DOT_SALE_BEFORE_YEAR);
+}
+
 function bindInventoryControls() {
   const { form, width, profile, rim, brand } = getElements();
 
@@ -467,6 +495,12 @@ function bindInventoryControls() {
     runSearch();
   });
 
+  getElements().listing?.addEventListener('change', () => {
+    populateSearchOptions();
+    refreshDependentOptions('width');
+    runSearch();
+  });
+
   document.querySelector('[data-clear-inventory-filters]')?.addEventListener('click', () => {
     clearInventoryFilters();
   });
@@ -499,8 +533,8 @@ function bindInventoryControls() {
 }
 
 function clearInventoryFilters() {
-  const { width, profile, rim, season, brand } = getElements();
-  [width, profile, rim, season, brand].forEach((select) => {
+  const { width, profile, rim, season, brand, listing } = getElements();
+  [width, profile, rim, season, brand, listing].forEach((select) => {
     if (select) select.value = '';
   });
   populateSearchOptions();
@@ -515,11 +549,16 @@ function setSearchReadyState() {
   }
 }
 
+function listingInventory() {
+  const saleOnly = getElements().listing?.value === 'sale';
+  return inventory.filter((item) => isInStock(item) && Boolean(item.dotSale) === saleOnly);
+}
+
 function populateSearchOptions() {
   const { width, profile, rim, brand } = getElements();
   if (!width || !profile || !rim || !brand) return;
 
-  const inStock = inventory.filter(isInStock);
+  const inStock = listingInventory();
   const widths = uniqueSorted(inStock.map((item) => item.width).filter(Boolean));
   fillSelect(width, widths, 'Any width');
   fillSelect(profile, uniqueProfiles('', inStock), 'Any profile');
@@ -531,7 +570,7 @@ function refreshDependentOptions(changedField) {
   const { width, profile, rim } = getElements();
   if (!width || !profile || !rim) return;
 
-  const inStock = inventory.filter(isInStock);
+  const inStock = listingInventory();
 
   if (changedField === 'width') {
     fillSelect(profile, uniqueProfiles(width.value, inStock), 'Any profile');
@@ -623,6 +662,8 @@ function matchesSearchFilters(item, filters) {
     return false;
   }
 
+  if ((filters.listing === 'sale') !== Boolean(item.dotSale)) return false;
+
   return true;
 }
 
@@ -667,13 +708,14 @@ function fillSelect(select, values, placeholder, allowEmpty = false) {
 }
 
 function getSearchFilters() {
-  const { width, profile, rim, season, brand } = getElements();
+  const { width, profile, rim, season, brand, listing } = getElements();
   return {
     width: width?.value || '',
     profile: profile?.value || '',
     rim: rim?.value || '',
     season: season?.value || '',
     brand: brand?.value || '',
+    listing: listing?.value || '',
   };
 }
 
@@ -700,7 +742,30 @@ function formatSearchSummary(filters) {
     parts.push(season?.selectedOptions?.[0]?.textContent?.toLowerCase() || filters.season);
   }
 
+  if (filters.listing === 'sale') {
+    parts.push('sale');
+  }
+
   return parts.join(' · ');
+}
+
+function countInStockMatches(filters) {
+  return inventory.filter((item) => isInStock(item) && matchesSearchFilters(item, filters)).length;
+}
+
+function saleListingHint(filters) {
+  if (filters.listing === 'sale') return '';
+  const saleCount = countInStockMatches({ ...filters, listing: 'sale' });
+  if (!saleCount) return '';
+  return ` ${saleCount} in Sale.`;
+}
+
+function syncListingHeading(filters) {
+  const title = document.querySelector('#inventory-results-title');
+  const note = document.querySelector('[data-inventory-sale-note]');
+  const sale = filters?.listing === 'sale';
+  if (title) title.textContent = sale ? 'Sale' : 'Used tires';
+  if (note) note.hidden = !sale;
 }
 
 function runSearch() {
@@ -713,6 +778,7 @@ function runSearch() {
 
   searchPerformed = true;
   showResultsSection();
+  syncListingHeading(filters);
 
   const summary = formatSearchSummary(filters);
   const matching = inventory.filter((item) => matchesSearchFilters(item, filters));
@@ -741,10 +807,12 @@ function mergeSameSizeLeftovers(results, filters) {
 
 function renderSoldOutMessage(summary) {
   const { list, status } = getElements();
+  const filters = getSearchFilters();
   const detail = summary || 'that search';
+  const saleHint = saleListingHint(filters);
 
   if (status) {
-    status.textContent = `Sold out for ${detail}.`;
+    status.textContent = `Sold out for ${detail}.${saleHint}`;
     status.dataset.statusType = 'error';
   }
   if (list) {
@@ -816,8 +884,11 @@ function renderResults(products, summary = formatSearchSummary(getSearchFilters(
   }
 
   if (!products.length) {
+    const saleHint = saleListingHint(getSearchFilters());
     if (status) {
-      status.textContent = summary ? `No matches for ${summary}.` : 'No tires in stock.';
+      status.textContent = summary
+        ? `No matches for ${summary}.${saleHint}`
+        : `No tires in stock.${saleHint}`;
       status.dataset.statusType = 'info';
     }
     if (list) {
@@ -831,7 +902,9 @@ function renderResults(products, summary = formatSearchSummary(getSearchFilters(
 
   if (status) {
     const countLabel = `${sorted.length} tire${sorted.length === 1 ? '' : 's'}`;
-    status.textContent = summary ? `${countLabel} · ${summary}` : `${countLabel} in stock`;
+    const saleHint = saleListingHint(getSearchFilters()).trim();
+    const base = summary ? `${countLabel} · ${summary}` : `${countLabel} in stock`;
+    status.textContent = saleHint ? `${base} · ${saleHint}` : base;
     status.dataset.statusType = 'success';
   }
 

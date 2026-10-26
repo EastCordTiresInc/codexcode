@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
-    <link rel="stylesheet" href="used-tires.css?v=39" />
+    <link rel="stylesheet" href="used-tires.css?v=40" />
   </head>
   <body class="used-tires-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -120,6 +120,13 @@
                         <option value="">Any brand</option>
                       </select>
                     </label>
+                    <label class="used-search-field">
+                      <span>Listing</span>
+                      <select id="inventory-listing" name="listing">
+                        <option value="">Regular</option>
+                        <option value="sale">Sale</option>
+                      </select>
+                    </label>
                   </div>
 
                   <button class="used-search-submit" type="button" data-clear-inventory-filters>Clear filters</button>
@@ -197,6 +204,7 @@
             <div class="used-inventory-results-header">
               <h2 id="inventory-results-title">Used tires</h2>
               <div>
+                <p class="used-inventory-sale-note" data-inventory-sale-note hidden>DOT older than 2020. Prices are unchanged.</p>
                 <p class="used-inventory-status" data-inventory-status aria-live="polite"></p>
                 <button class="text-button" type="button" data-inventory-refresh>Refresh inventory</button>
               </div>
@@ -289,7 +297,7 @@
         if (status) status.textContent = 'Connecting to inventory...';
 
         var inventory = document.createElement('script');
-        inventory.src = 'inventory.js?v=72';
+        inventory.src = 'inventory.js?v=74';
 
         var pricing = document.createElement('script');
         pricing.src = 'used-tire-pricing.js?v=2';
