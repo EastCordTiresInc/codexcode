@@ -197,6 +197,10 @@
   align-items: end;
 }
 
+.admin-toolbar [hidden] {
+  display: none;
+}
+
 .admin-toolbar label {
   display: grid;
   gap: 6px;

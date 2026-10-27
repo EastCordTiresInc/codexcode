@@ -1,6 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { recordWidgetNewTireOrder } = require('./lib/new-tire-order');
-const { ensureCheckoutCustomer } = require('./lib/guest-customer');
+const { ensureCheckoutCustomer, guestBookingSignIn } = require('./lib/guest-customer');
 
 function json(statusCode, payload) {
   return {
@@ -94,6 +94,11 @@ exports.handler = async (event) => {
     return json(result.statusCode || 500, { message: result.message || 'The order could not be saved.' });
   }
 
+  const fulfillment = payload.fulfillment === 'Installation' ? 'Installation' : 'Pickup';
+  const guestSignIn = !authUser && fulfillment === 'Installation' && result.order?.id
+    ? await guestBookingSignIn(supabaseAdmin, customer.email)
+    : null;
+
   return json(200, {
     ok: true,
     saved: true,
@@ -101,5 +106,6 @@ exports.handler = async (event) => {
     orderId: result.order?.id || '',
     appointmentIds: result.appointmentIds || [],
     appointmentCount: result.appointmentCount || 0,
+    ...(guestSignIn ? { guestSignIn } : {}),
   });
 };

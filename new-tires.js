@@ -2499,7 +2499,7 @@
     ).trim();
     return saveWidgetOrderToAccount({
       customer,
-      fulfillment: snapshot?.fulfillment || selectedFulfillment(),
+      fulfillment: selectedFulfillment(),
       items,
       detailsPending,
       notes: [
@@ -2620,6 +2620,23 @@
     }
   }
 
+  async function signInGuestForBooking(guestSignIn) {
+    const client = window.EastCordAccount?.getSupabaseClient?.();
+    const tokenHash = String(guestSignIn?.tokenHash || '').trim();
+    if (!client || !tokenHash) return false;
+    const { error } = await client.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: guestSignIn.type || 'magiclink',
+    });
+    if (error) {
+      logFlow('guest.signIn.failed', error.message || error);
+      return false;
+    }
+    currentProfile = await window.EastCordAccount.getCurrentProfile?.() || null;
+    logFlow('guest.signIn.ready', { signedIn: Boolean(currentProfile) });
+    return Boolean(currentProfile);
+  }
+
   async function saveWidgetOrderToAccount(payload) {
     const key = orderNotifyKey(payload);
     logFlow('supabase.submit.start', payload);
@@ -2647,7 +2664,11 @@
         body: JSON.stringify(payload),
       });
       const data = await response.json().catch(() => ({}));
-      logFlow('supabase.submit.response', { status: response.status, data });
+      logFlow('supabase.submit.response', {
+        status: response.status,
+        orderId: data.orderId || '',
+        guestSignIn: Boolean(data.guestSignIn?.tokenHash),
+      });
       if (!response.ok) {
         setFulfillmentMessage(
           data.message
@@ -2662,18 +2683,21 @@
       rememberConfirmedOrder(data.orderId, payload.fulfillment);
       clearCheckoutSnapshot();
       linkCartAppointmentsToOrder(data.orderId, data.appointmentIds || []);
-      const guestOrder = !currentProfile;
-      const goBook = payload.fulfillment === 'Installation' && data.orderId && !guestOrder;
+      const wantsInstall = payload.fulfillment === 'Installation' && data.orderId;
+      if (wantsInstall && !currentProfile && data.guestSignIn?.tokenHash) {
+        const signedIn = await signInGuestForBooking(data.guestSignIn);
+        if (!signedIn) {
+          setFulfillmentMessage('Order placed. We will email a link to book installation.', true);
+          return { saved: true, orderId: data.orderId || '' };
+        }
+      }
+      const goBook = wantsInstall && Boolean(currentProfile);
       setFulfillmentMessage(
         goBook
           ? 'Tires saved to your account. Opening installation booking for these new tires…'
-          : (guestOrder && payload.fulfillment === 'Installation'
-            ? 'Order placed. We will email a link to book installation.'
-            : (guestOrder
-              ? 'Order placed. We will email your confirmation.'
-              : (payload.recordedLocally
-                ? `Mock order saved. Tire order ${data.orderId || ''} is in your account.`
-                : successMessage(payload.fulfillment)))),
+          : (payload.recordedLocally
+            ? `Mock order saved. Tire order ${data.orderId || ''} is in your account.`
+            : successMessage(payload.fulfillment)),
         false,
       );
       if (!payload.recordedLocally) {
@@ -3039,6 +3063,7 @@
     document.querySelector('[data-new-tire-fulfillment-form]')?.addEventListener('change', (event) => {
       if (event.target.name !== 'Fulfillment Preference') return;
       logFlow('panel.fulfillmentChanged', selectedFulfillment());
+      rememberCheckoutSnapshot();
       document.querySelectorAll('[data-choice-info]').forEach((button) => {
         const tip = document.getElementById(button.getAttribute('aria-controls') || '');
         if (tip) tip.hidden = true;

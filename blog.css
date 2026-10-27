@@ -278,7 +278,7 @@
 }
 
 .blog-post-header {
-  padding: clamp(54px, 7vw, 80px) 0 28px;
+  padding: 22px 0 28px;
 }
 
 .blog-post-header h1 {
@@ -290,18 +290,23 @@
 
 .blog-post-description {
   max-width: 760px;
-  margin: 22px 0 0;
+  margin: 16px 0 0;
   color: var(--muted);
   font-size: clamp(1.05rem, 1.5vw, 1.24rem);
   line-height: 1.66;
 }
 
+.blog-post-header .blog-post-meta {
+  margin-top: 18px;
+}
+
 .blog-post-featured-image {
-  padding: 0 0 clamp(34px, 5vw, 54px);
+  padding: clamp(36px, 5vw, 56px) 0 0;
 }
 
 .blog-post-featured-image img {
-  aspect-ratio: 2.08;
+  width: min(100%, 680px);
+  aspect-ratio: 16 / 9;
   border-radius: 8px;
 }
 
@@ -434,9 +439,12 @@
   }
 
   .blog-featured-card img,
-  .blog-card img,
-  .blog-post-featured-image img {
+  .blog-card img {
     aspect-ratio: 1.18;
+  }
+
+  .blog-post-featured-image img {
+    aspect-ratio: 16 / 9;
   }
 
   .blog-cta-actions,

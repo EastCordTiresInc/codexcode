@@ -90,14 +90,57 @@ function isValidDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
 }
 
+const UPCOMING_LIMIT = 10;
+
+function windowStartMinutes(windowLabel) {
+  const start = String(windowLabel || '').split(' - ')[0]?.trim() || '';
+  const match = start.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const meridian = match[3].toUpperCase();
+  if (meridian === 'PM' && hour < 12) hour += 12;
+  if (meridian === 'AM' && hour === 12) hour = 0;
+  return (hour * 60) + minute;
+}
+
+function windowEndMinutes(windowLabel) {
+  const end = String(windowLabel || '').split(' - ')[1]?.trim() || '';
+  const match = end.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const meridian = match[3].toUpperCase();
+  if (meridian === 'PM' && hour < 12) hour += 12;
+  if (meridian === 'AM' && hour === 12) hour = 0;
+  return (hour * 60) + minute;
+}
+
 function sortAppointments(a, b) {
   const dateA = String(a.preferred_date || '');
   const dateB = String(b.preferred_date || '');
   if (dateA !== dateB) return dateA.localeCompare(dateB);
-  const timeA = String(a.preferred_time_window || '');
-  const timeB = String(b.preferred_time_window || '');
-  if (timeA !== timeB) return timeA.localeCompare(timeB);
+  const timeA = windowStartMinutes(a.preferred_time_window);
+  const timeB = windowStartMinutes(b.preferred_time_window);
+  if (timeA == null && timeB == null) {
+    return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+  }
+  if (timeA == null) return 1;
+  if (timeB == null) return -1;
+  if (timeA !== timeB) return timeA - timeB;
   return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+}
+
+function appointmentHasEnded(row, now) {
+  const date = String(row?.preferred_date || '');
+  if (!isValidDate(date)) return true;
+  if (date > now.date) return false;
+  if (date < now.date) return true;
+  const endMinutes = windowEndMinutes(row?.preferred_time_window);
+  if (endMinutes == null) return false;
+  return now.minutes >= endMinutes;
 }
 
 function parseBody(event) {
@@ -126,6 +169,7 @@ async function listAppointments(supabaseAdmin, event) {
   const requestedDate = String(params.date || '').trim();
   const requestedFrom = String(params.from || '').trim();
   const requestedTo = String(params.to || '').trim();
+  const upcoming = String(params.upcoming || '') === '1';
 
   let query = supabaseAdmin
     .from('appointment_bookings')
@@ -134,6 +178,37 @@ async function listAppointments(supabaseAdmin, event) {
   let date = null;
   let from = null;
   let to = null;
+
+  if (upcoming) {
+    const today = torontoDateString();
+    const { data, error } = await query
+      .gte('preferred_date', today)
+      .order('preferred_date', { ascending: true })
+      .limit(200);
+
+    if (error) {
+      console.error('[EastCord admin] appointment list failed.', error);
+      return json(500, { message: 'Appointments could not be loaded right now.' });
+    }
+
+    const now = torontoDateTimeParts();
+    const upcomingAppointments = (Array.isArray(data) ? data : [])
+      .filter((row) => !appointmentHasEnded(row, now))
+      .sort(sortAppointments);
+    const appointments = upcomingAppointments.slice(0, UPCOMING_LIMIT);
+
+    return json(200, {
+      upcoming: true,
+      limit: UPCOMING_LIMIT,
+      hasMore: upcomingAppointments.length > UPCOMING_LIMIT,
+      from: today,
+      to: null,
+      count: appointments.length,
+      timeWindows: TIME_WINDOWS,
+      bookingStatuses: BOOKING_STATUSES,
+      appointments,
+    });
+  }
 
   if (isValidDate(requestedFrom) && isValidDate(requestedTo)) {
     from = requestedFrom;
@@ -188,19 +263,6 @@ function torontoDateTimeParts(date = new Date()) {
     date: `${parts.year}-${parts.month}-${parts.day}`,
     minutes: (Number(parts.hour) * 60) + Number(parts.minute),
   };
-}
-
-function windowStartMinutes(windowLabel) {
-  const start = String(windowLabel || '').split(' - ')[0]?.trim() || '';
-  const match = start.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return null;
-
-  let hour = Number(match[1]);
-  const minute = Number(match[2]);
-  const meridian = match[3].toUpperCase();
-  if (meridian === 'PM' && hour < 12) hour += 12;
-  if (meridian === 'AM' && hour === 12) hour = 0;
-  return (hour * 60) + minute;
 }
 
 function hasAppointmentStarted(dateValue, windowLabel) {

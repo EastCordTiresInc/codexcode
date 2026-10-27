@@ -29,8 +29,29 @@
     return readCart().filter((item) => item && (item.serviceId || item.service_id || item.serviceName || item.type === 'appointment'));
   }
 
-  async function startPay(event) {
-    event.preventDefault();
+  const existingAccountDialog = document.querySelector('[data-existing-account-dialog]');
+
+  function openExistingAccountDialog() {
+    if (!existingAccountDialog) return;
+    setMessage('');
+    existingAccountDialog.hidden = false;
+    existingAccountDialog.removeAttribute('inert');
+    existingAccountDialog.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('agreement-modal-open');
+    existingAccountDialog.querySelector('[data-existing-account-signin]')?.focus();
+  }
+
+  function closeExistingAccountDialog() {
+    if (!existingAccountDialog) return;
+    existingAccountDialog.hidden = true;
+    existingAccountDialog.setAttribute('inert', '');
+    existingAccountDialog.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('agreement-modal-open');
+  }
+
+  async function startPay(event, options = {}) {
+    event?.preventDefault?.();
+    const idleLabel = button?.textContent || button?.dataset.idleLabel || 'Pay deposit';
     setMessage('Preparing secure checkout...');
     if (button) {
       button.disabled = true;
@@ -82,9 +103,22 @@
           'Content-Type': 'application/json',
           Authorization: token ? `Bearer ${token}` : '',
         },
-        body: JSON.stringify({ customer, items, payInFull }),
+        body: JSON.stringify({
+          customer,
+          items,
+          payInFull,
+          continueAsGuest: Boolean(options.continueAsGuest),
+        }),
       });
       const data = await response.json().catch(() => ({}));
+      if (response.status === 409 && data.code === 'account_exists' && !options.continueAsGuest) {
+        openExistingAccountDialog();
+        if (button) {
+          button.disabled = false;
+          button.textContent = idleLabel;
+        }
+        return;
+      }
       if (!response.ok || !data.url) {
         throw new Error(data.message || 'Stripe checkout could not be started.');
       }
@@ -94,7 +128,7 @@
       setMessage(error.message || 'Stripe checkout could not be started.');
       if (button) {
         button.disabled = false;
-        button.textContent = button.dataset.idleLabel || 'Pay deposit';
+        button.textContent = idleLabel;
       }
     }
   }
@@ -140,6 +174,33 @@
     syncStripeTestNote();
   }
 
+  function highlightGuestCheckout() {
+    const guestFields = form?.querySelector('[data-guest-checkout-fields]');
+    if (!guestFields) return;
+    guestFields.hidden = false;
+    guestFields.classList.add('is-highlighted');
+    guestFields.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    guestFields.querySelector('[data-guest-name]')?.focus();
+  }
+
+  form?.querySelector('[data-guest-checkout-fields]')?.addEventListener('input', (event) => {
+    const guestFields = event.currentTarget;
+    const guest = readGuestCustomer();
+    if (guest.name && guest.email && guest.phone) guestFields.classList.remove('is-highlighted');
+  });
+  document.querySelector('[data-guest-checkout-button]')?.addEventListener('click', highlightGuestCheckout);
+  existingAccountDialog?.addEventListener('click', (event) => {
+    if (event.target.closest('[data-existing-account-close]')) closeExistingAccountDialog();
+  });
+  document.querySelector('[data-existing-account-guest]')?.addEventListener('click', () => {
+    closeExistingAccountDialog();
+    startPay(null, { continueAsGuest: true });
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && existingAccountDialog && !existingAccountDialog.hidden) {
+      closeExistingAccountDialog();
+    }
+  });
   form?.addEventListener('submit', startPay);
   window.addEventListener('eastcord:auth-changed', (event) => {
     applyCheckoutAuth(event.detail?.profile || null);

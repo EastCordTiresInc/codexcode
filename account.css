@@ -1135,6 +1135,14 @@
   gap: 12px;
 }
 
+.guest-checkout-fields.is-highlighted {
+  padding: 14px;
+  border: 2px solid #df1f2d;
+  border-radius: 16px;
+  background: #fff7f7;
+  box-shadow: 0 0 0 4px rgba(223, 31, 45, 0.14);
+}
+
 .guest-checkout-fields p {
   margin: 0;
   color: #4f5663;
@@ -1239,8 +1247,57 @@ button[disabled].button-primary,
   box-shadow: none;
 }
 
+.guest-account-modal[hidden],
 .agreement-modal[hidden] {
   display: none !important;
+}
+
+.guest-account-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: clamp(14px, 3vw, 28px);
+}
+
+.guest-account-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 19, 23, 0.68);
+}
+
+.guest-account-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(460px, 100%);
+  padding: 28px 24px 22px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 34px 90px rgba(15, 23, 42, 0.28);
+}
+
+.guest-account-modal-panel h2 {
+  margin: 0 36px 10px 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.guest-account-modal-panel p {
+  margin: 0;
+  color: #4f5663;
+  line-height: 1.5;
+}
+
+.guest-account-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.guest-account-modal-actions .button {
+  min-height: 46px;
 }
 
 .agreement-modal {

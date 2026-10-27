@@ -14,7 +14,20 @@ function guestCustomerError(customer) {
   return '';
 }
 
-async function ensureCheckoutCustomer(supabaseAdmin, customer) {
+async function findAuthUserByEmail(supabaseAdmin, email) {
+  const target = clean(email).toLowerCase();
+  for (let page = 1; page <= 20; page += 1) {
+    const listed = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+    if (listed.error) throw listed.error;
+    const users = listed.data?.users || [];
+    const match = users.find((user) => String(user.email || '').toLowerCase() === target);
+    if (match) return match;
+    if (users.length < 200) break;
+  }
+  return null;
+}
+
+async function ensureCheckoutCustomer(supabaseAdmin, customer, options = {}) {
   const message = guestCustomerError(customer);
   if (message) return { error: message, statusCode: 400 };
 
@@ -30,8 +43,17 @@ async function ensureCheckoutCustomer(supabaseAdmin, customer) {
   });
   const already = /already been registered|already registered|already exists/i.test(created.error?.message || '');
   if (already) {
+    if (options.allowExisting) {
+      try {
+        const existing = await findAuthUserByEmail(supabaseAdmin, email);
+        if (existing?.id) return { id: existing.id, email, name, phone, existing: true };
+      } catch (error) {
+        console.warn('[EastCord guest checkout] Existing account lookup failed.', error.message || error);
+      }
+    }
     return {
       error: 'An account already uses this email. Log in to pay with that account.',
+      code: 'account_exists',
       statusCode: 409,
     };
   }
@@ -58,4 +80,17 @@ async function ensureCheckoutCustomer(supabaseAdmin, customer) {
   return { id: created.data.user.id, email, name, phone };
 }
 
-module.exports = { ensureCheckoutCustomer, guestCustomerError };
+async function guestBookingSignIn(supabaseAdmin, email) {
+  const generated = await supabaseAdmin.auth.admin.generateLink({
+    type: 'magiclink',
+    email: clean(email).toLowerCase(),
+  });
+  const tokenHash = generated.data?.properties?.hashed_token || '';
+  if (generated.error || !tokenHash) {
+    console.warn('[EastCord guest checkout] Booking sign-in link failed.', generated.error?.message || 'missing token');
+    return null;
+  }
+  return { tokenHash, type: 'magiclink' };
+}
+
+module.exports = { ensureCheckoutCustomer, guestCustomerError, guestBookingSignIn };

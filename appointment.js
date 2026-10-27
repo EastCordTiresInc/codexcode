@@ -1322,7 +1322,8 @@
   }
 
   function applyInstallLocation(location, { clearMobile = false } = {}) {
-    const next = location === 'mobile' || location === 'shop' ? location : '';
+    const requested = location === 'mobile' || location === 'shop' ? location : '';
+    const next = requested === 'mobile' ? '' : requested;
     if (els.installLocationField) els.installLocationField.value = next;
     els.installLocationOptions?.querySelectorAll('[data-install-location-option]').forEach((button) => {
       const selected = button.dataset.installLocationOption === next;

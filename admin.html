@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
-    <title>Admin | EastCord Tires</title>
+    <title>Upcoming appointments | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=34" />
+    <link rel="stylesheet" href="admin.css?v=35" />
   </head>
   <body class="admin-app">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -21,7 +21,7 @@
         </div>
 
         <nav class="admin-tabs" aria-label="Admin sections">
-          <a href="/admin" aria-current="page">Appointments</a>
+          <a href="/admin" aria-current="page">Upcoming</a>
           <a href="/admin/calendar">Calendar</a>
           <a href="/admin/orders">Orders</a>
           <a href="/admin/inventory">Inventory</a>
@@ -58,15 +58,11 @@
         <section data-admin-dashboard hidden>
           <div class="admin-header">
             <div>
-              <p class="admin-kicker">Daily schedule</p>
-              <h1>Appointments</h1>
-              <p>Update status, reschedule, or add staff notes for the selected day.</p>
+              <p class="admin-kicker" data-admin-kicker>Schedule</p>
+              <h1 data-admin-title>Upcoming appointments</h1>
+              <p data-admin-summary>The next 10 appointments, soonest first.</p>
             </div>
             <form class="admin-toolbar" data-admin-date-form>
-              <label>
-                Date
-                <input type="date" name="date" data-admin-date required />
-              </label>
               <label>
                 Status
                 <select data-admin-status-filter>
@@ -77,7 +73,7 @@
                   <option value="noshow">No-show</option>
                 </select>
               </label>
-              <button class="button button-secondary" type="submit">Show day</button>
+              <a class="button button-secondary" href="/admin" data-admin-upcoming-link hidden>Upcoming</a>
             </form>
           </div>
 
@@ -94,6 +90,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
     <script src="account.js?v=59"></script>
-    <script src="admin.js?v=17"></script>
+    <script src="admin.js?v=18"></script>
   </body>
 </html>

@@ -151,16 +151,16 @@
       if (description) description.setAttribute('content', post.description || post.title);
 
       article.innerHTML = `
-        <header class="blog-post-header">
-          <div class="shell">
-            ${meta(post)}
-            <h1>${escapeHtml(post.title)}</h1>
-            <p class="blog-post-description">${escapeHtml(post.description)}</p>
-          </div>
-        </header>
         <div class="blog-post-featured-image">
           <div class="shell">${postImage(post)}</div>
         </div>
+        <header class="blog-post-header">
+          <div class="shell">
+            <h1>${escapeHtml(post.title)}</h1>
+            <p class="blog-post-description">${escapeHtml(post.description)}</p>
+            ${meta(post)}
+          </div>
+        </header>
         <section class="blog-post-content-section">
           <div class="shell">
             ${blog.videoEmbedHtml ? blog.videoEmbedHtml(post.videoUrl) : ''}

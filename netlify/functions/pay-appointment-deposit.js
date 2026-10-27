@@ -251,8 +251,15 @@ exports.handler = async (event) => {
   }
   if (!verifiedUser) {
     if (!supabaseAdmin) return json(500, { message: 'Checkout could not be saved.' });
-    const guest = await ensureCheckoutCustomer(supabaseAdmin, customer);
-    if (guest.error) return json(guest.statusCode || 400, { message: guest.error });
+    const guest = await ensureCheckoutCustomer(supabaseAdmin, customer, {
+      allowExisting: payload.continueAsGuest === true,
+    });
+    if (guest.error) {
+      return json(guest.statusCode || 400, {
+        message: guest.error,
+        ...(guest.code ? { code: guest.code } : {}),
+      });
+    }
     verifiedUser = { id: guest.id };
     customer.customerId = guest.id;
   } else if (text(customer.customerId) && text(customer.customerId) !== verifiedUser.id) {

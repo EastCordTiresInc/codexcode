@@ -31,7 +31,10 @@
     gateMessage: document.querySelector('[data-admin-gate-message]'),
     dashboard: document.querySelector('[data-admin-dashboard]'),
     dateForm: document.querySelector('[data-admin-date-form]'),
-    dateInput: document.querySelector('[data-admin-date]'),
+    kicker: document.querySelector('[data-admin-kicker]'),
+    title: document.querySelector('[data-admin-title]'),
+    summary: document.querySelector('[data-admin-summary]'),
+    upcomingLink: document.querySelector('[data-admin-upcoming-link]'),
     statusFilter: document.querySelector('[data-admin-status-filter]'),
     status: document.querySelector('[data-admin-status]'),
     list: document.querySelector('[data-admin-list]'),
@@ -43,6 +46,9 @@
   let timeWindows = DEFAULT_WINDOWS.slice();
   let dayAppointments = [];
   let lastStatusStamp = '';
+  let viewMode = 'upcoming';
+  let viewDate = '';
+  let hasMoreUpcoming = false;
 
   function money(value) {
     const amount = Number(value);
@@ -66,6 +72,42 @@
       month: '2-digit',
       day: '2-digit',
     }).format(new Date());
+  }
+
+  function isDateValue(value) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+  }
+
+  function formatAppointmentDate(value) {
+    const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return '';
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return new Intl.DateTimeFormat('en-CA', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
+  }
+
+  function formatScheduleLabel(appointment) {
+    const date = formatAppointmentDate(appointment?.preferred_date);
+    const time = appointment?.preferred_time_window || 'Time TBD';
+    return date ? `${date} · ${time}` : time;
+  }
+
+  function setPageHeading() {
+    const day = viewMode === 'day';
+    if (els.kicker) els.kicker.textContent = day ? 'Selected day' : 'Schedule';
+    if (els.title) els.title.textContent = day ? (formatAppointmentDate(viewDate) || 'Appointments') : 'Upcoming appointments';
+    if (els.summary) {
+      els.summary.textContent = day
+        ? 'Appointments on this day. Status, reschedule, and staff notes are saved here.'
+        : 'The next 10 appointments, soonest first.';
+    }
+    if (els.upcomingLink) els.upcomingLink.hidden = !day;
+    document.title = day
+      ? `${formatAppointmentDate(viewDate) || 'Appointments'} | EastCord Admin`
+      : 'Upcoming appointments | EastCord Admin';
   }
 
   function isLocalDemoHost() {
@@ -349,14 +391,17 @@
     });
     const localOnly = visible.length > 0 && visible.every((item) => item.demo);
 
+    const upcomingLabel = total === 1
+      ? '1 upcoming appointment'
+      : (total === 10 && hasMoreUpcoming ? 'Next 10 appointments' : `${total} upcoming appointments`);
     setStatus(
       localOnly
         ? 'Demo completed job for today. Nothing is saved.'
         : total === 0
-          ? `No appointments · Live · updated ${stamp}`
+          ? `${viewMode === 'upcoming' ? 'No upcoming appointments' : 'No appointments'} · Live · updated ${stamp}`
           : visible.length === total
-            ? `${total === 1 ? '1 appointment' : `${total} appointments`} · Live · updated ${stamp}`
-            : `Showing ${visible.length} of ${total}${filterLabel} · Live · updated ${stamp}`,
+            ? `${viewMode === 'upcoming' ? upcomingLabel : (total === 1 ? '1 appointment' : `${total} appointments`)} · Live · updated ${stamp}`
+            : `Showing ${visible.length} of ${viewMode === 'upcoming' ? `the next ${total}` : total}${filterLabel} · Live · updated ${stamp}`,
     );
     renderAppointments(visible);
   }
@@ -389,7 +434,7 @@
     if (!appointments.length) {
       const filter = currentStatusFilter();
       els.list.innerHTML = filter === 'all'
-        ? '<p class="admin-empty">No appointments for this date.</p>'
+        ? `<p class="admin-empty">${viewMode === 'upcoming' ? 'No upcoming appointments.' : 'No appointments for this date.'}</p>`
         : '<p class="admin-empty">No appointments match this status filter.</p>';
       return;
     }
@@ -411,7 +456,7 @@
         <article class="admin-appointment" id="appt-${escapeHtml(id)}" data-appointment-id="${escapeHtml(id)}">
           <div class="admin-appointment-top">
             <div>
-              <p class="admin-appointment-time">${escapeHtml(appointment.preferred_time_window || 'Time TBD')}</p>
+              <p class="admin-appointment-time">${escapeHtml(formatScheduleLabel(appointment))}</p>
               <p class="admin-appointment-service">${escapeHtml(appointment.service_name || 'Tire service')}</p>
             </div>
             <div class="admin-badges">
@@ -518,8 +563,8 @@
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function currentDate() {
-    return els.dateInput?.value || torontoToday();
+  function loadCurrent(email, options) {
+    return loadAppointments(viewMode === 'day' ? viewDate : '', email, options);
   }
 
   function listIsBeingEdited() {
@@ -538,7 +583,7 @@
     stopAutoRefresh();
     refreshTimer = setInterval(() => {
       if (document.hidden || refreshInFlight || listIsBeingEdited()) return;
-      loadAppointments(currentDate(), staffEmail, { quiet: true });
+      loadCurrent(staffEmail, { quiet: true });
     }, REFRESH_MS);
   }
 
@@ -589,6 +634,12 @@
     feedback.dataset.tone = tone;
   }
 
+  async function loadJobPhotosForDates(dates, token) {
+    const unique = [...new Set((Array.isArray(dates) ? dates : []).filter(isDateValue))];
+    const maps = await Promise.all(unique.map((date) => loadJobPhotos(date, token)));
+    return Object.assign({}, ...maps);
+  }
+
   async function loadJobPhotos(date, token) {
     try {
       const response = await fetch(`/.netlify/functions/admin-job-photos?date=${encodeURIComponent(date)}`, {
@@ -608,6 +659,7 @@
 
   async function loadAppointments(date, email, options = {}) {
     const quiet = Boolean(options.quiet);
+    const upcoming = !isDateValue(date);
     if (refreshInFlight) return;
     if (quiet && listIsBeingEdited()) return;
     refreshInFlight = true;
@@ -617,15 +669,20 @@
       if (!token) {
         stopAutoRefresh();
         if (isLocalDemoHost()) {
-          showLocalDemo(date);
+          showLocalDemo(upcoming ? '' : date);
           return;
         }
         showGate('Log in with the EastCord staff account to open the admin dashboard.');
         return;
       }
 
-      if (!quiet) setStatus(`Loading appointments for ${date}...`);
-      const response = await fetch(`/.netlify/functions/admin-appointments?date=${encodeURIComponent(date)}`, {
+      if (!quiet) {
+        setStatus(upcoming ? 'Loading upcoming appointments...' : `Loading appointments for ${date}...`);
+      }
+      const query = upcoming
+        ? '/.netlify/functions/admin-appointments?upcoming=1'
+        : `/.netlify/functions/admin-appointments?date=${encodeURIComponent(date)}`;
+      const response = await fetch(query, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -653,15 +710,22 @@
       }
 
       showDashboard(email);
+      viewMode = upcoming ? 'upcoming' : 'day';
+      viewDate = upcoming ? '' : date;
+      hasMoreUpcoming = Boolean(payload.hasMore);
+      setPageHeading();
       if (Array.isArray(payload.timeWindows) && payload.timeWindows.length) {
         timeWindows = payload.timeWindows;
       }
       dayAppointments = Array.isArray(payload.appointments) ? payload.appointments : [];
-      const photoMap = await loadJobPhotos(date, token);
+      const photoDates = upcoming
+        ? dayAppointments.map((appointment) => appointment.preferred_date)
+        : [date];
+      const photoMap = await loadJobPhotosForDates(photoDates, token);
       dayAppointments.forEach((appointment) => {
         appointment.job_photos = photoMap[appointment.id] || {};
       });
-      dayAppointments = withLocalDemo(dayAppointments, date);
+      if (!upcoming) dayAppointments = withLocalDemo(dayAppointments, date);
       lastStatusStamp = new Date().toLocaleTimeString('en-CA', {
         timeZone: 'America/Toronto',
         hour: 'numeric',
@@ -678,7 +742,11 @@
   function showLocalDemo(date) {
     stopAutoRefresh();
     showDashboard('Local demo');
-    dayAppointments = withLocalDemo([], date);
+    viewMode = isDateValue(date) ? 'day' : 'upcoming';
+    viewDate = viewMode === 'day' ? date : '';
+    hasMoreUpcoming = false;
+    setPageHeading();
+    dayAppointments = viewMode === 'day' ? withLocalDemo([], date) : [];
     lastStatusStamp = new Date().toLocaleTimeString('en-CA', {
       timeZone: 'America/Toronto',
       hour: 'numeric',
@@ -704,7 +772,7 @@
       if (action === 'status') {
         await patchAppointment({ id, booking_status: button.dataset.status });
         setStatus('Appointment status updated.');
-        await loadAppointments(currentDate(), staffEmail);
+        await loadCurrent(staffEmail);
         return;
       }
 
@@ -721,13 +789,17 @@
           preferred_time_window: time,
         });
         const nextDate = result?.appointment?.preferred_date || date;
-        if (els.dateInput) els.dateInput.value = nextDate;
         const url = new URL(window.location.href);
-        url.searchParams.set('date', nextDate);
+        if (viewMode === 'day') {
+          viewDate = nextDate;
+          url.searchParams.set('date', nextDate);
+        } else {
+          url.searchParams.delete('date');
+        }
         url.hash = `appt-${id}`;
         window.history.replaceState({}, '', url);
         setStatus(`Appointment moved to ${nextDate}.`);
-        await loadAppointments(nextDate, staffEmail);
+        await loadCurrent(staffEmail);
         return;
       }
 
@@ -739,7 +811,7 @@
         }
         await patchAppointment({ id, staff_note: note });
         setStatus('Staff note saved.');
-        await loadAppointments(currentDate(), staffEmail);
+        await loadCurrent(staffEmail);
       }
     } catch (error) {
       setCardFeedback(card, error.message || 'Update failed.', 'error');
@@ -766,9 +838,8 @@
     const isStaff = window.EastCordAccount.isStaffAdminEmail?.(email) || email === ADMIN_EMAIL;
     if (!email) {
       if (isLocalDemoHost()) {
-        const initialDate = new URLSearchParams(window.location.search).get('date') || torontoToday();
-        if (els.dateInput) els.dateInput.value = initialDate;
-        showLocalDemo(initialDate);
+        const initialDate = new URLSearchParams(window.location.search).get('date') || '';
+        showLocalDemo(isDateValue(initialDate) ? initialDate : '');
         return;
       }
       showGate('Log in with info@eastcordtires.ca to open the admin dashboard.');
@@ -781,19 +852,13 @@
     }
 
     staffEmail = email;
-    const initialDate = new URLSearchParams(window.location.search).get('date') || torontoToday();
-    if (els.dateInput) els.dateInput.value = initialDate;
+    const initialDate = new URLSearchParams(window.location.search).get('date') || '';
     showDashboard(email);
-    await loadAppointments(initialDate, email);
+    await loadAppointments(isDateValue(initialDate) ? initialDate : '', email);
   }
 
-  els.dateForm?.addEventListener('submit', async (event) => {
+  els.dateForm?.addEventListener('submit', (event) => {
     event.preventDefault();
-    const date = els.dateInput?.value || torontoToday();
-    const url = new URL(window.location.href);
-    url.searchParams.set('date', date);
-    window.history.replaceState({}, '', url);
-    await loadAppointments(date, staffEmail);
   });
 
   els.statusFilter?.addEventListener('change', () => {
@@ -806,12 +871,12 @@
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden || els.dashboard?.hidden || listIsBeingEdited()) return;
-    loadAppointments(currentDate(), staffEmail, { quiet: true });
+    loadCurrent(staffEmail, { quiet: true });
   });
 
   window.addEventListener('focus', () => {
     if (document.hidden || els.dashboard?.hidden || listIsBeingEdited()) return;
-    loadAppointments(currentDate(), staffEmail, { quiet: true });
+    loadCurrent(staffEmail, { quiet: true });
   });
 
   window.addEventListener('hashchange', focusAppointmentFromHash);
