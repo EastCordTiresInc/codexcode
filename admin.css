@@ -275,6 +275,30 @@
   font-weight: 650;
 }
 
+.admin-appointment-summary {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-appointment.is-collapsible .admin-appointment-summary {
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.admin-appointment.is-collapsible .admin-appointment-summary:focus-visible {
+  outline: 2px solid rgba(186, 21, 27, 0.35);
+  outline-offset: 4px;
+}
+
+.admin-appointment.is-open .admin-appointment-details {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-appointment-details[hidden] {
+  display: none;
+}
+
 .admin-badges {
   display: flex;
   flex-wrap: wrap;

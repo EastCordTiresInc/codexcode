@@ -47,6 +47,7 @@
   let dayAppointments = [];
   let lastStatusStamp = '';
   let viewMode = 'upcoming';
+  const openAppointmentIds = new Set();
   let viewDate = '';
   let hasMoreUpcoming = false;
 
@@ -452,18 +453,29 @@
       const subtotal = appointment.service_subtotal ?? appointment.starting_price;
       const hst = appointment.hst_amount;
       const total = appointment.total_with_hst;
+      const collapsible = viewMode === 'upcoming';
+      const open = !collapsible || openAppointmentIds.has(id);
       return `
-        <article class="admin-appointment" id="appt-${escapeHtml(id)}" data-appointment-id="${escapeHtml(id)}">
-          <div class="admin-appointment-top">
-            <div>
-              <p class="admin-appointment-time">${escapeHtml(formatScheduleLabel(appointment))}</p>
-              <p class="admin-appointment-service">${escapeHtml(appointment.service_name || 'Tire service')}</p>
+        <article class="admin-appointment${collapsible ? ' is-collapsible' : ''}${open ? ' is-open' : ''}" id="appt-${escapeHtml(id)}" data-appointment-id="${escapeHtml(id)}" aria-expanded="${open ? 'true' : 'false'}">
+          <div class="admin-appointment-summary" data-appointment-summary ${collapsible ? 'tabindex="0"' : ''}>
+            <div class="admin-appointment-top">
+              <div>
+                <p class="admin-appointment-time">${escapeHtml(formatScheduleLabel(appointment))}</p>
+                <p class="admin-appointment-service">${escapeHtml(appointment.service_name || 'Tire service')}</p>
+              </div>
+              <div class="admin-badges">
+                <span class="admin-badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span>
+                ${appointment.demo ? '<span class="admin-badge is-sample">Demo</span>' : paymentBadge(appointment)}
+              </div>
             </div>
-            <div class="admin-badges">
-              <span class="admin-badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span>
-              ${appointment.demo ? '<span class="admin-badge is-sample">Demo</span>' : paymentBadge(appointment)}
+            <div class="admin-grid">
+              <div><span>Customer</span><strong>${escapeHtml(appointment.customer_name || 'Not provided')}</strong></div>
+              <div><span>Phone</span>${renderPhone(appointment.customer_phone)}</div>
+              <div><span>Email</span><strong>${escapeHtml(appointment.customer_email || 'Not provided')}</strong></div>
+              <div><span>Plate</span><strong>${escapeHtml(appointment.vehicle_plate_number || 'Not provided')}</strong></div>
             </div>
           </div>
+          <div class="admin-appointment-details"${open ? '' : ' hidden'}>
           ${appointment.demo ? '' : `<div class="admin-status-row">
             <p class="admin-manage-label">Status</p>
             <div class="admin-manage-actions admin-status-actions">
@@ -471,12 +483,8 @@
             </div>
           </div>`}
           <div class="admin-grid">
-            <div><span>Customer</span><strong>${escapeHtml(appointment.customer_name || 'Not provided')}</strong></div>
-            <div><span>Phone</span>${renderPhone(appointment.customer_phone)}</div>
-            <div><span>Email</span><strong>${escapeHtml(appointment.customer_email || 'Not provided')}</strong></div>
             ${vehicle === 'Not provided' ? '' : `<div><span>Vehicle</span><strong>${escapeHtml(vehicle)}</strong></div>`}
             ${colour ? `<div><span>Colour</span><strong>${escapeHtml(colour)}</strong></div>` : ''}
-            <div><span>Plate</span><strong>${escapeHtml(appointment.vehicle_plate_number || 'Not provided')}</strong></div>
             ${appointment.tire_size ? `<div><span>Tire size</span><strong>${escapeHtml(appointment.tire_size)}</strong></div>` : ''}
             <div><span># of tires</span><strong>${escapeHtml(tireCount)}</strong></div>
             <div><span>Linked tires</span><strong>${escapeHtml(linked)}</strong></div>
@@ -517,6 +525,7 @@
             </div>
             <p class="admin-manage-feedback" data-manage-feedback hidden></p>
           </div>`}
+          </div>
         </article>
       `;
     }).join('');
@@ -554,11 +563,33 @@
     `;
   }
 
+  function setAppointmentOpen(card, open) {
+    if (!card) return;
+    const id = card.dataset.appointmentId || '';
+    card.classList.toggle('is-open', open);
+    card.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const details = card.querySelector('.admin-appointment-details');
+    if (details) details.hidden = !open;
+    if (!id) return;
+    if (open) openAppointmentIds.add(id);
+    else openAppointmentIds.delete(id);
+  }
+
+  function toggleAppointmentFromEvent(event) {
+    if (event.target.closest('a, button, input, select, textarea, label')) return;
+    const summary = event.target.closest('[data-appointment-summary]');
+    const card = summary?.closest('.admin-appointment.is-collapsible');
+    if (!card || !els.list?.contains(card)) return;
+    if (event.type === 'keydown') event.preventDefault();
+    setAppointmentOpen(card, !card.classList.contains('is-open'));
+  }
+
   function focusAppointmentFromHash() {
     const match = String(window.location.hash || '').match(/^#appt-(.+)$/);
     if (!match) return;
     const target = document.getElementById(`appt-${match[1]}`);
     if (!target) return;
+    if (target.classList.contains('is-collapsible')) setAppointmentOpen(target, true);
     target.classList.add('is-focused');
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -867,6 +898,12 @@
 
   els.list?.addEventListener('click', (event) => {
     handleManageClick(event);
+    toggleAppointmentFromEvent(event);
+  });
+
+  els.list?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    toggleAppointmentFromEvent(event);
   });
 
   document.addEventListener('visibilitychange', () => {
