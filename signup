@@ -35,7 +35,7 @@
       <div class="shell">
         <section class="account-card" aria-labelledby="signup-title">
           <h1 id="signup-title">Create Your Account</h1>
-          <p>Create an EastCord Tires customer account before checkout. Passwords are handled by the configured auth provider and are not stored manually on this website.</p>
+          <p>Create an EastCord Tires customer account before checkout. Passwords are handled by the configured authorization provider and are not stored manually on this website.</p>
           <form class="account-form" data-signup-form>
             <div class="account-form-grid">
               <label class="form-field">

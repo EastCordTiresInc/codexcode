@@ -245,6 +245,14 @@
   gap: 12px;
 }
 
+.admin-completed-heading {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5c6570;
+}
+
 .admin-appointment {
   display: grid;
   gap: 14px;
@@ -297,6 +305,63 @@
 
 .admin-appointment-details[hidden] {
   display: none;
+}
+
+.admin-appointment-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.admin-appointment-modal[hidden] {
+  display: none;
+}
+
+.admin-appointment-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(17, 24, 39, 0.48);
+  cursor: pointer;
+}
+
+.admin-appointment-modal-panel {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  padding: 22px 22px 18px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+
+.admin-appointment-modal-close {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  float: right;
+  margin: 0 0 8px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #111827;
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.admin-appointment-modal-panel .admin-appointment-details {
+  display: grid;
+  gap: 14px;
+}
+
+body.admin-modal-open {
+  overflow: hidden;
 }
 
 .admin-badges {

@@ -1172,6 +1172,10 @@
     logFlow('checkout.summaryOrderClick');
     const gate = memberGate();
     if (!gate.ok) {
+      if (isDemoOrderEnabled()) {
+        openInstallationFromWidget();
+        return;
+      }
       setFulfillmentMessage(gate.message, true);
       syncFulfillmentUi();
       scrollToFulfillment();
@@ -2444,7 +2448,8 @@
     logFlow(`checkout.complete.${source}`, { status, data });
     captureQuoteFromWidgetEvent(event);
     const customer = customerFromWidgetPayload(event);
-    if (!currentProfile) {
+    const localDemo = source === 'demo' && isLocalHost();
+    if (!currentProfile && !localDemo) {
       const guest = readGuestCustomer(document.querySelector('[data-eastcord-checkout-form]') || document);
       if (!guest.ok) {
         logFlow('supabase.skipped', guest.message);
@@ -2457,6 +2462,10 @@
       customer.name = guest.customer.name;
       customer.email = guest.customer.email;
       customer.phone = guest.customer.phone;
+    } else if (!currentProfile) {
+      if (!customer.name) customer.name = 'Demo Customer';
+      if (!customer.email) customer.email = `burnertestin+mock-${Date.now()}@gmail.com`;
+      if (!customer.phone) customer.phone = '3658225553';
     } else {
       if (!customer.name) customer.name = currentProfile.name || 'EastCord customer';
       if (!customer.email) customer.email = currentProfile.email || '';
@@ -2499,7 +2508,7 @@
     ).trim();
     return saveWidgetOrderToAccount({
       customer,
-      fulfillment: selectedFulfillment(),
+      fulfillment: source === 'demo' && isLocalHost() ? 'Installation' : selectedFulfillment(),
       items,
       detailsPending,
       notes: [
@@ -2559,7 +2568,7 @@
       customer: {
         first_name: names.first_name,
         last_name: names.last_name,
-        email: currentProfile?.email || 'demo@eastcordtires.ca',
+        email: currentProfile?.email || `burnertestin+mock-${Date.now()}@gmail.com`,
         phone_number: phoneValue() || '3658225553',
       },
     };
@@ -2585,17 +2594,32 @@
     });
   }
 
+  function openInstallationFromWidget(event) {
+    if (event) {
+      rejectWidgetEvent(event);
+      captureQuoteFromWidgetEvent(event);
+    }
+    simulateSubmittedOrder();
+  }
+
+  function openLocalInstallationBooking() {
+    if (!isLocalHost()) return;
+    if (!hasCapturedTire()) {
+      const restored = quoteFromWidget() || readStoredQuote();
+      if (restored) applyCapturedQuote(restored, { replace: false, scroll: false });
+    }
+    if (!hasCapturedTire()) {
+      setFulfillmentMessage('Select a tire in the search first. Installation booking opens with those tires linked to your account.', true);
+      syncFulfillmentUi();
+      return;
+    }
+    simulateSubmittedOrder();
+  }
+
   async function simulateSubmittedOrder(overrides = {}) {
+    if (!isLocalHost()) return { saved: false };
     logFlow('demo.simulateSubmittedOrder.start');
     const button = document.querySelector('[data-new-tire-demo-order]');
-    const gate = memberGate();
-    if (!gate.ok) {
-      logFlow('demo.simulateSubmittedOrder.blocked', gate.message);
-      setFulfillmentMessage(gate.message, true);
-      syncFulfillmentUi();
-      scrollToFulfillment();
-      return { saved: false };
-    }
     if (!hasCapturedTire()) {
       setFulfillmentMessage('Select a tire in the search first, then use Mock order.', true);
       syncFulfillmentUi();
@@ -2637,7 +2661,7 @@
     return Boolean(currentProfile);
   }
 
-  async function saveWidgetOrderToAccount(payload) {
+  async function saveWidgetOrderToAccount(payload, options = {}) {
     const key = orderNotifyKey(payload);
     logFlow('supabase.submit.start', payload);
     if (key && key === lastNotifiedOrderKey) {
@@ -2670,6 +2694,20 @@
         guestSignIn: Boolean(data.guestSignIn?.tokenHash),
       });
       if (!response.ok) {
+        if (response.status === 401 && isLocalHost() && payload.recordedLocally && !options.retriedAuth) {
+          const client = window.EastCordAccount?.getSupabaseClient?.();
+          await client?.auth?.signOut?.().catch(() => {});
+          currentProfile = null;
+          return saveWidgetOrderToAccount({
+            ...payload,
+            customer: {
+              name: 'Demo Customer',
+              email: `burnertestin+mock-${Date.now()}@gmail.com`,
+              phone: '3658225553',
+            },
+            orderNumber: `demo-${Date.now()}`,
+          }, { retriedAuth: true });
+        }
         setFulfillmentMessage(
           data.message
             || (payload.recordedLocally
@@ -2685,13 +2723,13 @@
       linkCartAppointmentsToOrder(data.orderId, data.appointmentIds || []);
       const wantsInstall = payload.fulfillment === 'Installation' && data.orderId;
       if (wantsInstall && !currentProfile && data.guestSignIn?.tokenHash) {
-        const signedIn = await signInGuestForBooking(data.guestSignIn);
-        if (!signedIn) {
-          setFulfillmentMessage('Order placed. We will email a link to book installation.', true);
-          return { saved: true, orderId: data.orderId || '' };
-        }
+        await signInGuestForBooking(data.guestSignIn);
       }
-      const goBook = wantsInstall && Boolean(currentProfile);
+      const goBook = Boolean(data.orderId) && wantsInstall && Boolean(currentProfile);
+      if (wantsInstall && data.orderId && !currentProfile) {
+        setFulfillmentMessage('Order placed. We will email a link to book installation.', true);
+        return { saved: true, orderId: data.orderId || '' };
+      }
       setFulfillmentMessage(
         goBook
           ? 'Tires saved to your account. Opening installation booking for these new tires…'
@@ -2830,6 +2868,10 @@
         syncFulfillmentUi();
         return;
       }
+      if (isLocalHost()) {
+        openLocalInstallationBooking();
+        return;
+      }
       const order = lastSavedOrder || readConfirmedOrder();
       if (order?.id) {
         logFlow('appointment.redirectAfterOrder', order.id);
@@ -2843,6 +2885,10 @@
       logFlow('checkout.orderClick', eventPayload(event));
       const gate = memberGate();
       if (!gate.ok) {
+        if (isDemoOrderEnabled()) {
+          openInstallationFromWidget(event);
+          return;
+        }
         rejectWidgetEvent(event);
         setFulfillmentMessage(gate.message, true);
         syncFulfillmentUi();
@@ -2859,6 +2905,10 @@
       logFlow('checkout.orderInitiated', eventPayload(event));
       const gate = memberGate();
       if (!gate.ok) {
+        if (isDemoOrderEnabled()) {
+          openInstallationFromWidget(event);
+          return;
+        }
         rejectWidgetEvent(event);
         setFulfillmentMessage(gate.message, true);
         syncFulfillmentUi();
@@ -3071,6 +3121,9 @@
       });
       syncFulfillmentUi();
       pushCustomerIntoWidget();
+      if (isLocalHost() && selectedFulfillment() === 'Installation') {
+        openLocalInstallationBooking();
+      }
     });
     document.querySelector('[data-new-tire-fulfillment-form]')?.addEventListener('submit', submitOrderRequest);
     document.querySelector('[data-new-tire-change]')?.addEventListener('click', () => {

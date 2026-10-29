@@ -181,21 +181,52 @@ async function listAppointments(supabaseAdmin, event) {
 
   if (upcoming) {
     const today = torontoDateString();
-    const { data, error } = await query
-      .gte('preferred_date', today)
-      .order('preferred_date', { ascending: true })
-      .limit(200);
+    const [upcomingResult, completedResult, confirmedResult] = await Promise.all([
+      query
+        .gte('preferred_date', today)
+        .order('preferred_date', { ascending: true })
+        .limit(200),
+      supabaseAdmin
+        .from('appointment_bookings')
+        .select(APPOINTMENT_SELECT)
+        .eq('booking_status', 'Completed')
+        .order('preferred_date', { ascending: false })
+        .limit(100),
+      supabaseAdmin
+        .from('appointment_bookings')
+        .select(APPOINTMENT_SELECT)
+        .eq('booking_status', 'Confirmed')
+        .lte('preferred_date', today)
+        .order('preferred_date', { ascending: false })
+        .limit(100),
+    ]);
 
-    if (error) {
-      console.error('[EastCord admin] appointment list failed.', error);
+    if (upcomingResult.error || completedResult.error || confirmedResult.error) {
+      console.error('[EastCord admin] appointment list failed.', upcomingResult.error || completedResult.error || confirmedResult.error);
       return json(500, { message: 'Appointments could not be loaded right now.' });
     }
 
     const now = torontoDateTimeParts();
-    const upcomingAppointments = (Array.isArray(data) ? data : [])
-      .filter((row) => !appointmentHasEnded(row, now))
+    const upcomingAppointments = (Array.isArray(upcomingResult.data) ? upcomingResult.data : [])
+      .filter((row) => String(row.booking_status || '') !== 'Completed' && !appointmentHasEnded(row, now))
       .sort(sortAppointments);
-    const appointments = upcomingAppointments.slice(0, UPCOMING_LIMIT);
+    const ahead = upcomingAppointments.slice(0, UPCOMING_LIMIT);
+    const aheadIds = new Set(ahead.map((row) => String(row.id)));
+    const seen = new Set();
+    const earlier = [
+      ...(Array.isArray(completedResult.data) ? completedResult.data : []),
+      ...(Array.isArray(confirmedResult.data) ? confirmedResult.data : [])
+        .filter((row) => appointmentHasEnded(row, now)),
+    ]
+      .filter((row) => {
+        const id = String(row.id);
+        if (aheadIds.has(id) || seen.has(id)) return false;
+        seen.add(id);
+        row.past = true;
+        return true;
+      })
+      .sort((a, b) => sortAppointments(b, a));
+    const appointments = [...ahead, ...earlier];
 
     return json(200, {
       upcoming: true,

@@ -38,6 +38,8 @@
     statusFilter: document.querySelector('[data-admin-status-filter]'),
     status: document.querySelector('[data-admin-status]'),
     list: document.querySelector('[data-admin-list]'),
+    modal: document.querySelector('[data-appointment-modal]'),
+    modalBody: document.querySelector('[data-appointment-modal-body]'),
   };
 
   let staffEmail = ADMIN_EMAIL;
@@ -48,6 +50,7 @@
   let lastStatusStamp = '';
   let viewMode = 'upcoming';
   const openAppointmentIds = new Set();
+  let openModalAppointmentId = '';
   let viewDate = '';
   let hasMoreUpcoming = false;
 
@@ -103,7 +106,7 @@
     if (els.summary) {
       els.summary.textContent = day
         ? 'Appointments on this day. Status, reschedule, and staff notes are saved here.'
-        : 'The next 10 appointments, soonest first.';
+        : 'The next 10 appointments, soonest first, then completed jobs and confirmed appointments whose time has passed.';
     }
     if (els.upcomingLink) els.upcomingLink.hidden = !day;
     document.title = day
@@ -392,9 +395,13 @@
     });
     const localOnly = visible.length > 0 && visible.every((item) => item.demo);
 
-    const upcomingLabel = total === 1
-      ? '1 upcoming appointment'
-      : (total === 10 && hasMoreUpcoming ? 'Next 10 appointments' : `${total} upcoming appointments`);
+    const pastTotal = dayAppointments.filter((item) => item.past).length;
+    const aheadTotal = total - pastTotal;
+    const upcomingLabel = pastTotal
+      ? `${aheadTotal} upcoming · ${pastTotal} earlier`
+      : (aheadTotal === 1
+        ? '1 upcoming appointment'
+        : (aheadTotal === 10 && hasMoreUpcoming ? 'Next 10 appointments' : `${aheadTotal} upcoming appointments`));
     setStatus(
       localOnly
         ? 'Demo completed job for today. Nothing is saved.'
@@ -440,97 +447,113 @@
       return;
     }
 
+    let completedHeadingShown = false;
     els.list.innerHTML = appointments.map((appointment) => {
       const id = String(appointment.id);
-      const notes = customerNotes(appointment);
-      const status = appointment.booking_status || 'Pending Confirmation';
-      const tireCount = appointment.number_of_tires == null || appointment.number_of_tires === ''
-        ? 'Not provided'
-        : String(appointment.number_of_tires);
-      const vehicle = vehicleLabel(appointment);
-      const colour = String(appointment.vehicle_colour || '').trim();
-      const linked = formatLinkedTires(appointment.linked_tires);
-      const subtotal = appointment.service_subtotal ?? appointment.starting_price;
-      const hst = appointment.hst_amount;
-      const total = appointment.total_with_hst;
       const collapsible = viewMode === 'upcoming';
       const open = !collapsible || openAppointmentIds.has(id);
+      const showCompletedHeading = viewMode === 'upcoming'
+        && appointment.past
+        && !completedHeadingShown;
+      if (showCompletedHeading) completedHeadingShown = true;
       return `
+        ${showCompletedHeading ? '<h2 class="admin-completed-heading">Earlier</h2>' : ''}
         <article class="admin-appointment${collapsible ? ' is-collapsible' : ''}${open ? ' is-open' : ''}" id="appt-${escapeHtml(id)}" data-appointment-id="${escapeHtml(id)}" aria-expanded="${open ? 'true' : 'false'}">
-          <div class="admin-appointment-summary" data-appointment-summary ${collapsible ? 'tabindex="0"' : ''}>
-            <div class="admin-appointment-top">
-              <div>
-                <p class="admin-appointment-time">${escapeHtml(formatScheduleLabel(appointment))}</p>
-                <p class="admin-appointment-service">${escapeHtml(appointment.service_name || 'Tire service')}</p>
-              </div>
-              <div class="admin-badges">
-                <span class="admin-badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span>
-                ${appointment.demo ? '<span class="admin-badge is-sample">Demo</span>' : paymentBadge(appointment)}
-              </div>
-            </div>
-            <div class="admin-grid">
-              <div><span>Customer</span><strong>${escapeHtml(appointment.customer_name || 'Not provided')}</strong></div>
-              <div><span>Phone</span>${renderPhone(appointment.customer_phone)}</div>
-              <div><span>Email</span><strong>${escapeHtml(appointment.customer_email || 'Not provided')}</strong></div>
-              <div><span>Plate</span><strong>${escapeHtml(appointment.vehicle_plate_number || 'Not provided')}</strong></div>
-            </div>
-          </div>
-          <div class="admin-appointment-details"${open ? '' : ' hidden'}>
-          ${appointment.demo ? '' : `<div class="admin-status-row">
-            <p class="admin-manage-label">Status</p>
-            <div class="admin-manage-actions admin-status-actions">
-              ${statusActionsMarkup(status, appointment)}
-            </div>
-          </div>`}
-          <div class="admin-grid">
-            ${vehicle === 'Not provided' ? '' : `<div><span>Vehicle</span><strong>${escapeHtml(vehicle)}</strong></div>`}
-            ${colour ? `<div><span>Colour</span><strong>${escapeHtml(colour)}</strong></div>` : ''}
-            ${appointment.tire_size ? `<div><span>Tire size</span><strong>${escapeHtml(appointment.tire_size)}</strong></div>` : ''}
-            <div><span># of tires</span><strong>${escapeHtml(tireCount)}</strong></div>
-            <div><span>Linked tires</span><strong>${escapeHtml(linked)}</strong></div>
-            <div><span>Location</span>${renderLocation(appointment)}</div>
-            <div><span>Subtotal</span><strong>${escapeHtml(money(subtotal))}</strong></div>
-            <div><span>HST</span><strong>${escapeHtml(money(hst))}</strong></div>
-            <div><span>Total</span><strong>${escapeHtml(money(total))}</strong></div>
-            <div><span>Paid online</span><strong>${escapeHtml(money(appointment.deposit_amount))}</strong></div>
-            <div><span>Remaining</span><strong>${escapeHtml(money(appointment.remaining_balance))}</strong></div>
-          </div>
-          ${notes ? `<p class="admin-notes">${escapeHtml(notes).replace(/\n/g, '<br>')}</p>` : ''}
-          ${installationPhotosMarkup(appointment)}
-
-          ${appointment.demo ? '' : `<div class="admin-manage">
-            <div class="admin-manage-block">
-              <p class="admin-manage-label">Reschedule</p>
-              <div class="admin-reschedule">
-                <label>
-                  Date
-                  <input type="date" data-reschedule-date value="${escapeHtml(appointment.preferred_date || '')}" required />
-                </label>
-                <label>
-                  Time
-                  <select data-reschedule-time required>
-                    ${timeWindowOptions(appointment.preferred_time_window)}
-                  </select>
-                </label>
-                <button type="button" class="button button-secondary admin-mini-btn" data-action="reschedule">Save schedule</button>
-              </div>
-            </div>
-
-            <div class="admin-manage-block">
-              <p class="admin-manage-label">Staff note</p>
-              <div class="admin-note-row">
-                <textarea data-staff-note rows="2" placeholder="Add an internal note (saved to the appointment)"></textarea>
-                <button type="button" class="button button-secondary admin-mini-btn" data-action="note">Save note</button>
-              </div>
-            </div>
-            <p class="admin-manage-feedback" data-manage-feedback hidden></p>
-          </div>`}
-          </div>
+          ${appointmentSummaryMarkup(appointment, { collapsible })}
+          ${collapsible ? '' : `<div class="admin-appointment-details">${appointmentDetailsMarkup(appointment)}</div>`}
         </article>
       `;
     }).join('');
 
     focusAppointmentFromHash();
+    if (openModalAppointmentId) refreshOpenAppointmentModal();
+  }
+
+  function appointmentSummaryMarkup(appointment, { collapsible = false, title = false } = {}) {
+    const status = appointment.booking_status || 'Pending Confirmation';
+    return `
+      <div class="admin-appointment-summary" data-appointment-summary ${collapsible ? 'tabindex="0"' : ''}>
+        <div class="admin-appointment-top">
+          <div>
+            <p class="admin-appointment-time"${title ? ' id="appointment-modal-title"' : ''}>${escapeHtml(formatScheduleLabel(appointment))}</p>
+            <p class="admin-appointment-service">${escapeHtml(appointment.service_name || 'Tire service')}</p>
+          </div>
+          <div class="admin-badges">
+            <span class="admin-badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span>
+            ${appointment.demo ? '<span class="admin-badge is-sample">Demo</span>' : paymentBadge(appointment)}
+          </div>
+        </div>
+        <div class="admin-grid">
+          <div><span>Customer</span><strong>${escapeHtml(appointment.customer_name || 'Not provided')}</strong></div>
+          <div><span>Phone</span>${renderPhone(appointment.customer_phone)}</div>
+          <div><span>Email</span><strong>${escapeHtml(appointment.customer_email || 'Not provided')}</strong></div>
+          <div><span>Plate</span><strong>${escapeHtml(appointment.vehicle_plate_number || 'Not provided')}</strong></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function appointmentDetailsMarkup(appointment) {
+    const notes = customerNotes(appointment);
+    const status = appointment.booking_status || 'Pending Confirmation';
+    const tireCount = appointment.number_of_tires == null || appointment.number_of_tires === ''
+      ? 'Not provided'
+      : String(appointment.number_of_tires);
+    const vehicle = vehicleLabel(appointment);
+    const colour = String(appointment.vehicle_colour || '').trim();
+    const linked = formatLinkedTires(appointment.linked_tires);
+    const subtotal = appointment.service_subtotal ?? appointment.starting_price;
+    const hst = appointment.hst_amount;
+    const total = appointment.total_with_hst;
+    return `
+      ${appointment.demo ? '' : `<div class="admin-status-row">
+        <p class="admin-manage-label">Status</p>
+        <div class="admin-manage-actions admin-status-actions">
+          ${statusActionsMarkup(status, appointment)}
+        </div>
+      </div>`}
+      <div class="admin-grid">
+        ${vehicle === 'Not provided' ? '' : `<div><span>Vehicle</span><strong>${escapeHtml(vehicle)}</strong></div>`}
+        ${colour ? `<div><span>Colour</span><strong>${escapeHtml(colour)}</strong></div>` : ''}
+        ${appointment.tire_size ? `<div><span>Tire size</span><strong>${escapeHtml(appointment.tire_size)}</strong></div>` : ''}
+        <div><span># of tires</span><strong>${escapeHtml(tireCount)}</strong></div>
+        <div><span>Linked tires</span><strong>${escapeHtml(linked)}</strong></div>
+        <div><span>Location</span>${renderLocation(appointment)}</div>
+        <div><span>Subtotal</span><strong>${escapeHtml(money(subtotal))}</strong></div>
+        <div><span>HST</span><strong>${escapeHtml(money(hst))}</strong></div>
+        <div><span>Total</span><strong>${escapeHtml(money(total))}</strong></div>
+        <div><span>Paid online</span><strong>${escapeHtml(money(appointment.deposit_amount))}</strong></div>
+        <div><span>Remaining</span><strong>${escapeHtml(money(appointment.remaining_balance))}</strong></div>
+      </div>
+      ${notes ? `<p class="admin-notes">${escapeHtml(notes).replace(/\n/g, '<br>')}</p>` : ''}
+      ${installationPhotosMarkup(appointment)}
+      ${appointment.demo ? '' : `<div class="admin-manage">
+        <div class="admin-manage-block">
+          <p class="admin-manage-label">Reschedule</p>
+          <div class="admin-reschedule">
+            <label>
+              Date
+              <input type="date" data-reschedule-date value="${escapeHtml(appointment.preferred_date || '')}" required />
+            </label>
+            <label>
+              Time
+              <select data-reschedule-time required>
+                ${timeWindowOptions(appointment.preferred_time_window)}
+              </select>
+            </label>
+            <button type="button" class="button button-secondary admin-mini-btn" data-action="reschedule">Save schedule</button>
+          </div>
+        </div>
+        <div class="admin-manage-block">
+          <p class="admin-manage-label">Staff note</p>
+          <div class="admin-note-row">
+            <textarea data-staff-note rows="2" placeholder="Add an internal note (saved to the appointment)"></textarea>
+            <button type="button" class="button button-secondary admin-mini-btn" data-action="note">Save note</button>
+          </div>
+        </div>
+        <p class="admin-manage-feedback" data-manage-feedback hidden></p>
+      </div>`}
+    `;
   }
 
   function installationPhotosMarkup(appointment) {
@@ -563,6 +586,44 @@
     `;
   }
 
+  function appointmentFromId(id) {
+    return dayAppointments.find((item) => String(item.id) === String(id)) || null;
+  }
+
+  function modalIsOpen() {
+    return Boolean(els.modal && !els.modal.hidden);
+  }
+
+  function closeAppointmentModal() {
+    openModalAppointmentId = '';
+    if (els.modalBody) els.modalBody.innerHTML = '';
+    if (els.modal) els.modal.hidden = true;
+    document.body.classList.remove('admin-modal-open');
+  }
+
+  function openAppointmentModal(id) {
+    const appointment = appointmentFromId(id);
+    if (!appointment || !els.modal || !els.modalBody) return;
+    openModalAppointmentId = String(appointment.id);
+    els.modalBody.innerHTML = `
+      <article class="admin-appointment is-open" data-appointment-id="${escapeHtml(appointment.id)}">
+        ${appointmentSummaryMarkup(appointment, { title: true })}
+        <div class="admin-appointment-details">${appointmentDetailsMarkup(appointment)}</div>
+      </article>
+    `;
+    els.modal.hidden = false;
+    document.body.classList.add('admin-modal-open');
+  }
+
+  function refreshOpenAppointmentModal() {
+    if (!openModalAppointmentId) return;
+    if (!appointmentFromId(openModalAppointmentId)) {
+      closeAppointmentModal();
+      return;
+    }
+    openAppointmentModal(openModalAppointmentId);
+  }
+
   function setAppointmentOpen(card, open) {
     if (!card) return;
     const id = card.dataset.appointmentId || '';
@@ -581,7 +642,7 @@
     const card = summary?.closest('.admin-appointment.is-collapsible');
     if (!card || !els.list?.contains(card)) return;
     if (event.type === 'keydown') event.preventDefault();
-    setAppointmentOpen(card, !card.classList.contains('is-open'));
+    openAppointmentModal(card.dataset.appointmentId);
   }
 
   function focusAppointmentFromHash() {
@@ -589,7 +650,9 @@
     if (!match) return;
     const target = document.getElementById(`appt-${match[1]}`);
     if (!target) return;
-    if (target.classList.contains('is-collapsible')) setAppointmentOpen(target, true);
+    if (target.classList.contains('is-collapsible') && openModalAppointmentId !== match[1]) {
+      openAppointmentModal(match[1]);
+    }
     target.classList.add('is-focused');
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -600,6 +663,7 @@
 
   function listIsBeingEdited() {
     const active = document.activeElement;
+    if (modalIsOpen()) return true;
     return Boolean(active && els.list?.contains(active));
   }
 
@@ -789,7 +853,9 @@
 
   async function handleManageClick(event) {
     const button = event.target.closest('[data-action]');
-    if (!button || !els.list?.contains(button)) return;
+    const inList = Boolean(button && els.list?.contains(button));
+    const inModal = Boolean(button && els.modalBody?.contains(button));
+    if (!button || (!inList && !inModal)) return;
 
     const card = button.closest('[data-appointment-id]');
     const id = card?.dataset.appointmentId;
@@ -904,6 +970,18 @@
   els.list?.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     toggleAppointmentFromEvent(event);
+  });
+
+  els.modal?.addEventListener('click', (event) => {
+    if (event.target.closest('[data-appointment-modal-close]')) {
+      closeAppointmentModal();
+      return;
+    }
+    handleManageClick(event);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modalIsOpen()) closeAppointmentModal();
   });
 
   document.addEventListener('visibilitychange', () => {

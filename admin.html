@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>Upcoming appointments | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=36" />
+    <link rel="stylesheet" href="admin.css?v=38" />
   </head>
   <body class="admin-app">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -81,6 +81,13 @@
           <div class="admin-list" data-admin-list></div>
         </section>
       </div>
+      <div class="admin-appointment-modal" data-appointment-modal hidden>
+        <button type="button" class="admin-appointment-modal-backdrop" data-appointment-modal-close aria-label="Close appointment details"></button>
+        <div class="admin-appointment-modal-panel" role="dialog" aria-modal="true" aria-labelledby="appointment-modal-title">
+          <button type="button" class="admin-appointment-modal-close" data-appointment-modal-close aria-label="Close">Close</button>
+          <div data-appointment-modal-body></div>
+        </div>
+      </div>
     </main>
 
     <footer class="admin-footer">
@@ -90,6 +97,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
     <script src="account.js?v=59"></script>
-    <script src="admin.js?v=19"></script>
+    <script src="admin.js?v=22"></script>
   </body>
 </html>

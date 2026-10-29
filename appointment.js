@@ -893,20 +893,44 @@
     els.newTireOrderGate.classList.toggle('error', Boolean(isError));
   }
 
+  function tiresFromConfirmedOrder(order) {
+    const items = Array.isArray(order?.items) ? order.items : [];
+    return items.map((item, index) => ({
+      linkId: `new-order:${order.id}:${index}`,
+      source: 'purchased',
+      orderId: order.id,
+      paidAt: order.paid_at || order.created_at || '',
+      fulfillmentPreference: order.fulfillment_preference || '',
+      inventoryId: String(item.partNumber || item.part_number || `new-${order.id}-${index}`),
+      type: 'new_tire',
+      brand: cleanSavedTireText(item.brand) || 'New tires',
+      model: cleanSavedTireText(item.model),
+      size: cleanSavedTireSize(item.size),
+      qty: Math.max(1, Number(item.qty) || 1),
+      unitPrice: item.unitPrice ?? item.unit_price ?? item.price ?? null,
+      season: 'New tire',
+    }));
+  }
+
+  function rememberNewTireOrderInUrl(orderId) {
+    if (!orderId) return;
+    const params = new URLSearchParams(window.location.search);
+    params.set('source', 'new-tires');
+    params.set('newTireOrder', orderId);
+    const hash = window.location.hash || '#appointment-booking';
+    const next = `${window.location.pathname}?${params.toString()}${hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (current !== next) history.replaceState(null, '', next);
+  }
+
   async function applyConfirmedNewTireOrder() {
-    const orderId = newTireOrderIdFromUrl();
+    let orderId = newTireOrderIdFromUrl();
     state.fromNewTires = isNewTiresInstallSource() || Boolean(orderId);
     state.requiredNewTireOrderId = orderId;
     state.requiredNewTireOrder = null;
-    if (!orderId) {
-      if (state.fromNewTires) {
-        setSelectedService('mount-balance-4');
-        updateFromSelectedService();
-        setMinimumDate();
-        updateNewTireOrderGateMessage('Finish Order on New Tires first. After that purchase is saved to your account, we send you here to book installation for those new tires.', true);
-      } else {
-        updateNewTireOrderGateMessage('');
-      }
+    if (!state.fromNewTires) {
+      updateNewTireOrderGateMessage('');
+      hideLoginRequiredBlock();
       return true;
     }
 
@@ -915,27 +939,48 @@
       setSelectedService('mount-balance-4');
       updateFromSelectedService();
       setMinimumDate();
-      updateNewTireOrderGateMessage(`Log in with the account that bought these new tires. Installation stays linked to that purchase date. ${SHIPPING_HOLD_MESSAGE}`);
+      updateNewTireOrderGateMessage('Sign in so these new tires stay linked to your installation booking.');
       showLoginRequiredBlock();
       return true;
     }
 
+    hideLoginRequiredBlock();
     let orders = [];
     try {
       orders = await window.EastCordAccount.getPaidNewTireOrders();
     } catch (error) {
       logDeveloperError('Confirmed new tire order could not be loaded.', error);
     }
+
+    if (!orderId) {
+      const latest = orders.find((row) => String(row.fulfillment_preference || '') === 'Installation') || null;
+      orderId = latest?.id ? String(latest.id) : '';
+      state.requiredNewTireOrderId = orderId;
+      if (orderId) rememberNewTireOrderInUrl(orderId);
+    }
+
+    if (!orderId) {
+      setSelectedService('mount-balance-4');
+      updateFromSelectedService();
+      setMinimumDate();
+      updateNewTireOrderGateMessage('No new tire order is on this account yet. Select a tire and choose Installation. Booking opens with those tires linked.');
+      return true;
+    }
+
     const order = orders.find((row) => String(row.id) === orderId);
     if (!order) {
       setSelectedService('mount-balance-4');
       updateFromSelectedService();
       setMinimumDate();
-      updateNewTireOrderGateMessage('This new tire order was not found on your account. Log in with the account that purchased the tires, then book installation from My Account.', true);
+      updateNewTireOrderGateMessage('These tires belong to a different account. Stay signed in as the customer who bought them, then book installation again.');
       return false;
     }
 
     state.requiredNewTireOrder = order;
+    const known = new Set(state.savedTires.map((item) => getTireLinkId(item)));
+    tiresFromConfirmedOrder(order).forEach((item) => {
+      if (!known.has(getTireLinkId(item))) state.savedTires.push(item);
+    });
     const linked = state.savedTires.filter((item) => item.orderId === orderId && item.type === 'new_tire');
     if (linked.length) {
       const qty = linked.reduce((sum, item) => sum + (Number(item.qty) || 1), 0);
@@ -957,6 +1002,7 @@
         ? `These are new tires from your purchase on ${purchased}. This booking is linked to that order. ${SHIPPING_HOLD_MESSAGE}`
         : `These are new tires linked to your confirmed order. ${SHIPPING_HOLD_MESSAGE}`,
     );
+    renderSavedTireOptions();
     return true;
   }
 
@@ -1899,7 +1945,7 @@
     const profile = await window.EastCordAccount?.getCurrentProfile?.();
 
     if (state.fromNewTires && !state.requiredNewTireOrder?.id) {
-      showAppointmentMessage('Finish Order on New Tires first. After that purchase is saved, we will send you here to book installation for those new tires.');
+      showAppointmentMessage('These new tires are not linked yet. Go back to New Tires, select the tire, and choose Installation.');
       return;
     }
 
@@ -2054,6 +2100,10 @@
       showAppointmentMessage(mismatch, mismatch ? 'error' : 'success');
     });
     els.appointmentForm?.addEventListener('submit', handleAppointmentSubmit);
+    window.addEventListener('eastcord:auth-changed', () => {
+      if (!state.fromNewTires && !newTireOrderIdFromUrl()) return;
+      hydrateCustomerTires();
+    });
 
     window.updateEastCordServicePrice = () => updateServicePricing(getCurrentService());
     window.getCurrentEastCordService = getCurrentService;
