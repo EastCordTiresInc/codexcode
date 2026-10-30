@@ -1,5 +1,8 @@
 # Google Sheets ↔ website inventory sync
 
+This sheet is used tires only. New tire orders are not copied here, and a new
+tire sale does not change Current Stock or Remove.
+
 The inbound sync copies the inventory sheet into `public.usedtireinventory`.
 The website continues reading Supabase and can fall back to
 `assets/used-inventory.json`; the inbound sync does not need to run while doing
