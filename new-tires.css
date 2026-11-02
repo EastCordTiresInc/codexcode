@@ -403,6 +403,86 @@
   padding: 22px;
 }
 
+.tireconnect-card-wait {
+  display: none;
+  margin: 0;
+  padding: 28px 18px;
+  border-radius: 16px;
+  background: #fff8f8;
+  color: #111317;
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.tireconnect-shell.is-skipping-order-details #tireconnect {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.tireconnect-shell.is-skipping-order-details .tireconnect-card-wait {
+  display: block;
+}
+
+.new-tire-summary-customer {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+
+.new-tire-summary-customer[hidden] {
+  display: none;
+}
+
+.new-tire-summary-customer h3 {
+  margin: 0;
+  color: #111317;
+  font-size: 1.05rem;
+}
+
+.new-tire-summary-customer p {
+  margin: 0;
+  color: #4f5663;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.new-tire-customer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.new-tire-customer-contact {
+  grid-column: 1 / -1;
+}
+
+.new-tire-customer-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.new-tire-customer-grid span {
+  color: #333840;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.new-tire-customer-grid input,
+.new-tire-customer-grid select {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid #c9ccd1;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 1rem;
+}
+
 .tireconnect-message {
   margin: 0;
   padding: 18px;
@@ -414,10 +494,14 @@
 }
 
 .new-tire-fulfillment {
-  display: grid;
+  display: none;
   gap: 14px;
   min-width: 0;
   scroll-margin-top: 96px;
+}
+
+.new-tires-workspace.is-widget-summary .new-tire-fulfillment {
+  display: grid;
 }
 
 .new-tire-fulfillment-heading h2 {
@@ -594,6 +678,155 @@
 .new-tire-choice-card:has(input:checked) {
   border-color: #df1f2d;
   background: #fff8f8;
+}
+
+.new-tire-install-location {
+  display: grid;
+  gap: 14px;
+  max-width: 560px;
+}
+
+.new-tire-install-location[hidden],
+.new-tire-shop-details[hidden] {
+  display: none;
+}
+
+.new-tire-location-menu {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.new-tire-location-menu legend {
+  margin-bottom: 8px;
+  color: #111317;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.new-tire-location-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.new-tire-location-option {
+  display: grid;
+  gap: 4px;
+  min-height: 76px;
+  padding: 12px;
+  border: 2px solid #d5d8de;
+  border-radius: 14px;
+  background: #fff;
+  color: #111317;
+  text-align: left;
+  cursor: pointer;
+}
+
+.new-tire-location-option strong {
+  font-size: 0.98rem;
+}
+
+.new-tire-location-option span {
+  color: #5b616b;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.new-tire-location-option.is-selected {
+  border-color: #df1f2d;
+  background: #fff8f8;
+}
+
+.new-tire-location-option:disabled {
+  cursor: not-allowed;
+  background: #f4f5f7;
+  color: #8b9098;
+}
+
+.new-tire-location-option:disabled span {
+  color: #8b9098;
+}
+
+.new-tire-shop-details {
+  display: grid;
+  gap: 12px;
+}
+
+.new-tire-install-price {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(223, 31, 45, 0.22);
+  border-radius: 14px;
+  background: #fff8f8;
+}
+
+.new-tire-install-price p {
+  margin: 0;
+  color: #34363a;
+  line-height: 1.45;
+}
+
+.new-tire-install-price-title {
+  color: #111317;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.new-tire-install-price dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.new-tire-install-price dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.new-tire-install-price dt,
+.new-tire-install-price dd {
+  margin: 0;
+}
+
+.new-tire-install-price dt {
+  color: #5b616b;
+  font-size: 0.88rem;
+}
+
+.new-tire-install-price dd {
+  color: #111317;
+  font-weight: 800;
+  text-align: right;
+}
+
+.new-tire-install-price .is-total {
+  padding-top: 6px;
+  border-top: 1px solid rgba(223, 31, 45, 0.18);
+}
+
+.new-tire-plate-field {
+  display: grid;
+  gap: 6px;
+}
+
+.new-tire-plate-field span {
+  color: #333840;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.new-tire-plate-field input {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid #c9ccd1;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 1.05rem;
+  text-transform: uppercase;
 }
 
 .new-tire-submit {
@@ -814,16 +1047,8 @@
   }
 
   .new-tires-workspace {
-    grid-template-columns: minmax(580px, 1fr) minmax(300px, 360px);
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
-  }
-
-  .new-tire-fulfillment {
-    position: sticky;
-    top: 92px;
-    max-height: calc(100vh - 108px);
-    overflow-x: hidden;
-    overflow-y: auto;
   }
 }
 

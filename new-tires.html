@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
-    <link rel="stylesheet" href="new-tires.css?v=45" />
+    <link rel="stylesheet" href="new-tires.css?v=50" />
   </head>
   <body class="new-tires-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -83,6 +83,7 @@
               </div>
               <p class="tireconnect-message" data-tireconnect-message hidden></p>
               <div class="tireconnect-shell" data-tireconnect-shell>
+                <p class="tireconnect-card-wait" data-card-wait>Opening card payment…</p>
                 <div id="tireconnect"></div>
                 <section id="eastcord-widget-checkout" class="eastcord-widget-checkout" hidden>
                   <button class="eastcord-checkout-back" type="button" data-eastcord-checkout-back>← BACK TO SUMMARY</button>
@@ -164,6 +165,70 @@
                   <span class="new-tire-choice-tip" id="install-choice-info" hidden>After your tire order is saved, we take you to book installation. The first appointment is 1:00 PM the next day, no matter what time you order. Later days are 8:00 AM to 8:00 PM.</span>
                 </label>
               </fieldset>
+              <div class="new-tire-install-location" data-install-location-panel hidden>
+                <fieldset class="new-tire-location-menu">
+                  <legend>Where should we install?</legend>
+                  <div class="new-tire-location-options" data-install-location-options>
+                    <button type="button" class="new-tire-location-option" data-install-location-option="mobile" aria-pressed="false" aria-disabled="true" disabled>
+                      <strong>Mobile Service</strong>
+                      <span>Coming soon</span>
+                    </button>
+                    <button type="button" class="new-tire-location-option" data-install-location-option="shop" aria-pressed="false">
+                      <strong>EastCord shop</strong>
+                      <span>600 Harrop Drive, Milton, Ontario</span>
+                    </button>
+                  </div>
+                </fieldset>
+                <div class="new-tire-shop-details" data-shop-install-details hidden>
+                  <div class="new-tire-install-price" data-install-price aria-live="polite"></div>
+                  <label class="new-tire-plate-field">
+                    <span>License plate</span>
+                    <input name="Vehicle Plate Number" type="text" placeholder="ABCD 123" autocomplete="off" data-install-plate />
+                  </label>
+                  <label class="new-tire-plate-field">
+                    <span>Appointment date</span>
+                    <input name="Preferred Date" type="date" data-install-date />
+                  </label>
+                  <label class="new-tire-plate-field">
+                    <span>Appointment time</span>
+                    <select name="Preferred Time Window" data-install-time>
+                      <option value="">Select a time</option>
+                    </select>
+                  </label>
+                  <button class="button button-primary new-tire-submit" type="button" data-book-and-pay>Book and pay</button>
+                  <p class="new-tire-submit-hint">Books this shop appointment and opens payment for the 20% deposit. The tire card payment stays in the tire search.</p>
+                </div>
+              </div>
+              <div class="new-tire-summary-customer" data-summary-customer hidden>
+                <h3>Your details</h3>
+                <p>Enter these on the summary. They are sent with the order, and the next step is the card.</p>
+                <div class="new-tire-customer-grid">
+                  <label>
+                    <span>First name</span>
+                    <input data-customer-first name="first-name" autocomplete="given-name" />
+                  </label>
+                  <label>
+                    <span>Last name</span>
+                    <input data-customer-last name="last-name" autocomplete="family-name" />
+                  </label>
+                  <label>
+                    <span>Email</span>
+                    <input data-customer-email name="email" type="email" autocomplete="email" />
+                  </label>
+                  <label>
+                    <span>Phone</span>
+                    <input data-customer-phone name="phone" type="tel" autocomplete="tel" />
+                  </label>
+                  <label class="new-tire-customer-contact">
+                    <span>Preferred contact</span>
+                    <select data-customer-contact name="contact">
+                      <option value="">Select one</option>
+                      <option value="email">Email</option>
+                      <option value="phone">Phone</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
               <label class="new-tire-phone-field" data-new-tire-phone-field hidden>
                 <span>Phone number</span>
                 <input type="tel" name="Phone Number" autocomplete="tel" />
@@ -241,7 +306,8 @@
     <script src="tireconnect-config.js"></script>
     <script src="https://app.tireconnect.ca/js/widget.js" defer></script>
     <script src="new-tire-brand.js?v=14" defer></script>
-    <script src="new-tires.js?v=103" defer></script>
+    <script src="appointment-services.js?v=1" defer></script>
+    <script src="new-tires.js?v=108" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>
