@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
-    <link rel="stylesheet" href="new-tires.css?v=50" />
+    <link rel="stylesheet" href="new-tires.css?v=56" />
   </head>
   <body class="new-tires-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -136,15 +136,7 @@
             </div>
 
             <section class="new-tires-widget-card new-tire-fulfillment" data-new-tire-fulfillment>
-            <div class="new-tire-fulfillment-heading">
-              <h2>Place your order</h2>
-            </div>
-            <article class="new-tire-selected" data-new-tire-selected hidden>
-              <span>Selected tire</span>
-              <dl class="new-tire-selected-facts" data-new-tire-selected-label></dl>
-              <button class="new-tire-change" type="button" data-new-tire-change>Wrong tire? Choose another in the search</button>
-            </article>
-            <p class="new-tire-selected-empty" data-new-tire-selected-empty>Select a tire in the search. Brand, size, quantity, and price copy here.</p>
+            <p class="new-tire-selected-empty" data-new-tire-selected-empty hidden>Select a tire in the search. Brand, size, quantity, and price copy here.</p>
             <form class="new-tire-fulfillment-form" data-new-tire-fulfillment-form>
               <fieldset class="new-tire-choice">
                 <legend>How do you want this order?</legend>
@@ -180,7 +172,45 @@
                   </div>
                 </fieldset>
                 <div class="new-tire-shop-details" data-shop-install-details hidden>
-                  <div class="new-tire-install-price" data-install-price aria-live="polite"></div>
+                  <div class="new-tire-shop-compare">
+                    <article class="new-tire-selected" data-new-tire-selected hidden>
+                      <span>Selected tire</span>
+                      <dl class="new-tire-selected-facts" data-new-tire-selected-label></dl>
+                    </article>
+                    <p class="new-tire-shop-plus" aria-hidden="true">+</p>
+                    <div class="new-tire-install-price" data-install-price aria-live="polite"></div>
+                  </div>
+                  <div class="new-tire-price-summary" data-price-summary hidden></div>
+                  <div class="new-tire-summary-customer" data-summary-customer hidden>
+                    <h3>Your details</h3>
+                    <p>Enter these on the summary. They are sent with the order, and the next step is the card.</p>
+                    <div class="new-tire-customer-grid">
+                      <label>
+                        <span>First name</span>
+                        <input data-customer-first name="first-name" autocomplete="given-name" />
+                      </label>
+                      <label>
+                        <span>Last name</span>
+                        <input data-customer-last name="last-name" autocomplete="family-name" />
+                      </label>
+                      <label>
+                        <span>Email</span>
+                        <input data-customer-email name="email" type="email" autocomplete="email" />
+                      </label>
+                      <label>
+                        <span>Phone</span>
+                        <input data-customer-phone name="phone" type="tel" autocomplete="tel" />
+                      </label>
+                      <label class="new-tire-customer-contact">
+                        <span>Preferred contact</span>
+                        <select data-customer-contact name="contact">
+                          <option value="">Select one</option>
+                          <option value="email">Email</option>
+                          <option value="phone">Phone</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
                   <label class="new-tire-plate-field">
                     <span>License plate</span>
                     <input name="Vehicle Plate Number" type="text" placeholder="ABCD 123" autocomplete="off" data-install-plate />
@@ -189,52 +219,22 @@
                     <span>Appointment date</span>
                     <input name="Preferred Date" type="date" data-install-date />
                   </label>
-                  <label class="new-tire-plate-field">
+                  <div class="new-tire-plate-field new-tire-time-field">
                     <span>Appointment time</span>
-                    <select name="Preferred Time Window" data-install-time>
+                    <select name="Preferred Time Window" data-install-time class="new-tire-time-native" tabindex="-1" aria-hidden="true">
                       <option value="">Select a time</option>
                     </select>
-                  </label>
+                    <button type="button" class="new-tire-time-toggle" data-install-time-toggle aria-expanded="false" aria-controls="install-time-list">Select a time</button>
+                    <div class="new-tire-time-list" id="install-time-list" data-install-time-list hidden></div>
+                  </div>
                   <button class="button button-primary new-tire-submit" type="button" data-book-and-pay>Book and pay</button>
-                  <p class="new-tire-submit-hint">Books this shop appointment and opens payment for the 20% deposit. The tire card payment stays in the tire search.</p>
-                </div>
-              </div>
-              <div class="new-tire-summary-customer" data-summary-customer hidden>
-                <h3>Your details</h3>
-                <p>Enter these on the summary. They are sent with the order, and the next step is the card.</p>
-                <div class="new-tire-customer-grid">
-                  <label>
-                    <span>First name</span>
-                    <input data-customer-first name="first-name" autocomplete="given-name" />
-                  </label>
-                  <label>
-                    <span>Last name</span>
-                    <input data-customer-last name="last-name" autocomplete="family-name" />
-                  </label>
-                  <label>
-                    <span>Email</span>
-                    <input data-customer-email name="email" type="email" autocomplete="email" />
-                  </label>
-                  <label>
-                    <span>Phone</span>
-                    <input data-customer-phone name="phone" type="tel" autocomplete="tel" />
-                  </label>
-                  <label class="new-tire-customer-contact">
-                    <span>Preferred contact</span>
-                    <select data-customer-contact name="contact">
-                      <option value="">Select one</option>
-                      <option value="email">Email</option>
-                      <option value="phone">Phone</option>
-                    </select>
-                  </label>
+                  <p class="new-tire-submit-hint">Books the shop appointment and opens card payment for the tires and installation together.</p>
                 </div>
               </div>
               <label class="new-tire-phone-field" data-new-tire-phone-field hidden>
                 <span>Phone number</span>
                 <input type="tel" name="Phone Number" autocomplete="tel" />
               </label>
-              <button class="button button-primary new-tire-submit" type="button" data-new-tire-demo-order hidden>Mock order</button>
-              <p class="new-tire-submit-hint" data-new-tire-demo-hint hidden>Saves these tires to your account and opens installation booking. No card is charged.</p>
               <p class="new-tire-fulfillment-message" data-new-tire-fulfillment-message hidden></p>
             </form>
           </section>
@@ -307,7 +307,7 @@
     <script src="https://app.tireconnect.ca/js/widget.js" defer></script>
     <script src="new-tire-brand.js?v=14" defer></script>
     <script src="appointment-services.js?v=1" defer></script>
-    <script src="new-tires.js?v=108" defer></script>
+    <script src="new-tires.js?v=117" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

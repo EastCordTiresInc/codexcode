@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Phone appointments | EastCord Admin</title>
+    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="admin.css?v=42" />
+  </head>
+  <body class="admin-app">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="admin-topbar" data-admin-chrome hidden>
+      <div class="admin-topbar-inner">
+        <div class="admin-brand-block">
+          <a class="admin-brand" href="/admin" aria-label="EastCord Admin home">
+            <img src="/assets/eastcord-logo-red-black.svg" alt="EastCord Tires" />
+          </a>
+          <span class="admin-product-label">Admin</span>
+        </div>
+
+        <nav class="admin-tabs" aria-label="Admin sections">
+          <a href="/admin/phone-appointments" aria-current="page">Phone appointments</a>
+          <a href="/admin">Upcoming</a>
+          <a href="/admin/calendar">Calendar</a>
+          <a href="/admin/orders">Orders</a>
+          <a href="/admin/inventory">Inventory</a>
+          <a href="/admin/blog">Blog</a>
+          <a href="/admin/installers">Installers</a>
+          <a href="/admin/job-photos">Job photos</a>
+        </nav>
+
+        <div class="admin-session">
+          <span class="admin-session-email" data-admin-staff-email></span>
+          <button class="admin-logout" type="button" data-logout-button>Log out</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content" class="admin-main">
+      <div class="admin-shell" data-admin-root>
+        <div class="admin-panel admin-loading" data-admin-loading>
+          <p class="admin-kicker">EastCord staff</p>
+          <h1>Checking access</h1>
+          <p>Confirming the staff session...</p>
+        </div>
+
+        <section class="admin-panel admin-gate" data-admin-gate hidden>
+          <p class="admin-kicker">EastCord staff</p>
+          <h1>Staff access required</h1>
+          <p data-admin-gate-message>Log in with info@eastcordtires.ca to open the admin dashboard.</p>
+          <div class="admin-actions">
+            <a class="button button-primary" href="/login.html?redirect=/admin/phone-appointments">Log in</a>
+            <a class="button button-secondary" href="/">Public site</a>
+          </div>
+        </section>
+
+        <section data-admin-dashboard hidden>
+          <div class="admin-header">
+            <div>
+              <p class="admin-kicker">Booked by staff</p>
+              <h1>Phone appointments</h1>
+              <p>Take the customer's details and book the appointment. Email them a payment link, or open Stripe and charge the full amount while they are on the phone.</p>
+            </div>
+          </div>
+
+          <form class="admin-phone-form" data-phone-form>
+            <h2>Customer</h2>
+            <div class="admin-phone-grid">
+              <label>First name
+                <input name="firstName" autocomplete="given-name" required data-phone-first />
+              </label>
+              <label>Last name
+                <input name="lastName" autocomplete="family-name" required data-phone-last />
+              </label>
+              <label>Email
+                <input name="email" type="email" autocomplete="email" required data-phone-email />
+              </label>
+              <label>Phone
+                <input name="phone" type="tel" autocomplete="tel" inputmode="tel" required data-phone-phone />
+              </label>
+            </div>
+
+            <h2>Appointment</h2>
+            <div class="admin-phone-grid">
+              <label>Service
+                <select required data-phone-service>
+                  <option value="">Choose a service</option>
+                  <option value="on-rim-swap">On-rim swap</option>
+                  <option value="off-rim-swap">Off-rim swap</option>
+                  <option value="flat-patch-plug">Flat repair — patch + plug</option>
+                  <option value="flat-plug-only">Flat repair — plug only</option>
+                  <option value="air-fill">Air fill-up</option>
+                  <option value="tire-replacement">Tire retorque</option>
+                </select>
+              </label>
+              <label data-phone-qty-field>Quantity
+                <select data-phone-qty>
+                  <option value="1">1 tire</option>
+                  <option value="2">2 tires</option>
+                  <option value="3">3 tires</option>
+                  <option value="4">4 tires</option>
+                </select>
+              </label>
+              <label data-phone-size-field hidden>Rim size
+                <select data-phone-size>
+                  <option value="">Choose size</option>
+                  <option value="14-16">14–16 in</option>
+                  <option value="17-19">17–19 in</option>
+                  <option value="20-22">20–22 in</option>
+                  <option value="23-24">23–24 in</option>
+                </select>
+              </label>
+              <label>License plate
+                <input required data-phone-plate autocomplete="off" />
+              </label>
+              <label>Tire size
+                <input data-phone-tire-size placeholder="255/45R18" />
+              </label>
+              <div class="admin-phone-span">
+                <p class="admin-manage-label">Where</p>
+                <span class="admin-phone-choice">
+                  <button type="button" data-phone-location="shop" class="is-selected" aria-pressed="true">EastCord shop</button>
+                  <button type="button" data-phone-location="mobile" aria-pressed="false">Mobile service</button>
+                </span>
+              </div>
+              <label data-phone-address-field hidden>Service address
+                <input data-phone-address autocomplete="street-address" />
+              </label>
+              <label data-phone-city-field hidden>City
+                <select data-phone-city>
+                  <option value="">Choose a city</option>
+                  <option>Milton</option>
+                  <option>Oakville</option>
+                  <option>Brampton</option>
+                  <option>Mississauga</option>
+                </select>
+              </label>
+              <label data-phone-postal-field hidden>Postal code
+                <input data-phone-postal autocomplete="postal-code" />
+              </label>
+              <label>Date
+                <input type="date" required data-phone-date />
+              </label>
+              <label>Time
+                <select required data-phone-time>
+                  <option value="">Choose a time</option>
+                </select>
+              </label>
+              <label class="admin-phone-span">Notes
+                <textarea data-phone-notes rows="3"></textarea>
+              </label>
+            </div>
+
+            <div class="admin-phone-summary" data-phone-summary hidden></div>
+            <p class="admin-status" data-phone-form-status aria-live="polite"></p>
+            <div class="admin-phone-actions">
+              <button class="button button-primary admin-phone-pay" type="submit" data-phone-pay disabled>Book and pay</button>
+              <button class="button button-secondary admin-phone-link" type="button" data-phone-link disabled>Book and send link</button>
+            </div>
+            <p class="admin-phone-hint">Book and pay opens Stripe for the full amount. Book and send link emails the customer a link to pay that same full amount.</p>
+          </form>
+
+          <h2 class="admin-phone-list-title">Booked by phone</h2>
+          <p class="admin-status" data-admin-status aria-live="polite">Loading phone appointments...</p>
+          <div class="admin-list" data-admin-list></div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="admin-footer">
+      <p>EastCord Tires staff tools · not for customers</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-config.js?v=4"></script>
+    <script src="account.js?v=62"></script>
+    <script src="appointment-services.js?v=1"></script>
+    <script src="admin-phone-appointments.js?v=6"></script>
+  </body>
+</html>

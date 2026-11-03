@@ -196,12 +196,9 @@ async function main() {
     const onRim = page.locator('[data-service-item="on-rim-swap"]');
     await onRim.locator('[data-service-toggle]').check();
     await onRim.locator('[data-service-quantity]').selectOption('4');
-    const balancing = page.locator('[data-service-item="balancing"]');
-    await balancing.locator('[data-service-toggle]').check();
-    await balancing.locator('[data-service-quantity]').selectOption('4');
     await page.locator('[data-service-item="flat-patch-plug"] [data-service-toggle]').check();
     await page.locator('[data-service-item="flat-patch-plug"] [data-service-quantity]').selectOption('1');
-    assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$192.10');
+    assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$124.30');
     await page.locator('[data-booking-step="0"] [data-next-step]').click();
     await assertNoHorizontalOverflow(page, 'appointment location step');
 

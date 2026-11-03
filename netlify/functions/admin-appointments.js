@@ -164,8 +164,45 @@ function torontoStamp() {
   }).format(new Date());
 }
 
+async function listPhoneAppointments(supabaseAdmin) {
+  const { data: links, error: linkError } = await supabaseAdmin
+    .from('phone_appointments')
+    .select('booking_id, booked_by, created_at')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (linkError) {
+    console.error('[EastCord admin] phone appointment list failed.', linkError);
+    return json(500, { message: 'Phone appointments could not be loaded right now.' });
+  }
+
+  const ids = (Array.isArray(links) ? links : []).map((row) => row.booking_id).filter(Boolean);
+  if (!ids.length) {
+    return json(200, { phone: true, count: 0, appointments: [] });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('appointment_bookings')
+    .select(APPOINTMENT_SELECT)
+    .in('id', ids);
+
+  if (error) {
+    console.error('[EastCord admin] phone appointment bookings failed.', error);
+    return json(500, { message: 'Phone appointments could not be loaded right now.' });
+  }
+
+  const byId = new Map((Array.isArray(data) ? data : []).map((row) => [row.id, row]));
+  const appointments = ids.map((id) => byId.get(id)).filter(Boolean);
+  return json(200, {
+    phone: true,
+    count: appointments.length,
+    appointments,
+  });
+}
+
 async function listAppointments(supabaseAdmin, event) {
   const params = event.queryStringParameters || {};
+  if (String(params.phone || '') === '1') return listPhoneAppointments(supabaseAdmin);
   const requestedDate = String(params.date || '').trim();
   const requestedFrom = String(params.from || '').trim();
   const requestedTo = String(params.to || '').trim();

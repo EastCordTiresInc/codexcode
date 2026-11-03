@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Pay your appointment | EastCord Tires</title>
+    <link rel="stylesheet" href="/styles.css?v=9" />
+    <link rel="stylesheet" href="/appointment.css?v=60" />
+    <style>
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main class="appointment-page">
+      <section class="section">
+        <div class="shell">
+          <div class="appointment-form-card confirmation-card">
+            <div class="appointment-form-heading confirmation-heading">
+              <h1>Pay your appointment</h1>
+              <p data-pay-lead>Opening the full amount for this appointment.</p>
+            </div>
+            <div class="confirmation-list" data-pay-details></div>
+            <div class="appointment-step-actions confirmation-actions">
+              <a class="button button-primary appointment-submit" data-pay-button hidden href="#">Pay the full amount</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script>
+      (() => {
+        const params = new URLSearchParams(window.location.search);
+        const bookingId = params.get('booking') || '';
+        const lead = document.querySelector('[data-pay-lead]');
+        const details = document.querySelector('[data-pay-details]');
+        const button = document.querySelector('[data-pay-button]');
+        const money = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' });
+
+        function show(message) {
+          if (lead) lead.textContent = message;
+        }
+
+        function render(appointment) {
+          if (!details || !appointment) return;
+          const rows = [
+            ['Service', appointment.service],
+            ['Date', appointment.date],
+            ['Time', appointment.time],
+            ['Place', appointment.place],
+            ['Plate', appointment.plate],
+            ['Full amount', money.format(Number(appointment.total || 0))],
+          ].filter((row) => row[1]);
+          const escapeHtml = (value) => String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+          details.innerHTML = rows.map(([label, value]) => `<p><strong>${escapeHtml(label)}</strong> ${escapeHtml(value)}</p>`).join('');
+        }
+
+        async function openPayment() {
+          if (!/^[0-9a-f-]{36}$/i.test(bookingId)) {
+            show('This payment link is not valid.');
+            return;
+          }
+          try {
+            const response = await fetch('/.netlify/functions/open-appointment-payment-link', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ bookingId }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              show(data.message || 'This payment link could not be opened.');
+              return;
+            }
+            render(data.appointment);
+            if (data.alreadyPaid) {
+              show('This appointment is already paid in full.');
+              return;
+            }
+            if (!data.url) {
+              show('Card payment could not be opened.');
+              return;
+            }
+            show('This page charges the full appointment amount.');
+            if (button) {
+              button.hidden = false;
+              button.href = data.url;
+              button.textContent = `Pay ${money.format(Number(data.appointment?.total || 0))}`;
+            }
+          } catch (error) {
+            show('Card payment could not be opened. Please try this link again.');
+          }
+        }
+
+        openPayment();
+      })();
+    </script>
+  </body>
+</html>

@@ -160,6 +160,24 @@
   force = true
 
 [[redirects]]
+  from = "/pay/:id"
+  to = "/pay-appointment.html?booking=:id"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/admin/phone-appointments"
+  to = "/admin-phone-appointments.html"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/admin/phone-appointments/"
+  to = "/admin-phone-appointments.html"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/blog"
   to = "/blog/index.html"
   status = 200

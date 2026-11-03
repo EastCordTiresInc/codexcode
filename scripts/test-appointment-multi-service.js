@@ -38,17 +38,16 @@ async function main() {
   assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$0.00');
   await offRim.locator('[data-service-quantity]').selectOption('2');
   await offRim.locator('[data-service-size-band]').selectOption('20-22');
-  await selectService(page, 'balancing', { quantity: 4 });
   await selectService(page, 'flat-patch-plug', { quantity: 1 });
   await selectService(page, 'air-fill');
   await selectService(page, 'tire-replacement');
 
-  assert.strictEqual(await page.locator('[data-starting-price]').textContent(), '$192.50');
-  assert.strictEqual(await page.locator('[data-hst-price]').textContent(), '$25.03');
-  assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$217.53');
-  assert.strictEqual(await page.locator('[data-deposit-price]').textContent(), '$43.51');
-  assert.strictEqual(await page.locator('[data-balance-price]').textContent(), '$174.02');
-  assert.match(await page.locator('[data-selected-services]').textContent(), /5 services selected/);
+  assert.strictEqual(await page.locator('[data-starting-price]').textContent(), '$132.50');
+  assert.strictEqual(await page.locator('[data-hst-price]').textContent(), '$17.23');
+  assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$149.73');
+  assert.strictEqual(await page.locator('[data-deposit-price]').textContent(), '$29.95');
+  assert.strictEqual(await page.locator('[data-balance-price]').textContent(), '$119.78');
+  assert.match(await page.locator('[data-selected-services]').textContent(), /4 services selected/);
   assert.match(await page.locator('[data-selected-services]').textContent(), /Air fill-up/);
   assert.match(await page.locator('[data-selected-services]').textContent(), /Tire retorque/);
   assert.match(await page.locator('[data-selected-services]').textContent(), /\$20\.00/);

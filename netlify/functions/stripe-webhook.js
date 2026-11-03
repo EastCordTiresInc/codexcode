@@ -85,7 +85,8 @@ function buildUpdatePayload(row, session) {
   const payload = {};
 
   if (columns.has('payment_status')) {
-    payload.payment_status = row?.payment_status === 'paid_in_full' ? 'paid_in_full' : 'paid_deposit';
+    const fullPayment = String(session.metadata?.payment_choice || '') === 'full';
+    payload.payment_status = fullPayment || row?.payment_status === 'paid_in_full' ? 'paid_in_full' : 'paid_deposit';
   }
   if (columns.has('stripe_session_id')) payload.stripe_session_id = session.id;
   if (columns.has('updated_at')) payload.updated_at = new Date().toISOString();

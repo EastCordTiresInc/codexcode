@@ -1080,6 +1080,7 @@
     watchWidgetOrderConfirmation();
     syncCheckoutLoginWall();
     advanceOrderDetailsToCard();
+    refreshShopPriceSummary();
   }
 
   function isLocalCheckoutOpen() {
@@ -2077,9 +2078,15 @@
         ['Quantity', Number(tire.qty) >= 1 ? String(tire.qty) : '—'],
         ['Price/tire', money(tire.price) || '—'],
       ];
-      return rows.map(([label, value]) => (
+      const lines = widgetPriceLines();
+      if (lines.ecoFee > 0) rows.push(['Tire eco fee', moneyAmount(lines.ecoFee)]);
+      if (lines.taxes > 0) rows.push(['Taxes', moneyAmount(lines.taxes)]);
+      const facts = rows.map(([label, value]) => (
         `<div class="new-tire-selected-row"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`
       )).join('');
+      const total = lines.total || tireAmountForSummary();
+      if (!(total > 0)) return facts;
+      return `${facts}<div class="new-tire-selected-row is-total"><dt>Total</dt><dd>${escapeHtml(moneyAmount(total))}</dd></div>`;
     }).join('');
   }
 
@@ -2144,6 +2151,16 @@
     };
   }
 
+  function selectedTireTotal() {
+    const total = (selectedQuote?.tires || []).reduce((sum, tire) => {
+      const qty = Number(tire?.qty);
+      const price = Number(tire?.price);
+      if (!(qty >= 1) || !(price >= 0)) return sum;
+      return sum + (qty * price);
+    }, 0);
+    return Math.round(total * 100) / 100;
+  }
+
   function installPriceMarkup() {
     const quote = offRimInstallQuote();
     if (!quote.ok) return `<p>${escapeHtml(quote.message)}</p>`;
@@ -2159,6 +2176,97 @@
         <div class="is-total"><dt>Total</dt><dd>${moneyAmount(quote.total)}</dd></div>
       </dl>
     `;
+  }
+
+  function moneyFromText(value) {
+    const match = String(value || '').replace(/,/g, '').match(/\$\s*(\d+(?:\.\d{1,2})?)/);
+    return match ? Math.round(Number(match[1]) * 100) / 100 : 0;
+  }
+
+  function widgetSummaryAmount(labelPattern) {
+    const root = document.getElementById('tireconnect');
+    const label = root && collectWidgetElements(root).find((element) => {
+      const text = directWidgetText(element).replace(/[†*]/g, '').trim();
+      return labelPattern.test(text);
+    });
+    let row = label?.parentElement;
+    for (let depth = 0; row && depth < 6 && row.id !== 'tireconnect'; depth += 1) {
+      const text = String(row.innerText || row.textContent || '').replace(/\s+/g, ' ').trim();
+      const labelText = text.split('$')[0].trim();
+      if (labelPattern.test(labelText) && /\$\s*\d/.test(text) && text.length <= 90) {
+        const amount = moneyFromText(text);
+        if (amount > 0) return amount;
+      }
+      row = row.parentElement;
+    }
+    return 0;
+  }
+
+  function amountBesideLabel(pattern) {
+    const root = document.getElementById('tireconnect');
+    if (!root) return 0;
+    const labels = collectWidgetElements(root).filter((element) => (
+      pattern.test(directWidgetText(element).replace(/[†*]/g, '').trim())
+    ));
+    const ordered = [
+      ...labels.filter((label) => label.closest('[data-eastcord-eco-fee-summary]')),
+      ...labels.filter((label) => !label.closest('[data-eastcord-eco-fee-summary]')),
+    ];
+    for (const label of ordered) {
+      const row = rowForWidgetLabel(label);
+      const money = moneyElementInRow(row);
+      const amount = money ? parseWidgetMoney(directWidgetText(money)) : moneyFromText(row?.innerText || '');
+      if (amount > 0) return Math.round(amount * 100) / 100;
+    }
+    return 0;
+  }
+
+  function widgetPriceLines() {
+    const scraped = totalsFromWidget();
+    const ecoMatch = widgetPlainText().match(/tire\s*eco\s*fee[^$]{0,40}\$\s*([\d,.]+)/i);
+    const ecoFromText = ecoMatch ? Math.round(Number(ecoMatch[1].replace(/,/g, '')) * 100) / 100 : 0;
+    const total = amountBesideLabel(/^total\s*price:?$/i) || scraped.total || 0;
+    return {
+      ecoFee: amountBesideLabel(/^tire\s*eco\s*fee:?$/i) || ecoFromText || (total > 0 ? 6 : 0),
+      taxes: amountBesideLabel(/^taxes?:?$/i) || scraped.tax || 0,
+      total,
+    };
+  }
+
+  function widgetSummaryTotal() {
+    return widgetPriceLines().total;
+  }
+
+  function tireAmountForSummary() {
+    return widgetSummaryTotal() || selectedTireTotal();
+  }
+
+  function priceSummaryMarkup() {
+    const quote = offRimInstallQuote();
+    if (!quote.ok) return '';
+    const tireTotal = tireAmountForSummary();
+    const combined = Math.round((tireTotal + quote.total) * 100) / 100;
+    return `
+      <p class="new-tire-install-price-title">Price summary</p>
+      <dl>
+        <div><dt>Selected tire</dt><dd>${moneyAmount(tireTotal)}</dd></div>
+        <div><dt>Off-rim swap</dt><dd>${moneyAmount(quote.total)}</dd></div>
+        <div class="is-total"><dt>Total</dt><dd>${moneyAmount(combined)}</dd></div>
+      </dl>
+    `;
+  }
+
+  function refreshShopPriceSummary() {
+    if (selectedFulfillment() !== 'Installation' || installLocation !== 'shop') return;
+    const label = document.querySelector('[data-new-tire-selected-label]');
+    if (label && hasCapturedTire()) label.innerHTML = selectedTireFactsHtml(selectedQuote);
+    const price = document.querySelector('[data-install-price]');
+    if (price) price.innerHTML = installPriceMarkup();
+    const summary = document.querySelector('[data-price-summary]');
+    if (!summary) return;
+    const markup = priceSummaryMarkup();
+    summary.hidden = !markup;
+    if (markup && summary.innerHTML !== markup) summary.innerHTML = markup;
   }
 
   function syncInstallSlotChoices() {
@@ -2177,6 +2285,33 @@
       return `<option value="${slot}"${tooEarly ? ' disabled' : ''}>${label}</option>`;
     })).join('');
     if ([...timeSelect.options].some((option) => option.value === current && !option.disabled)) timeSelect.value = current;
+    renderInstallTimeMenu();
+  }
+
+  function renderInstallTimeMenu() {
+    const timeSelect = document.querySelector('[data-install-time]');
+    const list = document.querySelector('[data-install-time-list]');
+    const toggle = document.querySelector('[data-install-time-toggle]');
+    if (!timeSelect || !list || !toggle) return;
+    list.innerHTML = [...timeSelect.options].filter((option) => option.value).map((option) => (
+      `<button type="button" class="new-tire-time-option${option.disabled ? ' is-disabled' : ''}${option.selected ? ' is-selected' : ''}" data-time-value="${escapeHtml(option.value)}"${option.disabled ? ' disabled' : ''}>${escapeHtml(option.textContent)}</button>`
+    )).join('');
+    const selected = timeSelect.selectedOptions[0];
+    toggle.textContent = selected?.value ? selected.textContent : 'Select a time';
+  }
+
+  function chooseInstallTime(value) {
+    const timeSelect = document.querySelector('[data-install-time]');
+    const list = document.querySelector('[data-install-time-list]');
+    const toggle = document.querySelector('[data-install-time-toggle]');
+    if (!timeSelect) return;
+    const option = [...timeSelect.options].find((item) => item.value === value && !item.disabled);
+    if (!option) return;
+    timeSelect.value = value;
+    timeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    if (list) list.hidden = true;
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    renderInstallTimeMenu();
   }
 
   function installBookingQuote() {
@@ -2190,11 +2325,23 @@
     return { ok: true, quote, quantity, sizeBand, priced };
   }
 
+  function orderGrandTotal() {
+    const booking = installBookingQuote();
+    const install = booking.ok ? Number(booking.priced.totalWithHst) || 0 : 0;
+    const tires = tireAmountForSummary();
+    return {
+      ok: booking.ok,
+      tires,
+      install,
+      total: Math.round((tires + install) * 100) / 100,
+    };
+  }
+
   function syncBookAndPayButton() {
     const button = document.querySelector('[data-book-and-pay]');
     if (!button || button.dataset.busy === 'true') return;
-    const booking = installBookingQuote();
-    button.textContent = booking.ok ? `Book and pay ${moneyAmount(booking.priced.depositAmount)}` : 'Book and pay';
+    const amount = orderGrandTotal();
+    button.textContent = amount.ok && amount.total > 0 ? `Book and pay ${moneyAmount(amount.total)}` : 'Book and pay';
   }
 
   function installPayCustomer() {
@@ -2279,8 +2426,8 @@
       hstAmount: priced.hstAmount,
       totalWithHst: priced.totalWithHst,
       taxRate: priced.taxRate,
-      depositAmount: priced.depositAmount,
-      remainingBalance: priced.remainingBalance,
+      depositAmount: priced.totalWithHst,
+      remainingBalance: 0,
       preferredDate: date,
       preferredTimeWindow: time,
       vehiclePlateNumber: plate,
@@ -2303,7 +2450,7 @@
       button.disabled = true;
       button.textContent = 'Opening payment…';
     }
-    setFulfillmentMessage('Booking the appointment and opening the deposit payment.', false);
+    setFulfillmentMessage('Opening card payment for the tires and installation.', false);
     try {
       const cart = window.EastCordAccount?.getCart?.() || [];
       cart.push(item);
@@ -2318,7 +2465,8 @@
         body: JSON.stringify({
           items: [item],
           customer: payer.customer,
-          payInFull: false,
+          payInFull: true,
+          tireCharge: orderGrandTotal().tires,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -2340,6 +2488,7 @@
     const panel = document.querySelector('[data-install-location-panel]');
     const shop = document.querySelector('[data-shop-install-details]');
     const price = document.querySelector('[data-install-price]');
+    const summary = document.querySelector('[data-price-summary]');
     const installing = selectedFulfillment() === 'Installation';
     if (panel) panel.hidden = !installing;
     document.querySelectorAll('[data-install-location-option]').forEach((button) => {
@@ -2349,7 +2498,14 @@
     });
     const showShop = installing && installLocation === 'shop';
     if (shop) shop.hidden = !showShop;
+    const selectedTire = document.querySelector('[data-new-tire-selected]');
+    if (selectedTire) selectedTire.hidden = !showShop || !hasCapturedTire();
     if (price && showShop) price.innerHTML = installPriceMarkup();
+    if (summary) {
+      const markup = showShop ? priceSummaryMarkup() : '';
+      summary.hidden = !markup;
+      summary.innerHTML = markup;
+    }
     if (showShop) {
       syncInstallSlotChoices();
       syncBookAndPayButton();
@@ -2410,9 +2566,10 @@
     const phoneInput = phoneField?.querySelector('input');
     const signedIn = Boolean(currentProfile);
     const captured = hasCapturedTire();
+    const installing = selectedFulfillment() === 'Installation';
 
-    if (selected) selected.hidden = !captured;
-    if (selectedEmpty) selectedEmpty.hidden = captured;
+    if (selected) selected.hidden = !captured || !installing || installLocation !== 'shop';
+    if (selectedEmpty) selectedEmpty.hidden = true;
     if (selectedLabel) selectedLabel.innerHTML = selectedTireFactsHtml(selectedQuote);
     if (auth) auth.hidden = signedIn;
     if (submit) submit.hidden = true;
@@ -3622,6 +3779,19 @@
       syncInstallDetails();
     });
     document.querySelector('[data-install-date]')?.addEventListener('change', syncInstallSlotChoices);
+    document.querySelector('[data-install-time-toggle]')?.addEventListener('click', () => {
+      const list = document.querySelector('[data-install-time-list]');
+      const toggle = document.querySelector('[data-install-time-toggle]');
+      if (!list || !toggle) return;
+      const open = list.hidden;
+      list.hidden = !open;
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.querySelector('[data-install-time-list]')?.addEventListener('click', (event) => {
+      const choice = event.target.closest('[data-time-value]');
+      if (!choice || choice.disabled) return;
+      chooseInstallTime(choice.dataset.timeValue);
+    });
     document.querySelector('[data-book-and-pay]')?.addEventListener('click', bookAndPayInstallation);
     document.querySelector('[data-new-tire-fulfillment-form]')?.addEventListener('submit', submitOrderRequest);
     document.querySelector('[data-new-tire-change]')?.addEventListener('click', () => {

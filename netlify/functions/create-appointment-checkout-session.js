@@ -5,6 +5,8 @@ const { isNewTireInstallTooEarly, NEW_TIRE_HOLD_MESSAGE } = require('./lib/new-t
 const { resolveService } = require('../../appointment-services');
 const { listCalendarSlots, slotKey, isSlotConflict } = require('./lib/appointment-calendars');
 const { ensureCheckoutCustomer } = require('./lib/guest-customer');
+const { requireAdminUser } = require('./lib/admin-auth');
+const { sendEmail, buildBrandedEmail, detailRowsHtml, CONTACT_EMAIL, SITE_ORIGIN } = require('./lib/send-email');
 
 const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
@@ -364,6 +366,25 @@ function buildLookupDiagnostics({ booking, customer, verifiedUser, supabaseError
   };
 }
 
+async function recordPhoneAppointments(supabaseAdmin, preparedItems, bookedByStaffId) {
+  if (!supabaseAdmin || !bookedByStaffId) return;
+  const rows = preparedItems
+    .map((item) => String(item.effectiveBookingId || '').trim())
+    .filter((bookingId) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(bookingId))
+    .map((bookingId) => ({
+      booking_id: bookingId,
+      booked_by: bookedByStaffId,
+    }));
+  if (!rows.length) return;
+
+  const { error } = await supabaseAdmin
+    .from('phone_appointments')
+    .upsert(rows, { onConflict: 'booking_id' });
+  if (error) {
+    logDeveloperError('Phone appointment marker could not be saved. Run supabase/phone-appointments.sql.', error);
+  }
+}
+
 function buildBookingRecord({ booking, customer, service, amounts, verifiedUser }) {
   return {
     customer_id: verifiedUser.id,
@@ -528,6 +549,44 @@ function fieldValue(value) {
   return String(value ?? '').trim();
 }
 
+function formatCad(value) {
+  return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(roundMoney(value));
+}
+
+async function emailPhonePaymentLink({ customer, booking, serviceName, amount, url }) {
+  const total = formatCad(amount);
+  const place = isShopInstall(booking)
+    ? 'EastCord shop, 600 Harrop Drive, Milton'
+    : [fieldValue(booking.fullServiceAddress), fieldValue(booking.city)].filter(Boolean).join(', ');
+  const firstName = fieldValue(customer.name).split(/\s+/)[0] || 'there';
+  const email = buildBrandedEmail({
+    to: customer.email,
+    subject: `Pay ${total} for your EastCord appointment`,
+    heading: 'Your appointment is ready to pay',
+    body: [
+      `Hi ${firstName}, EastCord Tires booked this appointment by phone. Pay the full amount to confirm it.`,
+    ],
+    extraHtml: detailRowsHtml([
+      { label: 'Service', value: serviceName },
+      { label: 'Date', value: fieldValue(booking.preferredDate) },
+      { label: 'Time', value: fieldValue(booking.preferredTimeWindow) },
+      { label: 'Place', value: place },
+      { label: 'Total', value: total },
+    ]),
+    extraText: [
+      `Service: ${serviceName}`,
+      `Date: ${fieldValue(booking.preferredDate)}`,
+      `Time: ${fieldValue(booking.preferredTimeWindow)}`,
+      `Place: ${place}`,
+      `Total: ${total}`,
+    ].join('\n'),
+    actionUrl: url,
+    actionLabel: `Pay ${total}`,
+    footer: 'This link opens secure card payment for the full appointment amount. The appointment is confirmed after payment.',
+  });
+  return sendEmail({ ...email, replyTo: CONTACT_EMAIL });
+}
+
 function validateBookingFields(booking, customer, ordersById = {}) {
   const city = fieldValue(booking.city);
   const shop = isShopInstall(booking);
@@ -596,7 +655,11 @@ exports.handler = async (event) => {
   }
 
   const bookingItems = normalizeBookingItems(payload);
-  const payInFull = payload.payInFull === true || payload.paymentChoice === 'full';
+  const phoneAppointment = payload.phoneAppointment === true;
+  const sendPaymentLink = phoneAppointment && payload.sendPaymentLink === true;
+  const payInFull = phoneAppointment || payload.payInFull === true || payload.paymentChoice === 'full';
+  const requestedTireCharge = phoneAppointment ? 0 : roundMoney(Number(payload.tireCharge));
+  const tireCharge = requestedTireCharge > 0 && requestedTireCharge <= 20000 ? requestedTireCharge : 0;
   const customer = payload.customer || bookingItems[0]?.customer || {};
   customer.customerId = fieldValue(customer.customerId || customer.id);
   customer.email = fieldValue(customer.email);
@@ -616,18 +679,41 @@ exports.handler = async (event) => {
   }
 
   const supabaseAdmin = getSupabaseAdmin();
-  let verifiedUser = await getVerifiedUser(event, supabaseAdmin);
+  let verifiedUser = null;
+  let bookedByStaffId = '';
 
-  if (!verifiedUser) {
+  if (phoneAppointment) {
+    const adminAuth = await requireAdminUser(event);
+    if (adminAuth.error) return json(adminAuth.error.statusCode, { message: adminAuth.error.message });
+    if (customer.email.toLowerCase() === 'info@eastcordtires.ca') {
+      return json(400, { message: 'Enter the customer email, not the staff login.' });
+    }
     if (!supabaseAdmin) return json(500, { message: 'Checkout could not be saved.' });
-    const guest = await ensureCheckoutCustomer(supabaseAdmin, customer);
+    const guest = await ensureCheckoutCustomer(supabaseAdmin, customer, { allowExisting: true });
     if (guest.error) return json(guest.statusCode || 400, { message: guest.error });
     verifiedUser = { id: guest.id };
     customer.customerId = guest.id;
-  } else if (customer.customerId && customer.customerId !== verifiedUser.id) {
-    return json(403, { message: 'This cart does not match the logged-in customer.' });
+    bookedByStaffId = adminAuth.user.id;
+    bookingItems.forEach((item) => {
+      const note = fieldValue(item.additionalNotes);
+      item.additionalNotes = note.toLowerCase().startsWith('phone appointment')
+        ? note
+        : ['Phone appointment.', note].filter(Boolean).join(' ');
+    });
   } else {
-    customer.customerId = verifiedUser.id;
+    verifiedUser = await getVerifiedUser(event, supabaseAdmin);
+
+    if (!verifiedUser) {
+      if (!supabaseAdmin) return json(500, { message: 'Checkout could not be saved.' });
+      const guest = await ensureCheckoutCustomer(supabaseAdmin, customer);
+      if (guest.error) return json(guest.statusCode || 400, { message: guest.error });
+      verifiedUser = { id: guest.id };
+      customer.customerId = guest.id;
+    } else if (customer.customerId && customer.customerId !== verifiedUser.id) {
+      return json(403, { message: 'This cart does not match the logged-in customer.' });
+    } else {
+      customer.customerId = verifiedUser.id;
+    }
   }
 
   const orderGate = await assertConfirmedNewTireOrders({
@@ -677,6 +763,10 @@ exports.handler = async (event) => {
     });
   }
 
+  if (phoneAppointment && bookedByStaffId) {
+    await recordPhoneAppointments(supabaseAdmin, preparedItems, bookedByStaffId);
+  }
+
   const paidSlotConflicts = await findPaidSlotConflicts(supabaseAdmin, preparedItems);
   if (paidSlotConflicts.length) {
     logDeveloperError('Checkout stopped because one or more slots are already confirmed and paid.', paidSlotConflicts);
@@ -711,9 +801,21 @@ exports.handler = async (event) => {
           unit_amount: Math.round(item.depositAmount * 100),
         },
         quantity: 1,
-      })),
+      })).concat(tireCharge > 0 ? [{
+        price_data: {
+          currency: 'cad',
+          product_data: {
+            name: 'New tires',
+            description: 'Tire total, including the eco fee and tax.',
+          },
+          unit_amount: Math.round(tireCharge * 100),
+        },
+        quantity: 1,
+      }] : []),
       success_url: `${siteUrl}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}&paid=${payInFull ? 'full' : 'deposit'}`,
-      cancel_url: `${siteUrl}/cart.html`,
+      cancel_url: sendPaymentLink
+        ? `${siteUrl}/`
+        : (phoneAppointment ? `${siteUrl}/admin/phone-appointments` : `${siteUrl}/cart.html`),
       metadata: {
         order_type: 'appointment',
         payment_choice: payInFull ? 'full' : 'deposit',
@@ -774,6 +876,39 @@ exports.handler = async (event) => {
       totalDeposit,
       totalRemaining,
     });
+
+    if (phoneAppointment && sendPaymentLink) {
+      const firstItem = preparedItems[0];
+      const bookingId = String(firstItem.effectiveBookingId || '');
+      const payLink = /^[0-9a-f-]{36}$/i.test(bookingId)
+        ? `${SITE_ORIGIN}/pay/${bookingId}`
+        : session.url;
+      let emailed = { ok: false };
+      try {
+        emailed = await emailPhonePaymentLink({
+          customer,
+          booking: firstItem.booking,
+          serviceName: firstItem.service?.name || '',
+          amount: totalDeposit,
+          url: payLink,
+        });
+      } catch (emailError) {
+        logDeveloperError('Phone appointment payment link email failed.', emailError?.message || emailError);
+      }
+      if (!emailed.ok) {
+        return json(200, {
+          emailed: false,
+          link: payLink,
+          email: customer.email,
+          message: 'The appointment is booked, but the payment email could not be sent.',
+        });
+      }
+      return json(200, {
+        emailed: true,
+        link: payLink,
+        email: customer.email,
+      });
+    }
 
     return json(200, { url: session.url, testMode: isStripeTestMode() });
   } catch (error) {
