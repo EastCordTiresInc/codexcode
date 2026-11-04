@@ -65,6 +65,9 @@
   let skipOrderDetails = false;
   let orderDetailsClicks = 0;
   let skipOrderDetailsTimer = 0;
+  let installServiceWant = null;
+  let installServiceAttempts = 0;
+  let installServiceHoldUntil = 0;
   let calendarMonth = new Date();
   const boundWidgets = new WeakSet();
 
@@ -925,6 +928,7 @@
         displayedAmount.textContent = '$6.00';
       }
       applyFixedEcoFee();
+      placeRequiredServicesInPriceSummary();
       return;
     }
 
@@ -983,6 +987,7 @@
       }
     });
     applyFixedEcoFee();
+    placeRequiredServicesInPriceSummary();
   }
 
   function parseWidgetMoney(value) {
@@ -1066,6 +1071,202 @@
     });
   }
 
+  function cleanServiceName(value) {
+    return String(value || '')
+      .replace(/[\uE000-\uF8FF]/g, '')
+      .replace(/\$\s*[\d,.]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function isOffRimServiceName(name) {
+    if (/storage|warranty|protection|road hazard|alignment/i.test(name)) return false;
+    return /off[-\s]?rim|\binstall|\bmount|\bappointment|\blabor/i.test(name);
+  }
+
+  function requiredServiceSourceRows() {
+    const elements = collectWidgetElements(document.getElementById('tireconnect'));
+    const heading = elements.find((element) => /^required services$/i.test(cleanServiceName(directWidgetText(element))));
+    const group = heading?.closest?.('[data-tctid="required_services"]') || heading?.parentElement;
+    return elements.filter((element) => {
+      if (element.tagName !== 'TR') return false;
+      if (element.closest('[data-eastcord-eco-fee-summary], [data-eastcord-install-summary]')) return false;
+      const inRequired = element.closest('[data-tctid="required_services"]') || (group && group.contains(element));
+      if (!inRequired) return false;
+      const text = String(element.innerText || element.textContent || '').replace(/\s+/g, ' ').trim();
+      return Boolean(text) && !/tire eco fee/i.test(text) && /\$\s*\d/.test(text);
+    });
+  }
+
+  function summarySubtotalRow(elements) {
+    const subtotalLabel = elements.find((element) => /^sub-?total$/i.test(directWidgetText(element)));
+    let subtotalRow = subtotalLabel?.closest?.('li, tr, [role="row"]') || subtotalLabel?.parentElement;
+    for (let depth = 0; subtotalRow && depth < 4; depth += 1) {
+      const text = String(subtotalRow.innerText || subtotalRow.textContent || '').replace(/\s+/g, ' ').trim();
+      if (/sub-?total/i.test(text) && /\$\s*\d/i.test(text) && text.length <= 160) return subtotalRow;
+      subtotalRow = subtotalRow.parentElement;
+    }
+    return null;
+  }
+
+  function widgetQuoteQuantity() {
+    const hashQty = decodeURIComponent(window.location.hash).match(/t_qty[^0-9]{0,4}(\d+)/i);
+    if (hashQty) return Math.max(1, Number(hashQty[1]) || 1);
+    const qtySelect = collectWidgetElements(document.getElementById('tireconnect'))
+      .find((element) => element.tagName === 'SELECT' && element.options.length <= 10 && [...element.options].some((option) => option.value === '4'));
+    return Math.max(1, Number(qtySelect?.value) || 1);
+  }
+
+  function widgetTireMerchandise(elements) {
+    const labeled = labeledWidgetMoney(elements, /^tire total$/i).amount;
+    if (labeled) return labeled;
+    const perTire = widgetPlainText().match(/per tire:\s*\$\s*([\d,.]+)/i);
+    if (!perTire) return null;
+    return Math.round(Number(perTire[1].replace(/,/g, '')) * widgetQuoteQuantity() * 100) / 100;
+  }
+
+  function placeRequiredServicesInPriceSummary() {
+    const root = document.getElementById('tireconnect');
+    if (!root) return;
+    const elements = collectWidgetElements(root);
+    const subtotalRow = summarySubtotalRow(elements);
+    if (!subtotalRow) return;
+    const sources = requiredServiceSourceRows().map((row) => ({
+      row,
+      amount: parseWidgetMoney(row.textContent),
+      name: cleanServiceName(row.querySelector('td')?.innerText || row.textContent),
+    })).filter((item) => item.name && item.amount > 0);
+    const showOffRim = selectedFulfillment() === 'Installation';
+    sources.forEach(({ row, amount, name }) => {
+      if (!name || !(amount > 0)) return;
+      const key = name.toLowerCase();
+      const offRim = isOffRimServiceName(name);
+      let summaryRow = elements.find((element) => element.getAttribute?.('data-eastcord-install-summary') === key);
+      if (!summaryRow) {
+        summaryRow = subtotalRow.cloneNode(true);
+        summaryRow.removeAttribute?.('id');
+        summaryRow.querySelectorAll?.('[id]').forEach((element) => element.removeAttribute('id'));
+        summaryRow.setAttribute('data-eastcord-install-summary', key);
+        subtotalRow.parentElement.insertBefore(summaryRow, subtotalRow);
+      }
+      const summaryElements = [summaryRow, ...summaryRow.querySelectorAll('*')];
+      const summaryLabel = summaryElements.find((element) => /^sub-?total$/i.test(directWidgetText(element)))
+        || summaryElements.find((element) => directWidgetText(element) && !/^\$/.test(directWidgetText(element)));
+      const summaryAmount = summaryElements.find((element) => /^\$\s*[\d,.]+$/.test(directWidgetText(element)));
+      if (summaryLabel) summaryLabel.textContent = name;
+      if (summaryAmount) summaryAmount.textContent = `$${amount.toFixed(2)}`;
+      const showRow = !offRim || showOffRim;
+      summaryRow.hidden = !showRow;
+      summaryRow.setAttribute('aria-hidden', showRow ? 'false' : 'true');
+      row.hidden = true;
+      row.setAttribute('aria-hidden', 'true');
+    });
+    hideEmptyRequiredServices();
+    const offRimAmount = Math.round(sources
+      .filter((item) => isOffRimServiceName(item.name))
+      .reduce((sum, item) => sum + item.amount, 0) * 100) / 100;
+    const otherAmount = Math.round(sources
+      .filter((item) => !isOffRimServiceName(item.name))
+      .reduce((sum, item) => sum + item.amount, 0) * 100) / 100;
+    if (otherAmount > 0) applyRequiredServiceDollars(root, otherAmount, 'other');
+    if (offRimAmount > 0) applyRequiredServiceDollars(root, offRimAmount, 'install');
+  }
+
+  function hideEmptyRequiredServices() {
+    const root = document.getElementById('tireconnect');
+    if (!root) return;
+    const elements = collectWidgetElements(root);
+    const heading = elements.find((element) => /^required services$/i.test(cleanServiceName(directWidgetText(element))));
+    const group = heading?.closest?.('[data-tctid="required_services"]');
+    const rows = requiredServiceSourceRows();
+    if (!rows.length) return;
+    const visible = rows.some((row) => !row.hidden);
+    if (group && group.id !== 'tireconnect') {
+      group.hidden = !visible;
+      group.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    }
+    if (heading) heading.hidden = !visible;
+  }
+
+  function applyRequiredServiceDollars(root, amount, kind) {
+    const fresh = collectWidgetElements(root);
+    const subtotal = labeledWidgetMoney(fresh, /^sub-?total$/i);
+    const taxes = labeledWidgetMoney(fresh, /^taxes?$/i);
+    const charges = [
+      labeledWidgetMoney(fresh, /^total\s*price:?$/i),
+      labeledWidgetMoney(fresh, /^payment due$/i),
+    ];
+    if (subtotal.amount == null) return;
+    const tire = widgetTireMerchandise(fresh);
+    const qty = widgetQuoteQuantity();
+    const shownEco = labeledWidgetMoney(fresh, /^tire\s*eco\s*fee:?$/i).amount || 0;
+    const includedInSubtotal = tire != null && [shownEco, 6 * qty].some((eco) => (
+      Math.abs(subtotal.amount - (tire + eco + amount)) < 0.25
+    ));
+    const addedKey = kind === 'install' ? 'eastcordInstallAdded' : 'eastcordOtherAdded';
+    const baseKey = kind === 'install' ? 'eastcordInstallBase' : 'eastcordOtherBase';
+    const appliedAmount = Number(root.dataset[addedKey]);
+    const appliedBase = Number(root.dataset[baseKey]);
+    const alreadyApplied = appliedAmount === amount
+      && Number.isFinite(appliedBase)
+      && Math.abs(subtotal.amount - (appliedBase + amount)) < 0.08;
+    const removable = kind === 'install';
+    const excludedAmount = Number(root.dataset.eastcordInstallExcluded);
+    const excludedBase = Number(root.dataset.eastcordInstallExcludedBase);
+    const alreadyExcluded = removable
+      && excludedAmount === amount
+      && Number.isFinite(excludedBase)
+      && Math.abs(subtotal.amount - excludedBase) < 0.08;
+    const wantService = !removable || selectedFulfillment() === 'Installation';
+    if (removable && installServiceCheckbox()) {
+      if (installServiceCheckbox().checked) root.dataset.eastcordInstallAdded = String(amount);
+      else delete root.dataset.eastcordInstallAdded;
+      delete root.dataset.eastcordInstallBase;
+      delete root.dataset.eastcordInstallExcluded;
+      delete root.dataset.eastcordInstallExcludedBase;
+      return;
+    }
+    if (!wantService) {
+      if (!(includedInSubtotal || alreadyApplied) || alreadyExcluded) {
+        delete root.dataset.eastcordInstallAdded;
+        delete root.dataset.eastcordInstallBase;
+        return;
+      }
+      const reduced = Math.round((subtotal.amount - amount) * 100) / 100;
+      writeWidgetMoney(subtotal, reduced);
+      if (taxes.amount != null) writeWidgetMoney(taxes, Math.round((taxes.amount - amount * 0.13) * 100) / 100);
+      charges.forEach((entry) => {
+        if (entry.amount == null) return;
+        writeWidgetMoney(entry, Math.round((entry.amount - amount * 1.13) * 100) / 100);
+      });
+      delete root.dataset.eastcordInstallAdded;
+      delete root.dataset.eastcordInstallBase;
+      root.dataset.eastcordInstallExcluded = String(amount);
+      root.dataset.eastcordInstallExcludedBase = String(reduced);
+      return;
+    }
+    if (includedInSubtotal || alreadyApplied) {
+      root.dataset[addedKey] = String(amount);
+      if (removable) {
+        delete root.dataset.eastcordInstallExcluded;
+        delete root.dataset.eastcordInstallExcludedBase;
+      }
+      return;
+    }
+    writeWidgetMoney(subtotal, Math.round((subtotal.amount + amount) * 100) / 100);
+    if (taxes.amount != null) writeWidgetMoney(taxes, Math.round((taxes.amount + amount * 0.13) * 100) / 100);
+    charges.forEach((entry) => {
+      if (entry.amount == null) return;
+      writeWidgetMoney(entry, Math.round((entry.amount + amount * 1.13) * 100) / 100);
+    });
+    root.dataset[baseKey] = String(subtotal.amount);
+    root.dataset[addedKey] = String(amount);
+    if (removable) {
+      delete root.dataset.eastcordInstallExcluded;
+      delete root.dataset.eastcordInstallExcludedBase;
+    }
+  }
+
   function onWidgetDomChanged() {
     syncSummaryLayout();
     clearQuoteForWidgetSearch();
@@ -1080,6 +1281,7 @@
     watchWidgetOrderConfirmation();
     syncCheckoutLoginWall();
     advanceOrderDetailsToCard();
+    syncInstallService();
     refreshShopPriceSummary();
   }
 
@@ -2241,17 +2443,56 @@
     return widgetSummaryTotal() || selectedTireTotal();
   }
 
+  function serviceSwitchText(box) {
+    const row = box?.closest?.('tr') || box?.parentElement;
+    return String(row?.innerText || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function isInstallServiceText(text) {
+    if (/storage|warranty|protection|road hazard|alignment/i.test(text)) return false;
+    return /off[-\s]?rim|\binstall|\bmount|\bappointment|\blabor/i.test(text);
+  }
+
+  function installServiceCheckbox() {
+    const boxes = collectWidgetElements(document.getElementById('tireconnect')).filter((el) => (
+      el.tagName === 'INPUT'
+      && String(el.type || '').toLowerCase() === 'checkbox'
+      && /service switch/i.test(el.getAttribute('aria-label') || '')
+    ));
+    return boxes.find((box) => isInstallServiceText(serviceSwitchText(box))) || null;
+  }
+
+  function syncInstallService() {
+    const want = selectedFulfillment() === 'Installation';
+    if (installServiceWant !== want) {
+      installServiceWant = want;
+      installServiceAttempts = 0;
+      installServiceHoldUntil = 0;
+    }
+    if (Date.now() < installServiceHoldUntil) return;
+    const box = installServiceCheckbox();
+    if (!box || box.checked === want) {
+      installServiceAttempts = 0;
+      return;
+    }
+    if (installServiceAttempts >= 3) return;
+    installServiceAttempts += 1;
+    installServiceHoldUntil = Date.now() + 1500;
+    logFlow('widget.installService', { want, label: serviceSwitchText(box) });
+    box.click();
+    window.setTimeout(syncInstallService, 1600);
+  }
+
   function priceSummaryMarkup() {
     const quote = offRimInstallQuote();
     if (!quote.ok) return '';
-    const tireTotal = tireAmountForSummary();
-    const combined = Math.round((tireTotal + quote.total) * 100) / 100;
+    const amount = orderGrandTotal();
     return `
       <p class="new-tire-install-price-title">Price summary</p>
       <dl>
-        <div><dt>Selected tire</dt><dd>${moneyAmount(tireTotal)}</dd></div>
-        <div><dt>Off-rim swap</dt><dd>${moneyAmount(quote.total)}</dd></div>
-        <div class="is-total"><dt>Total</dt><dd>${moneyAmount(combined)}</dd></div>
+        <div><dt>Selected tire</dt><dd>${moneyAmount(amount.tires)}</dd></div>
+        <div><dt>Off-rim swap</dt><dd>${moneyAmount(amount.install)}</dd></div>
+        <div class="is-total"><dt>Total</dt><dd>${moneyAmount(amount.total)}</dd></div>
       </dl>
     `;
   }
@@ -2328,12 +2569,17 @@
   function orderGrandTotal() {
     const booking = installBookingQuote();
     const install = booking.ok ? Number(booking.priced.totalWithHst) || 0 : 0;
-    const tires = tireAmountForSummary();
+    const shown = tireAmountForSummary();
+    const installInWidget = installServiceCheckbox()?.checked || Number(document.getElementById('tireconnect')?.dataset.eastcordInstallAdded || 0) > 0;
+    if (installInWidget && shown > install) {
+      const tires = Math.max(0, Math.round((shown - install) * 100) / 100);
+      return { ok: booking.ok, tires, install, total: shown };
+    }
     return {
       ok: booking.ok,
-      tires,
+      tires: shown,
       install,
-      total: Math.round((tires + install) * 100) / 100,
+      total: Math.round((shown + install) * 100) / 100,
     };
   }
 
@@ -2589,6 +2835,7 @@
     syncCheckoutLoginWall();
     syncInstallDetails();
     syncSummaryCustomer();
+    placeRequiredServicesInPriceSummary();
   }
 
   async function refreshProfile() {
@@ -2737,19 +2984,51 @@
     if (when && /INPUT|TEXTAREA/i.test(when.tagName)) setWidgetFieldValue(when, preferredInstallDateTime());
   }
 
+  function isCheckoutAdvanceButton(el) {
+    const tag = String(el?.tagName || '');
+    const role = String(el?.getAttribute?.('role') || '');
+    const type = String(el?.getAttribute?.('type') || '');
+    const clickable = tag === 'BUTTON' || tag === 'A' || role === 'button' || (tag === 'INPUT' && /submit|button/i.test(type));
+    if (!clickable) return false;
+    return isLeafButton(el, (text) => {
+      const value = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!value || value.length > 60) return false;
+      if (/back|discount|apply|summary|change tire/i.test(value)) return false;
+      return /checkout|continue|next|place(?: your)? order|pay(?: now|ment)?|proceed/i.test(value);
+    });
+  }
+
   function findCheckoutAdvanceButton() {
+    return collectWidgetElements(document.getElementById('tireconnect')).find(isCheckoutAdvanceButton);
+  }
+
+  function firstRealSelectOption(select) {
+    return [...(select?.options || [])].find((option) => {
+      const label = String(option.text || '').trim();
+      return option.value && !/^(-|select|choose)/i.test(label);
+    });
+  }
+
+  function widgetSelectByName(name) {
+    const labeled = widgetControlByLabel(new RegExp(`\\b${name}\\b`, 'i'));
+    if (labeled?.tagName === 'SELECT') return labeled;
     return collectWidgetElements(document.getElementById('tireconnect')).find((el) => {
-      if (!isLeafButton(el, (text) => {
-        const value = String(text || '').replace(/\s+/g, ' ').trim();
-        if (!value || /back to summary|apply|discount/i.test(value)) return false;
-        return (/checkout/i.test(value) || /^(continue|next)$/i.test(value)) && value.length < 48;
-      })) return false;
-      return true;
+      if (el.tagName !== 'SELECT') return false;
+      const hint = `${el.getAttribute('aria-label') || ''} ${el.getAttribute('name') || ''} ${[...el.options].slice(0, 2).map((option) => option.text).join(' ')}`;
+      return new RegExp(`\\b${name}\\b`, 'i').test(hint);
+    }) || null;
+  }
+
+  function fillWidgetVehicleDefaults() {
+    ['year', 'make', 'model', 'submodel'].forEach((name) => {
+      const select = widgetSelectByName(name);
+      if (!select || select.value) return;
+      const option = firstRealSelectOption(select);
+      if (option) setWidgetFieldValue(select, option.value);
     });
   }
 
   function advanceOrderDetailsToCard() {
-    if (!skipOrderDetails) return;
     if (isWidgetCardPage()) {
       skipOrderDetails = false;
       orderDetailsClicks = 0;
@@ -2759,10 +3038,18 @@
       return;
     }
     if (!isWidgetOrderDetailsPage()) return;
-    setSkippingOrderDetails(true);
     const summary = readSummaryCustomer();
+    if (!summary.ok && !skipOrderDetails) return;
+    if (!skipOrderDetails) {
+      skipOrderDetails = true;
+      orderDetailsClicks = 0;
+      armOrderDetailsSkip();
+    }
+    setSkippingOrderDetails(true);
+    pushCustomerIntoWidget();
     if (summary.ok) fillWidgetOrderFields(summary.customer);
-    if (orderDetailsClicks >= 3) return;
+    fillWidgetVehicleDefaults();
+    if (orderDetailsClicks >= 8) return;
     const button = findCheckoutAdvanceButton();
     if (!button) return;
     orderDetailsClicks += 1;
@@ -2777,7 +3064,7 @@
       skipOrderDetails = false;
       setSkippingOrderDetails(false);
       setFulfillmentMessage('Your details are filled in. Continue to the card payment on this page.');
-    }, 6000);
+    }, 12000);
   }
 
   function prepareWidgetPayment(event) {
@@ -3770,6 +4057,7 @@
       });
       syncFulfillmentUi();
       pushCustomerIntoWidget();
+      syncInstallService();
     });
     document.querySelector('[data-install-location-options]')?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-install-location-option]');
