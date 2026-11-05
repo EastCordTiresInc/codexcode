@@ -1206,6 +1206,35 @@ body.admin-modal-open {
   border: 0;
 }
 
+.admin-blog-preview .blog-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 18px;
+}
+
+.admin-blog-preview table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-blog-preview th,
+.admin-blog-preview td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e6e6e6;
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-blog-preview th {
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 0.92rem;
+}
+
+.admin-blog-preview td {
+  color: #34363a;
+  line-height: 1.5;
+}
+
 .admin-blog-actions {
   display: flex;
   flex-wrap: wrap;

@@ -125,6 +125,29 @@
     return `<${tag}>\n${items.join('\n')}\n</${tag}>`;
   }
 
+  function isTableRow(line) {
+    const trimmed = String(line || '').trim();
+    return trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.split('|').length >= 3;
+  }
+
+  function tableCells(line) {
+    return String(line || '').trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());
+  }
+
+  function isTableDivider(cells) {
+    return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s/g, '')));
+  }
+
+  function renderTable(rows) {
+    const header = rows[0] || [];
+    const body = rows.slice(1).filter((cells) => !isTableDivider(cells));
+    const headHtml = `<thead><tr>${header.map((cell) => `<th>${renderInline(cell)}</th>`).join('')}</tr></thead>`;
+    const bodyHtml = body.length
+      ? `<tbody>${body.map((cells) => `<tr>${cells.map((cell) => `<td>${renderInline(cell)}</td>`).join('')}</tr>`).join('')}</tbody>`
+      : '';
+    return `<div class="blog-table-wrap"><table>${headHtml}${bodyHtml}</table></div>`;
+  }
+
   function renderSafeMarkdown(markdown) {
     const lines = String(markdown ?? '').replace(/\r\n/g, '\n').split('\n');
     const blocks = [];
@@ -168,25 +191,36 @@
         continue;
       }
 
-      if (/^>\s?/.test(trimmed)) {
-        const quotes = [];
-        while (index < lines.length && /^>\s?/.test(lines[index].trim())) {
-          quotes.push(lines[index].trim().replace(/^>\s?/, ''));
-          index += 1;
-        }
-        blocks.push(`<blockquote>${quotes.map(renderInline).join('<br />')}</blockquote>`);
-        continue;
+    if (/^>\s?/.test(trimmed)) {
+      const quotes = [];
+      while (index < lines.length && /^>\s?/.test(lines[index].trim())) {
+        quotes.push(lines[index].trim().replace(/^>\s?/, ''));
+        index += 1;
       }
+      blocks.push(`<blockquote>${quotes.map(renderInline).join('<br />')}</blockquote>`);
+      continue;
+    }
 
-      const paragraph = [];
-      while (
-        index < lines.length
-        && lines[index].trim()
-        && !/^#{1,4}\s+/.test(lines[index].trim())
-        && !/^[-*]\s+/.test(lines[index].trim())
-        && !/^\d+\.\s+/.test(lines[index].trim())
-        && !/^>\s?/.test(lines[index].trim())
-      ) {
+    if (isTableRow(trimmed)) {
+      const rows = [];
+      while (index < lines.length && isTableRow(lines[index].trim())) {
+        rows.push(tableCells(lines[index]));
+        index += 1;
+      }
+      blocks.push(renderTable(rows));
+      continue;
+    }
+
+    const paragraph = [];
+    while (
+      index < lines.length
+      && lines[index].trim()
+      && !/^#{1,4}\s+/.test(lines[index].trim())
+      && !/^[-*]\s+/.test(lines[index].trim())
+      && !/^\d+\.\s+/.test(lines[index].trim())
+      && !/^>\s?/.test(lines[index].trim())
+      && !isTableRow(lines[index].trim())
+    ) {
         paragraph.push(lines[index].trim());
         index += 1;
       }
