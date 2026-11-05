@@ -18,6 +18,22 @@
     return `<p class="blog-post-meta"><span>${escapeHtml(post.category)}</span><span>${escapeHtml(post.formattedDate)}</span></p>`;
   }
 
+  function readingTime(post) {
+    const match = String(post.body || '').match(/estimated reading time:\s*([^*\n<]+)/i);
+    const time = match ? match[1].trim() : '';
+    return time ? `Estimated reading time: ${time}` : '';
+  }
+
+  function readLink(post) {
+    const time = readingTime(post);
+    return `
+      <div class="blog-card-footer">
+        <a class="blog-read-link" href="${escapeAttribute(post.url)}">Read Article</a>
+        ${time ? `<span class="blog-reading-time">${escapeHtml(time)}</span>` : ''}
+      </div>
+    `;
+  }
+
   function emptyState() {
     return `
       <div class="blog-empty-state">
@@ -59,7 +75,7 @@
             ${meta(post)}
             <h2 id="blog-featured-title">${escapeHtml(post.title)}</h2>
             <p>${escapeHtml(post.description)}</p>
-            <a class="blog-read-link" href="${escapeAttribute(post.url)}">Read Article</a>
+            ${readLink(post)}
           </div>
           <a href="${escapeAttribute(post.url)}" aria-label="Read ${escapeAttribute(post.title)}">
             ${postImage(post)}
@@ -95,7 +111,7 @@
                 ${meta(post)}
                 <h2>${escapeHtml(post.title)}</h2>
                 <p>${escapeHtml(post.description)}</p>
-                <a class="blog-read-link" href="${escapeAttribute(post.url)}">Read Article</a>
+                ${readLink(post)}
               </div>
             </article>
           `).join('')}

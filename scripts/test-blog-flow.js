@@ -60,6 +60,16 @@ assert(videoEmbedUrl('javascript:alert(1)') === '', 'javascript video url blocke
 assert(videoEmbedUrl('https://example.com/video') === '', 'other websites are not embedded');
 assert(videoEmbedHtml('https://youtu.be/uR5QWHyqN90').includes('youtube-nocookie.com/embed/uR5QWHyqN90'), 'video html uses the embed player');
 assert(renderSafeMarkdown('https://www.youtube.com/watch?v=uR5QWHyqN90').includes('youtube-nocookie.com/embed/uR5QWHyqN90'), 'a video link on its own line becomes a player');
+const table = renderSafeMarkdown([
+  '| What to check | What to confirm before buying |',
+  '| --- | --- |',
+  '| Tire size | Confirm the correct size. |',
+  '| Warranty | Understand coverage. |',
+].join('\n'));
+assert(table.includes('<table>'), 'checklist renders as a table');
+assert(table.includes('<th>What to check</th>'), 'table header renders');
+assert(table.includes('<td>Tire size</td>'), 'table cell renders');
+assert(!table.includes('| --- |'), 'table divider is not shown as text');
 assert(!videoEmbedHtml('https://example.com/video'), 'rejected video url has no player');
 
 const withVideo = readPostInput({
