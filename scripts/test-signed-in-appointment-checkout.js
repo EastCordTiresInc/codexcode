@@ -196,6 +196,7 @@ async function main() {
     const onRim = page.locator('[data-service-item="on-rim-swap"]');
     await onRim.locator('[data-service-toggle]').check();
     await onRim.locator('[data-service-quantity]').selectOption('4');
+    await page.locator('[data-flat-repair-toggle]').click();
     await page.locator('[data-service-item="flat-patch-plug"] [data-service-toggle]').check();
     await page.locator('[data-service-item="flat-patch-plug"] [data-service-quantity]').selectOption('1');
     assert.strictEqual(await page.locator('[data-total-price]').textContent(), '$124.30');

@@ -99,7 +99,6 @@
       <div class="shell">
         <div class="blog-section-heading">
           <h2 id="blog-list-title">More From EastCord</h2>
-          <p>Helpful tire information, service notes, and seasonal reminders for busy drivers.</p>
         </div>
         <div class="blog-card-grid">
           ${posts.map((post) => `

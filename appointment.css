@@ -594,6 +594,106 @@ label:has(input[name="bot-field"]) {
   align-content: center;
 }
 
+.appointment-flat-repair {
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.appointment-flat-repair.is-open,
+.appointment-flat-repair.is-selected {
+  border-color: rgba(223, 31, 45, 0.45);
+}
+
+.appointment-flat-repair-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.appointment-flat-repair-toggle:hover,
+.appointment-flat-repair-toggle:focus-visible {
+  background: #fff7f7;
+}
+
+.appointment-flat-repair-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.appointment-flat-repair-copy strong {
+  color: #050505;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.appointment-flat-repair-copy small {
+  color: #69707b;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.appointment-flat-repair.is-selected .appointment-flat-repair-copy small {
+  color: #b41520;
+  font-weight: 750;
+}
+
+.appointment-flat-repair-side {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.appointment-flat-repair-side em {
+  color: #ba151b;
+  font-size: 0.84rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.appointment-flat-repair-chevron {
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid #111317;
+  border-bottom: 2px solid #111317;
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.appointment-flat-repair.is-open .appointment-flat-repair-chevron {
+  transform: rotate(-135deg) translateY(-2px);
+}
+
+.appointment-flat-repair-options {
+  padding: 0 14px 14px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f6f7f8;
+}
+
+.appointment-flat-repair-prompt {
+  margin: 12px 2px 10px;
+  color: #3a3f46;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.appointment-flat-repair-options .appointment-service-check {
+  border-radius: 50%;
+}
+
 .appointment-selected-services {
   padding: 17px 18px;
   border: 1px solid rgba(223, 31, 45, 0.25);

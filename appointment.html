@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles.css?v=9" />
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
-    <link rel="stylesheet" href="appointment.css?v=60" />
+    <link rel="stylesheet" href="appointment.css?v=62" />
     <link rel="stylesheet" href="account.css?v=2" />
     <link rel="stylesheet" href="chat.css" />
   </head>
@@ -135,20 +135,35 @@
                 </section>
 
                 <section class="appointment-service-group" aria-labelledby="flat-repair-heading">
-                  <div class="appointment-service-group-heading"><div><h4 id="flat-repair-heading">Flat repair</h4><p>Choose patch and plug or plug only.</p></div><span>Optional</span></div>
-                  <div class="appointment-service-choice-grid">
-                    <label class="appointment-service-choice" data-service-item="flat-patch-plug">
-                      <input type="checkbox" data-service-toggle value="flat-patch-plug" aria-hidden="true" tabindex="-1" />
-                      <span class="appointment-service-check" aria-hidden="true"></span>
-                      <span class="appointment-service-copy"><strong>Patch + plug</strong><small>Complete flat-tire repair</small><em>$50 per tire</em></span>
-                      <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="Patch and plug quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
-                    </label>
-                    <label class="appointment-service-choice" data-service-item="flat-plug-only">
-                      <input type="checkbox" data-service-toggle value="flat-plug-only" aria-hidden="true" tabindex="-1" />
-                      <span class="appointment-service-check" aria-hidden="true"></span>
-                      <span class="appointment-service-copy"><strong>Plug only</strong><small>External puncture plug</small><em>$30 per tire</em></span>
-                      <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="Plug-only quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
-                    </label>
+                  <div class="appointment-service-group-heading"><div><h4 id="flat-repair-heading">Additional services</h4><p>Add as many as you need.</p></div><span>Optional</span></div>
+                  <div class="appointment-flat-repair" data-flat-repair>
+                    <button type="button" class="appointment-flat-repair-toggle" data-flat-repair-toggle aria-expanded="false" aria-controls="flat-repair-options">
+                      <span class="appointment-flat-repair-copy">
+                        <strong>Flat tire repair</strong>
+                        <small data-flat-repair-status>Open to choose a repair</small>
+                      </span>
+                      <span class="appointment-flat-repair-side">
+                        <em>$30–$50 per tire</em>
+                        <span class="appointment-flat-repair-chevron" aria-hidden="true"></span>
+                      </span>
+                    </button>
+                    <div class="appointment-flat-repair-options" id="flat-repair-options" data-flat-repair-options hidden>
+                      <p class="appointment-flat-repair-prompt">Choose one repair</p>
+                      <div class="appointment-service-choice-grid">
+                        <label class="appointment-service-choice" data-service-item="flat-plug-only">
+                          <input type="checkbox" data-service-toggle value="flat-plug-only" aria-hidden="true" tabindex="-1" />
+                          <span class="appointment-service-check" aria-hidden="true"></span>
+                          <span class="appointment-service-copy"><strong>Plug only</strong><small>External puncture plug</small><em>$30 per tire</em></span>
+                          <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="Plug-only quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
+                        </label>
+                        <label class="appointment-service-choice" data-service-item="flat-patch-plug">
+                          <input type="checkbox" data-service-toggle value="flat-patch-plug" aria-hidden="true" tabindex="-1" />
+                          <span class="appointment-service-check" aria-hidden="true"></span>
+                          <span class="appointment-service-copy"><strong>Plug + patch</strong><small>Complete flat-tire repair</small><em>$50 per tire</em></span>
+                          <span class="appointment-service-controls"><span>Quantity</span><select data-service-quantity disabled aria-label="Plug and patch quantity"><option value="" selected>Choose quantity</option><option value="1">1 tire</option><option value="2">2 tires</option><option value="3">3 tires</option><option value="4">4 tires</option></select></span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </section>
 
@@ -348,10 +363,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js"></script>
     <script src="account.js?v=72"></script>
-    <script src="appointment-services.js?v=4" defer></script>
+    <script src="appointment-services.js?v=5" defer></script>
     <script src="appointment-tire-sizes.js?v=3" defer></script>
     <script src="appointment-vehicle.js?v=16" defer></script>
-    <script src="appointment.js?v=95" defer></script>
+    <script src="appointment.js?v=97" defer></script>
     <script src="mobile-menu.js?v=2" defer></script>
   </body>
 </html>

@@ -415,12 +415,17 @@
   text-align: center;
 }
 
+.tireconnect-shell.is-skipping-order-details {
+  min-height: 180px;
+}
+
 .tireconnect-shell.is-skipping-order-details #tireconnect {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  visibility: hidden !important;
 }
 
 .tireconnect-shell.is-skipping-order-details .tireconnect-card-wait {
@@ -1000,9 +1005,11 @@
   background: #f4f5f7;
 }
 
-.new-tire-submit {
+.new-tire-install-location > .new-tire-submit {
+  width: 100%;
   min-height: 56px;
   font-size: 1.1rem;
+  letter-spacing: 0.12em;
 }
 
 .new-tire-datetime {

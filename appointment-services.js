@@ -33,8 +33,8 @@
       quantity: true,
     },
     'flat-patch-plug': {
-      name: 'Flat repair — patch and plug',
-      shortName: 'Patch + plug',
+      name: 'Flat repair — plug and patch',
+      shortName: 'Plug + patch',
       unitPrice: 50,
       quantity: true,
       group: 'flat-repair',

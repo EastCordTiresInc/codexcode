@@ -180,7 +180,7 @@ async function runHttpTests(base = 'http://localhost:8888') {
     { path: '/admin/blog', mustInclude: ['Publish to site', 'data-admin-blog-form', 'admin-blog.js?v=1', '/admin/installers'] },
     { path: '/admin/installers', mustInclude: ['data-admin-installers-form', 'admin-installers.js?v=1', 'Public form'] },
     { path: '/admin/job-photos', mustInclude: ['data-admin-jobs-form', 'data-admin-finished', 'admin-job-photos.js?v=14', 'Job photos'] },
-    { path: '/blog', mustInclude: ['data-blog-featured', 'blog.js?v=6'] },
+    { path: '/blog', mustInclude: ['data-blog-featured', 'blog.js?v=7'] },
     { path: '/installer-application', mustInclude: ['data-installer-form', 'local-installers.js?v=7', 'data-required-group'] },
   ];
 
@@ -204,7 +204,7 @@ async function runHttpTests(base = 'http://localhost:8888') {
     '/admin.css?v=34',
     '/admin-blog.js?v=1',
     '/admin-installers.js?v=1',
-    '/blog.js?v=6',
+    '/blog.js?v=7',
     '/admin.js?v=17',
     '/admin-calendar.js?v=5',
     '/admin-inventory.js?v=25',

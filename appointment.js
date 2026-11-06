@@ -205,6 +205,39 @@
         ) || priceEl.textContent;
       }
     });
+    syncFlatRepairPanel();
+  }
+
+  function syncFlatRepairPanel() {
+    const panel = document.querySelector('[data-flat-repair]');
+    const toggle = panel?.querySelector('[data-flat-repair-toggle]');
+    const options = panel?.querySelector('[data-flat-repair-options]');
+    if (!panel || !toggle || !options) return;
+    const checked = panel.querySelector('[data-service-toggle]:checked');
+    const selected = Boolean(checked);
+    if (selected) panel.classList.add('is-open');
+    const open = panel.classList.contains('is-open');
+    panel.classList.toggle('is-selected', selected);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    options.hidden = !open;
+    const status = panel.querySelector('[data-flat-repair-status]');
+    const repairName = checked?.closest('[data-service-item]')?.querySelector('strong')?.textContent?.trim() || '';
+    if (status) {
+      status.textContent = selected
+        ? `${repairName} selected`
+        : (open ? 'Pick one repair below' : 'Open to choose a repair');
+    }
+  }
+
+  function closeFlatRepairPanel() {
+    const panel = document.querySelector('[data-flat-repair]');
+    if (!panel) return;
+    panel.classList.remove('is-open');
+    panel.querySelectorAll('[data-service-toggle]:checked').forEach((input) => {
+      input.checked = false;
+      resetServiceItemControls(input.closest('[data-service-item]'));
+    });
+    syncFlatRepairPanel();
   }
 
   function setSelectedService(serviceId) {
@@ -1996,6 +2029,17 @@
 
     els.serviceOptions?.querySelectorAll('select').forEach((select) => {
       select.addEventListener('click', (event) => event.stopPropagation());
+    });
+    document.querySelector('[data-flat-repair-toggle]')?.addEventListener('click', () => {
+      const panel = document.querySelector('[data-flat-repair]');
+      if (!panel) return;
+      if (panel.classList.contains('is-open')) {
+        closeFlatRepairPanel();
+        updateFromSelectedService();
+        return;
+      }
+      panel.classList.add('is-open');
+      syncFlatRepairPanel();
     });
     els.serviceOptions?.addEventListener('change', (event) => {
       const toggle = event.target.closest('[data-service-toggle]');

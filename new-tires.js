@@ -61,13 +61,19 @@
   let lastNotifiedOrderKey = '';
   let lastSavedOrder = readConfirmedOrder();
   let installSlot = null;
+  let widgetCustomerDetails = { first: '', last: '', email: '', phone: '', contact: '' };
   let installLocation = '';
   let skipOrderDetails = false;
   let orderDetailsClicks = 0;
   let skipOrderDetailsTimer = 0;
+  let skipOrderDetailsStarted = 0;
+  let allowWidgetOrderClick = false;
   let installServiceWant = null;
   let installServiceAttempts = 0;
   let installServiceHoldUntil = 0;
+  let installServiceSyncing = false;
+  let fulfillmentChosenByUser = false;
+  const boundInstallSwitches = new WeakSet();
   let calendarMonth = new Date();
   const boundWidgets = new WeakSet();
 
@@ -808,79 +814,8 @@
   }
 
   function syncCheckoutLoginWall() {
-    const shell = document.querySelector('[data-tireconnect-shell]');
-    if (!shell) return;
-    if (isLocalHost()) {
-      const existing = document.getElementById('eastcord-checkout-login-wall');
-      if (existing) existing.hidden = true;
-      document.getElementById('tireconnect')?.removeAttribute('inert');
-      return;
-    }
-    let wall = document.getElementById('eastcord-checkout-login-wall');
-    if (!wall) {
-      wall = document.createElement('div');
-      wall.id = 'eastcord-checkout-login-wall';
-      wall.className = 'eastcord-checkout-login-wall';
-      wall.hidden = true;
-      wall.innerHTML = `
-        <div class="eastcord-checkout-login-card" role="dialog" aria-modal="true" aria-labelledby="eastcord-checkout-login-title">
-          <h2 id="eastcord-checkout-login-title">Your details</h2>
-          <p data-eastcord-checkout-login-copy>Enter your name, email, and phone to pay as a guest.</p>
-          <form class="guest-pay-fields" data-guest-pay-wall>
-            <label><span>Name</span><input data-guest-name name="name" autocomplete="name" /></label>
-            <label><span>Email</span><input data-guest-email name="email" type="email" autocomplete="email" /></label>
-            <label><span>Phone</span><input data-guest-phone name="phone" type="tel" autocomplete="tel" /></label>
-            <button class="button button-primary" type="submit">Continue to payment</button>
-          </form>
-          <button class="button button-primary" type="button" data-eastcord-checkout-phone hidden>Enter phone number</button>
-        </div>
-      `;
-      shell.appendChild(wall);
-      wall.querySelector('[data-guest-pay-wall]')?.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const guest = readGuestCustomer(wall);
-        if (!guest.ok) {
-          setFulfillmentMessage(guest.message, true);
-          return;
-        }
-        guestCustomer = guest.customer;
-        guestCheckoutReady = true;
-        copyGuestIntoCheckout(guest.customer);
-        syncCheckoutLoginWall();
-      });
-      wall.querySelector('[data-eastcord-checkout-phone]')?.addEventListener('click', () => {
-        const field = document.querySelector('[data-new-tire-phone-field]');
-        field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        field?.querySelector('input')?.focus();
-      });
-    }
-    const gate = memberGate();
-    const block = profileReady && paymentPageOpen() && !gate.ok;
-    wall.hidden = !block;
-    const widget = document.getElementById('tireconnect');
-    if (widget) {
-      if (block) widget.setAttribute('inert', '');
-      else widget.removeAttribute('inert');
-    }
-    if (!block) return;
-    const needsAccount = !currentProfile;
-    const title = wall.querySelector('#eastcord-checkout-login-title');
-    const copy = wall.querySelector('[data-eastcord-checkout-login-copy]');
-    const guestForm = wall.querySelector('[data-guest-pay-wall]');
-    const phoneButton = wall.querySelector('[data-eastcord-checkout-phone]');
-    if (title) {
-      title.textContent = needsAccount
-        ? 'Your details'
-        : 'Add a phone number to place this order';
-    }
-    if (copy) {
-      copy.textContent = needsAccount
-        ? 'Enter your name, email, and phone to pay as a guest.'
-        : 'Enter your phone number beside this checkout before payment.';
-    }
-    if (guestForm) guestForm.hidden = !needsAccount;
-    if (phoneButton) phoneButton.hidden = needsAccount;
-    updateAuthLinks();
+    document.getElementById('eastcord-checkout-login-wall')?.remove();
+    document.getElementById('tireconnect')?.removeAttribute('inert');
   }
 
   function bindCheckoutLoginBlock() {
@@ -1274,14 +1209,19 @@
     moveDisplayedEcoFeeToPriceSummary();
     revealNativeOrderButton();
     ensureSummaryOrderButton();
+    syncSummaryOrderPlacement();
+    bindInstallOrderBlock();
     bindNativeOrderFallback();
     highlightSelectedWidgetTires();
     syncDemoOrderButton();
     refreshScrapedBrand();
     watchWidgetOrderConfirmation();
     syncCheckoutLoginWall();
+    bindWidgetCustomerListener();
+    readWidgetCustomerFields();
     advanceOrderDetailsToCard();
-    syncInstallService();
+    if (fulfillmentChosenByUser) syncInstallService();
+    else followWidgetInstallSwitch();
     refreshShopPriceSummary();
   }
 
@@ -1332,6 +1272,8 @@
       const style = doc.createElement('style');
       style.id = 'eastcord-show-native-order';
       style.textContent = [
+        '[data-eastcord-order-held="true"]{display:none!important;visibility:hidden!important;pointer-events:none!important}',
+        '[data-eastcord-omit="true"]{display:none!important}',
         '[data-eastcord-hide-field="true"]{display:revert!important;visibility:visible!important;opacity:1!important}',
         '[data-eastcord-tire-card="true"],.eastcord-tire-card-selected{',
         'border:4px solid #df1f2d!important;',
@@ -1348,7 +1290,7 @@
 
   function revealNativeOrderButton() {
     ensureWidgetOrderCss();
-    if (isWidgetCheckoutPage()) return;
+    if (isWidgetCheckoutPage() || selectedFulfillment() === 'Installation') return;
     const nodes = collectWidgetElements(document.getElementById('tireconnect')).filter(isNativeOrderAction);
     logFlow('widget.revealOrder', { summary: isWidgetSummaryPage(), count: nodes.length });
     nodes.forEach((el) => {
@@ -1370,6 +1312,29 @@
     return collectWidgetElements(document.getElementById('tireconnect')).filter((el) => (
       isNativeOrderAction(el) && isElementVisible(el)
     ));
+  }
+
+  function nativeOrderControls() {
+    return collectWidgetElements(document.getElementById('tireconnect')).filter((el) => (
+      isNativeOrderAction(el) || el.id === 'eastcord-native-order'
+    ));
+  }
+
+  function openWidgetOrder() {
+    pushCustomerIntoWidget();
+    const summary = readSummaryCustomer();
+    if (summary.ok) fillWidgetOrderFields(summary.customer);
+    const native = nativeOrderControls()[0] || visibleNativeOrderButtons()[0];
+    allowWidgetOrderClick = true;
+    try {
+      if (native) {
+        native.click();
+        return true;
+      }
+      return startWidgetCheckout();
+    } finally {
+      allowWidgetOrderClick = false;
+    }
   }
 
   function startWidgetCheckout() {
@@ -1573,7 +1538,7 @@
     const clone = document.getElementById('eastcord-native-order');
     const onSummary = isWidgetSummaryPage()
       || Boolean(summaryActionButton(/^save your quote$/i) && summaryActionButton(/^request an appointment$/i));
-    if (!onSummary || isWidgetCheckoutPage() || isLocalCheckoutOpen() || visibleNativeOrderButtons().length) {
+    if (!onSummary || isWidgetCheckoutPage() || isLocalCheckoutOpen() || visibleNativeOrderButtons().length || selectedFulfillment() === 'Installation') {
       clone?.remove();
       return;
     }
@@ -2270,25 +2235,41 @@
     }).join('\n');
   }
 
+  function selectedTireMoney(tire) {
+    const elements = collectWidgetElements(document.getElementById('tireconnect'));
+    const summary = selectedFulfillment() === 'Installation' ? orderGrandTotal() : null;
+    const perTireMatch = widgetPlainText().match(/per\s*tire[:\s]*\$?\s*([\d,]+\.\d{2})/i);
+    const api = window.EastCordNewTireMoney;
+    if (!api?.selectedTireCardMoney) return { unit: 0, ecoFee: 0, taxes: 0, total: 0 };
+    return api.selectedTireCardMoney({
+      qty: tire?.qty,
+      storedPrice: tire?.price,
+      tireTotal: Number(labeledWidgetMoney(elements, /^tire total$/i).amount) || 0,
+      perTire: perTireMatch ? Number(perTireMatch[1].replace(/,/g, '')) : 0,
+      scrapedEco: Number(widgetPriceLines().ecoFee) || 0,
+      targetWithTax: summary && summary.tires > 0 ? summary.tires : 0,
+      taxRate: Number(window.EastCordAppointmentServices?.TAX_RATE) || 0.13,
+    });
+  }
+
   function selectedTireFactsHtml(quote) {
     return (quote?.tires || []).map((tire) => {
       const model = sanitizeModel(tire.model, tire.brand);
+      const moneyLines = selectedTireMoney(tire);
       const rows = [
         ['Brand', sanitizeBrand(tire.brand) || '—'],
         ...(model ? [['Model', model]] : []),
         ['Size', tireSizeValue(tire.size) || '—'],
         ['Quantity', Number(tire.qty) >= 1 ? String(tire.qty) : '—'],
-        ['Price/tire', money(tire.price) || '—'],
+        ['Price/tire', moneyLines.unit > 0 ? moneyAmount(moneyLines.unit) : (money(tire.price) || '—')],
       ];
-      const lines = widgetPriceLines();
-      if (lines.ecoFee > 0) rows.push(['Tire eco fee', moneyAmount(lines.ecoFee)]);
-      if (lines.taxes > 0) rows.push(['Taxes', moneyAmount(lines.taxes)]);
+      if (moneyLines.ecoFee > 0) rows.push(['Tire eco fee', moneyAmount(moneyLines.ecoFee)]);
+      if (moneyLines.unit > 0 || moneyLines.ecoFee > 0) rows.push(['Taxes', moneyAmount(moneyLines.taxes)]);
       const facts = rows.map(([label, value]) => (
         `<div class="new-tire-selected-row"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`
       )).join('');
-      const total = lines.total || tireAmountForSummary();
-      if (!(total > 0)) return facts;
-      return `${facts}<div class="new-tire-selected-row is-total"><dt>Total</dt><dd>${escapeHtml(moneyAmount(total))}</dd></div>`;
+      if (!(moneyLines.total > 0)) return facts;
+      return `${facts}<div class="new-tire-selected-row is-total"><dt>Total</dt><dd>${escapeHtml(moneyAmount(moneyLines.total))}</dd></div>`;
     }).join('');
   }
 
@@ -2462,6 +2443,44 @@
     return boxes.find((box) => isInstallServiceText(serviceSwitchText(box))) || null;
   }
 
+  function setFulfillmentQuiet(next) {
+    const input = document.querySelector(`[data-new-tire-fulfillment-form] input[name="Fulfillment Preference"][value="${next}"]`);
+    if (!input || input.checked) return;
+    input.checked = true;
+    logFlow('panel.fulfillmentFromWidget', next);
+    rememberCheckoutSnapshot();
+    syncFulfillmentUi();
+    pushCustomerIntoWidget();
+  }
+
+  function bindInstallSwitch(box) {
+    if (!box || boundInstallSwitches.has(box)) return;
+    boundInstallSwitches.add(box);
+    box.addEventListener('change', onInstallSwitchChosen);
+  }
+
+  function onInstallSwitchChosen(event) {
+    if (!event.isTrusted || installServiceSyncing) return;
+    const box = event.target;
+    if (!box || !isInstallServiceText(serviceSwitchText(box))) return;
+    const next = box.checked ? 'Installation' : 'Pickup';
+    fulfillmentChosenByUser = true;
+    installServiceWant = box.checked;
+    installServiceAttempts = 0;
+    installServiceHoldUntil = 0;
+    if (selectedFulfillment() === next) return;
+    setFulfillmentQuiet(next);
+  }
+
+  function followWidgetInstallSwitch() {
+    const box = installServiceCheckbox();
+    if (!box) return;
+    bindInstallSwitch(box);
+    const next = box.checked ? 'Installation' : 'Pickup';
+    if (selectedFulfillment() === next) return;
+    setFulfillmentQuiet(next);
+  }
+
   function syncInstallService() {
     const want = selectedFulfillment() === 'Installation';
     if (installServiceWant !== want) {
@@ -2471,6 +2490,7 @@
     }
     if (Date.now() < installServiceHoldUntil) return;
     const box = installServiceCheckbox();
+    if (box) bindInstallSwitch(box);
     if (!box || box.checked === want) {
       installServiceAttempts = 0;
       return;
@@ -2479,7 +2499,9 @@
     installServiceAttempts += 1;
     installServiceHoldUntil = Date.now() + 1500;
     logFlow('widget.installService', { want, label: serviceSwitchText(box) });
+    installServiceSyncing = true;
     box.click();
+    installServiceSyncing = false;
     window.setTimeout(syncInstallService, 1600);
   }
 
@@ -2586,8 +2608,88 @@
   function syncBookAndPayButton() {
     const button = document.querySelector('[data-book-and-pay]');
     if (!button || button.dataset.busy === 'true') return;
-    const amount = orderGrandTotal();
-    button.textContent = amount.ok && amount.total > 0 ? `Book and pay ${moneyAmount(amount.total)}` : 'Book and pay';
+    button.textContent = 'ORDER';
+  }
+
+  function widgetOrderBar(el) {
+    const button = el.closest?.('button, a, [role="button"], input') || el;
+    let node = button;
+    for (let i = 0; i < 4 && node.parentElement && node.parentElement.id !== 'tireconnect'; i += 1) {
+      const parent = node.parentElement;
+      const text = widgetButtonLabel(parent).replace(/\s+/g, ' ').trim();
+      if (!/^(order|order now|continue)$/i.test(text)) break;
+      node = parent;
+    }
+    return node;
+  }
+
+  function holdWidgetOrder(el) {
+    const bar = widgetOrderBar(el);
+    bar.setAttribute('data-eastcord-order-held', 'true');
+    bar.style.setProperty('display', 'none', 'important');
+  }
+
+  function releaseWidgetOrder(el) {
+    const bar = widgetOrderBar(el);
+    if (bar.getAttribute('data-eastcord-order-held') !== 'true' && el.getAttribute('data-eastcord-order-held') !== 'true') return;
+    [bar, el].forEach((node) => {
+      node.removeAttribute('data-eastcord-order-held');
+      node.style.removeProperty('display');
+    });
+  }
+
+  function syncSummaryOrderPlacement() {
+    ensureWidgetOrderCss();
+    const installing = selectedFulfillment() === 'Installation';
+    const bottom = document.querySelector('[data-book-and-pay]');
+    const hint = document.querySelector('.new-tire-submit-hint');
+    if (bottom) bottom.hidden = !installing;
+    if (hint) hint.hidden = !installing;
+    if (installing && bottom?.dataset.busy !== 'true') syncBookAndPayButton();
+    const onSummary = installing && !isWidgetCheckoutPage() && !isWidgetOrderDetailsPage() && !isWidgetCardPage();
+    const orders = collectWidgetElements(document.getElementById('tireconnect')).filter((el) => (
+      isNativeOrderAction(el) || el.id === 'eastcord-native-order'
+    ));
+    orders.forEach((el) => {
+      const label = widgetButtonLabel(el).replace(/\s+/g, ' ').trim();
+      if (onSummary && (el.id === 'eastcord-native-order' || /^order$/i.test(label))) holdWidgetOrder(el);
+      else releaseWidgetOrder(el);
+    });
+    if (installing) document.getElementById('eastcord-native-order')?.remove();
+  }
+
+  function bindInstallOrderBlock(root = document.getElementById('tireconnect')) {
+    const targets = [];
+    if (root && root.dataset?.installOrderBlock !== 'true') targets.push(root);
+    collectWidgetElements(root).forEach((el) => {
+      if (el.tagName !== 'IFRAME') return;
+      try {
+        const doc = el.contentDocument;
+        if (doc && doc.documentElement?.dataset?.installOrderBlock !== 'true') targets.push(doc);
+      } catch (error) {
+        /* cross-origin */
+      }
+    });
+    targets.forEach((target) => {
+      const marker = target === root ? target : target.documentElement;
+      if (!marker || marker.dataset.installOrderBlock === 'true') return;
+      marker.dataset.installOrderBlock = 'true';
+      const stop = (event) => {
+        if (allowWidgetOrderClick || skipOrderDetails || selectedFulfillment() !== 'Installation') return;
+        const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
+        const hit = path.some((node) => {
+          if (node?.nodeType !== 1) return false;
+          if (node.id === 'eastcord-native-order') return true;
+          return /^order$/i.test(widgetButtonLabel(node).replace(/\s+/g, ' ').trim());
+        });
+        if (!hit) return;
+        event.preventDefault();
+        event.stopPropagation();
+      };
+      ['click', 'pointerdown', 'mousedown', 'mouseup'].forEach((type) => {
+        target.addEventListener(type, stop, true);
+      });
+    });
   }
 
   function installPayCustomer() {
@@ -2649,85 +2751,20 @@
       setFulfillmentMessage('On the day after the tire order, the first appointment is 1:00 PM.', true);
       return;
     }
-    const payer = installPayCustomer();
-    if (!payer.ok) {
-      setFulfillmentMessage(payer.message, true);
-      document.querySelector('[data-summary-customer]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFulfillmentMessage('Enter your name, email, and phone on the order page. The appointment time is already included.', false);
+    skipOrderDetails = false;
+    skipOrderDetailsStarted = 0;
+    orderDetailsClicks = 0;
+    window.clearTimeout(skipOrderDetailsTimer);
+    setSkippingOrderDetails(false);
+    pushInstallDetailsIntoWidget();
+    let started = isWidgetOrderDetailsPage() || isWidgetCardPage();
+    if (!started) started = openWidgetOrder();
+    if (!started) {
+      setFulfillmentMessage('Stay on the tire price summary, then choose Order again.', true);
       return;
     }
-    const { priced, quantity, quote } = booking;
-    const item = {
-      id: `appointment-${Date.now()}`,
-      type: 'appointment',
-      bookingId: `pending-${Date.now()}`,
-      customerId: payer.customer.customerId,
-      customerName: payer.customer.name,
-      customerEmail: payer.customer.email,
-      customerPhone: payer.customer.phone,
-      serviceId: priced.id,
-      serviceName: priced.name,
-      serviceSelections: priced.selections,
-      startingPrice: priced.serviceSubtotal,
-      serviceSubtotal: priced.serviceSubtotal,
-      hstAmount: priced.hstAmount,
-      totalWithHst: priced.totalWithHst,
-      taxRate: priced.taxRate,
-      depositAmount: priced.totalWithHst,
-      remainingBalance: 0,
-      preferredDate: date,
-      preferredTimeWindow: time,
-      vehiclePlateNumber: plate,
-      tireSize: quote.size,
-      tiresAlreadyOnRims: 'No',
-      numberOfTires: String(quantity),
-      fullServiceAddress: '600 Harrop Drive',
-      city: 'Milton',
-      postalCode: '',
-      parkingAccessNotes: 'Customer will bring the vehicle to the EastCord shop at 600 Harrop Drive, Milton, Ontario.',
-      installLocation: 'shop',
-      additionalNotes: installShopNote(),
-      source: 'new-tires',
-      awaitingNewTireOrder: true,
-      bookingStatus: 'Pending Confirmation',
-      paymentStatus: 'pending_checkout',
-    };
-    if (button) {
-      button.dataset.busy = 'true';
-      button.disabled = true;
-      button.textContent = 'Opening payment…';
-    }
-    setFulfillmentMessage('Opening card payment for the tires and installation.', false);
-    try {
-      const cart = window.EastCordAccount?.getCart?.() || [];
-      cart.push(item);
-      window.EastCordAccount?.saveCart?.(cart);
-      const token = await window.EastCordAccount?.getAccessToken?.().catch(() => '') || '';
-      const response = await fetch('/.netlify/functions/create-appointment-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
-        body: JSON.stringify({
-          items: [item],
-          customer: payer.customer,
-          payInFull: true,
-          tireCharge: orderGrandTotal().tires,
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data.url) {
-        throw new Error(data.message || 'The appointment payment could not be opened.');
-      }
-      window.location.href = data.url;
-    } catch (error) {
-      setFulfillmentMessage(error.message || 'The appointment payment could not be opened.', true);
-      if (button) {
-        button.dataset.busy = '';
-        button.disabled = false;
-        syncBookAndPayButton();
-      }
-    }
+    window.setTimeout(showWidgetCustomerStep, 500);
   }
 
   function syncInstallDetails() {
@@ -2819,7 +2856,7 @@
     if (selectedLabel) selectedLabel.innerHTML = selectedTireFactsHtml(selectedQuote);
     if (auth) auth.hidden = signedIn;
     if (submit) submit.hidden = true;
-    const needsPhone = signedIn && !String(currentProfile?.phone || '').trim();
+    const needsPhone = false;
     if (phoneField) phoneField.hidden = !needsPhone;
     if (phoneInput) {
       phoneInput.required = needsPhone;
@@ -2835,6 +2872,7 @@
     syncCheckoutLoginWall();
     syncInstallDetails();
     syncSummaryCustomer();
+    syncSummaryOrderPlacement();
     placeRequiredServicesInPriceSummary();
   }
 
@@ -2867,13 +2905,16 @@
   }
 
   function fulfillmentNote() {
-    const order = lastSavedOrder || readConfirmedOrder();
-    if (selectedFulfillment() === 'Installation' && order?.id) {
-      return `EastCord fulfillment: Installation. Order ${order.id} is confirmed. Book installation at ${window.location.origin}${installationBookingUrl(order.id)}. Linked new tires. First appointment is 1:00 PM the day after purchase. Later days are 8:00 AM to 8:00 PM.`;
+    if (selectedFulfillment() === 'Installation') {
+      const plate = installPlateValue();
+      const when = chosenInstallDateTime();
+      return [
+        'EastCord fulfillment: Off-rim swap booked with these new tires at the EastCord shop, 600 Harrop Drive, Milton.',
+        plate ? `License plate: ${plate}` : '',
+        when ? `Appointment: ${when}` : '',
+      ].filter(Boolean).join(' ');
     }
-    return selectedFulfillment() === 'Installation'
-      ? 'EastCord fulfillment: Installation. After the tire ORDER is saved, send the customer to book installation. Linked new tires. First appointment is 1:00 PM the day after purchase. Later days are 8:00 AM to 8:00 PM.'
-      : 'EastCord fulfillment: Pickup. Customer can pick up whenever the shop is open, 8:00 AM to 8:00 PM. No appointment.';
+    return 'EastCord fulfillment: Pickup. Customer can pick up whenever the shop is open, 8:00 AM to 8:00 PM. No appointment.';
   }
 
   function rememberWidget(target) {
@@ -2888,10 +2929,17 @@
     const phone = String(root?.querySelector('[data-customer-phone]')?.value || '').trim();
     const contact = String(root?.querySelector('[data-customer-contact]')?.value || '').trim();
     const customer = { first, last, email, phone, contact, name: `${first} ${last}`.trim() };
-    if (!first || !last) return { ok: false, message: 'Enter your first and last name before payment.', customer };
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: 'Enter a valid email address before payment.', customer };
-    if (phone.replace(/\D/g, '').length < 10) return { ok: false, message: 'Enter a phone number with at least 10 digits before payment.', customer };
-    if (contact !== 'email' && contact !== 'phone') return { ok: false, message: 'Choose email or phone as the way to reach you.', customer };
+    const asksForCustomer = Boolean(root?.querySelector('[data-customer-first]'));
+    if (asksForCustomer) {
+      if (!first || !last) return { ok: false, message: 'Enter your first and last name before payment.', customer };
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: 'Enter a valid email address before payment.', customer };
+      if (phone.replace(/\D/g, '').length < 10) return { ok: false, message: 'Enter a phone number with at least 10 digits before payment.', customer };
+      if (contact !== 'email' && contact !== 'phone') return { ok: false, message: 'Choose email or phone as the way to reach you.', customer };
+    }
+    if (selectedFulfillment() === 'Installation' && installLocation === 'shop') {
+      if (installPlateValue().length < 2) return { ok: false, message: 'Enter the license plate for this installation.', customer, focus: '[data-install-plate]' };
+      if (!chosenInstallDateTime()) return { ok: false, message: 'Choose an appointment date and time before payment.', customer, focus: '[data-install-date]' };
+    }
     return { ok: true, customer };
   }
 
@@ -2912,17 +2960,39 @@
     if (phone && !phone.value && currentProfile.phone) phone.value = currentProfile.phone;
   }
 
+  function chosenInstallDateTime() {
+    const date = String(document.querySelector('[data-install-date]')?.value || '').trim();
+    const time = String(document.querySelector('[data-install-time]')?.value || '').trim();
+    if (date && time) return `${date} ${time}`;
+    return '';
+  }
+
+  function clearCopiedWidgetNotes() {
+    const input = widgetInputByName('notes');
+    const current = String(input?.value || '');
+    if (!input || !current) return;
+    if (!/EastCord fulfillment|License plate:|Requested appointment:|send the customer to book installation|Book installation at/i.test(current)) return;
+    commitWidgetControl(input, '');
+  }
+
+  function widgetDateTimeValue() {
+    const chosenDate = String(document.querySelector('[data-install-date]')?.value || '').trim();
+    const chosenTime = String(document.querySelector('[data-install-time]')?.value || '').trim();
+    const start = timeWindowStartMinutes(chosenTime);
+    const minutes = start === null ? 13 * 60 : start;
+    const hours = String(Math.floor(minutes / 60)).padStart(2, '0');
+    const mins = String(minutes % 60).padStart(2, '0');
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(chosenDate) ? chosenDate : formatDateValue(earliestInstallDate());
+    return `${day} ${hours}:${mins}:00`;
+  }
+
   function preferredInstallDateTime() {
-    const date = new Date();
-    date.setDate(date.getDate() + 1);
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${date.getFullYear()}-${month}-${day} 13:00`;
+    return widgetDateTimeValue();
   }
 
   function isWidgetCardPage() {
     const text = widgetPlainText();
-    return /CREDIT CARD NUMBER|PAY WITH CREDIT CARD|CARD NUMBER|CVV|CVC/i.test(text);
+    return /CREDIT CARD|CARD NUMBER|CARDHOLDER|EXPIR|CVV|CVC|PAY WITH CARD|PAYMENT METHOD/i.test(text);
   }
 
   function isWidgetOrderDetailsPage() {
@@ -2971,17 +3041,124 @@
     setWidgetFieldValue(select, option.value);
   }
 
+  function widgetInputs() {
+    return collectWidgetElements(document.getElementById('tireconnect')).filter((el) => (
+      el.matches?.('input, textarea, select')
+    ));
+  }
+
+  function widgetInputByName(name) {
+    return widgetInputs().find((el) => el.getAttribute('name') === name) || null;
+  }
+
+  function commitWidgetControl(input, value) {
+    if (!input || value == null) return false;
+    if (value === '' && String(input.value || '') === '') return false;
+    const proto = input.tagName === 'TEXTAREA'
+      ? window.HTMLTextAreaElement.prototype
+      : input.tagName === 'SELECT'
+        ? window.HTMLSelectElement.prototype
+        : window.HTMLInputElement.prototype;
+    const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+    if (descriptor?.set) descriptor.set.call(input, value);
+    else input.value = value;
+    const fiberKey = Object.keys(input).find((name) => name.startsWith('__reactFiber$'));
+    let node = fiberKey ? input[fiberKey] : null;
+    for (let i = 0; node && i < 12; i += 1) {
+      const onChange = (node.memoizedProps || node.pendingProps)?.onChange;
+      if (typeof onChange === 'function') {
+        onChange({ target: input, currentTarget: input });
+        return true;
+      }
+      node = node.return;
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return false;
+  }
+
+  function formatWidgetDate(date) {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day} ${hours}:${minutes}:00`;
+  }
+
+  function commitWidgetAppointment() {
+    const input = widgetPreferredDateInput();
+    if (!input) return false;
+    const fiberKey = Object.keys(input).find((name) => name.startsWith('__reactFiber$'));
+    let node = fiberKey ? input[fiberKey] : null;
+    let picker = null;
+    for (let i = 0; node && i < 30; i += 1) {
+      const props = node.memoizedProps || node.pendingProps;
+      if (typeof props?.onChange === 'function' && (props.name === 'preferredDateTime' || typeof props.isValidDate === 'function')) {
+        picker = props;
+        if (typeof props.isValidDate === 'function') break;
+      }
+      node = node.return;
+    }
+    const preferred = widgetDateTimeValue();
+    const [dayPart, timePart] = preferred.split(' ');
+    const base = new Date(`${String(dayPart).replace(/-/g, '/')} ${timePart || '09:00:00'}`);
+    if (Number.isNaN(base.getTime())) return commitWidgetControl(input, preferred);
+    if (picker && typeof picker.isValidDate === 'function') {
+      for (let offset = 0; offset < 21; offset += 1) {
+        const day = new Date(base);
+        day.setDate(base.getDate() + offset);
+        const probe = new Date(day);
+        probe.setHours(12, 0, 0, 0);
+        if (!picker.isValidDate(probe)) continue;
+        const times = typeof picker.timeList === 'function' ? picker.timeList(probe) : null;
+        if (Array.isArray(times) && times.length) {
+          const wanted = `${String(base.getHours()).padStart(2, '0')}:${String(base.getMinutes()).padStart(2, '0')}`;
+          const match = times.find((item) => item.key === wanted) || times[0];
+          const [hours, minutes] = String(match.key || '09:00').split(':');
+          day.setHours(Number(hours), Number(minutes), 0, 0);
+        }
+        picker.onChange({ target: { name: 'preferredDateTime', value: formatWidgetDate(day) } });
+        return true;
+      }
+    }
+    if (picker?.onChange) {
+      picker.onChange({ target: { name: 'preferredDateTime', value: preferred } });
+      return true;
+    }
+    const opened = clickWidgetAppointment();
+    return opened || commitWidgetControl(input, preferred);
+  }
+
+  function clickWidgetAppointment() {
+    const input = widgetPreferredDateInput();
+    if (!input) return false;
+    input.focus();
+    input.click();
+    const scope = input.parentElement || input;
+    const days = collectWidgetElements(scope).filter((el) => {
+      const day = Number(el.getAttribute?.('data-value'));
+      if (!day || day < 1 || day > 31) return false;
+      return !/disabled|rdtOld|rdtDisabled/i.test(String(el.className || ''));
+    });
+    const wanted = new Date(widgetDateTimeValue().replace(/-/g, '/')).getDate();
+    const day = days.find((el) => Number(el.getAttribute('data-value')) === wanted) || days[0];
+    if (!day) return false;
+    day.click();
+    const time = collectWidgetElements(scope).find((el) => el.tagName === 'SELECT' && /time/i.test(String(el.className || '')));
+    if (time?.options?.length) {
+      const option = [...time.options].find((item) => item.value) || time.options[0];
+      commitWidgetControl(time, option.value);
+    }
+    return true;
+  }
+
   function fillWidgetOrderFields(customer) {
-    setWidgetFieldValue(widgetControlByLabel(/first name/i), customer.first);
-    setWidgetFieldValue(widgetControlByLabel(/last name/i), customer.last);
-    setWidgetFieldValue(widgetControlByLabel(/email/i), customer.email);
-    setWidgetFieldValue(widgetControlByLabel(/phone/i), customer.phone);
-    chooseSelectOption(
-      widgetControlByLabel(/preferred method of contact|method of contact/i),
-      customer.contact === 'phone' ? /phone|call|text/i : /email/i,
-    );
-    const when = widgetControlByLabel(/preferred date|date and time/i);
-    if (when && /INPUT|TEXTAREA/i.test(when.tagName)) setWidgetFieldValue(when, preferredInstallDateTime());
+    commitWidgetControl(widgetInputByName('firstName'), customer.first);
+    commitWidgetControl(widgetInputByName('lastName'), customer.last);
+    commitWidgetControl(widgetInputByName('email'), customer.email);
+    commitWidgetControl(widgetInputByName('phoneNumber'), customer.phone);
+    commitWidgetControl(widgetInputByName('wayToContact'), customer.contact === 'phone' ? 'phone' : 'email');
+    commitWidgetAppointment();
   }
 
   function isCheckoutAdvanceButton(el) {
@@ -2990,81 +3167,140 @@
     const type = String(el?.getAttribute?.('type') || '');
     const clickable = tag === 'BUTTON' || tag === 'A' || role === 'button' || (tag === 'INPUT' && /submit|button/i.test(type));
     if (!clickable) return false;
-    return isLeafButton(el, (text) => {
-      const value = String(text || '').replace(/\s+/g, ' ').trim();
-      if (!value || value.length > 60) return false;
-      if (/back|discount|apply|summary|change tire/i.test(value)) return false;
-      return /checkout|continue|next|place(?: your)? order|pay(?: now|ment)?|proceed/i.test(value);
-    });
+    const value = widgetButtonLabel(el).replace(/\s+/g, ' ').trim();
+    if (!value || value.length > 40) return false;
+    if (/back|discount|apply|summary|change tire/i.test(value)) return false;
+    return /^(continue|next|place your order|pay now|proceed)$/i.test(value);
   }
 
   function findCheckoutAdvanceButton() {
-    return collectWidgetElements(document.getElementById('tireconnect')).find(isCheckoutAdvanceButton);
-  }
-
-  function firstRealSelectOption(select) {
-    return [...(select?.options || [])].find((option) => {
-      const label = String(option.text || '').trim();
-      return option.value && !/^(-|select|choose)/i.test(label);
-    });
-  }
-
-  function widgetSelectByName(name) {
-    const labeled = widgetControlByLabel(new RegExp(`\\b${name}\\b`, 'i'));
-    if (labeled?.tagName === 'SELECT') return labeled;
     return collectWidgetElements(document.getElementById('tireconnect')).find((el) => {
-      if (el.tagName !== 'SELECT') return false;
-      const hint = `${el.getAttribute('aria-label') || ''} ${el.getAttribute('name') || ''} ${[...el.options].slice(0, 2).map((option) => option.text).join(' ')}`;
-      return new RegExp(`\\b${name}\\b`, 'i').test(hint);
+      if (el.tagName !== 'BUTTON') return false;
+      if (String(el.getAttribute('type') || '').toLowerCase() !== 'submit') return false;
+      return /continue/i.test(widgetButtonLabel(el));
     }) || null;
   }
 
-  function fillWidgetVehicleDefaults() {
-    ['year', 'make', 'model', 'submodel'].forEach((name) => {
-      const select = widgetSelectByName(name);
-      if (!select || select.value) return;
-      const option = firstRealSelectOption(select);
-      if (option) setWidgetFieldValue(select, option.value);
+  function orderContinueReady(button) {
+    if (!button || button.disabled) return false;
+    return button.getAttribute('aria-disabled') !== 'true';
+  }
+
+  function submitOrderContinue(button) {
+    const form = button.form || button.closest?.('form');
+    const fiberKey = form && Object.keys(form).find((name) => name.startsWith('__reactFiber$'));
+    let node = fiberKey ? form[fiberKey] : null;
+    for (let i = 0; node && i < 15; i += 1) {
+      const onSubmit = (node.memoizedProps || node.pendingProps)?.onSubmit;
+      if (typeof onSubmit === 'function') {
+        onSubmit({ preventDefault() {}, stopPropagation() {}, target: form, currentTarget: form });
+        return;
+      }
+      node = node.return;
+    }
+    if (form && typeof form.requestSubmit === 'function') form.requestSubmit(button);
+    else button.click();
+  }
+
+  function widgetPreferredDateInput() {
+    const inputs = collectWidgetElements(document.getElementById('tireconnect')).filter((el) => el.tagName === 'INPUT');
+    return inputs.find((el) => /not chosen|preferred date/i.test(`${el.getAttribute('placeholder') || ''} ${el.getAttribute('aria-label') || ''}`))
+      || inputs.find((el) => /preferred date|date and time for installation/i.test(el.closest('div')?.innerText || ''))
+      || null;
+  }
+
+  function widgetPreferredDateReady() {
+    const value = String(widgetPreferredDateInput()?.value || '').trim();
+    return Boolean(value) && !/not chosen|invalid date/i.test(value);
+  }
+
+  function setWidgetPreferredDate(value) {
+    const input = widgetPreferredDateInput();
+    if (!input || !value) return false;
+    const fiberKey = Object.keys(input).find((name) => name.startsWith('__reactFiber$'));
+    let node = fiberKey ? input[fiberKey] : null;
+    for (let i = 0; node && i < 30; i += 1) {
+      const props = node.memoizedProps || node.pendingProps;
+      if (props?.name === 'preferredDateTime' && typeof props.onChange === 'function') {
+        props.onChange({ target: { name: 'preferredDateTime', value } });
+        return true;
+      }
+      node = node.return;
+    }
+    setWidgetFieldValue(input, value);
+    return false;
+  }
+
+  function markOmittedField(start, pattern) {
+    let best = null;
+    let node = start;
+    for (let i = 0; node && i < 10 && node.id !== 'tireconnect'; i += 1) {
+      const text = String(node.innerText || '').replace(/\s+/g, ' ').trim();
+      if (pattern.test(text) && text.length > 0 && text.length < 700) best = node;
+      else if (best) break;
+      node = node.parentElement;
+    }
+    if (!best) return;
+    best.setAttribute('data-eastcord-omit', 'true');
+    best.style.setProperty('display', 'none', 'important');
+  }
+
+  function omitWidgetCheckoutFields() {
+    if (!isWidgetOrderDetailsPage()) return;
+    ensureWidgetOrderCss();
+    markOmittedField(widgetPreferredDateInput(), /preferred date|date and time for installation/i);
+    collectWidgetElements(document.getElementById('tireconnect')).forEach((el) => {
+      if (el.nodeType !== 1) return;
+      const own = directWidgetText(el).replace(/\s+/g, ' ').trim();
+      if (/^vehicle\b/i.test(own)) markOmittedField(el, /^vehicle\b/i);
     });
   }
 
+  function showWidgetCustomerStep() {
+    skipOrderDetails = false;
+    window.clearTimeout(skipOrderDetailsTimer);
+    setSkippingOrderDetails(false);
+    commitWidgetAppointment();
+    clearCopiedWidgetNotes();
+    omitWidgetCheckoutFields();
+    readWidgetCustomerFields();
+  }
+
   function advanceOrderDetailsToCard() {
-    if (isWidgetCardPage()) {
-      skipOrderDetails = false;
-      orderDetailsClicks = 0;
-      window.clearTimeout(skipOrderDetailsTimer);
-      setSkippingOrderDetails(false);
-      logFlow('checkout.cardPage');
-      return;
-    }
     if (!isWidgetOrderDetailsPage()) return;
-    const summary = readSummaryCustomer();
-    if (!summary.ok && !skipOrderDetails) return;
-    if (!skipOrderDetails) {
-      skipOrderDetails = true;
-      orderDetailsClicks = 0;
-      armOrderDetailsSkip();
+    showWidgetCustomerStep();
+  }
+
+  function revealSkippedCheckout() {
+    skipOrderDetails = false;
+    skipOrderDetailsStarted = 0;
+    orderDetailsClicks = 0;
+    window.clearTimeout(skipOrderDetailsTimer);
+    setSkippingOrderDetails(false);
+    const payButton = document.querySelector('[data-book-and-pay]');
+    if (payButton) {
+      payButton.dataset.busy = '';
+      payButton.disabled = false;
+      syncBookAndPayButton();
     }
-    setSkippingOrderDetails(true);
-    pushCustomerIntoWidget();
-    if (summary.ok) fillWidgetOrderFields(summary.customer);
-    fillWidgetVehicleDefaults();
-    if (orderDetailsClicks >= 8) return;
-    const button = findCheckoutAdvanceButton();
-    if (!button) return;
-    orderDetailsClicks += 1;
-    logFlow('checkout.skipToCard', widgetButtonLabel(button));
-    button.click();
   }
 
   function armOrderDetailsSkip() {
     window.clearTimeout(skipOrderDetailsTimer);
     skipOrderDetailsTimer = window.setTimeout(() => {
-      if (!skipOrderDetails || isWidgetCardPage()) return;
-      skipOrderDetails = false;
-      setSkippingOrderDetails(false);
-      setFulfillmentMessage('Your details are filled in. Continue to the card payment on this page.');
-    }, 12000);
+      if (!skipOrderDetails) return;
+      if (isWidgetCardPage()) {
+        revealSkippedCheckout();
+        return;
+      }
+      const elapsed = Date.now() - skipOrderDetailsStarted;
+      if (elapsed > 25000) {
+        revealSkippedCheckout();
+        return;
+      }
+      advanceOrderDetailsToCard();
+      if (skipOrderDetails) armOrderDetailsSkip();
+    }, 700);
   }
 
   function prepareWidgetPayment(event) {
@@ -3074,21 +3310,38 @@
       if (event) rejectWidgetEvent(event);
       setFulfillmentMessage(summary.message, true);
       syncFulfillmentUi();
-      document.querySelector('[data-summary-customer]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      document.querySelector('[data-customer-first]')?.focus();
+      const focus = document.querySelector(summary.focus || '[data-install-plate]');
+      focus?.closest('[data-shop-install-details], [data-new-tire-fulfillment]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      focus?.focus();
       return 'blocked';
     }
-    guestCustomer = {
-      name: summary.customer.name,
-      email: summary.customer.email,
-      phone: summary.customer.phone,
+    pushInstallDetailsIntoWidget();
+    return 'passthrough';
+  }
+
+  function pushInstallDetailsIntoWidget() {
+    const api = widgetApi || window.TCWidget;
+    commitWidgetAppointment();
+    clearCopiedWidgetNotes();
+    if (!api || typeof api.addCustomerInfo !== 'function') return;
+    const payload = {
+      preferred_date_time: widgetDateTimeValue(),
+      preferredTime: widgetDateTimeValue(),
     };
-    guestCheckoutReady = true;
-    pushCustomerIntoWidget();
-    skipOrderDetails = true;
-    orderDetailsClicks = 0;
-    armOrderDetailsSkip();
-    return 'ready';
+    if (currentProfile?.email) {
+      const names = splitName(currentProfile.name);
+      payload.first_name = names.first_name;
+      payload.last_name = names.last_name;
+      payload.email = currentProfile.email;
+      payload.way_to_contact = 'email';
+      if (phoneValue()) payload.phone_number = phoneValue();
+    }
+    try {
+      api.addCustomerInfo(payload);
+      logFlow('widget.addCustomerInfo', { email: payload.email || '' });
+    } catch (error) {
+      logFlow('widget.addCustomerInfo.error', error);
+    }
   }
 
   function pushCustomerIntoWidget() {
@@ -3108,8 +3361,8 @@
         phone_number: phone,
         email,
         way_to_contact: summary.ok ? summary.customer.contact : 'email',
-        preferred_date_time: preferredInstallDateTime(),
-        notes: [fulfillmentNote(), installShopNote()].filter(Boolean).join('\n'),
+        preferred_date_time: widgetDateTimeValue(),
+        preferredTime: widgetDateTimeValue(),
       });
       logFlow('widget.addCustomerInfo', { email });
     } catch (error) {
@@ -3136,13 +3389,111 @@
     const src = (nested.first_name || nested.email || nested.phone_number)
       ? nested
       : (leadCustomer && typeof leadCustomer === 'object' ? leadCustomer : {});
+    rememberWidgetCustomer(src);
+    const heard = widgetCustomerRecord();
     const name = [src.first_name, src.last_name].filter(Boolean).join(' ').trim()
+      || heard.name
       || currentProfile?.name
       || '';
     return {
       name,
-      email: String(src.email || currentProfile?.email || '').trim(),
-      phone: String(src.phone_number || src.phone || phoneValue()).trim(),
+      email: String(src.email || heard.email || currentProfile?.email || '').trim(),
+      phone: String(src.phone_number || src.phone || heard.phone || phoneValue()).trim(),
+    };
+  }
+
+  function rememberWidgetCustomer(source) {
+    const nested = source && typeof source === 'object' ? source : {};
+    const first = String(nested.first_name || nested.firstName || '').trim();
+    const last = String(nested.last_name || nested.lastName || '').trim();
+    const email = String(nested.email || '').trim();
+    const phone = String(nested.phone_number || nested.phoneNumber || nested.phone || '').trim();
+    const contact = String(nested.way_to_contact || nested.wayToContact || '').trim();
+    if (first) widgetCustomerDetails.first = first;
+    if (last) widgetCustomerDetails.last = last;
+    if (email) widgetCustomerDetails.email = email;
+    if (phone) widgetCustomerDetails.phone = phone;
+    if (contact) widgetCustomerDetails.contact = contact;
+  }
+
+  function readWidgetCustomerFields() {
+    rememberWidgetCustomer({
+      first_name: widgetInputByName('firstName')?.value,
+      last_name: widgetInputByName('lastName')?.value,
+      email: widgetInputByName('email')?.value,
+      phone_number: widgetInputByName('phoneNumber')?.value,
+      way_to_contact: widgetInputByName('wayToContact')?.value,
+    });
+  }
+
+  function widgetCustomerRecord() {
+    const name = `${widgetCustomerDetails.first} ${widgetCustomerDetails.last}`.trim();
+    return {
+      name,
+      first: widgetCustomerDetails.first,
+      last: widgetCustomerDetails.last,
+      email: widgetCustomerDetails.email,
+      phone: widgetCustomerDetails.phone,
+      contact: widgetCustomerDetails.contact,
+    };
+  }
+
+  function bindWidgetCustomerListener() {
+    const root = document.getElementById('tireconnect');
+    if (!root || root.dataset.customerListen === 'true') return;
+    root.dataset.customerListen = 'true';
+    const capture = () => readWidgetCustomerFields();
+    ['input', 'change'].forEach((type) => root.addEventListener(type, capture, true));
+  }
+
+  function linkedTiresForAppointment() {
+    return (selectedQuote?.tires || []).map((tire, index) => ({
+      linkId: `new-widget:${index}`,
+      source: 'purchased',
+      type: 'new_tire',
+      brand: tire.brand || '',
+      model: tire.model || '',
+      size: tire.size || '',
+      qty: Math.max(1, Number(tire.qty) || 1),
+      unitPrice: Number(tire.price) || 0,
+      partNumber: tire.partNumber || '',
+    }));
+  }
+
+  function installationAppointmentForOrder() {
+    if (selectedFulfillment() !== 'Installation' || installLocation !== 'shop') return null;
+    const date = String(document.querySelector('[data-install-date]')?.value || installSlot?.date || '').trim();
+    const time = String(document.querySelector('[data-install-time]')?.value || installSlot?.time || '').trim();
+    const plate = installPlateValue();
+    if (!date || !time || plate.length < 2) return null;
+    const booking = installBookingQuote();
+    const priced = booking.ok ? booking.priced : null;
+    const qty = booking.ok ? booking.quantity : selectedTireQty();
+    const serviceSubtotal = Number(priced?.serviceSubtotal || 0);
+    const hstAmount = Number(priced?.hstAmount || 0);
+    const totalWithHst = Number(priced?.totalWithHst || 0);
+    return {
+      serviceId: 'off-rim-swap',
+      serviceName: priced?.name || `Off-rim swap × ${qty}`,
+      startingPrice: serviceSubtotal,
+      serviceSubtotal,
+      hstAmount,
+      totalWithHst,
+      taxRate: Number(priced?.taxRate || 0.13),
+      depositAmount: totalWithHst,
+      remainingBalance: 0,
+      paymentStatus: 'paid',
+      preferredDate: date,
+      preferredTimeWindow: time,
+      vehiclePlateNumber: plate,
+      numberOfTires: qty,
+      tireSize: selectedQuote?.tires?.[0]?.size || '',
+      installLocation: 'shop',
+      city: 'Milton',
+      fullServiceAddress: '600 Harrop Drive, Milton, Ontario',
+      additionalNotes: 'Booked from the new tire order. The customer details came from the tire checkout, and installation is included in that payment.',
+      linkedTires: linkedTiresForAppointment(),
+      newTirePurchasedAt: new Date().toISOString(),
     };
   }
 
@@ -3170,7 +3521,7 @@
 
   function successMessage(fulfillment) {
     return fulfillment === 'Installation'
-      ? 'Tires saved to your account. Opening installation booking next. The first appointment is 1:00 PM the day after you order.'
+      ? 'Off-rim swap booked with these tires.'
       : 'Order placed. You can pick up the tires whenever the shop is open, 8:00 AM to 8:00 PM. No appointment is needed.';
   }
 
@@ -3284,15 +3635,7 @@
   }
 
   function memberGate() {
-    if (!currentProfile) {
-      if (!guestCheckoutReady) {
-        return { ok: false, message: 'Enter your name, email, and phone to pay as a guest.' };
-      }
-      return { ok: true };
-    }
-    if (!phoneValue()) {
-      return { ok: false, message: 'Please enter a phone number, then finish checkout in the tire search.' };
-    }
+    guestCheckoutReady = true;
     return { ok: true };
   }
 
@@ -3358,29 +3701,17 @@
     const status = String(data.status || data.order_status || '').toLowerCase();
     logFlow(`checkout.complete.${source}`, { status, data });
     captureQuoteFromWidgetEvent(event);
+    readWidgetCustomerFields();
     const customer = customerFromWidgetPayload(event);
     const localDemo = source === 'demo' && isLocalHost();
-    if (!currentProfile && !localDemo) {
-      const guest = readGuestCustomer(document.querySelector('[data-eastcord-checkout-form]') || document);
-      if (!guest.ok) {
-        logFlow('supabase.skipped', guest.message);
-        setFulfillmentMessage(guest.message, true);
-        syncFulfillmentUi();
-        return { saved: false };
-      }
-      guestCustomer = guest.customer;
-      guestCheckoutReady = true;
-      customer.name = guest.customer.name;
-      customer.email = guest.customer.email;
-      customer.phone = guest.customer.phone;
-    } else if (!currentProfile) {
+    if (localDemo) {
       if (!customer.name) customer.name = 'Demo Customer';
       if (!customer.email) customer.email = `burnertestin+mock-${Date.now()}@gmail.com`;
       if (!customer.phone) customer.phone = '3658225553';
-    } else {
+    } else if (currentProfile) {
       if (!customer.name) customer.name = currentProfile.name || 'EastCord customer';
       if (!customer.email) customer.email = currentProfile.email || '';
-      if (!customer.phone) customer.phone = phoneValue() || 'Not provided';
+      if (!customer.phone) customer.phone = phoneValue() || customer.phone || 'Not provided';
     }
     let items = itemsFromWidgetPayload(data);
     const detailsPending = !items.length;
@@ -3398,7 +3729,7 @@
     logFlow('supabase.prepare', { customer, items, detailsPending, fulfillment: selectedFulfillment() });
     if (!customer.email || !customer.name || !customer.phone) {
       logFlow('supabase.skipped', 'Missing guest customer details.');
-      setFulfillmentMessage('Enter your name, email, and phone before payment.', true);
+      setFulfillmentMessage('Enter your name, email, and phone on the order page before continuing.', true);
       return { saved: false };
     }
     const nested = data.quote && typeof data.quote === 'object' ? data.quote : data;
@@ -3436,7 +3767,7 @@
       vehicle: selectedQuote?.vehicle || snapshot?.vehicle || nested.vehicle || {},
       orderNumber,
       recordedLocally: source === 'demo' || source === 'widget-checkout',
-      appointments: [],
+      appointments: installationAppointmentForOrder() ? [installationAppointmentForOrder()] : [],
       totals: {
         subtotal: nested.subtotal ?? data.subtotal ?? scrapedTotals.subtotal,
         tax: nested.total_tax ?? data.total_tax ?? scrapedTotals.tax,
@@ -3647,20 +3978,24 @@
       clearCheckoutSnapshot();
       linkCartAppointmentsToOrder(data.orderId, data.appointmentIds || []);
       const wantsInstall = payload.fulfillment === 'Installation' && data.orderId;
-      if (wantsInstall && !currentProfile && data.guestSignIn?.tokenHash) {
-        await signInGuestForBooking(data.guestSignIn);
+      const booked = wantsInstall && (data.appointmentIds || []).length > 0;
+      if (booked) {
+        setFulfillmentMessage('Off-rim swap booked with these tires.', false);
+        return {
+          saved: true,
+          orderId: data.orderId || '',
+          appointmentIds: data.appointmentIds || [],
+          appointmentCount: Number(data.appointmentCount || 0),
+        };
       }
-      const goBook = Boolean(data.orderId) && wantsInstall && Boolean(currentProfile);
-      if (wantsInstall && data.orderId && !currentProfile) {
-        setFulfillmentMessage('Order placed. We will email a link to book installation.', true);
+      if (wantsInstall) {
+        setFulfillmentMessage('Off-rim swap is booked with this tire order.', false);
         return { saved: true, orderId: data.orderId || '' };
       }
       setFulfillmentMessage(
-        goBook
-          ? 'Tires saved to your account. Opening installation booking for these new tires…'
-          : (payload.recordedLocally
-            ? `Mock order saved. Tire order ${data.orderId || ''} is in your account.`
-            : successMessage(payload.fulfillment)),
+        payload.recordedLocally
+          ? `Mock order saved. Tire order ${data.orderId || ''} is in your account.`
+          : successMessage(payload.fulfillment),
         false,
       );
       if (!payload.recordedLocally) {
@@ -3673,11 +4008,7 @@
       logFlow('supabase.submit.saved', {
         orderId: data.orderId || '',
         alreadySaved: data.alreadySaved,
-        redirectInstall: Boolean(goBook),
       });
-      if (goBook) {
-        window.location.href = installationBookingUrl(data.orderId);
-      }
       return {
         saved: true,
         orderId: data.orderId || '',
@@ -3788,23 +4119,7 @@
     listen('onAppointmentClick', (event) => {
       captureQuoteFromWidgetEvent(event);
       rejectWidgetEvent(event);
-      if (selectedFulfillment() === 'Pickup') {
-        logFlow('appointment.blockedPickup');
-        setFulfillmentMessage('Pickup orders do not need an appointment. We email you when the tires are ready.', true);
-        syncFulfillmentUi();
-        return;
-      }
-      if (isLocalHost()) {
-        openLocalInstallationBooking();
-        return;
-      }
-      const order = lastSavedOrder || readConfirmedOrder();
-      if (order?.id) {
-        logFlow('appointment.redirectAfterOrder', order.id);
-        window.location.href = installationBookingUrl(order.id);
-        return;
-      }
-      setFulfillmentMessage('Complete ORDER in the tire search first. After the tires are saved to your account, we will take you to book installation.', true);
+      setFulfillmentMessage('The off-rim swap is booked with this tire order.', false);
       syncFulfillmentUi();
     });
     const handleOrderClick = (event) => {
@@ -3883,9 +4198,23 @@
       });
     });
     listen('onLead', (event) => {
+      rememberWidgetCustomer(eventPayload(event).customer || eventPayload(event));
+      readWidgetCustomerFields();
       captureQuoteFromWidgetEvent(event);
       pushCustomerIntoWidget();
       resolveWidgetEvent(event);
+    });
+    [
+      'onCustomerInfo',
+      'onCustomerUpdated',
+      'onCustomerInfoUpdated',
+      'onContactInfo',
+    ].forEach((name) => {
+      listenOptional(name, (event) => {
+        rememberWidgetCustomer(eventPayload(event).customer || eventPayload(event));
+        readWidgetCustomerFields();
+        resolveWidgetEvent(event);
+      });
     });
   }
 
@@ -4048,6 +4377,7 @@
   function bindPage() {
     document.querySelector('[data-new-tire-fulfillment-form]')?.addEventListener('change', (event) => {
       if (event.target.name !== 'Fulfillment Preference') return;
+      fulfillmentChosenByUser = true;
       logFlow('panel.fulfillmentChanged', selectedFulfillment());
       rememberCheckoutSnapshot();
       document.querySelectorAll('[data-choice-info]').forEach((button) => {
@@ -4097,11 +4427,18 @@
     });
     window.addEventListener('hashchange', () => {
       logFlow('widget.hashchange', window.location.hash);
+      if (skipOrderDetails && !/checkout|payment/i.test(window.location.hash || '')) {
+        skipOrderDetails = false;
+        skipOrderDetailsStarted = 0;
+        window.clearTimeout(skipOrderDetailsTimer);
+        setSkippingOrderDetails(false);
+      }
       if (!isWidgetResultsPage()) hideHighlightOverlay({ clearHold: true });
       applyCapturedQuote(
         isWidgetSummaryPage() ? (quoteFromWidget() || quoteFromHash()) : (quoteFromHash() || quoteFromWidget()),
         { scroll: /summary|quote|order/i.test(window.location.hash) },
       );
+      if (skipOrderDetails) advanceOrderDetailsToCard();
     });
     const widget = document.getElementById('tireconnect');
     if (widget && typeof MutationObserver === 'function') {

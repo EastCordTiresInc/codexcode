@@ -7,6 +7,9 @@ const { chromium } = require('playwright');
 const SITE = process.env.APPOINTMENT_TEST_URL || 'http://localhost:8888/appointment.html';
 
 async function selectService(page, id, options = {}) {
+  if (String(id).startsWith('flat-') && await page.locator('[data-flat-repair-options]').isHidden()) {
+    await page.locator('[data-flat-repair-toggle]').click();
+  }
   const item = page.locator(`[data-service-item="${id}"]`);
   await item.locator('[data-service-toggle]').check();
   if (options.quantity) await item.locator('[data-service-quantity]').selectOption(String(options.quantity));

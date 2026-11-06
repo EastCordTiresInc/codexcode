@@ -25,14 +25,11 @@ function itemLabel(item) {
   return [item.brand, item.model, item.size].filter(Boolean).join(' ') || 'New tire';
 }
 
-function nextStep(fulfillment, orderId) {
+function nextStep(fulfillment) {
   if (fulfillment !== 'Installation') {
     return 'When the tires arrive, open Admin → Orders and tap “Tires arrived — email customer”.';
   }
-  const bookingUrl = orderId
-    ? `${APPOINTMENT_URL}?source=new-tires&newTireOrder=${encodeURIComponent(orderId)}#appointment-booking`
-    : APPOINTMENT_URL;
-  return `Order is confirmed. Customer can book installation from 1:00 PM the day after purchase: ${bookingUrl}. Later days are 8:00 AM to 8:00 PM.`;
+  return 'Off-rim swap is booked with this tire order. The customer is not sent to a separate installation page.';
 }
 
 function greetingName(fullName) {
@@ -85,20 +82,19 @@ function buildPickupReadyEmail(order) {
 function buildInstallationArrivedEmail(order) {
   const name = greetingName(order.customer_name);
   const lines = orderItemLines(order);
-  const bookingUrl = installationBookingUrl(order.id);
   return buildBrandedEmail({
     to: order.customer_email,
     subject: name
-      ? `${name}, your EastCord tires are in — book installation`
-      : 'Your EastCord tires are in — book installation',
+      ? `${name}, your EastCord tires are in`
+      : 'Your EastCord tires are in',
     heading: 'Your new tires are in',
     body: [
       name ? `Hello ${name},` : 'Hello,',
       'Your new tires have arrived at EastCord Tires, 600 Harrop Drive in Milton.',
-      'Book installation at the shop. Hours are 8:00 AM to 8:00 PM.',
+      'Your off-rim swap is already booked with this order. Shop hours are 8:00 AM to 8:00 PM.',
     ],
-    actionUrl: bookingUrl,
-    actionLabel: 'Book installation',
+    actionUrl: ACCOUNT_URL,
+    actionLabel: 'View your account',
     extraText: lines.join('\n'),
     extraHtml: itemLinesHtml(lines),
     footer: 'If you have questions, call EastCord Tires at 365-822-5553.',
@@ -149,12 +145,9 @@ async function notifyPaidNewTireOrder(order) {
     '',
     detailsPending ? 'Total charged: not copied from TireConnect.' : `Total charged: ${formatMoney(order.total_with_hst)}`,
     '',
-    nextStep(fulfillment, order.id),
+    nextStep(fulfillment),
   ].filter((line) => line !== undefined).join('\n');
 
-  const bookingUrl = order.id
-    ? `${APPOINTMENT_URL}?source=new-tires&newTireOrder=${encodeURIComponent(order.id)}#appointment-booking`
-    : APPOINTMENT_URL;
   const customerEmail = detailsPending
     ? buildBrandedEmail({
       to: order.customer_email,
@@ -171,15 +164,15 @@ async function notifyPaidNewTireOrder(order) {
     : fulfillment === 'Installation'
     ? buildBrandedEmail({
       to: order.customer_email,
-      subject: 'EastCord Tires payment received — book installation',
-      heading: 'Your new tires are confirmed',
+      subject: 'EastCord Tires payment received — off-rim swap booked',
+      heading: 'Your new tires and off-rim swap are confirmed',
       body: [
         `Hello ${customerName},`,
-        'EastCord Tires received your new tire payment. You can book installation now. The first appointment is 1:00 PM the day after you order, no matter what time you order. Later days are 8:00 AM to 8:00 PM.',
+        'EastCord Tires received your new tire payment. The off-rim swap is booked with this order at 600 Harrop Drive, Milton. You do not need a separate installation booking.',
         `Total paid: ${formatMoney(order.total_with_hst)}`,
       ],
-      actionUrl: bookingUrl,
-      actionLabel: 'Book installation',
+      actionUrl: ACCOUNT_URL,
+      actionLabel: 'View your account',
       extraText: itemLines.join('\n'),
       extraHtml: `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4b5563;">${itemLines.map((line) => escapeHtml(line)).join('<br />')}</p>`,
     })
@@ -588,8 +581,11 @@ function bookingRowFromAppointment({ userId, customer, item, orderId }) {
     city: textValue(item.city),
     postal_code: textValue(item.postalCode || item.postal_code),
     parking_access_notes: textValue(item.parkingAccessNotes || item.parking_access_notes),
+    install_location: textValue(item.installLocation || item.install_location) || null,
     additional_notes: notes,
+    linked_tires: Array.isArray(item.linkedTires || item.linked_tires) ? (item.linkedTires || item.linked_tires) : [],
     new_tire_order_id: orderId || null,
+    new_tire_purchased_at: textValue(item.newTirePurchasedAt || item.new_tire_purchased_at) || null,
     service_area_status: textValue(item.serviceAreaStatus || item.service_area_status) || 'In service area',
     booking_status: textValue(item.bookingStatus || item.booking_status) || 'Pending Confirmation',
     payment_status: textValue(item.paymentStatus || item.payment_status) || 'pending_checkout',
