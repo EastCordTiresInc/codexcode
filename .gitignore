@@ -26,6 +26,9 @@ email-preview.html
 local-test/
 
 # Local-only demo checkout (not for the live website)
+widget-test.html
+widget-test-app.js
+widget-test.css
 demo-payment.html
 demo-payment.js
 demo-payment.css

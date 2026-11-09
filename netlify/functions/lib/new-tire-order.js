@@ -29,7 +29,7 @@ function nextStep(fulfillment) {
   if (fulfillment !== 'Installation') {
     return 'When the tires arrive, open Admin → Orders and tap “Tires arrived — email customer”.';
   }
-  return 'Off-rim swap is booked with this tire order. The customer is not sent to a separate installation page.';
+  return 'Off-rim swap + balance is booked with this tire order. The customer is not sent to a separate installation page.';
 }
 
 function greetingName(fullName) {
@@ -164,11 +164,11 @@ async function notifyPaidNewTireOrder(order) {
     : fulfillment === 'Installation'
     ? buildBrandedEmail({
       to: order.customer_email,
-      subject: 'EastCord Tires payment received — off-rim swap booked',
-      heading: 'Your new tires and off-rim swap are confirmed',
+      subject: 'EastCord Tires payment received — off-rim swap + balance booked',
+      heading: 'Your new tires and off-rim swap + balance are confirmed',
       body: [
         `Hello ${customerName},`,
-        'EastCord Tires received your new tire payment. The off-rim swap is booked with this order at 600 Harrop Drive, Milton. You do not need a separate installation booking.',
+        'EastCord Tires received your new tire payment. The off-rim swap + balance is booked with this order at 600 Harrop Drive, Milton. You do not need a separate installation booking.',
         `Total paid: ${formatMoney(order.total_with_hst)}`,
       ],
       actionUrl: ACCOUNT_URL,

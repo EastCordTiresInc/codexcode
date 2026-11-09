@@ -15,6 +15,9 @@ README.md
 cart-debug.js
 
 # Local-only demo checkout — keep on this machine, never publish
+widget-test.html
+widget-test-app.js
+widget-test.css
 demo-payment.html
 demo-payment.js
 demo-payment.css
