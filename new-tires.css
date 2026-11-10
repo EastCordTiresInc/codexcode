@@ -993,6 +993,31 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+@media (max-width: 760px) {
+  .new-tire-fulfillment-form:has([data-shop-booking]:not([hidden])) {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+  }
+
+  .new-tire-fulfillment-form:has([data-shop-booking]:not([hidden])) > .new-tire-install-location,
+  .new-tire-fulfillment-form:has([data-shop-booking]:not([hidden])) > .new-tire-customer,
+  .new-tire-fulfillment-form:has([data-shop-booking]:not([hidden])) > [data-shop-booking] {
+    grid-column: 1;
+    grid-row: auto;
+    min-width: 0;
+  }
+
+  .new-tire-customer-person {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .new-tire-customer-field input,
+  .new-tire-customer-field select {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
 .new-tire-fulfillment-form:not(:has([data-shop-booking]:not([hidden]))) .new-tire-customer-person [data-slot="contact"] {
   grid-column: 1 / -1;
 }

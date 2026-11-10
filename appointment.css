@@ -369,6 +369,55 @@ label:has(input[name="bot-field"]) {
   white-space: nowrap;
 }
 
+.appointment-intro-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.appointment-phone-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  border-color: rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.appointment-phone-panel:hover,
+.appointment-phone-panel:focus-visible {
+  border-color: #df1f2d;
+}
+
+.appointment-phone-panel .appointment-step-heading {
+  gap: 5px;
+}
+
+.appointment-phone-panel .appointment-step-heading span {
+  font-size: 0.7rem;
+}
+
+.appointment-phone-panel .appointment-step-heading h3 {
+  font-size: clamp(1.08rem, 1.6vw, 1.28rem);
+  line-height: 1.14;
+}
+
+.appointment-phone-panel .appointment-step-heading p {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.appointment-phone-panel .button {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 18px;
+  pointer-events: none;
+}
+
 .appointment-service-group-heading {
   display: flex;
   align-items: flex-start;
@@ -1673,6 +1722,10 @@ label:has(input[name="bot-field"]) {
   [data-parking-access-options] { grid-template-columns: 1fr; }
   .appointment-service-choice-grid { grid-template-columns: 1fr; }
   .appointment-service-group { padding: 14px; }
+  .appointment-intro-row {
+    grid-template-columns: 1fr;
+  }
+
   .appointment-changeover-help {
     display: grid;
     gap: 12px;
