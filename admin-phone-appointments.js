@@ -37,6 +37,7 @@
     qtyField: document.querySelector('[data-phone-qty-field]'),
     qty: document.querySelector('[data-phone-qty]'),
     sizeField: document.querySelector('[data-phone-size-field]'),
+    sizeMark: document.querySelector('[data-phone-size-mark]'),
     size: document.querySelector('[data-phone-size]'),
     summary: document.querySelector('[data-phone-summary]'),
     pay: document.querySelector('[data-phone-pay]'),
@@ -68,6 +69,13 @@
 
   function field(selector) {
     return String(document.querySelector(selector)?.value || '').trim();
+  }
+
+  function rimSizeLabel() {
+    const select = els.size;
+    const value = String(select?.value || '').trim();
+    if (!value) return '';
+    return String(select.selectedOptions?.[0]?.textContent || value).trim();
   }
 
   function showGate(message) {
@@ -144,7 +152,8 @@
     const needsQty = QUANTITY_SERVICES.has(serviceId);
     const needsSize = serviceId === 'off-rim-swap';
     if (els.qtyField) els.qtyField.hidden = !needsQty;
-    if (els.sizeField) els.sizeField.hidden = !needsSize;
+    if (els.sizeField) els.sizeField.hidden = serviceId === 'on-rim-swap';
+    if (els.sizeMark) els.sizeMark.hidden = !needsSize;
     if (els.qty) els.qty.required = needsQty;
     if (els.size) els.size.required = needsSize;
   }
@@ -297,7 +306,7 @@
         preferredDate: date,
         preferredTimeWindow: time,
         vehiclePlateNumber: plate,
-        tireSize: field('[data-phone-tire-size]'),
+        tireSize: priced.selections.some((selection) => selection.id === 'on-rim-swap') ? '' : rimSizeLabel(),
         tiresAlreadyOnRims: onRims,
         numberOfTires: quantity,
         fullServiceAddress: address,
@@ -343,8 +352,8 @@
     if (els.link) els.link.dataset.busy = sendLink ? 'true' : '';
     if (active) active.textContent = sendLink ? 'Sending link…' : 'Opening payment…';
     setFormStatus(sendLink
-      ? 'Booking the appointment and emailing the payment link.'
-      : 'Opening card payment for the full amount.');
+      ? 'Saving the phone appointment and texting the payment link. It is confirmed only after they pay.'
+      : 'Saving the phone appointment and opening the EastCord Tires card payment.');
     try {
       const response = await fetch('/.netlify/functions/create-appointment-checkout-session', {
         method: 'POST',
@@ -367,8 +376,13 @@
       if (sendLink) {
         if (els.pay) els.pay.dataset.busy = '';
         if (els.link) els.link.dataset.busy = '';
-        if (data.emailed) {
-          setFormStatus(`Payment link emailed to ${booking.customer.email}.`);
+        if (data.texted || data.emailed) {
+          const sent = [
+            data.texted ? `texted to ${booking.customer.phone}` : '',
+            data.emailed ? `emailed to ${booking.customer.email}` : '',
+          ].filter(Boolean).join(' and ');
+          const warning = data.message ? ` ${data.message}` : '';
+          setFormStatus(`Payment link ${sent}. It stays unconfirmed until they pay.${warning}`, data.texted ? '' : 'error');
           resetBookingForm();
           await loadAppointments();
           return;
@@ -383,14 +397,24 @@
         syncSummary();
         return;
       }
-      if (!data.url) throw new Error(data.message || 'The appointment payment could not be opened.');
-      window.location.href = data.url;
+      if (!data.url) throw new Error(data.message || 'The EastCord Tires card payment could not be opened.');
+      window.location.assign(data.url);
     } catch (error) {
       setFormStatus(error.message || 'The appointment could not be booked.', 'error');
       if (els.pay) els.pay.dataset.busy = '';
       if (els.link) els.link.dataset.busy = '';
       syncSummary();
     }
+  }
+
+  function phoneStatusLabel(row) {
+    const booking = String(row.booking_status || '');
+    const payment = String(row.payment_status || '');
+    if (booking === 'Cancelled' || booking === 'Completed' || booking === 'No-Show') return booking;
+    const paid = payment === 'paid_in_full' || payment === 'paid_deposit';
+    if (!paid) return 'Awaiting payment';
+    if (/\[desk\]/i.test(String(row.additional_notes || ''))) return 'Booked';
+    return 'Confirmed';
   }
 
   function render(appointments) {
@@ -417,7 +441,7 @@
           <p>${phone}</p>
           <p>${escapeHtml(row.service_name || '')}</p>
           <p>${escapeHtml(place)} · ${escapeHtml(row.vehicle_plate_number || '')}</p>
-          <p>${escapeHtml(row.booking_status || 'Pending')} · ${escapeHtml(row.payment_status || '')}</p>
+          <p>${escapeHtml(phoneStatusLabel(row))}</p>
         </article>
       `;
     }).join('');

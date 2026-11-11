@@ -108,7 +108,7 @@ exports.handler = async (event) => {
 
   const origin = siteUrl(event);
   try {
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       mode: 'payment',
       payment_method_types: ['card'],
       customer_email: row.customer_email || undefined,
@@ -116,13 +116,22 @@ exports.handler = async (event) => {
         price_data: {
           currency: 'cad',
           product_data: {
-            name: `${row.service_name || 'Appointment'} - Full payment`,
+            name: `EastCord Tires: ${row.service_name || 'Appointment'}`,
             description: 'Full appointment payment, including applicable HST.',
           },
           unit_amount: Math.round(total * 100),
         },
         quantity: 1,
       }],
+      branding_settings: {
+        display_name: 'EastCord Tires',
+        button_color: '#df1f2d',
+      },
+      custom_text: {
+        submit: {
+          message: 'This payment is for your EastCord Tires appointment.',
+        },
+      },
       success_url: `${origin}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}&paid=full`,
       cancel_url: `${origin}/pay/${bookingId}`,
       metadata: {
@@ -141,7 +150,16 @@ exports.handler = async (event) => {
         total_deposit_amount: total.toFixed(2),
         total_remaining_balance: '0.00',
       },
-    });
+    };
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams);
+    } catch (checkoutError) {
+      const rejectedBranding = /branding_settings|button_color|display_name/i.test(String(checkoutError?.message || ''));
+      if (!rejectedBranding) throw checkoutError;
+      const { branding_settings, ...withoutBranding } = sessionParams;
+      session = await stripe.checkout.sessions.create(withoutBranding);
+    }
 
     await db
       .from('appointment_bookings')

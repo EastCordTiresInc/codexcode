@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>Phone appointments | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=42" />
+    <link rel="stylesheet" href="admin.css?v=43" />
   </head>
   <body class="admin-app">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -103,7 +103,8 @@
                   <option value="4">4 tires</option>
                 </select>
               </label>
-              <label data-phone-size-field hidden>Rim size
+              <label data-phone-size-field>
+                <span>Rim size <span class="admin-phone-required" data-phone-size-mark hidden aria-hidden="true">*</span></span>
                 <select data-phone-size>
                   <option value="">Choose size</option>
                   <option value="14-16">14–16 in</option>
@@ -114,9 +115,6 @@
               </label>
               <label>License plate
                 <input required data-phone-plate autocomplete="off" />
-              </label>
-              <label>Tire size
-                <input data-phone-tire-size placeholder="255/45R18" />
               </label>
               <div class="admin-phone-span">
                 <p class="admin-manage-label">Where</p>
@@ -159,7 +157,7 @@
               <button class="button button-primary admin-phone-pay" type="submit" data-phone-pay disabled>Book and pay</button>
               <button class="button button-secondary admin-phone-link" type="button" data-phone-link disabled>Book and send link</button>
             </div>
-            <p class="admin-phone-hint">Book and pay opens Stripe for the full amount. Book and send link emails the customer a link to pay that same full amount.</p>
+            <p class="admin-phone-hint">Book and pay shows Booked after the card payment goes through. Book and send link stays Awaiting payment, and becomes Confirmed only after the customer pays.</p>
           </form>
 
           <h2 class="admin-phone-list-title">Booked by phone</h2>
@@ -177,7 +175,7 @@
     <script src="auth-config.js?v=4"></script>
     <script src="account.js?v=62"></script>
     <script src="appointment-services.js?v=1"></script>
-    <script src="admin-phone-appointments.js?v=6"></script>
+    <script src="admin-phone-appointments.js?v=12"></script>
     <script src="mobile-menu.js?v=1" defer></script>
   </body>
 </html>

@@ -1598,6 +1598,11 @@ body.admin-modal-open {
   display: none;
 }
 
+.admin-phone-required {
+  color: #df1f2d;
+  letter-spacing: 0;
+}
+
 .admin-phone-form input,
 .admin-phone-form select,
 .admin-phone-form textarea {
