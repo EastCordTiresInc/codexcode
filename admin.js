@@ -153,9 +153,9 @@
     if (!match) return 'Installation photo';
     const kind = match[1] === 'before' ? 'before' : 'after';
     const index = Number(match[2]);
-    const multi = Object.keys(photos || {}).some((key) => /^(before|after)-([2-9]|\d{2,})$/.test(key));
-    if (!multi && index === 1) return kind === 'before' ? 'Before installation' : 'After installation';
-    return `Tire ${index} ${kind}`;
+    const positions = ['FRONT RIGHT', 'FRONT LEFT', 'BACK LEFT', 'BACK RIGHT'];
+    const position = positions[index - 1] || `Tire ${index}`;
+    return `${position} ${kind}`;
   }
 
   function demoCompletedAppointment(date) {

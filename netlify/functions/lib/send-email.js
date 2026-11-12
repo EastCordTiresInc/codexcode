@@ -187,6 +187,7 @@ function buildBrandedEmail({
   footer,
   extraText = '',
   extraHtml = '',
+  wide = false,
 }) {
   const paragraphs = (Array.isArray(body) ? body : [body]).map((para) => String(para || '').trim()).filter(Boolean);
   const footerText = footer || '';
@@ -221,14 +222,14 @@ function buildBrandedEmail({
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 12px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:${wide ? 680 : 520}px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
             <tr>
               <td align="center" style="background:#111317;padding:18px 28px;">
                 <img src="${LOGO_URL}" alt="EastCord Tires" width="280" style="display:block;width:280px;max-width:100%;height:auto;border:0;" />
               </td>
             </tr>
             <tr>
-              <td style="padding:32px;font-family:Arial,Helvetica,sans-serif;color:#111317;">
+              <td style="padding:${wide ? '28px 18px 32px' : '32px'};font-family:Arial,Helvetica,sans-serif;color:#111317;">
                 <h1 style="font-size:22px;line-height:1.3;margin:0 0 12px;">${escapeHtml(heading)}</h1>
                 ${bodyHtml}
                 ${extraHtml}

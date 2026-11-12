@@ -8,6 +8,7 @@ const ACCOUNT_URL = 'https://eastcordtires.ca/account.html';
 const WARRANTY_URL = 'https://eastcordtires.ca/public/docs/eastcord-used-tire-warranty-policy.pdf';
 const CUSTOMER_EMAIL_COLUMN = 'customer_confirmation_sent_at';
 const EASTCORD_EMAIL_COLUMN = 'eastcord_notification_sent_at';
+const SETTLED_BOOKING_STATUSES = new Set(['Completed', 'Cancelled', 'No-Show']);
 const TAX_RATE = 0.13;
 
 function json(statusCode, payload) {
@@ -90,9 +91,27 @@ function buildUpdatePayload(row, session) {
   }
   if (columns.has('stripe_session_id')) payload.stripe_session_id = session.id;
   if (columns.has('updated_at')) payload.updated_at = new Date().toISOString();
-  if (columns.has('booking_status')) payload.booking_status = 'Confirmed';
+  if (columns.has('booking_status') && !SETTLED_BOOKING_STATUSES.has(row?.booking_status)) {
+    payload.booking_status = 'Confirmed';
+  }
 
   return payload;
+}
+
+function isPaidPaymentStatus(status) {
+  return status === 'paid_deposit' || status === 'paid_in_full';
+}
+
+function alreadyPaidResult(existingRow) {
+  return {
+    ok: true,
+    bookingId: existingRow.id,
+    paymentStatus: existingRow.payment_status ?? null,
+    bookingStatus: existingRow.booking_status ?? null,
+    updatedColumns: [],
+    row: existingRow,
+    wasAlreadyConfirmed: true,
+  };
 }
 
 function wasAlreadyConfirmed(row) {
@@ -132,6 +151,16 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
     availableColumns: Object.keys(existingRow),
   });
 
+  if (isPaidPaymentStatus(existingRow.payment_status)) {
+    console.log('[EastCord appointment automation] Payment was already recorded. Duplicate confirmation email skipped.', {
+      bookingId,
+      sessionId: session.id,
+      currentPaymentStatus: existingRow.payment_status,
+      currentBookingStatus: existingRow.booking_status,
+    });
+    return alreadyPaidResult(existingRow);
+  }
+
   const updatePayload = buildUpdatePayload(existingRow, session);
 
   if (!Object.keys(updatePayload).length) {
@@ -144,6 +173,7 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
     .from('appointment_bookings')
     .update(updatePayload)
     .eq('id', bookingId)
+    .or('payment_status.is.null,payment_status.not.in.(paid_deposit,paid_in_full)')
     .select('*')
     .maybeSingle();
 
@@ -154,9 +184,11 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
   }
 
   if (!updatedRow) {
-    const diagnostics = buildDiagnostics({ bookingId, sessionId: session.id, row: existingRow, rowFound: true, error: null, updatePayload });
-    console.error('[EastCord appointment automation] Supabase payment status update returned no row.', diagnostics);
-    return { ok: false, statusCode: 404, diagnostics };
+    console.log('[EastCord appointment automation] Payment was already recorded by another request. Duplicate confirmation email skipped.', {
+      bookingId,
+      sessionId: session.id,
+    });
+    return alreadyPaidResult(existingRow);
   }
 
   console.log('[EastCord appointment automation] Supabase payment status update success.', {
@@ -436,25 +468,25 @@ function hasColumn(rows, columnName) {
 
 function shouldSendCustomerEmail(rows, allRowsAlreadyConfirmed) {
   if (!rows.length) return { shouldSend: false, reason: 'no_booking_rows' };
+  if (allRowsAlreadyConfirmed) return { shouldSend: false, reason: 'already_confirmed' };
   if (hasColumn(rows, CUSTOMER_EMAIL_COLUMN)) {
     const unsent = rows.filter((row) => !row[CUSTOMER_EMAIL_COLUMN]);
     return unsent.length
       ? { shouldSend: true, reason: 'sent_at_missing', count: 1, bookingIds: unsent.map((row) => row.id) }
       : { shouldSend: false, reason: 'sent_at_already_exists' };
   }
-  void allRowsAlreadyConfirmed;
   return { shouldSend: true, reason: 'sent_at_columns_missing', count: 1, bookingIds: rows.map((row) => row.id) };
 }
 
 function shouldSendEastcordEmail(rows, allRowsAlreadyConfirmed) {
   if (!rows.length) return { shouldSend: false, reason: 'no_booking_rows' };
+  if (allRowsAlreadyConfirmed) return { shouldSend: false, reason: 'already_confirmed' };
   if (hasColumn(rows, EASTCORD_EMAIL_COLUMN)) {
     const unsent = rows.filter((row) => !row[EASTCORD_EMAIL_COLUMN]);
     return unsent.length
       ? { shouldSend: true, reason: 'sent_at_missing', count: 1, bookingIds: unsent.map((row) => row.id) }
       : { shouldSend: false, reason: 'sent_at_already_exists' };
   }
-  void allRowsAlreadyConfirmed;
   return { shouldSend: true, reason: 'sent_at_columns_missing', count: 1, bookingIds: rows.map((row) => row.id) };
 }
 

@@ -8,24 +8,25 @@
     return Math.min(MAX_TIRES, qty);
   }
 
-  function slotsForQuantity(value) {
-    const qty = tireQuantity(value);
+  const WHEEL_POSITIONS = ['FRONT RIGHT', 'FRONT LEFT', 'BACK LEFT', 'BACK RIGHT'];
+
+  function slotsForQuantity() {
     const slots = [];
-    for (let index = 1; index <= qty; index += 1) {
-      const single = qty === 1;
+    WHEEL_POSITIONS.forEach((position, offset) => {
+      const index = offset + 1;
       slots.push({
         id: `after-${index}`,
-        label: single ? 'After installation' : `Tire ${index} after`,
-        hint: 'Photo of the tire after it is installed.',
+        label: `${position} after`,
+        hint: 'Photo of this wheel after it is installed. Hold the phone steady and tap the wheel to focus.',
         required: true,
       });
       slots.push({
         id: `before-${index}`,
-        label: single ? 'Before installation' : `Tire ${index} before`,
+        label: `${position} before`,
         hint: 'Only if you see scratches or visible damage. Otherwise skip this photo.',
         required: false,
       });
-    }
+    });
     return slots;
   }
 
@@ -37,12 +38,12 @@
     gateMessage: document.querySelector('[data-admin-gate-message]'),
     dashboard: document.querySelector('[data-admin-dashboard]'),
     form: document.querySelector('[data-admin-jobs-form]'),
-    dateInput: document.querySelector('[data-admin-date]'),
     status: document.querySelector('[data-admin-status]'),
     list: document.querySelector('[data-admin-list]'),
     photos: document.querySelector('[data-admin-photos]'),
     summary: document.querySelector('[data-admin-photo-summary]'),
     progress: document.querySelector('[data-admin-photo-progress]'),
+    carMap: document.querySelector('[data-admin-car-map]'),
     grid: document.querySelector('[data-admin-photo-grid]'),
     destination: document.querySelector('[data-admin-photo-destination]'),
     sendButton: document.querySelector('[data-admin-send-photos]'),
@@ -58,11 +59,22 @@
   let appointments = [];
   let selectedId = '';
   let sending = false;
+  let openWheel = '';
+  let carJobId = '';
+  let scrollCarDrop = false;
+
+  const CAR_WHEELS = [
+    { index: 2, place: 'front-left', side: 'Front', edge: 'left', position: 'FRONT LEFT' },
+    { index: 1, place: 'front-right', side: 'Front', edge: 'right', position: 'FRONT RIGHT' },
+    { index: 3, place: 'back-left', side: 'Back', edge: 'left', position: 'BACK LEFT' },
+    { index: 4, place: 'back-right', side: 'Back', edge: 'right', position: 'BACK RIGHT' },
+  ];
 
   function isLocalDemo() {
     const host = window.location.hostname;
     if (host === 'eastcordtires.ca' || host === 'www.eastcordtires.ca' || host === 'updatedeastcord.netlify.app') return false;
     if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+    if (host.endsWith('.netlify.app')) return true;
     if (host.endsWith('.trycloudflare.com') || host.endsWith('.loca.lt')) return true;
     if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
     if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
@@ -106,8 +118,8 @@
       if (demoPhotoSets[id]) return;
       const photos = {};
       for (let index = 1; index <= job.qty; index += 1) {
-        const label = job.qty === 1 ? 'After installation' : `Tire ${index} after`;
-        const url = demoPhoto(label, DEMO_COLORS[index - 1]);
+        const position = WHEEL_POSITIONS[index - 1] || `Tire ${index}`;
+        const url = demoPhoto(`${position} after`, DEMO_COLORS[index - 1]);
         if (url) photos[`after-${index}`] = { url, updatedAt: new Date().toISOString() };
       }
       demoPhotoSets[id] = photos;
@@ -234,35 +246,153 @@
     return `${appointment.service_name || 'Tire service'} · ${jobTitle(appointment)} · ${qty} tire${qty === 1 ? '' : 's'}`;
   }
 
+  function formatJobDate(value) {
+    const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return '';
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return new Intl.DateTimeFormat('en-CA', { weekday: 'short', month: 'short', day: 'numeric' }).format(date);
+  }
+
+  function jobWhen(appointment) {
+    return [formatJobDate(appointment?.preferred_date), appointment?.preferred_time_window].filter(Boolean).join(' · ') || 'Time not set';
+  }
+
+  function jobCard(appointment) {
+    const required = requiredSlots(appointment);
+    const count = requiredSavedCount(appointment);
+    const selected = appointment.id === selectedId ? ' is-selected' : '';
+    const finished = isFinished(appointment);
+    const photoLine = finished
+      ? 'Job finished'
+      : (appointment.photosPending ? `${tireQuantity(appointment.number_of_tires)} tire${tireQuantity(appointment.number_of_tires) === 1 ? '' : 's'}` : `${count} of ${required.length} after photos`);
+    return `
+      <button class="admin-job-card${selected}${appointment.demo ? ' is-demo' : ''}" type="button" data-job-id="${escapeHtml(appointment.id)}">
+        <span class="admin-appointment-time">${escapeHtml(jobWhen(appointment))}</span>
+        ${appointment.demo ? '<span class="admin-job-demo">Demo</span>' : ''}
+        ${finished ? '<span class="admin-job-finished">Finished</span>' : ''}
+        <strong>${escapeHtml(appointment.customer_name || 'Customer')}</strong>
+        <span>${escapeHtml(appointment.service_name || 'Tire service')}</span>
+        <span>${escapeHtml(jobTitle(appointment))}</span>
+        <span class="admin-job-count">${escapeHtml(photoLine)}</span>
+      </button>
+    `;
+  }
+
+  function renderGroup(title, items, emptyText) {
+    const body = items.length
+      ? items.map(jobCard).join('')
+      : `<p class="admin-empty">${escapeHtml(emptyText)}</p>`;
+    return `<h2 class="admin-completed-heading">${escapeHtml(title)}</h2>${body}`;
+  }
+
   function renderList() {
     if (!els.list) return;
-    if (!appointments.length) {
-      els.list.innerHTML = '<p class="admin-empty">No installation jobs on this date.</p>';
+    const upcoming = appointments.filter((appointment) => !isFinished(appointment));
+    const completed = appointments.filter((appointment) => isFinished(appointment));
+    els.list.innerHTML = [
+      renderGroup('Upcoming', upcoming, 'No upcoming appointments.'),
+      renderGroup('Completed', completed, 'No completed appointments yet.'),
+    ].join('');
+  }
+
+  function photoSlotArticle(slot, appointment, editable) {
+    const photo = appointment.photos?.[slot.id];
+    const saved = Boolean(photo?.url);
+    return `
+      <article class="admin-photo-slot${saved ? ' is-saved' : ''}${slot.required ? '' : ' is-optional'}" data-slot="${escapeHtml(slot.id)}">
+        <h3>${escapeHtml(slot.label)}${slot.required ? '' : ' <span class="admin-photo-optional">Optional</span>'}</h3>
+        <p>${escapeHtml(slot.hint)}</p>
+        ${saved
+          ? `<img src="${escapeHtml(photo.url)}" alt="${escapeHtml(slot.label)}" />`
+          : '<div class="admin-photo-empty">No photo yet</div>'}
+        ${editable ? `
+          <label class="button button-secondary admin-photo-pick">
+            ${saved ? 'Replace photo' : 'Add photo'}
+            <input type="file" accept="image/*" capture="environment" data-photo-input />
+          </label>
+          <p class="admin-manage-feedback" data-slot-feedback hidden></p>
+        ` : ''}
+      </article>
+    `;
+  }
+
+  function slotsForWheel(appointment, index) {
+    const slots = jobSlots(appointment);
+    const after = slots.find((slot) => slot.id === `after-${index}`);
+    const before = slots.find((slot) => slot.id === `before-${index}`);
+    return [after, before].filter(Boolean);
+  }
+
+  function renderCarMap(appointment, editable) {
+    if (!els.carMap) return;
+    if (!appointment) {
+      els.carMap.hidden = true;
+      els.carMap.innerHTML = '';
       return;
     }
-
-    els.list.innerHTML = appointments.map((appointment) => {
-      const required = requiredSlots(appointment);
-      const count = requiredSavedCount(appointment);
-      const selected = appointment.id === selectedId ? ' is-selected' : '';
+    if (carJobId !== appointment.id) {
+      carJobId = appointment.id;
+      openWheel = '';
+    }
+    els.carMap.hidden = false;
+    const wheels = CAR_WHEELS.map((wheel) => {
+      const saved = Boolean(appointment.photos?.[`after-${wheel.index}`]?.url);
+      const before = Boolean(appointment.photos?.[`before-${wheel.index}`]?.url);
+      const open = openWheel === String(wheel.index);
+      const classes = [
+        'admin-car-wheel',
+        `is-${wheel.place}`,
+        saved ? 'is-saved' : '',
+        before ? 'has-before' : '',
+        open ? 'is-open' : '',
+      ].filter(Boolean).join(' ');
       return `
-        <button class="admin-job-card${selected}${appointment.demo ? ' is-demo' : ''}" type="button" data-job-id="${escapeHtml(appointment.id)}">
-          <span class="admin-appointment-time">${escapeHtml(appointment.preferred_time_window || 'Time TBD')}</span>
-          ${appointment.demo ? '<span class="admin-job-demo">Demo</span>' : ''}
-          ${isFinished(appointment) ? '<span class="admin-job-finished">Finished</span>' : ''}
-          <strong>${escapeHtml(appointment.customer_name || 'Customer')}</strong>
-          <span>${escapeHtml(appointment.service_name || 'Tire service')}</span>
-          <span>${escapeHtml(jobTitle(appointment))}</span>
-          <span class="admin-job-count">${isFinished(appointment) ? 'Job finished' : `${count} of ${required.length} after photos`}</span>
+        <button class="${classes}" type="button" data-car-wheel="${wheel.index}" aria-expanded="${open ? 'true' : 'false'}" aria-controls="admin-car-drop" aria-label="${escapeHtml(wheel.position)}. ${saved ? 'After photo saved.' : 'After photo needed.'}">
+          <span>${escapeHtml(wheel.side)}</span>
+          <span>${escapeHtml(wheel.edge)}</span>
+          <small>${saved ? 'Saved' : 'Add'}</small>
         </button>
       `;
     }).join('');
+    const open = CAR_WHEELS.find((wheel) => String(wheel.index) === openWheel);
+    const drop = open
+      ? `
+        <div class="admin-car-drop" id="admin-car-drop">
+          <h3>${escapeHtml(open.position)}</h3>
+          <p>${editable
+            ? 'Add the after photo. Add a before photo only if you see scratches or damage.'
+            : 'Saved photos for this wheel.'}</p>
+          <div class="admin-car-drop-slots">
+            ${slotsForWheel(appointment, open.index).map((slot) => photoSlotArticle(slot, appointment, editable)).join('')}
+          </div>
+        </div>
+      `
+      : '<p class="admin-car-hint" id="admin-car-drop">Tap a wheel to add the before and after photos.</p>';
+    els.carMap.innerHTML = `
+      <p class="admin-car-caption">Front</p>
+      <div class="admin-car-scene">
+        <svg class="admin-car-body" viewBox="0 0 220 400" aria-hidden="true">
+          <path fill="#1b2430" d="M78 34h64c18 0 28 12 32 28l10 36c8 6 16 16 16 30v36c0 10-6 16-16 20l-8 8v108l8 8c10 4 16 12 16 22v40c0 16-8 28-20 34l-6 18c-4 14-16 22-32 22H78c-16 0-28-8-32-22l-6-18c-12-6-20-18-20-34v-40c0-10 6-18 16-22l8-8V192l-8-8c-10-4-16-10-16-20v-36c0-14 8-24 16-30l10-36c4-16 14-28 32-28z"/>
+          <path fill="#8eabc4" d="M86 78h48c8 10 10 22 8 36H78c-2-14 0-26 8-36z"/>
+          <path fill="#6f8eaa" d="M88 286h44c6 12 6 24 0 36H88c-6-12-6-24 0-36z"/>
+          <rect x="96" y="150" width="28" height="86" rx="6" fill="#121820" opacity="0.35"/>
+        </svg>
+        ${wheels}
+      </div>
+      <p class="admin-car-caption">Back</p>
+      ${drop}
+    `;
+    if (scrollCarDrop) {
+      scrollCarDrop = false;
+      els.carMap.querySelector('.admin-car-drop')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   function renderPhotos() {
     const appointment = selectedAppointment();
     if (!appointment || !els.photos || !els.grid) {
       if (els.photos) els.photos.hidden = true;
+      renderCarMap(null, false);
       return;
     }
 
@@ -301,11 +431,12 @@
           `;
         }).join('');
       }
+      renderCarMap(appointment, false);
       return;
     }
     if (els.summary) {
       els.summary.innerHTML = `
-        <p class="admin-kicker">${escapeHtml(appointment.preferred_time_window || 'Installation')}</p>
+        <p class="admin-kicker">${escapeHtml(jobWhen(appointment))}</p>
         <h2>${escapeHtml(appointment.customer_name || 'Customer')}</h2>
         <p>${escapeHtml(detailLine(appointment))}</p>
       `;
@@ -322,7 +453,7 @@
       if (!requiredComplete(appointment)) {
         els.destination.textContent = required.length === 1
           ? 'Add the after photo, then finish the job.'
-          : 'Add an after photo for each tire, then finish the job.';
+          : 'Add an after photo for FRONT RIGHT, FRONT LEFT, BACK LEFT, and BACK RIGHT, then finish the job.';
       } else if (appointment.demo) {
         els.destination.textContent = 'Finish the demo to open the completed job page. Nothing is emailed.';
       } else if (canEmailCustomer) {
@@ -336,24 +467,8 @@
       els.sendButton.disabled = sending || !requiredComplete(appointment);
     }
 
-    els.grid.innerHTML = photoSlots.map((slot) => {
-      const photo = appointment.photos?.[slot.id];
-      const saved = Boolean(photo?.url);
-      return `
-        <article class="admin-photo-slot${saved ? ' is-saved' : ''}${slot.required ? '' : ' is-optional'}" data-slot="${escapeHtml(slot.id)}">
-          <h3>${escapeHtml(slot.label)}${slot.required ? '' : ' <span class="admin-photo-optional">Optional</span>'}</h3>
-          <p>${escapeHtml(slot.hint)}</p>
-          ${saved
-            ? `<img src="${escapeHtml(photo.url)}" alt="${escapeHtml(slot.label)}" />`
-            : '<div class="admin-photo-empty">No photo yet</div>'}
-          <label class="button button-secondary admin-photo-pick">
-            ${saved ? 'Replace photo' : 'Add photo'}
-            <input type="file" accept="image/*" capture="environment" data-photo-input />
-          </label>
-          <p class="admin-manage-feedback" data-slot-feedback hidden></p>
-        </article>
-      `;
-    }).join('');
+    renderCarMap(appointment, true);
+    els.grid.innerHTML = photoSlots.map((slot) => photoSlotArticle(slot, appointment, true)).join('');
   }
 
   function render() {
@@ -396,15 +511,11 @@
     return body;
   }
 
-  function currentDate() {
-    return els.dateInput?.value || torontoToday();
-  }
-
   async function loadJobs() {
     if (isLocalDemo()) await loadDemoPhotos();
-    setStatus('Loading installation jobs...');
+    setStatus('Loading upcoming and completed appointments...');
     try {
-      const result = await request('GET', null, `?date=${encodeURIComponent(currentDate())}`);
+      const result = await request('GET', null, '?queue=1');
       if (!result) {
         if (!isLocalDemo()) return;
         appointments = withDemoJobs([]);
@@ -414,16 +525,17 @@
         return;
       }
       applyInstallerChrome(result.role);
-      appointments = withDemoJobs(result.appointments);
-      if (!selectedId || !appointments.some((item) => item.id === selectedId)) {
-        selectedId = isLocalDemo() ? demoJobId(1) : '';
-      }
-      const realCount = appointments.filter((item) => !item.demo).length;
-      const demoNote = isLocalDemo() ? ' Local demos for 1, 2, 3, and 4 tires are included.' : '';
-      setStatus(realCount
-        ? `${realCount} installation job${realCount === 1 ? '' : 's'} on this date.${demoNote}`
-        : `No booked jobs on this date.${demoNote}`);
+      appointments = (Array.isArray(result.appointments) ? result.appointments : []).map((item) => ({
+        ...item,
+        photos: item.photos || {},
+        photosPending: true,
+      }));
+      if (!selectedId || !appointments.some((item) => item.id === selectedId)) selectedId = '';
+      const upcomingCount = appointments.filter((item) => !isFinished(item)).length;
+      const completedCount = appointments.filter((item) => isFinished(item)).length;
+      setStatus(`${upcomingCount} upcoming · ${completedCount} completed.`);
       render();
+      if (selectedId) await ensureJobPhotos(selectedId);
     } catch (error) {
       appointments = withDemoJobs([]);
       if (!isLocalDemo()) selectedId = '';
@@ -440,6 +552,65 @@
       reader.onerror = () => reject(new Error('That photo could not be read.'));
       reader.readAsDataURL(file);
     });
+  }
+
+  const CLARITY_SAMPLE_EDGE = 240;
+  const CLARITY_MIN_EDGE = 320;
+  const CLARITY_MIN_VARIANCE = 1400;
+  const CLARITY_MIN_CONTRAST = 12;
+
+  function measurePhotoClarity(imageData) {
+    const width = imageData?.width || 0;
+    const height = imageData?.height || 0;
+    const data = imageData?.data;
+    if (!data || width < CLARITY_MIN_EDGE || height < CLARITY_MIN_EDGE) {
+      return {
+        ok: false,
+        message: 'This photo is too small to see the wheel. Move closer and take it again.',
+      };
+    }
+    const scale = Math.min(1, CLARITY_SAMPLE_EDGE / Math.max(width, height));
+    const sampledWidth = Math.max(2, Math.round(width * scale));
+    const sampledHeight = Math.max(2, Math.round(height * scale));
+    const gray = new Float64Array(sampledWidth * sampledHeight);
+    for (let y = 0; y < sampledHeight; y += 1) {
+      const sourceY = Math.min(height - 1, Math.floor(((y + 0.5) * height) / sampledHeight));
+      for (let x = 0; x < sampledWidth; x += 1) {
+        const sourceX = Math.min(width - 1, Math.floor(((x + 0.5) * width) / sampledWidth));
+        const index = ((sourceY * width) + sourceX) * 4;
+        gray[(y * sampledWidth) + x] = (0.299 * data[index]) + (0.587 * data[index + 1]) + (0.114 * data[index + 2]);
+      }
+    }
+    let brightness = 0;
+    for (let index = 0; index < gray.length; index += 1) brightness += gray[index];
+    brightness /= gray.length;
+    let deviation = 0;
+    for (let index = 0; index < gray.length; index += 1) {
+      const delta = gray[index] - brightness;
+      deviation += delta * delta;
+    }
+    const contrast = Math.sqrt(deviation / gray.length);
+    let sum = 0;
+    let sumSquares = 0;
+    let lapCount = 0;
+    for (let y = 1; y < sampledHeight - 1; y += 1) {
+      for (let x = 1; x < sampledWidth - 1; x += 1) {
+        const index = (y * sampledWidth) + x;
+        const lap = gray[index - sampledWidth] + gray[index - 1] + gray[index + 1] + gray[index + sampledWidth] - (4 * gray[index]);
+        sum += lap;
+        sumSquares += lap * lap;
+        lapCount += 1;
+      }
+    }
+    const lapMean = sum / lapCount;
+    const variance = (sumSquares / lapCount) - (lapMean * lapMean);
+    if (variance < CLARITY_MIN_VARIANCE || contrast < CLARITY_MIN_CONTRAST) {
+      return {
+        ok: false,
+        message: 'This photo is blurry or unclear. Hold the phone steady, tap the wheel to focus, and take it again.',
+      };
+    }
+    return { ok: true, message: '' };
   }
 
   function compressImage(file) {
@@ -459,6 +630,12 @@
           return;
         }
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const clarity = measurePhotoClarity(context.getImageData(0, 0, canvas.width, canvas.height));
+        if (!clarity.ok) {
+          URL.revokeObjectURL(url);
+          reject(new Error(clarity.message));
+          return;
+        }
         canvas.toBlob((blob) => {
           URL.revokeObjectURL(url);
           if (!blob) reject(new Error('That photo could not be prepared.'));
@@ -474,11 +651,12 @@
   }
 
   function setSlotFeedback(slotId, message, tone = '') {
-    const slot = els.grid?.querySelector(`[data-slot="${CSS.escape(slotId)}"] [data-slot-feedback]`);
-    if (!slot) return;
-    slot.hidden = !message;
-    slot.textContent = message || '';
-    slot.dataset.tone = tone;
+    const slots = els.photos?.querySelectorAll(`[data-slot="${CSS.escape(slotId)}"] [data-slot-feedback]`) || [];
+    slots.forEach((slot) => {
+      slot.hidden = !message;
+      slot.textContent = message || '';
+      slot.dataset.tone = tone;
+    });
   }
 
   async function uploadSlot(slotId, file) {
@@ -551,10 +729,28 @@
     }
   }
 
-  function selectJob(id) {
+  async function ensureJobPhotos(id) {
+    const appointment = appointments.find((item) => item.id === id);
+    if (!appointment || appointment.demo || !appointment.photosPending) return;
+    const result = await request('GET', null, `?id=${encodeURIComponent(id)}`);
+    if (!result?.appointment || selectedId !== id) return;
+    appointment.photos = result.appointment.photos || {};
+    if (Array.isArray(result.appointment.slots) && result.appointment.slots.length) {
+      appointment.slots = result.appointment.slots;
+    }
+    appointment.photosPending = false;
+    render();
+  }
+
+  async function selectJob(id) {
     selectedId = id;
     if (id) history.replaceState(null, '', `#job=${encodeURIComponent(id)}`);
     render();
+    try {
+      await ensureJobPhotos(id);
+    } catch (error) {
+      setStatus(error.message || 'That job could not be opened.', 'error');
+    }
     els.photos?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
@@ -571,7 +767,6 @@
   }
 
   async function initialize() {
-    if (els.dateInput && !els.dateInput.value) els.dateInput.value = torontoToday();
     const hashJob = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('job')
       || new URLSearchParams(window.location.hash.slice(1)).get('job');
     if (hashJob) selectedId = hashJob === 'demo-install' ? demoJobId(1) : hashJob;
@@ -605,13 +800,6 @@
     window.location.href = '/login.html?redirect=/admin/job-photos';
   });
 
-  els.form?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    selectedId = '';
-    history.replaceState(null, '', window.location.pathname);
-    loadJobs();
-  });
-
   els.list?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-job-id]');
     if (!button) return;
@@ -620,7 +808,16 @@
 
   els.sendButton?.addEventListener('click', sendPhotos);
 
-  els.grid?.addEventListener('change', (event) => {
+  els.photos?.addEventListener('click', (event) => {
+    const wheel = event.target.closest('[data-car-wheel]');
+    if (!wheel || !els.carMap?.contains(wheel)) return;
+    const next = wheel.getAttribute('data-car-wheel') || '';
+    openWheel = openWheel === next ? '' : next;
+    scrollCarDrop = Boolean(openWheel);
+    renderPhotos();
+  });
+
+  els.photos?.addEventListener('change', (event) => {
     const input = event.target.closest('[data-photo-input]');
     const file = input?.files?.[0];
     const slot = input?.closest('[data-slot]')?.dataset.slot;

@@ -1,4 +1,5 @@
 const { requireJobPhotoUser } = require('./lib/admin-auth');
+const { assessJpeg, photoRejectionMessage } = require('./lib/photo-clarity');
 const {
   sendEmail,
   buildBrandedEmail,
@@ -9,8 +10,7 @@ const BUCKET = 'installation-photos';
 const MAX_BYTES = 2_500_000;
 const SIGNED_URL_SECONDS = 60 * 60;
 const MAX_EMAIL_BYTES = 9 * 1024 * 1024;
-const BLOCKED_SHOP_INBOX = 'info@eastcordtires.ca';
-const INSTALLATION_ADMIN_EMAIL = 'burnertestin@gmail.com';
+const SHOP_COPY_EMAIL = 'info@eastcordtires.ca';
 
 const MAX_TIRES = 8;
 
@@ -20,24 +20,30 @@ function tireQuantity(value) {
   return Math.min(MAX_TIRES, qty);
 }
 
-function slotsForQuantity(value) {
-  const qty = tireQuantity(value);
+const WHEEL_POSITIONS = Object.freeze([
+  'FRONT RIGHT',
+  'FRONT LEFT',
+  'BACK LEFT',
+  'BACK RIGHT',
+]);
+
+function slotsForQuantity() {
   const slots = [];
-  for (let index = 1; index <= qty; index += 1) {
-    const single = qty === 1;
+  WHEEL_POSITIONS.forEach((position, offset) => {
+    const index = offset + 1;
     slots.push({
       id: `after-${index}`,
-      label: single ? 'After installation' : `Tire ${index} after`,
-      hint: 'Photo of the tire after it is installed.',
+      label: `${position} after`,
+      hint: 'Photo of this wheel after it is installed. Hold the phone steady and tap the wheel to focus.',
       required: true,
     });
     slots.push({
       id: `before-${index}`,
-      label: single ? 'Before installation' : `Tire ${index} before`,
+      label: `${position} before`,
       hint: 'Only if you see scratches or visible damage. Otherwise skip this photo.',
       required: false,
     });
-  }
+  });
   return slots;
 }
 
@@ -47,9 +53,9 @@ function parsePhotoSlot(slotId) {
   return { kind: match[1], index: Number(match[2]) };
 }
 
-function isAllowedSlot(slotId, quantity) {
+function isAllowedSlot(slotId) {
   const parsed = parsePhotoSlot(slotId);
-  return Boolean(parsed && parsed.index <= tireQuantity(quantity));
+  return Boolean(parsed && parsed.index <= WHEEL_POSITIONS.length);
 }
 
 function json(statusCode, payload) {
@@ -139,6 +145,23 @@ async function photosForAppointment(supabaseAdmin, appointmentId) {
   return photos;
 }
 
+const JOB_SELECT = 'id, customer_name, customer_email, customer_phone, service_name, preferred_time_window, booking_status, payment_status, vehicle_year, vehicle_make, vehicle_model, vehicle_plate_number, tire_size, number_of_tires, install_location, city, preferred_date';
+const HIDDEN_FROM_INSTALLERS = new Set(['Cancelled', 'No-Show', 'Abandoned']);
+
+function windowStartMinutes(label) {
+  const match = String(label || '').match(/^(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return 24 * 60;
+  let hour = Number(match[1]) % 12;
+  if (match[3].toUpperCase() === 'PM') hour += 12;
+  return (hour * 60) + Number(match[2]);
+}
+
+function compareSchedule(a, b) {
+  const dateCompare = String(a.preferred_date || '').localeCompare(String(b.preferred_date || ''));
+  if (dateCompare) return dateCompare;
+  return windowStartMinutes(a.preferred_time_window) - windowStartMinutes(b.preferred_time_window);
+}
+
 function publicAppointment(row, photos) {
   return {
     id: row.id,
@@ -146,6 +169,7 @@ function publicAppointment(row, photos) {
     customer_email: row.customer_email || '',
     customer_phone: row.customer_phone || '',
     service_name: row.service_name || '',
+    preferred_date: row.preferred_date || '',
     preferred_time_window: row.preferred_time_window || '',
     booking_status: row.booking_status || '',
     payment_status: row.payment_status || '',
@@ -160,6 +184,19 @@ function publicAppointment(row, photos) {
   };
 }
 
+async function fetchAppointmentPages(makeQuery) {
+  const pageSize = 1000;
+  const rows = [];
+  for (let from = 0; from < 10000; from += pageSize) {
+    const { data, error } = await makeQuery().range(from, from + pageSize - 1);
+    if (error) return { error };
+    const batch = Array.isArray(data) ? data : [];
+    rows.push(...batch);
+    if (batch.length < pageSize) break;
+  }
+  return { data: rows };
+}
+
 async function listJobs(supabaseAdmin, event) {
   const params = event.queryStringParameters || {};
   const date = isValidDate(params.date) ? params.date : torontoDateString();
@@ -171,7 +208,7 @@ async function listJobs(supabaseAdmin, event) {
 
   const { data, error } = await supabaseAdmin
     .from('appointment_bookings')
-    .select('id, customer_name, customer_email, customer_phone, service_name, preferred_time_window, booking_status, payment_status, vehicle_year, vehicle_make, vehicle_model, vehicle_plate_number, tire_size, number_of_tires, install_location, city, preferred_date')
+    .select(JOB_SELECT)
     .eq('preferred_date', date);
 
   if (error) {
@@ -195,6 +232,74 @@ async function listJobs(supabaseAdmin, event) {
   });
 }
 
+async function getJob(supabaseAdmin, appointmentId, event) {
+  const bucketError = await ensureBucket(supabaseAdmin);
+  if (bucketError) {
+    console.error('[EastCord job photos] Bucket setup failed.', bucketError.message);
+    return json(500, { message: 'Photo storage is not available yet.' });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('appointment_bookings')
+    .select(JOB_SELECT)
+    .eq('id', appointmentId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[EastCord job photos] Appointment lookup failed.', error.message);
+    return json(500, { message: 'That installation job could not be opened.' });
+  }
+  if (!data || HIDDEN_FROM_INSTALLERS.has(String(data.booking_status || ''))) {
+    return json(404, { message: 'That installation job was not found.' });
+  }
+
+  const photos = await photosForAppointment(supabaseAdmin, appointmentId);
+  return json(200, {
+    role: event.jobPhotoRole || '',
+    appointment: publicAppointment(data, photos),
+  });
+}
+
+async function listInstallerQueue(supabaseAdmin, event) {
+  const [openResult, completedResult] = await Promise.all([
+    fetchAppointmentPages(() => supabaseAdmin
+      .from('appointment_bookings')
+      .select(JOB_SELECT)
+      .neq('booking_status', 'Completed')
+      .order('preferred_date', { ascending: true })
+      .order('id', { ascending: true })),
+    fetchAppointmentPages(() => supabaseAdmin
+      .from('appointment_bookings')
+      .select(JOB_SELECT)
+      .eq('booking_status', 'Completed')
+      .order('preferred_date', { ascending: false })
+      .order('id', { ascending: false })),
+  ]);
+
+  if (openResult.error || completedResult.error) {
+    console.error('[EastCord job photos] Installer queue failed.', openResult.error?.message || completedResult.error?.message);
+    return json(500, { message: 'Installation jobs could not be loaded right now.' });
+  }
+
+  const upcoming = (openResult.data || [])
+    .filter((row) => !HIDDEN_FROM_INSTALLERS.has(String(row.booking_status || '')))
+    .sort(compareSchedule)
+    .map((row) => publicAppointment(row, {}));
+  const completed = (completedResult.data || [])
+    .slice()
+    .sort((a, b) => compareSchedule(b, a))
+    .map((row) => publicAppointment(row, {}));
+
+  return json(200, {
+    queue: true,
+    role: event.jobPhotoRole || '',
+    upcomingCount: upcoming.length,
+    completedCount: completed.length,
+    count: upcoming.length + completed.length,
+    appointments: [...upcoming, ...completed],
+  });
+}
+
 function isEmailAddress(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
@@ -210,11 +315,46 @@ function appointmentDetails(appointment) {
   ].filter(Boolean);
 }
 
+function photoShot(photo, caption) {
+  return `<p style="margin:0 0 4px;font-size:12px;line-height:1.4;color:#6b7280;">${escapeHtml(caption)}</p>`
+    + `<img src="cid:${escapeHtml(photo.contentId)}" alt="${escapeHtml(photo.label)}" width="300" style="display:block;width:100%;max-width:300px;height:auto;border-radius:8px;border:1px solid #e5e7eb;margin:0 0 12px;" />`;
+}
+
+function wheelCell(name, afterPhoto, beforePhoto) {
+  const shots = [
+    afterPhoto ? photoShot(afterPhoto, 'After') : '',
+    beforePhoto ? photoShot(beforePhoto, 'Before') : '',
+  ].filter(Boolean).join('');
+  return `<td width="50%" valign="top" style="width:50%;padding:6px;vertical-align:top;">`
+    + `<p style="margin:0 0 8px;font-size:13px;line-height:1.3;font-weight:700;letter-spacing:0.03em;color:#111317;">${escapeHtml(name)}</p>`
+    + (shots || '<p style="margin:0 0 12px;font-size:13px;color:#6b7280;">No photo</p>')
+    + '</td>';
+}
+
 function photoMarkup(photos) {
-  return photos.map((photo, index) => (
-    `<p style="margin:18px 0 8px;font-size:15px;font-weight:700;color:#111317;">${index + 1}. ${escapeHtml(photo.label)}</p>`
-    + `<img src="cid:${escapeHtml(photo.contentId)}" alt="${escapeHtml(photo.label)}" width="456" style="display:block;width:100%;max-width:456px;height:auto;border-radius:8px;border:1px solid #e5e7eb;" />`
-  )).join('');
+  const byId = new Map((Array.isArray(photos) ? photos : []).map((photo) => [photo.id, photo]));
+  const used = new Set();
+  const corners = [
+    ['2', 'FRONT LEFT'],
+    ['1', 'FRONT RIGHT'],
+    ['3', 'BACK LEFT'],
+    ['4', 'BACK RIGHT'],
+  ];
+  const cell = ([key, name]) => {
+    const afterPhoto = byId.get(`after-${key}`);
+    const beforePhoto = byId.get(`before-${key}`);
+    if (afterPhoto) used.add(afterPhoto.id);
+    if (beforePhoto) used.add(beforePhoto.id);
+    return wheelCell(name, afterPhoto, beforePhoto);
+  };
+  const grid = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:4px 0 8px;">'
+    + '<tr><td colspan="2" align="center" style="padding:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.08em;color:#6b7280;">FRONT</td></tr>'
+    + `<tr>${cell(corners[0])}${cell(corners[1])}</tr>`
+    + `<tr>${cell(corners[2])}${cell(corners[3])}</tr>`
+    + '<tr><td colspan="2" align="center" style="padding:2px 0 0;font-size:12px;font-weight:700;letter-spacing:0.08em;color:#6b7280;">BACK</td></tr>'
+    + '</table>';
+  const extras = (Array.isArray(photos) ? photos : []).filter((photo) => !used.has(photo.id));
+  return grid + extras.map((photo) => photoShot(photo, photo.label)).join('');
 }
 
 function photoAttachments(photos) {
@@ -226,8 +366,8 @@ function photoAttachments(photos) {
   }));
 }
 
-function isBlockedShopInbox(value) {
-  return String(value || '').trim().toLowerCase() === BLOCKED_SHOP_INBOX;
+function isShopCopy(value) {
+  return String(value || '').trim().toLowerCase() === SHOP_COPY_EMAIL;
 }
 
 function sameInbox(left, right) {
@@ -242,7 +382,7 @@ function buildInstallationPhotoEmails(appointment, photos, options = {}) {
   const testLine = options.test ? 'This is a test of the installation photo email.' : '';
   const finishedBy = String(options.finishedBy || '').trim();
   const emails = [];
-  const customerAllowed = isEmailAddress(customerTo) && !isBlockedShopInbox(customerTo);
+  const customerAllowed = isEmailAddress(customerTo) && !isShopCopy(customerTo);
 
   if (customerAllowed) {
     const customerEmail = buildBrandedEmail({
@@ -258,12 +398,13 @@ function buildInstallationPhotoEmails(appointment, photos, options = {}) {
       extraText: photoList,
       extraHtml: photoMarkup(photos),
       footer: 'Reply to this email if a photo does not look right.',
+      wide: true,
     });
     customerEmail.attachments = photoAttachments(photos);
     emails.push(customerEmail);
   }
 
-  if (isEmailAddress(adminTo) && !isBlockedShopInbox(adminTo) && !(customerAllowed && sameInbox(adminTo, customerTo))) {
+  if (isEmailAddress(adminTo) && !(customerAllowed && sameInbox(adminTo, customerTo))) {
     const adminEmail = buildBrandedEmail({
       to: adminTo,
       subject: `Installation finished — ${appointment.customer_name || 'EastCord job'}`,
@@ -277,6 +418,7 @@ function buildInstallationPhotoEmails(appointment, photos, options = {}) {
       extraText: photoList,
       extraHtml: photoMarkup(photos),
       footer: 'The completed appointment is on the Admin Appointments page.',
+      wide: true,
     });
     adminEmail.attachments = photoAttachments(photos);
     emails.push(adminEmail);
@@ -340,7 +482,7 @@ async function sendJobPhotos(supabaseAdmin, body, finishedBy = '') {
   }
 
   const built = buildInstallationPhotoEmails(appointment, loaded.photos, {
-    adminTo: INSTALLATION_ADMIN_EMAIL,
+    adminTo: SHOP_COPY_EMAIL,
     finishedBy,
   });
   const sent = [];
@@ -383,6 +525,17 @@ async function savePhoto(supabaseAdmin, body, email) {
   const buffer = jpegBuffer(body.image);
   if (!buffer) {
     return json(400, { message: 'Use a photo under 2.5 MB. The page prepares a JPEG before upload.' });
+  }
+  const clarity = assessJpeg(buffer);
+  if (!clarity.ok) {
+    console.log('[EastCord job photos] Photo rejected.', {
+      appointmentId,
+      slot,
+      reason: clarity.reason,
+      variance: clarity.variance,
+      contrast: clarity.contrast,
+    });
+    return json(400, { message: photoRejectionMessage(clarity) });
   }
 
   const { data: appointment, error: appointmentError } = await supabaseAdmin
@@ -439,7 +592,12 @@ async function handler(event) {
   event.jobPhotoRole = auth.role;
 
   try {
-    if (event.httpMethod === 'GET') return await listJobs(auth.supabaseAdmin, event);
+    if (event.httpMethod === 'GET') {
+      const params = event.queryStringParameters || {};
+      if (isUuid(params.id)) return await getJob(auth.supabaseAdmin, params.id, event);
+      if (String(params.queue || '') === '1') return await listInstallerQueue(auth.supabaseAdmin, event);
+      return await listJobs(auth.supabaseAdmin, event);
+    }
     if (event.httpMethod === 'POST') {
       const body = parseBody(event);
       if (!body) return json(400, { message: 'The photo upload could not be read.' });

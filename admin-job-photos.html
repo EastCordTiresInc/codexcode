@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>Job photos | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=33" />
+    <link rel="stylesheet" href="admin.css?v=45" />
   </head>
   <body class="admin-app admin-job-photos-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -61,15 +61,8 @@
             <div>
               <p class="admin-kicker">Installation record</p>
               <h1>Job photos</h1>
-              <p>Add an after photo for each tire. Add a before photo only if you see scratches or visible damage. The photos are saved on the appointment and emailed to the customer and the shop.</p>
+              <p>Upcoming appointments are listed here for the installer. Every completed appointment stays under Completed. Blurry or shaky photos are not accepted.</p>
             </div>
-            <form class="admin-toolbar" data-admin-jobs-form>
-              <label>
-                Date
-                <input type="date" name="date" data-admin-date required />
-              </label>
-              <button class="button button-secondary" type="submit">Show day</button>
-            </form>
           </div>
 
           <p class="admin-status" data-admin-status aria-live="polite">Loading installation jobs...</p>
@@ -78,6 +71,7 @@
             <section class="admin-photo-panel" data-admin-photos hidden>
               <div data-admin-photo-summary></div>
               <p class="admin-photo-progress" data-admin-photo-progress></p>
+              <div class="admin-car-map" data-admin-car-map hidden></div>
               <div class="admin-photo-grid" data-admin-photo-grid></div>
               <div class="admin-photo-send">
                 <p data-admin-photo-destination></p>
@@ -102,7 +96,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="auth-config.js?v=4"></script>
     <script src="account.js?v=71"></script>
-    <script src="admin-job-photos.js?v=14"></script>
+    <script src="admin-job-photos.js?v=18"></script>
     <script src="mobile-menu.js?v=1" defer></script>
   </body>
 </html>

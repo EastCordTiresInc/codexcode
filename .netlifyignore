@@ -1,3 +1,10 @@
+# Secrets — never publish
+.env
+.env.local
+.env.*.local
+assets/.env
+.netlify
+
 # Internal documentation and database setup (keep in git, not on live site)
 docs/
 supabase/

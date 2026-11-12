@@ -4,13 +4,34 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const { calculateSelections } = require('../appointment-services');
 const { buildBrandedEmail, sendEmail } = require('../netlify/functions/lib/send-email');
+const { assessJpeg } = require('../netlify/functions/lib/photo-clarity');
 
 if (process.platform === 'win32') process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const SITE = 'http://localhost:8888';
 const STAFF_EMAIL = 'info@eastcordtires.ca';
 const CUSTOMER_EMAIL = 'burnertestin+eastcord-flow@gmail.com';
+const jpeg = require('jpeg-js');
 const TINY_JPEG = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+
+function sharpWheelJpeg() {
+  const width = 360;
+  const height = 360;
+  const data = Buffer.alloc(width * height * 4, 255);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = ((y * width) + x) * 4;
+      const edge = (x % 16 < 2) || (y % 16 < 2);
+      const value = edge ? 16 : 220;
+      data[index] = value;
+      data[index + 1] = value;
+      data[index + 2] = value;
+    }
+  }
+  return jpeg.encode({ data, width, height }, 90).data.toString('base64');
+}
+
+const SHARP_JPEG = sharpWheelJpeg();
 const WINDOWS = [
   '8:00 AM - 9:00 AM',
   '9:00 AM - 10:00 AM',
@@ -67,8 +88,10 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const jpeg = Buffer.from(TINY_JPEG, 'base64');
-  assert(jpeg[0] === 0xff && jpeg[1] === 0xd8, 'test photo is a jpeg');
+  const photo = Buffer.from(SHARP_JPEG, 'base64');
+  assert(photo[0] === 0xff && photo[1] === 0xd8, 'test photo is a jpeg');
+  assert(assessJpeg(photo).ok, 'a sharp wheel photo is accepted');
+  assert(!assessJpeg(Buffer.from(TINY_JPEG, 'base64')).ok, 'a tiny photo is rejected');
 
   const quote = calculateSelections([{ id: 'on-rim-swap', quantity: 1 }]);
   let userId = '';
@@ -204,22 +227,28 @@ async function main() {
     const jobs = await readJson(await fetch(`${SITE}/.netlify/functions/admin-job-photos?date=${slot.date}`, { headers }));
     const job = (jobs.appointments || []).find((row) => row.id === bookingId);
     assert(job, 'job photos page lists the booking');
-    assert(job.slots.some((item) => item.id === 'after-1' && item.required), 'one after photo is required');
-    assert(job.slots.some((item) => item.id === 'before-1' && item.required === false), 'the before photo is optional');
+    const positions = ['FRONT RIGHT', 'FRONT LEFT', 'BACK LEFT', 'BACK RIGHT'];
+    positions.forEach((position, index) => {
+      const id = `after-${index + 1}`;
+      assert(job.slots.some((item) => item.id === id && item.required && item.label === `${position} after`), `${position} after photo is required`);
+    });
+    assert(job.slots.some((item) => item.id === 'before-1' && item.required === false && item.label === 'FRONT RIGHT before'), 'the before photo is optional');
 
     const earlyFinish = await fetch(`${SITE}/.netlify/functions/admin-job-photos`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ action: 'finish', appointmentId: bookingId }),
     });
-    assert(earlyFinish.status === 400, 'finish waits for the after photo');
+    assert(earlyFinish.status === 400, 'finish waits for the after photos');
 
-    const saved = await readJson(await fetch(`${SITE}/.netlify/functions/admin-job-photos`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ appointmentId: bookingId, slot: 'after-1', image: TINY_JPEG }),
-    }));
-    assert(saved.photo?.url, 'the after photo is saved');
+    for (let index = 1; index <= positions.length; index += 1) {
+      const saved = await readJson(await fetch(`${SITE}/.netlify/functions/admin-job-photos`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ appointmentId: bookingId, slot: `after-${index}`, image: SHARP_JPEG }),
+      }));
+      assert(saved.photo?.url, `the ${positions[index - 1]} after photo is saved`);
+    }
 
     const finished = await readJson(await fetch(`${SITE}/.netlify/functions/admin-job-photos`, {
       method: 'POST',
@@ -228,8 +257,7 @@ async function main() {
     }));
     assert(finished.booking_status === 'Completed', 'the worker finish marks the job completed');
     assert((finished.sent || []).includes(CUSTOMER_EMAIL), 'finish emails the customer');
-    assert((finished.sent || []).includes('burnertestin@gmail.com'), 'finish emails the shop copy');
-    assert(!(finished.sent || []).includes(STAFF_EMAIL), 'finish does not email info@eastcordtires.ca');
+    assert((finished.sent || []).includes(STAFF_EMAIL), 'finish emails info@eastcordtires.ca');
 
     const confirmation = await sendEmail(buildBrandedEmail({
       to: CUSTOMER_EMAIL,
@@ -254,7 +282,13 @@ async function main() {
     assert(!finishedJob?.photos?.['before-1'], 'the optional before photo was left empty');
   } finally {
     if (bookingId) {
-      await admin.storage.from('installation-photos').remove([`${bookingId}/after-1.jpg`, `${bookingId}/before-1.jpg`]);
+      await admin.storage.from('installation-photos').remove([
+        `${bookingId}/after-1.jpg`,
+        `${bookingId}/after-2.jpg`,
+        `${bookingId}/after-3.jpg`,
+        `${bookingId}/after-4.jpg`,
+        `${bookingId}/before-1.jpg`,
+      ]);
       await admin.from('appointment_bookings').delete().eq('id', bookingId);
     }
     if (userId) {
