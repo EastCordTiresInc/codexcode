@@ -64,10 +64,10 @@
   let scrollCarDrop = false;
 
   const CAR_WHEELS = [
-    { index: 2, place: 'front-left', side: 'Front', edge: 'left', position: 'FRONT LEFT' },
-    { index: 1, place: 'front-right', side: 'Front', edge: 'right', position: 'FRONT RIGHT' },
-    { index: 3, place: 'back-left', side: 'Back', edge: 'left', position: 'BACK LEFT' },
-    { index: 4, place: 'back-right', side: 'Back', edge: 'right', position: 'BACK RIGHT' },
+    { index: 2, place: 'front-left', line1: 'Left', line2: 'front', name: 'Left front', position: 'FRONT LEFT' },
+    { index: 1, place: 'front-right', line1: 'Right', line2: 'front', name: 'Right front', position: 'FRONT RIGHT' },
+    { index: 3, place: 'back-left', line1: 'Left', line2: 'rear', name: 'Left rear', position: 'BACK LEFT' },
+    { index: 4, place: 'back-right', line1: 'Right', line2: 'rear', name: 'Right rear', position: 'BACK RIGHT' },
   ];
 
   function isLocalDemo() {
@@ -347,9 +347,9 @@
         open ? 'is-open' : '',
       ].filter(Boolean).join(' ');
       return `
-        <button class="${classes}" type="button" data-car-wheel="${wheel.index}" aria-expanded="${open ? 'true' : 'false'}" aria-controls="admin-car-drop" aria-label="${escapeHtml(wheel.position)}. ${saved ? 'After photo saved.' : 'After photo needed.'}">
-          <span>${escapeHtml(wheel.side)}</span>
-          <span>${escapeHtml(wheel.edge)}</span>
+        <button class="${classes}" type="button" data-car-wheel="${wheel.index}" aria-expanded="${open ? 'true' : 'false'}" aria-controls="admin-car-drop" aria-label="${escapeHtml(wheel.name)}. ${saved ? 'After photo saved.' : 'After photo needed.'}">
+          <span>${escapeHtml(wheel.line1)}</span>
+          <span>${escapeHtml(wheel.line2)}</span>
           <small>${saved ? 'Saved' : 'Add'}</small>
         </button>
       `;
@@ -358,7 +358,7 @@
     const drop = open
       ? `
         <div class="admin-car-drop" id="admin-car-drop">
-          <h3>${escapeHtml(open.position)}</h3>
+          <h3>${escapeHtml(open.name)}</h3>
           <p>${editable
             ? 'Add the after photo. Add a before photo only if you see scratches or damage.'
             : 'Saved photos for this wheel.'}</p>
@@ -367,9 +367,9 @@
           </div>
         </div>
       `
-      : '<p class="admin-car-hint" id="admin-car-drop">Tap a wheel to add the before and after photos.</p>';
+      : '<p class="admin-car-hint" id="admin-car-drop">Click a tire to add the before and after photos.</p>';
     els.carMap.innerHTML = `
-      <p class="admin-car-caption">Front</p>
+      <p class="admin-car-caption">Front of the car</p>
       <div class="admin-car-scene">
         <svg class="admin-car-body" viewBox="0 0 220 400" aria-hidden="true">
           <path fill="#1b2430" d="M78 34h64c18 0 28 12 32 28l10 36c8 6 16 16 16 30v36c0 10-6 16-16 20l-8 8v108l8 8c10 4 16 12 16 22v40c0 16-8 28-20 34l-6 18c-4 14-16 22-32 22H78c-16 0-28-8-32-22l-6-18c-12-6-20-18-20-34v-40c0-10 6-18 16-22l8-8V192l-8-8c-10-4-16-10-16-20v-36c0-14 8-24 16-30l10-36c4-16 14-28 32-28z"/>
@@ -379,7 +379,7 @@
         </svg>
         ${wheels}
       </div>
-      <p class="admin-car-caption">Back</p>
+      <p class="admin-car-caption">Rear of the car</p>
       ${drop}
     `;
     if (scrollCarDrop) {

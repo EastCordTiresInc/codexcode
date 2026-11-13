@@ -179,7 +179,7 @@ async function runHttpTests(base = 'http://localhost:8888') {
     { path: '/admin/orders', mustInclude: ['Waiting for tires', 'data-admin-orders-filter', 'admin-orders.js?v=6'] },
     { path: '/admin/blog', mustInclude: ['Publish to site', 'data-admin-blog-form', 'admin-blog.js?v=1', '/admin/installers'] },
     { path: '/admin/installers', mustInclude: ['data-admin-installers-form', 'admin-installers.js?v=1', 'Public form'] },
-    { path: '/admin/job-photos', mustInclude: ['Upcoming appointments are listed here', 'Blurry or shaky photos are not accepted', 'data-admin-finished', 'data-admin-car-map', 'admin-job-photos.js?v=18', 'Job photos'] },
+    { path: '/admin/job-photos', mustInclude: ['Upcoming appointments are listed here', 'Blurry or shaky photos are not accepted', 'data-admin-finished', 'data-admin-car-map', 'admin-job-photos.js?v=20', 'Job photos'] },
     { path: '/blog', mustInclude: ['data-blog-featured', 'blog.js?v=7'] },
     { path: '/installer-application', mustInclude: ['data-installer-form', 'local-installers.js?v=7', 'data-required-group'] },
   ];

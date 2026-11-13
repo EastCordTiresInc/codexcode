@@ -1484,6 +1484,16 @@ body.admin-modal-open {
   display: none;
 }
 
+.admin-job-photos-page .admin-car-map:not([hidden]) {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.admin-job-photos-page .admin-photo-grid {
+  display: none;
+}
+
 .admin-car-map[hidden] {
   display: none !important;
 }
@@ -1500,7 +1510,7 @@ body.admin-modal-open {
 
 .admin-car-scene {
   position: relative;
-  width: min(100%, 340px);
+  width: min(100%, 420px);
   margin: 0 auto;
   aspect-ratio: 220 / 400;
 }
@@ -1656,15 +1666,6 @@ body.admin-modal-open {
 
   .admin-job-photos-page .admin-photo-panel {
     padding: 14px 12px 16px;
-  }
-
-  .admin-job-photos-page .admin-car-map:not([hidden]) {
-    display: grid;
-    gap: 8px;
-  }
-
-  .admin-job-photos-page .admin-photo-grid {
-    display: none;
   }
 
   .admin-job-photos-page .admin-photo-pick,
