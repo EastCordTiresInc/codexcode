@@ -31,7 +31,8 @@
     <script>
       (() => {
         const params = new URLSearchParams(window.location.search);
-        const bookingId = params.get('booking') || '';
+        const fromPath = (window.location.pathname.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i) || [])[1] || '';
+        const bookingId = params.get('booking') || fromPath;
         const lead = document.querySelector('[data-pay-lead]');
         const details = document.querySelector('[data-pay-details]');
         const button = document.querySelector('[data-pay-button]');

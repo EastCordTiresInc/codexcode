@@ -35,6 +35,11 @@ function json(statusCode, payload) {
   };
 }
 
+function isLocalRequest(event) {
+  const host = String(event.headers.host || event.headers.Host || '').split(':')[0].toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1';
+}
+
 function getSiteUrl(event) {
   const origin = event.headers.origin || event.headers.Origin;
   if (origin) return origin.replace(/\/$/, '');
@@ -701,6 +706,9 @@ exports.handler = async (event) => {
 
   const bookingItems = normalizeBookingItems(payload);
   const phoneAppointment = payload.phoneAppointment === true;
+  if (phoneAppointment && !isLocalRequest(event)) {
+    return json(403, { message: 'Phone appointments can only be booked from the local admin server.' });
+  }
   const sendPaymentLink = phoneAppointment && payload.sendPaymentLink === true;
   const payInFull = phoneAppointment || payload.payInFull === true || payload.paymentChoice === 'full';
   const requestedTireCharge = phoneAppointment ? 0 : roundMoney(Number(payload.tireCharge));
