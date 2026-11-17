@@ -8,6 +8,7 @@ const { ensureCheckoutCustomer } = require('./lib/guest-customer');
 const { requireAdminUser } = require('./lib/admin-auth');
 const { sendEmail, buildBrandedEmail, detailRowsHtml, CONTACT_EMAIL, SITE_ORIGIN } = require('./lib/send-email');
 const { sendSms } = require('./lib/send-sms');
+const { stripeExpiresAt } = require('./lib/payment-window');
 
 const STRIPE_KEY_MISSING_MESSAGE = 'Stripe checkout is missing STRIPE_SECRET_KEY in Netlify environment variables.';
 const SLOT_UNAVAILABLE_MESSAGE = 'One or more appointment times are no longer available. Please choose another time.';
@@ -618,14 +619,14 @@ async function emailPhonePaymentLink({ customer, booking, serviceName, amount, u
     ],
     extraHtml: detailRowsHtml([
       { label: 'Service', value: serviceName },
-      { label: 'Date', value: fieldValue(booking.preferredDate) },
+      { label: 'Date', value: formatAppointmentDate(booking.preferredDate) },
       { label: 'Time', value: fieldValue(booking.preferredTimeWindow) },
       { label: 'Place', value: place },
       { label: 'Total', value: total },
     ]),
     extraText: [
       `Service: ${serviceName}`,
-      `Date: ${fieldValue(booking.preferredDate)}`,
+      `Date: ${formatAppointmentDate(booking.preferredDate)}`,
       `Time: ${fieldValue(booking.preferredTimeWindow)}`,
       `Place: ${place}`,
       `Total: ${total}`,
@@ -878,6 +879,7 @@ exports.handler = async (event) => {
         },
         quantity: 1,
       }] : []),
+      ...(sendPaymentLink && stripeExpiresAt(new Date().toISOString()) ? { expires_at: stripeExpiresAt(new Date().toISOString()) } : {}),
       success_url: `${siteUrl}/appointment-success.html?session_id={CHECKOUT_SESSION_ID}&paid=${payInFull ? 'full' : 'deposit'}`,
       cancel_url: sendPaymentLink
         ? `${siteUrl}/`

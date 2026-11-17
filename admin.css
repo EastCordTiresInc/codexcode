@@ -1823,12 +1823,163 @@ body.admin-modal-open {
   font-weight: 650;
 }
 
+.admin-phone-booked {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-phone-booked-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
 .admin-phone-list-title {
-  margin: 8px 0 12px;
+  margin: 0;
+}
+
+.admin-phone-booked .admin-status {
+  margin: 0;
+}
+
+.admin-phone-list {
+  gap: 10px;
+}
+
+.admin-phone-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 14px 14px;
+  border: 1px solid #e4e7eb;
+  border-left-width: 4px;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.admin-phone-card.is-waiting {
+  border-left-color: #d97706;
+}
+
+.admin-phone-card.is-expired {
+  border-left-color: #9ca3af;
+}
+
+.admin-badge.is-expired {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.admin-phone-card.is-confirmed {
+  border-left-color: #15803d;
+}
+
+.admin-phone-card.is-completed {
+  border-left-color: #4338ca;
+}
+
+.admin-phone-card.is-cancelled {
+  border-left-color: #b91c1c;
+}
+
+.admin-phone-card.is-noshow {
+  border-left-color: #c2410c;
+}
+
+.admin-phone-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-phone-card-when {
+  margin: 0;
+  color: #5b6472;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-phone-card h3 {
+  margin: 2px 0 0;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.admin-phone-card .admin-badge {
+  flex: 0 0 auto;
+}
+
+.admin-badge.is-waiting {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.admin-phone-card-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid #eef0f3;
+}
+
+.admin-phone-card-facts div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-phone-card-facts dt {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-phone-card-facts dd {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.admin-phone-card-facts a {
+  color: #111317;
+  text-underline-offset: 2px;
 }
 
 @media (max-width: 720px) {
-  .admin-phone-grid {
+  .admin-phone-grid,
+  .admin-phone-card-facts {
     grid-template-columns: 1fr;
+  }
+
+  .admin-phone-card-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .admin-phone-card-top > div {
+    display: contents;
+  }
+
+  .admin-phone-card h3 {
+    order: 1;
+  }
+
+  .admin-phone-card .admin-badge {
+    order: 2;
+  }
+
+  .admin-phone-card-when {
+    grid-column: 1 / -1;
+    order: 3;
+    margin-top: 4px;
   }
 }

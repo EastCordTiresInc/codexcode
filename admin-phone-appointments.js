@@ -152,7 +152,7 @@
     const needsQty = QUANTITY_SERVICES.has(serviceId);
     const needsSize = serviceId === 'off-rim-swap';
     if (els.qtyField) els.qtyField.hidden = !needsQty;
-    if (els.sizeField) els.sizeField.hidden = serviceId === 'on-rim-swap';
+    if (els.sizeField) els.sizeField.hidden = !needsSize;
     if (els.sizeMark) els.sizeMark.hidden = !needsSize;
     if (els.qty) els.qty.required = needsQty;
     if (els.size) els.size.required = needsSize;
@@ -172,6 +172,21 @@
 
   function buttonsBusy() {
     return els.pay?.dataset.busy === 'true' || els.link?.dataset.busy === 'true';
+  }
+
+  const PAYMENT_REFRESH_MS = 15000;
+  let paymentRefreshTimer = null;
+  let paymentRefreshInFlight = false;
+  let paymentListSignature = '';
+
+  function paymentSignature(rows) {
+    return rows.map((row) => [
+      row.id,
+      row.payment_status,
+      row.booking_status,
+      row.updated_at,
+      phoneStatusLabel(row),
+    ].join(':')).join('|');
   }
 
   function syncSummary() {
@@ -376,25 +391,22 @@
       if (sendLink) {
         if (els.pay) els.pay.dataset.busy = '';
         if (els.link) els.link.dataset.busy = '';
-        if (data.texted || data.emailed) {
-          const sent = [
-            data.texted ? `texted to ${booking.customer.phone}` : '',
-            data.emailed ? `emailed to ${booking.customer.email}` : '',
-          ].filter(Boolean).join(' and ');
-          const warning = data.message ? ` ${data.message}` : '';
-          setFormStatus(`Payment link ${sent}. It stays unconfirmed until they pay.${warning}`, data.texted ? '' : 'error');
-          resetBookingForm();
-          await loadAppointments();
-          return;
-        }
+        const sent = [
+          data.texted ? `texted to ${booking.customer.phone}` : '',
+          data.emailed ? `emailed to ${booking.customer.email}` : '',
+        ].filter(Boolean).join(' and ');
+        const warning = data.message ? ` ${data.message}` : '';
         const link = data.link
           ? ` <a href="${escapeHtml(data.link)}">Open the payment link</a>`
           : '';
         if (els.formStatus) {
-          els.formStatus.dataset.tone = 'error';
-          els.formStatus.innerHTML = `${escapeHtml(data.message || 'The payment email could not be sent.')}${link}`;
+          els.formStatus.dataset.tone = data.texted ? '' : 'error';
+          els.formStatus.innerHTML = sent
+            ? `${escapeHtml(`Payment link ${sent}. It stays unconfirmed until they pay.${warning}`)}${data.texted ? '' : link}`
+            : `${escapeHtml(data.message || 'The payment link could not be texted or emailed.')}${link}`;
         }
-        syncSummary();
+        resetBookingForm();
+        await loadAppointments();
         return;
       }
       if (!data.url) throw new Error(data.message || 'The EastCord Tires card payment could not be opened.');
@@ -412,9 +424,53 @@
     const payment = String(row.payment_status || '');
     if (booking === 'Cancelled' || booking === 'Completed' || booking === 'No-Show') return booking;
     const paid = payment === 'paid_in_full' || payment === 'paid_deposit';
-    if (!paid) return 'Awaiting payment';
+    if (!paid) {
+      const created = Date.parse(row.created_at || '');
+      if (Number.isFinite(created) && Date.now() >= created + (2 * 60 * 60 * 1000)) return 'Link expired';
+      return 'Awaiting payment';
+    }
     if (/\[desk\]/i.test(String(row.additional_notes || ''))) return 'Booked';
     return 'Confirmed';
+  }
+
+  function phoneStatusTone(label) {
+    if (label === 'Awaiting payment') return 'is-waiting';
+    if (label === 'Link expired') return 'is-expired';
+    if (label === 'Booked' || label === 'Confirmed') return 'is-confirmed';
+    if (label === 'Completed') return 'is-completed';
+    if (label === 'Cancelled') return 'is-cancelled';
+    if (label === 'No-Show') return 'is-noshow';
+    return 'is-pending-status';
+  }
+
+  function formatPhoneDisplay(phone) {
+    const digits = String(phone || '').replace(/\D/g, '');
+    const local = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+    if (local.length === 10) return `${local.slice(0, 3)}-${local.slice(3, 6)}-${local.slice(6)}`;
+    return String(phone || '').trim();
+  }
+
+  function formatPhoneWhen(date, time) {
+    const match = String(date || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    let dateLabel = date || 'Date not set';
+    if (match) {
+      const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const utc = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+      dateLabel = `${weekdays[utc.getUTCDay()]}, ${months[utc.getUTCMonth()]} ${utc.getUTCDate()}`;
+    }
+    const raw = String(time || '').trim();
+    const parts = raw.split(/\s*-\s+/);
+    let timeLabel = raw || 'Time not set';
+    if (parts.length === 2) {
+      const startMeridiem = parts[0].match(/\s*(AM|PM)$/i);
+      const endMeridiem = parts[1].match(/\s*(AM|PM)$/i);
+      const start = startMeridiem && endMeridiem && startMeridiem[1].toUpperCase() === endMeridiem[1].toUpperCase()
+        ? parts[0].replace(/\s*(AM|PM)$/i, '')
+        : parts[0];
+      timeLabel = `${start}–${parts[1]}`;
+    }
+    return `${dateLabel} · ${timeLabel}`;
   }
 
   function render(appointments) {
@@ -426,45 +482,96 @@
     }
     els.list.innerHTML = appointments.map((row) => {
       const href = phoneHref(row.customer_phone);
+      const phoneText = formatPhoneDisplay(row.customer_phone) || 'No phone number';
       const phone = href
-        ? `<a href="${escapeHtml(href)}">${escapeHtml(row.customer_phone)}</a>`
-        : escapeHtml(row.customer_phone || 'No phone number');
+        ? `<a href="${escapeHtml(href)}">${escapeHtml(phoneText)}</a>`
+        : escapeHtml(phoneText);
       const place = String(row.install_location || '').toLowerCase() === 'shop'
         ? 'EastCord shop'
-        : [row.full_service_address, row.city].filter(Boolean).join(', ');
+        : [row.full_service_address, row.city].filter(Boolean).join(', ') || 'Place not set';
+      const status = phoneStatusLabel(row);
+      const tone = phoneStatusTone(status);
+      const plate = String(row.vehicle_plate_number || '').trim() || 'No plate';
       return `
-        <article class="admin-appointment">
-          <div class="admin-appointment-top">
-            <p class="admin-appointment-time">${escapeHtml(row.preferred_date || 'Date not set')} · ${escapeHtml(row.preferred_time_window || 'Time not set')}</p>
-            <p class="admin-appointment-service">${escapeHtml(row.customer_name || 'Customer')}</p>
+        <article class="admin-phone-card ${tone}">
+          <div class="admin-phone-card-top">
+            <div>
+              <p class="admin-phone-card-when">${escapeHtml(formatPhoneWhen(row.preferred_date, row.preferred_time_window))}</p>
+              <h3>${escapeHtml(row.customer_name || 'Customer')}</h3>
+            </div>
+            <span class="admin-badge ${tone}">${escapeHtml(status)}</span>
           </div>
-          <p>${phone}</p>
-          <p>${escapeHtml(row.service_name || '')}</p>
-          <p>${escapeHtml(place)} · ${escapeHtml(row.vehicle_plate_number || '')}</p>
-          <p>${escapeHtml(phoneStatusLabel(row))}</p>
+          <dl class="admin-phone-card-facts">
+            <div>
+              <dt>Phone</dt>
+              <dd>${phone}</dd>
+            </div>
+            <div>
+              <dt>Plate</dt>
+              <dd>${escapeHtml(plate)}</dd>
+            </div>
+            <div>
+              <dt>Service</dt>
+              <dd>${escapeHtml(row.service_name || 'Service not set')}</dd>
+            </div>
+            <div>
+              <dt>Place</dt>
+              <dd>${escapeHtml(place)}</dd>
+            </div>
+          </dl>
         </article>
       `;
     }).join('');
     setStatus(`${appointments.length} phone appointment${appointments.length === 1 ? '' : 's'}.`);
   }
 
-  async function loadAppointments() {
+  let paymentRefreshChain = Promise.resolve();
+
+  function loadAppointments(options = {}) {
+    const job = paymentRefreshChain.then(() => fetchAppointments(options));
+    paymentRefreshChain = job.catch(() => {});
+    return job;
+  }
+
+  async function fetchAppointments(options = {}) {
+    const quiet = options.quiet === true;
     const token = await window.EastCordAccount?.getAccessToken?.();
     if (!token) {
       showGate('Log in with the EastCord staff account to open the admin dashboard.');
       return;
     }
-    setStatus('Loading phone appointments...');
-    const response = await fetch('/.netlify/functions/admin-appointments?phone=1', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setStatus(data.message || 'Phone appointments could not be loaded.', 'error');
-      return;
+    if (!quiet) setStatus('Loading phone appointments...');
+    paymentRefreshInFlight = true;
+    try {
+      const response = await fetch('/.netlify/functions/admin-appointments?phone=1', {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setStatus(data.message || 'Phone appointments could not be loaded.', 'error');
+        return;
+      }
+      const appointments = Array.isArray(data.appointments) ? data.appointments : [];
+      const signature = paymentSignature(appointments);
+      if (quiet && signature === paymentListSignature) return;
+      paymentListSignature = signature;
+      render(appointments);
+    } finally {
+      paymentRefreshInFlight = false;
     }
-    const appointments = Array.isArray(data.appointments) ? data.appointments : [];
-    render(appointments);
+  }
+
+  function watchForPayments() {
+    if (paymentRefreshTimer) return;
+    paymentRefreshTimer = setInterval(() => {
+      if (document.hidden || els.dashboard?.hidden || buttonsBusy()) return;
+      loadAppointments({ quiet: true });
+    }, PAYMENT_REFRESH_MS);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden || els.dashboard?.hidden || buttonsBusy()) return;
+      loadAppointments({ quiet: true });
+    });
   }
 
   async function initialize() {
@@ -489,6 +596,7 @@
     syncLocationFields();
     syncSummary();
     await loadAppointments();
+    watchForPayments();
   }
 
   els.form?.addEventListener('submit', (event) => bookAppointment('pay', event));

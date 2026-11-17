@@ -1,6 +1,13 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { buildBrandedEmail, detailRowsHtml, sendEmail, getEmailConfig } = require('./lib/send-email');
+const { isSlotConflict } = require('./lib/appointment-calendars');
+const {
+  SLOT_REFUNDED_MESSAGE,
+  expireOtherOpenPayments,
+  refundTakenSlotPayment,
+  slotTakenBySomeoneElse,
+} = require('./lib/payment-window');
 
 const CONTACT_EMAIL = 'info@eastcordtires.ca';
 const CONTACT_PHONE = '365-822-5553';
@@ -161,6 +168,17 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
     return alreadyPaidResult(existingRow);
   }
 
+  const slotTaken = await slotTakenBySomeoneElse(supabaseAdmin, existingRow);
+  if (slotTaken) {
+    const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+    await refundTakenSlotPayment(stripe, session);
+    console.warn('[EastCord appointment automation] Payment was returned because the time was already booked.', {
+      bookingId,
+      sessionId: session.id,
+    });
+    return { ok: false, statusCode: 409, message: SLOT_REFUNDED_MESSAGE };
+  }
+
   const updatePayload = buildUpdatePayload(existingRow, session);
 
   if (!Object.keys(updatePayload).length) {
@@ -179,6 +197,12 @@ async function updateBookingPaymentStatus({ supabaseAdmin, bookingId, session })
 
   if (updateError) {
     const diagnostics = buildDiagnostics({ bookingId, sessionId: session.id, row: existingRow, rowFound: true, error: updateError, updatePayload });
+    if (isSlotConflict(updateError)) {
+      const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+      await refundTakenSlotPayment(stripe, session);
+      console.warn('[EastCord appointment automation] Payment was returned because the time was booked while checkout finished.', diagnostics);
+      return { ok: false, statusCode: 409, message: SLOT_REFUNDED_MESSAGE, diagnostics };
+    }
     console.error('[EastCord appointment automation] Supabase payment status update failed.', diagnostics);
     return { ok: false, statusCode: 500, diagnostics };
   }
@@ -738,6 +762,13 @@ async function fulfillPaidAppointmentCheckout({ supabaseAdmin, session }) {
     paymentStatuses: confirmedRows.map((row) => row.payment_status),
     bookingStatuses: confirmedRows.map((row) => row.booking_status),
   });
+
+  if (process.env.STRIPE_SECRET_KEY) {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    for (const row of confirmedRows) {
+      await expireOtherOpenPayments(supabaseAdmin, stripe, row);
+    }
+  }
 
   const emailResults = await sendAppointmentEmails({ supabaseAdmin, rows: confirmedRows, session, allRowsAlreadyConfirmed })
     .catch((error) => {

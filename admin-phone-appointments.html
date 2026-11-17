@@ -7,7 +7,7 @@
     <script src="/admin-phone-local.js?v=1"></script>
     <title>Phone appointments | EastCord Admin</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="admin.css?v=43" />
+    <link rel="stylesheet" href="admin.css?v=46" />
   </head>
   <body class="admin-app">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -161,9 +161,13 @@
             <p class="admin-phone-hint">Book and pay shows Booked after the card payment goes through. Book and send link stays Awaiting payment, and becomes Confirmed only after the customer pays.</p>
           </form>
 
-          <h2 class="admin-phone-list-title">Booked by phone</h2>
-          <p class="admin-status" data-admin-status aria-live="polite">Loading phone appointments...</p>
-          <div class="admin-list" data-admin-list></div>
+          <section class="admin-phone-booked">
+            <div class="admin-phone-booked-head">
+              <h2 class="admin-phone-list-title">Booked by phone</h2>
+              <p class="admin-status" data-admin-status aria-live="polite">Loading phone appointments...</p>
+            </div>
+            <div class="admin-list admin-phone-list" data-admin-list></div>
+          </section>
         </section>
       </div>
     </main>
@@ -176,7 +180,7 @@
     <script src="auth-config.js?v=4"></script>
     <script src="account.js?v=62"></script>
     <script src="appointment-services.js?v=1"></script>
-    <script src="admin-phone-appointments.js?v=12"></script>
+    <script src="admin-phone-appointments.js?v=15"></script>
     <script src="mobile-menu.js?v=1" defer></script>
   </body>
 </html>

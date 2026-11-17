@@ -162,11 +162,17 @@
         async function confirmAppointmentPayment() {
           if (!sessionId) return;
           try {
-            await fetch('/.netlify/functions/confirm-appointment-payment', {
+            const response = await fetch('/.netlify/functions/confirm-appointment-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ sessionId: sessionId }),
             });
+            const data = await response.json().catch(() => ({}));
+            if (response.status === 409 && lead) {
+              const heading = document.querySelector('.confirmation-heading h1');
+              if (heading) heading.textContent = 'This time was just booked';
+              lead.textContent = data.message || 'This time was just booked by someone else. Your payment is being returned. Call EastCord Tires at 365-822-5553 to choose another time.';
+            }
           } catch (error) {
             console.warn('[EastCord appointment automation] Payment confirmation request failed.', error);
           }
