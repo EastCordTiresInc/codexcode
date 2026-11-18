@@ -15,8 +15,31 @@ function isMarkdownStock(stock) {
 function getUsedTireUnitPrice(listPrice, stock, options = {}) {
   const price = Number(listPrice);
   if (!Number.isFinite(price) || price <= 0) return null;
-  if (options.priceIsFinal || !isMarkdownStock(stock)) return roundMoney(price);
+  if (options.priceIsFinal) return unitPriceFromSet(price, stock);
+  if (!isMarkdownStock(stock)) return roundMoney(price);
   return roundMoney(price * (1 - MARKDOWN_RATE));
+}
+
+function listedSetCount(stock) {
+  const count = Math.max(0, Number(stock) || 0);
+  if (!count) return 0;
+  return count >= 4 ? 4 : count;
+}
+
+function unitPriceFromSet(setPrice, stock) {
+  const count = listedSetCount(stock);
+  const price = Number(setPrice);
+  if (!Number.isFinite(price) || price <= 0 || !count) return null;
+  return roundMoney(price / count);
+}
+
+function priceForSetQuantity(setPrice, stock, qty) {
+  const price = Number(setPrice);
+  const count = Math.max(0, Number(stock) || 0);
+  const amount = Math.max(0, Number(qty) || 0);
+  if (!Number.isFinite(price) || price <= 0 || !count || !amount) return null;
+  if (amount === count) return roundMoney(price);
+  return roundMoney((price * amount) / count);
 }
 
 module.exports = {
@@ -26,4 +49,7 @@ module.exports = {
   roundMoney,
   isMarkdownStock,
   getUsedTireUnitPrice,
+  listedSetCount,
+  unitPriceFromSet,
+  priceForSetQuantity,
 };

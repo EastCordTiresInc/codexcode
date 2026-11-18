@@ -45,11 +45,6 @@ function checkoutButtonEl() {
   return document.querySelector('[data-tire-checkout-button]');
 }
 
-function showStripeTestNote() {
-  const note = document.querySelector('[data-stripe-test-note]');
-  if (note) note.hidden = !window.EASTCORD_AUTH_CONFIG?.stripeTestMode;
-}
-
 function updateTireCheckoutButtonState() {
   const button = checkoutButtonEl();
   if (!button) return;
@@ -148,11 +143,19 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+function itemLineTotal(item) {
+  if (item?.priceIsFinal && Number(item.listPrice) > 0 && Number(item.maxStock) > 0) {
+    const pricing = getPricing();
+    if (pricing.priceForSetQuantity) {
+      const setCount = pricing.listedSetCount ? pricing.listedSetCount(item.maxStock) : item.maxStock;
+      return pricing.priceForSetQuantity(item.listPrice, setCount, item.qty) || 0;
+    }
+  }
+  return (Number(item.unitPrice) || 0) * (Number(item.qty) || 0);
+}
+
 function getCartSubtotal() {
-  return tireCart.reduce(
-    (total, item) => total + ((Number(item.unitPrice) || 0) * (Number(item.qty) || 0)),
-    0,
-  );
+  return tireCart.reduce((total, item) => total + itemLineTotal(item), 0);
 }
 
 function roundMoney(value) {
@@ -170,7 +173,8 @@ function getCartTotals() {
 }
 
 function renderQuantityOptions(item) {
-  const maxStock = Math.max(1, Math.min(Number(item.maxStock) || 1, 4));
+  const available = Math.max(1, Number(item.maxStock) || 1);
+  const maxStock = item.priceIsFinal ? available : Math.min(available, 4);
   return Array.from({ length: maxStock }, (_, index) => {
     const value = index + 1;
     return `<option value="${value}"${value === Number(item.qty) ? ' selected' : ''}>${value}</option>`;
@@ -191,11 +195,30 @@ function getPricing() {
       const rounded = Math.round(price * 100) / 100;
       return this.isMarkdownStock(stock) ? Math.round(price * 0.85 * 100) / 100 : rounded;
     },
+    listedSetCount(stock) {
+      const count = Math.max(0, Number(stock) || 0);
+      if (!count) return 0;
+      return count >= 4 ? 4 : count;
+    },
+    unitPriceFromSet(setPrice, stock) {
+      const count = this.listedSetCount(stock);
+      const price = Number(setPrice);
+      if (!Number.isFinite(price) || price <= 0 || !count) return null;
+      return Math.round((price / count) * 100) / 100;
+    },
+    priceForSetQuantity(setPrice, stock, qty) {
+      const price = Number(setPrice);
+      const count = Math.max(0, Number(stock) || 0);
+      const amount = Math.max(0, Number(qty) || 0);
+      if (!Number.isFinite(price) || price <= 0 || !count || !amount) return null;
+      if (amount === count) return Math.round(price * 100) / 100;
+      return Math.round((price * amount) / count * 100) / 100;
+    },
   };
 }
 
 function renderTireCartItem(item) {
-  const lineTotal = (Number(item.unitPrice) || 0) * (Number(item.qty) || 0);
+  const lineTotal = itemLineTotal(item);
   const markdown = Boolean(item.markdown) || getPricing().isMarkdownStock(item.maxStock);
   const listPrice = Number(item.listPrice);
   const availability = item.unavailable
@@ -315,7 +338,6 @@ async function hydrateCustomerAccount() {
 
   if (checkoutAuth()) checkoutAuth().hidden = Boolean(currentProfile);
   if (currentProfile) fillCustomerFields(currentProfile);
-  showStripeTestNote();
   renderTireCart();
 }
 
@@ -339,7 +361,7 @@ async function refreshCartAvailability() {
       const listPrice = Number(row.selling_price);
       const priceIsFinal = row.price_is_final === true || String(row.price_is_final || '').toLowerCase() === 'true';
       const unitPrice = priceIsFinal
-        ? (Number.isFinite(listPrice) && listPrice > 0 ? Math.round(listPrice * 100) / 100 : null)
+        ? getPricing().unitPriceFromSet?.(listPrice, stock) ?? null
         : getPricing().getUsedTireUnitPrice(listPrice, stock);
       const markdown = priceIsFinal ? false : getPricing().isMarkdownStock(stock);
 
@@ -351,7 +373,7 @@ async function refreshCartAvailability() {
         priceIsFinal,
         size: item.size || row.size_label || item.size,
         maxStock: stock,
-        qty: Math.min(Math.max(1, Number(item.qty) || 1), stock, 4),
+        qty: Math.min(Math.max(1, Number(item.qty) || 1), priceIsFinal ? stock : Math.min(stock, 4)),
         listPrice,
         unitPrice,
         markdown,
@@ -631,7 +653,6 @@ function bindCartEvents() {
 
 async function initTireCart() {
   bindCartEvents();
-  showStripeTestNote();
   tireCart = readTireCart();
   renderTireCart();
   await hydrateCustomerAccount();

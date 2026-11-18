@@ -55,6 +55,75 @@
   padding: 28px 0 56px;
 }
 
+.used-shop-section {
+  padding-top: 28px;
+}
+
+.used-shop-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 250px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.used-shop-main {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.used-shop-main > * {
+  min-width: 0;
+}
+
+.used-shop-layout .used-search-widget {
+  position: sticky;
+  top: 88px;
+}
+
+.used-shop-layout .used-search-widget-header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.used-shop-layout .used-search-widget-header .used-inventory-load-status {
+  margin-left: 0;
+}
+
+.used-shop-layout .used-search-form {
+  grid-template-columns: 1fr;
+}
+
+.used-shop-layout .used-search-field select {
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+.used-shop-layout .used-search-submit {
+  width: 100%;
+}
+
+.used-shop-layout .used-tire-card {
+  overflow-x: clip;
+}
+
+.used-shop-layout .used-tire-card-photo-controls {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.used-shop-layout .used-markdown-banner,
+.used-shop-layout .used-markdown-section,
+.used-shop-layout .used-inventory-results {
+  margin-top: 0;
+}
+
+.used-shop-layout .used-inventory-results .inventory-list.used-catalog-grid,
+.used-shop-layout .used-inventory-group .inventory-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+}
+
 .used-search-widget {
   margin: 0;
   border: 1px solid #e4e5e7;
@@ -67,17 +136,19 @@
 .used-search-widget-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 18px;
-  background: #f5f5f5;
-  border-bottom: 1px solid #d8dade;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 14px 14px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e4e5e7;
+  color: var(--ink);
 }
 
 .used-search-widget-header h2 {
   margin: 0;
-  font-size: 0.95rem;
+  color: var(--ink);
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -178,7 +249,7 @@
 }
 
 .used-search-form-wrap {
-  padding: 16px 18px 18px;
+  padding: 16px;
   background: #fff;
 }
 
@@ -189,9 +260,26 @@
   align-items: end;
 }
 
-.used-search-link,
-.used-inventory-load-status {
-  grid-column: 1 / -1;
+.used-search-widget-header .used-search-link,
+.used-search-widget-header .used-inventory-load-status {
+  margin: 0;
+}
+
+.used-search-widget-header .used-search-link {
+  color: var(--red);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.used-search-widget-header .used-search-link:hover {
+  color: var(--red-dark);
+}
+
+.used-search-widget-header .used-inventory-load-status {
+  margin-left: 0;
+  font-size: 0.84rem;
 }
 
 .used-search-fields {
@@ -239,6 +327,7 @@
   background: #fff;
   color: var(--ink);
   font: inherit;
+  font-weight: 700;
 }
 
 .used-search-field select:focus,
@@ -287,18 +376,18 @@
   justify-self: start;
   border: 0;
   border-radius: 4px;
-  background: #6f7277;
+  background: var(--red);
   color: #fff;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   cursor: pointer;
   transition: background 180ms ease;
 }
 
 .used-search-submit:hover:not(:disabled) {
-  background: var(--red);
+  background: var(--red-dark);
 }
 
 .used-search-submit:disabled {
@@ -1377,12 +1466,13 @@
     border-top: 1px solid #e4e5e7;
   }
 
-  .used-search-form {
-    grid-template-columns: 1fr 1fr;
+  .used-shop-layout {
+    grid-template-columns: 156px minmax(0, 1fr);
+    gap: 12px;
   }
 
-  .used-search-submit {
-    grid-column: 1 / -1;
+  .used-shop-layout .used-search-widget {
+    position: static;
   }
 
   .used-search-guide {
@@ -1427,9 +1517,6 @@
 }
 
 @media (max-width: 620px) {
-  .used-search-form {
-    grid-template-columns: 1fr;
-  }
 
   .used-tire-card-actions {
     grid-template-columns: 1fr;

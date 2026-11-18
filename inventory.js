@@ -623,6 +623,25 @@ function getPricing() {
       const rounded = Math.round(price * 100) / 100;
       return this.isMarkdownStock(stock) ? Math.round(price * (1 - this.MARKDOWN_RATE) * 100) / 100 : rounded;
     },
+    listedSetCount(stock) {
+      const count = Math.max(0, Number(stock) || 0);
+      if (!count) return 0;
+      return count >= 4 ? 4 : count;
+    },
+    unitPriceFromSet(setPrice, stock) {
+      const count = this.listedSetCount(stock);
+      const price = Number(setPrice);
+      if (!Number.isFinite(price) || price <= 0 || !count) return null;
+      return Math.round((price / count) * 100) / 100;
+    },
+    priceForSetQuantity(setPrice, stock, qty) {
+      const price = Number(setPrice);
+      const count = Math.max(0, Number(stock) || 0);
+      const amount = Math.max(0, Number(qty) || 0);
+      if (!Number.isFinite(price) || price <= 0 || !count || !amount) return null;
+      if (amount === count) return Math.round(price * 100) / 100;
+      return Math.round((price * amount) / count * 100) / 100;
+    },
   };
 }
 
@@ -638,11 +657,21 @@ function isMarkdownTire(item) {
 
 function getTireSalePrice(item) {
   if (item?.priceIsFinal) {
-    const price = Number(item?.price);
-    if (!Number.isFinite(price) || price <= 0) return null;
-    return Math.round(price * 100) / 100;
+    return getPricing().unitPriceFromSet?.(item?.price, item?.stock)
+      ?? null;
   }
   return getPricing().getUsedTireUnitPrice(item?.price, item?.stock);
+}
+
+function listedSetPrice(setPrice, stock, qty) {
+  const pricing = getPricing();
+  if (pricing.priceForSetQuantity) return pricing.priceForSetQuantity(setPrice, stock, qty);
+  const count = Math.max(0, Number(stock) || 0);
+  const amount = Math.max(0, Number(qty) || 0);
+  const price = Number(setPrice);
+  if (!Number.isFinite(price) || price <= 0 || !count || !amount) return null;
+  if (amount >= count) return Math.round(price * 100) / 100;
+  return Math.round((price * amount) / count * 100) / 100;
 }
 
 function brandsMatch(left, right) {
@@ -1158,12 +1187,17 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
   const brandLogo = getBrandLogoPath(item.brand);
   const seasonLabel = formatSeasonLabel(item.season);
   const stockCount = Math.max(0, Number(item.stock) || 0);
-  const maxQty = Math.max(1, Math.min(stockCount || 1, 4));
+  const maxQty = item.priceIsFinal
+    ? Math.max(1, stockCount || 1)
+    : Math.max(1, Math.min(stockCount || 1, 4));
   const listPrice = item.price;
   const unitPrice = getTireSalePrice(item);
   const markdown = isMarkdownTire(item) && unitPrice !== null;
-  const defaultQty = Math.min(4, maxQty);
-  const setTotal = unitPrice === null ? null : unitPrice * defaultQty;
+  const pricedSetCount = item.priceIsFinal ? (getPricing().listedSetCount?.(stockCount) || stockCount) : 0;
+  const defaultQty = item.priceIsFinal ? Math.max(1, pricedSetCount) : Math.min(4, maxQty);
+  const setTotal = item.priceIsFinal
+    ? listedSetPrice(listPrice, pricedSetCount, defaultQty)
+    : (unitPrice === null ? null : unitPrice * defaultQty);
   const photoLink = isPhotoLink(item.details) ? item.details : '';
   const qtyId = `used-tire-qty-${idPrefix}${item.id}`;
 
@@ -1219,21 +1253,22 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
             id="${escapeHtml(qtyId)}"
             class="used-tire-card-qty"
             data-unit-price="${unitPrice ?? ''}"
+            ${item.priceIsFinal ? `data-set-price="${listPrice ?? ''}" data-set-count="${pricedSetCount}"` : ''}
             ${stockCount ? '' : 'disabled'}
           >
             ${qtyOptions}
           </select>
         </div>
         <div class="used-tire-card-price-block">
-          <span class="used-tire-card-price-label">Per tire</span>
+          <span class="used-tire-card-price-label">${item.priceIsFinal ? `Set of ${defaultQty}` : 'Per tire'}</span>
           ${markdown && listPrice !== null
     ? `<p class="used-tire-card-list-price">Was ${escapeHtml(formatPrice(listPrice))}</p>`
     : ''}
-          <strong class="used-tire-card-price">${escapeHtml(formatPrice(unitPrice))}</strong>
+          <strong class="used-tire-card-price">${escapeHtml(formatPrice(item.priceIsFinal ? setTotal : unitPrice))}</strong>
           ${markdown && listPrice !== null && unitPrice !== null
     ? `<p class="used-tire-card-save">You save ${escapeHtml(formatPrice(Math.max(0, Math.round((listPrice - unitPrice) * 100) / 100)))}</p>`
     : ''}
-          ${setTotal !== null
+          ${!item.priceIsFinal && setTotal !== null
     ? `<p class="used-tire-card-set-total"><span data-set-label>Set of ${defaultQty}</span>: <span data-set-total>${escapeHtml(formatPrice(setTotal))}</span></p>`
     : ''}
         </div>
@@ -1331,18 +1366,20 @@ function addUsedTireToCart(item, qty) {
   const cart = getUsedTireCart();
   const existing = cart.find((entry) => sameTireId(entry.inventoryId, item.id));
 
+  const qtyCap = item.priceIsFinal ? stock : Math.min(4, stock);
   if (existing) {
-    existing.qty = Math.min(4, stock, (Number(existing.qty) || 0) + requestedQty);
+    existing.qty = Math.min(qtyCap, (Number(existing.qty) || 0) + requestedQty);
     existing.maxStock = stock;
     existing.listPrice = item.price;
     existing.unitPrice = salePrice;
     existing.markdown = isMarkdownTire(item);
+    existing.priceIsFinal = Boolean(item.priceIsFinal);
   } else {
     cart.push({
       id: `used-tire-${item.id}`,
       type: 'used_tire',
       inventoryId: Number(item.id) || item.id,
-      qty: Math.min(4, stock, requestedQty),
+      qty: Math.min(qtyCap, requestedQty),
       maxStock: stock,
       listPrice: item.price,
       unitPrice: salePrice,
@@ -1387,10 +1424,22 @@ function handleTireCartAction(button) {
 
 function updateTireCardSetTotal(select) {
   const card = select.closest('.used-tire-card');
+  const qty = Number(select.value);
+  const setPrice = Number(select.dataset.setPrice);
+  const setCount = Number(select.dataset.setCount);
+
+  if (Number.isFinite(setPrice) && setCount > 0) {
+    const line = listedSetPrice(setPrice, setCount, qty);
+    const priceEl = card?.querySelector('.used-tire-card-price');
+    const labelEl = card?.querySelector('.used-tire-card-price-label');
+    if (priceEl && line !== null) priceEl.textContent = formatPrice(line);
+    if (labelEl) labelEl.textContent = `Set of ${qty}`;
+    return;
+  }
+
   const setTotalEl = card?.querySelector('[data-set-total]');
   const setLabelEl = card?.querySelector('[data-set-label]');
   const unitPrice = Number(select.dataset.unitPrice);
-  const qty = Number(select.value);
 
   if (!setTotalEl || !Number.isFinite(unitPrice)) return;
 

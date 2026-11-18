@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex" />
     <title>Tire Cart Unavailable | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="tire-cart.css?v=12" />
+    <link rel="stylesheet" href="tire-cart.css?v=14" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
   </head>
   <body class="tire-cart-page">
@@ -100,7 +100,6 @@
                 </select>
               </label>
               <p data-installation-directions hidden>Installation is booked after the tires are paid.</p>
-              <p class="tire-stripe-test-note" data-stripe-test-note hidden>Stripe test mode is on. Use card 4242 4242 4242 4242, any future expiry, any CVC, and any postal code.</p>
               <p class="tire-cart-message" data-tire-cart-message></p>
               <button class="button button-primary tire-checkout-submit" type="button" data-tire-checkout-button>Pay with Stripe</button>
               <button class="button button-secondary" type="submit" data-tire-reservation-submit>Email reservation request</button>
@@ -191,10 +190,10 @@
         if (shop) shop.hidden = false;
         if (tireCartLink) tireCartLink.hidden = false;
         var pricing = document.createElement('script');
-        pricing.src = 'used-tire-pricing.js?v=2';
+        pricing.src = 'used-tire-pricing.js?v=4';
         pricing.onload = function () {
           var cart = document.createElement('script');
-          cart.src = 'tire-cart.js?v=8';
+          cart.src = 'tire-cart.js?v=10';
           document.body.appendChild(cart);
         };
         document.body.appendChild(pricing);

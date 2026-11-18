@@ -2,7 +2,7 @@ const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 const { calculateTax, roundMoney } = require('./lib/used-tire-order');
 const { isStripeTestMode } = require('./lib/stripe-mode');
-const { getUsedTireUnitPrice, isMarkdownStock, MARKDOWN_PERCENT } = require('./lib/used-tire-pricing');
+const { getUsedTireUnitPrice, isMarkdownStock, listedSetCount, priceForSetQuantity, MARKDOWN_PERCENT } = require('./lib/used-tire-pricing');
 const { inventoryTableName, isDevInventoryTable } = require('./lib/inventory-table');
 
 function json(statusCode, payload) {
@@ -129,7 +129,9 @@ exports.handler = async (event) => {
       listPrice: roundMoney(listPrice),
       unitPrice: price,
       markdown,
-      lineTotal: roundMoney(price * item.qty),
+      lineTotal: priceIsFinal
+        ? priceForSetQuantity(listPrice, listedSetCount(stock), item.qty)
+        : roundMoney(price * item.qty),
     });
   }
 
