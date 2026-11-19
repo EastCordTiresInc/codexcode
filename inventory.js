@@ -6,6 +6,7 @@ const TIRE_CALCULATOR_URL = '/#tire-size-calculator';
 const LOW_STOCK_THRESHOLD = 2;
 const INVENTORY_AUTO_REFRESH_MS = 15000;
 const USED_TIRE_CART_KEY = 'eastcord_used_tire_cart_v1';
+const USED_TIRE_VIEW_KEY = 'eastcord_used_tire_view';
 
 let inventory = [];
 let inventoryLoaded = false;
@@ -505,7 +506,30 @@ function bindInventoryControls() {
     clearInventoryFilters();
   });
 
+  document.querySelectorAll('[data-used-view]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const nextView = button.dataset.usedView === 'list' ? 'list' : 'grid';
+      try {
+        sessionStorage.setItem(USED_TIRE_VIEW_KEY, nextView);
+      } catch (error) {
+        // The layout still changes for this page load.
+      }
+      if (lastResults.length) renderResults(lastResults);
+    });
+  });
+
   document.addEventListener('click', (event) => {
+    const detailsButton = event.target.closest('[data-used-list-details]');
+    if (detailsButton) {
+      const row = detailsButton.closest('.used-tire-list-row');
+      const panel = row?.querySelector('[data-used-list-panel]');
+      if (!panel) return;
+      const open = panel.hidden;
+      panel.hidden = !open;
+      detailsButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+      return;
+    }
+
     const button = event.target.closest('[data-tire-cart-action]');
     if (!button) return;
     handleTireCartAction(button);
@@ -845,7 +869,7 @@ function renderSoldOutMessage(summary) {
     status.dataset.statusType = 'error';
   }
   if (list) {
-    list.classList.remove('used-catalog-grid');
+    list.classList.remove('used-catalog-grid', 'used-tire-list');
     list.innerHTML = renderInventoryEmptyState(SOLD_OUT_MESSAGE, {
       extraClass: 'used-inventory-sold-out',
     });
@@ -875,7 +899,7 @@ function renderSearchMessage(message, options = {}) {
     status.dataset.statusType = 'info';
   }
   if (list) {
-    list.classList.remove('used-catalog-grid');
+    list.classList.remove('used-catalog-grid', 'used-tire-list');
     list.innerHTML = renderInventoryEmptyState(message, { includeCalculatorLink, extraClass });
   }
 }
@@ -921,7 +945,7 @@ function renderResults(products, summary = formatSearchSummary(getSearchFilters(
       status.dataset.statusType = 'info';
     }
     if (list) {
-      list.classList.remove('used-catalog-grid');
+      list.classList.remove('used-catalog-grid', 'used-tire-list');
       list.innerHTML = renderInventoryEmptyState(NO_MATCH_MESSAGE);
     }
     return;
@@ -939,8 +963,13 @@ function renderResults(products, summary = formatSearchSummary(getSearchFilters(
 
   if (!list) return;
 
-  list.classList.add('used-catalog-grid');
-  list.innerHTML = sorted.map((item, index) => renderUsedTireCard(item, index)).join('');
+  const view = getUsedTireView();
+  syncUsedViewToggle(view);
+  list.classList.toggle('used-catalog-grid', view === 'grid');
+  list.classList.toggle('used-tire-list', view === 'list');
+  list.innerHTML = sorted.map((item, index) => (
+    view === 'list' ? renderUsedTireListRow(item, index) : renderUsedTireCard(item, index)
+  )).join('');
   updateUsedTireCartCount();
   hydrateTireCardPhotos(list);
 }
@@ -1400,7 +1429,7 @@ function addUsedTireToCart(item, qty) {
 
 function handleTireCartAction(button) {
   const item = inventory.find((entry) => sameTireId(entry.id, button.dataset.inventoryId));
-  const card = button.closest('.used-tire-card, .used-markdown-row');
+  const card = button.closest('.used-tire-card, .used-markdown-row, .used-tire-list-row');
   const qty = card?.querySelector('.used-tire-card-qty')?.value || 1;
   const status = card?.querySelector('[data-tire-cart-status]');
 
@@ -1423,7 +1452,7 @@ function handleTireCartAction(button) {
 }
 
 function updateTireCardSetTotal(select) {
-  const card = select.closest('.used-tire-card');
+  const card = select.closest('.used-tire-card, .used-tire-list-row');
   const qty = Number(select.value);
   const setPrice = Number(select.dataset.setPrice);
   const setCount = Number(select.dataset.setCount);
@@ -1433,7 +1462,8 @@ function updateTireCardSetTotal(select) {
     const priceEl = card?.querySelector('.used-tire-card-price');
     const labelEl = card?.querySelector('.used-tire-card-price-label');
     if (priceEl && line !== null) priceEl.textContent = formatPrice(line);
-    if (labelEl) labelEl.textContent = `Set of ${qty}`;
+    if (labelEl && !card?.classList.contains('used-tire-list-row')) labelEl.textContent = `Set of ${qty}`;
+    writeLineTotal(card, line);
     return;
   }
 
@@ -1441,12 +1471,119 @@ function updateTireCardSetTotal(select) {
   const setLabelEl = card?.querySelector('[data-set-label]');
   const unitPrice = Number(select.dataset.unitPrice);
 
-  if (!setTotalEl || !Number.isFinite(unitPrice)) return;
+  if (!Number.isFinite(unitPrice)) return;
+  writeLineTotal(card, unitPrice * qty);
+  if (!setTotalEl) return;
 
   setTotalEl.textContent = formatPrice(unitPrice * qty);
   if (setLabelEl) {
     setLabelEl.textContent = `Set of ${qty}`;
   }
+}
+
+function writeLineTotal(card, amount) {
+  const lineEl = card?.querySelector('[data-line-total]');
+  if (!lineEl || amount === null || !Number.isFinite(Number(amount))) return;
+  lineEl.textContent = formatPrice(amount);
+}
+
+function getUsedTireView() {
+  try {
+    return sessionStorage.getItem(USED_TIRE_VIEW_KEY) === 'list' ? 'list' : 'grid';
+  } catch (error) {
+    return 'grid';
+  }
+}
+
+function syncUsedViewToggle(view) {
+  document.querySelectorAll('[data-used-view]').forEach((button) => {
+    const active = button.dataset.usedView === view;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+function renderUsedTireListRow(item, cardIndex = 0) {
+  const brandLabel = formatBrandLabel(item.brand);
+  const brandLogo = getBrandLogoPath(item.brand);
+  const seasonLabel = formatSeasonLabel(item.season);
+  const stockCount = Math.max(0, Number(item.stock) || 0);
+  const maxQty = item.priceIsFinal
+    ? Math.max(1, stockCount || 1)
+    : Math.max(1, Math.min(stockCount || 1, 4));
+  const listPrice = item.price;
+  const unitPrice = getTireSalePrice(item);
+  const pricedSetCount = item.priceIsFinal ? (getPricing().listedSetCount?.(stockCount) || stockCount) : 0;
+  const defaultQty = item.priceIsFinal ? Math.max(1, pricedSetCount) : Math.min(4, maxQty);
+  const linePrice = item.priceIsFinal
+    ? listedSetPrice(listPrice, pricedSetCount, defaultQty)
+    : (unitPrice === null ? null : unitPrice * defaultQty);
+  const shownPrice = item.priceIsFinal ? linePrice : unitPrice;
+  const photoLink = isPhotoLink(item.details) ? item.details : '';
+  const qtyId = `used-list-qty-${item.id}`;
+  const title = [brandLabel, item.model].filter(Boolean).join(' ') || item.title;
+  const qtyOptions = Array.from({ length: maxQty }, (_, index) => {
+    const value = index + 1;
+    return `<option value="${value}"${value === defaultQty ? ' selected' : ''}>${value}</option>`;
+  }).join('');
+
+  return `
+    <article class="used-tire-list-row">
+      <div class="used-list-photo">
+        ${photoLink
+    ? renderTirePhotoGallery(item, photoLink, cardIndex, { compact: true })
+    : '<div class="used-list-photo-empty">No photo</div>'}
+      </div>
+      <div class="used-list-copy">
+        ${brandLogo
+    ? `<img class="used-list-brand" src="${escapeHtml(brandLogo)}" alt="${escapeHtml(brandLabel)}" />`
+    : `<p class="used-list-brand-name">${escapeHtml(brandLabel)}</p>`}
+        <h3>${escapeHtml(title)}</h3>
+        <p class="used-list-size">${escapeHtml(item.size || 'Size unavailable')}</p>
+        <p class="used-list-season ${item.seasonKey === 'winter' ? 'is-winter' : ''}">${escapeHtml(seasonLabel)} tires</p>
+        <p class="used-list-stock">${escapeHtml(stockCount ? `${stockCount} in stock` : 'Out of stock')}</p>
+      </div>
+      <div class="used-list-buy">
+        <p class="used-list-price">
+          <strong class="used-tire-card-price">${escapeHtml(formatPrice(shownPrice))}</strong>
+        </p>
+        <label class="used-list-qty" for="${escapeHtml(qtyId)}">
+          <span>Quantity</span>
+          <select
+            id="${escapeHtml(qtyId)}"
+            class="used-tire-card-qty"
+            data-unit-price="${unitPrice ?? ''}"
+            ${item.priceIsFinal ? `data-set-price="${listPrice ?? ''}" data-set-count="${pricedSetCount}"` : ''}
+            ${stockCount ? '' : 'disabled'}
+          >${qtyOptions}</select>
+        </label>
+        <p class="used-list-total">Total <strong data-line-total>${escapeHtml(formatPrice(linePrice))}</strong></p>
+        <div class="used-list-actions">
+          <button type="button" data-used-list-details aria-expanded="false">View details</button>
+          <button
+            class="used-tire-card-cta"
+            type="button"
+            data-tire-cart-action="add"
+            data-inventory-id="${escapeHtml(item.id)}"
+            ${stockCount && unitPrice !== null ? '' : 'disabled'}
+          >Add to cart</button>
+        </div>
+        <p class="used-tire-card-cart-status" data-tire-cart-status aria-live="polite"></p>
+      </div>
+      <div class="used-list-panel" data-used-list-panel hidden>
+        ${item.model ? `<p><span>Model</span> ${escapeHtml(item.model)}</p>` : ''}
+        ${item.dot ? `<p><span>DOT</span> ${escapeHtml(item.dot)}</p>` : ''}
+        ${item.note ? `<p><span>Note</span> ${escapeHtml(item.note)}</p>` : ''}
+        <button
+          class="used-tire-card-cta is-secondary"
+          type="button"
+          data-tire-cart-action="reserve"
+          data-inventory-id="${escapeHtml(item.id)}"
+          ${stockCount && unitPrice !== null ? '' : 'disabled'}
+        >Reserve</button>
+      </div>
+    </article>
+  `;
 }
 
 const drivePhotoCache = new Map();
