@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex" />
     <title>Tire Cart Unavailable | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="tire-cart.css?v=14" />
+    <link rel="stylesheet" href="tire-cart.css?v=18" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
   </head>
   <body class="tire-cart-page">
@@ -81,9 +81,14 @@
           </section>
           <aside class="tire-cart-panel tire-reservation-panel" aria-label="Tire checkout">
             <h2>Checkout</h2>
-            <p class="tire-cart-total"><span>Subtotal</span><strong data-tire-cart-total>$0.00</strong></p>
-            <p class="tire-cart-total"><span>HST</span><strong data-tire-cart-hst>$0.00</strong></p>
-            <p class="tire-cart-total"><span>Total</span><strong data-tire-cart-grand-total>$0.00</strong></p>
+            <div class="new-tire-price-summary">
+              <p class="new-tire-install-price-title">Price summary</p>
+              <dl>
+                <div><dt>Subtotal</dt><dd data-tire-cart-total>$0.00</dd></div>
+                <div><dt>HST</dt><dd data-tire-cart-hst>$0.00</dd></div>
+                <div class="is-total"><dt>Total</dt><dd data-tire-cart-grand-total>$0.00</dd></div>
+              </dl>
+            </div>
             <div class="tire-checkout-auth" data-tire-checkout-auth hidden>
               <strong>Please sign up or log in before paying.</strong>
               <div class="tire-checkout-auth-actions">
@@ -92,27 +97,93 @@
               </div>
             </div>
             <form data-tire-reservation-form>
-              <label class="tire-reservation-field">
-                <span>How do you want these tires?</span>
-                <select name="Fulfillment Preference">
-                  <option value="Pickup">Pickup at the shop</option>
-                  <option value="Installation">Installation</option>
-                </select>
-              </label>
-              <p data-installation-directions hidden>Installation is booked after the tires are paid.</p>
-              <p class="tire-cart-message" data-tire-cart-message></p>
-              <button class="button button-primary tire-checkout-submit" type="button" data-tire-checkout-button>Pay with Stripe</button>
-              <button class="button button-secondary" type="submit" data-tire-reservation-submit>Email reservation request</button>
-            </form>
-            <div data-reservation-fallback hidden>
-              <p data-reservation-fallback-status></p>
-              <div class="tire-cart-actions">
-                <a data-reservation-mailto href="#">Open email app</a>
-                <a data-reservation-gmail href="#" target="_blank" rel="noopener noreferrer">Open Gmail</a>
-                <button type="button" data-reservation-copy>Copy message</button>
+              <fieldset class="new-tire-choice">
+                <legend>How do you want this order?</legend>
+                <label class="new-tire-choice-card">
+                  <input type="radio" name="Fulfillment Preference" value="Pickup" />
+                  <span class="new-tire-choice-title">
+                    <strong>Pickup</strong>
+                    <button type="button" class="new-tire-choice-info" data-choice-info aria-expanded="false" aria-controls="used-pickup-choice-info" aria-label="Pickup details">i</button>
+                  </span>
+                  <span class="new-tire-choice-tip" id="used-pickup-choice-info" hidden>Pick up whenever the shop is open, 8:00 AM to 8:00 PM. No appointment.</span>
+                </label>
+                <label class="new-tire-choice-card">
+                  <input type="radio" name="Fulfillment Preference" value="Installation" />
+                  <span class="new-tire-choice-title">
+                    <strong>Installation</strong>
+                    <button type="button" class="new-tire-choice-info" data-choice-info aria-expanded="false" aria-controls="used-install-choice-info" aria-label="Installation details">i</button>
+                  </span>
+                  <span class="new-tire-choice-tip" id="used-install-choice-info" hidden>This books the off-rim swap with these tires. Enter the license plate and appointment here. You are not sent to a separate installation page.</span>
+                </label>
+              </fieldset>
+              <div class="new-tire-install-location" data-install-location-panel hidden>
+                <fieldset class="new-tire-location-menu">
+                  <legend>Where should we install?</legend>
+                  <div class="new-tire-location-options">
+                    <button type="button" class="new-tire-location-option" data-install-location-option="mobile" aria-pressed="false" aria-disabled="true" disabled>
+                      <strong>Mobile Service</strong>
+                      <span>Coming soon</span>
+                    </button>
+                    <button type="button" class="new-tire-location-option" data-install-location-option="shop" aria-pressed="false">
+                      <strong>EastCord shop</strong>
+                      <span>600 Harrop Drive, Milton, Ontario</span>
+                    </button>
+                  </div>
+                </fieldset>
               </div>
-              <textarea data-reservation-body readonly></textarea>
-            </div>
+              <fieldset class="new-tire-customer" data-summary-customer hidden>
+                <legend>Your details</legend>
+                <div class="new-tire-customer-person">
+                  <label class="new-tire-customer-field">
+                    <span>First name</span>
+                    <input name="First Name" type="text" autocomplete="given-name" data-customer-first />
+                  </label>
+                  <label class="new-tire-customer-field">
+                    <span>Last name</span>
+                    <input name="Last Name" type="text" autocomplete="family-name" data-customer-last />
+                  </label>
+                  <label class="new-tire-customer-field">
+                    <span>Email</span>
+                    <input name="Email Address" type="email" autocomplete="email" data-customer-email />
+                  </label>
+                  <label class="new-tire-customer-field">
+                    <span>Phone</span>
+                    <input name="Phone Number" type="tel" autocomplete="tel" inputmode="tel" data-customer-phone />
+                  </label>
+                  <label class="new-tire-customer-field">
+                    <span>Preferred contact</span>
+                    <select name="Preferred Contact" data-customer-contact>
+                      <option value="email" selected>Email</option>
+                      <option value="phone">Phone</option>
+                    </select>
+                  </label>
+                </div>
+              </fieldset>
+              <div class="new-tire-shop-booking" data-shop-booking hidden>
+                <h3 class="new-tire-customer-subhead">Appointment booking</h3>
+                <label class="new-tire-customer-field">
+                  <span>License plate</span>
+                  <input name="Vehicle Plate Number" type="text" placeholder="ABCD 123" autocomplete="off" data-install-plate />
+                </label>
+                <label class="new-tire-customer-field">
+                  <span>Appointment date</span>
+                  <input name="Preferred Date" type="date" data-install-date />
+                </label>
+                <div class="new-tire-customer-field new-tire-time-field">
+                  <span>Appointment time</span>
+                  <select name="Preferred Time Window" data-install-time class="new-tire-time-native" tabindex="-1" aria-hidden="true">
+                    <option value="">Select a time</option>
+                  </select>
+                  <button type="button" class="new-tire-time-toggle" data-install-time-toggle aria-expanded="false" aria-controls="used-install-time-list">Select a time</button>
+                  <div class="new-tire-time-list" id="used-install-time-list" data-install-time-list hidden></div>
+                </div>
+              </div>
+              <div class="new-tire-shop-details" data-shop-install-details hidden>
+                <div class="new-tire-install-price" data-install-price aria-live="polite"></div>
+              </div>
+              <p class="tire-cart-message" data-tire-cart-message></p>
+              <button class="button button-primary new-tire-submit tire-checkout-submit" type="button" data-tire-checkout-button hidden>ORDER</button>
+            </form>
           </aside>
         </div>
       </div>
@@ -192,9 +263,14 @@
         var pricing = document.createElement('script');
         pricing.src = 'used-tire-pricing.js?v=4';
         pricing.onload = function () {
-          var cart = document.createElement('script');
-          cart.src = 'tire-cart.js?v=10';
-          document.body.appendChild(cart);
+          var services = document.createElement('script');
+          services.src = 'appointment-services.js?v=5';
+          services.onload = function () {
+            var cart = document.createElement('script');
+            cart.src = 'tire-cart.js?v=12';
+            document.body.appendChild(cart);
+          };
+          document.body.appendChild(services);
         };
         document.body.appendChild(pricing);
       })();

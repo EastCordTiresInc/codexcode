@@ -36,6 +36,18 @@ function bootInventory() {
 }
 
 async function init() {
+  const detailRoot = document.querySelector('[data-used-tire-detail]');
+  if (detailRoot) {
+    bindInventoryControls();
+    initPhotoLightbox();
+    await Promise.all([loadInventory(), preloadPhotoCache()]);
+    renderUsedTireDetail(detailRoot);
+    hydrateUsedTireCustomerCart().catch((error) => {
+      console.warn('[EastCord inventory] Saved tire cart could not be loaded from the customer account.', error);
+    });
+    return;
+  }
+
   const form = document.querySelector('#inventory-search-form');
   if (!form) {
     setLoadStatus('Search form not found on this page.', 'error');
@@ -519,17 +531,6 @@ function bindInventoryControls() {
   });
 
   document.addEventListener('click', (event) => {
-    const detailsButton = event.target.closest('[data-used-list-details]');
-    if (detailsButton) {
-      const row = detailsButton.closest('.used-tire-list-row');
-      const panel = row?.querySelector('[data-used-list-panel]');
-      if (!panel) return;
-      const open = panel.hidden;
-      panel.hidden = !open;
-      detailsButton.setAttribute('aria-expanded', open ? 'true' : 'false');
-      return;
-    }
-
     const button = event.target.closest('[data-tire-cart-action]');
     if (!button) return;
     handleTireCartAction(button);
@@ -1304,20 +1305,14 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
       </div>
 
       <div class="used-tire-card-actions">
+        <a class="used-view-details" href="/used-tire.html?id=${encodeURIComponent(item.id)}">View details</a>
         <button
-          class="used-tire-card-cta is-secondary"
+          class="used-tire-card-cta"
           type="button"
           data-tire-cart-action="add"
           data-inventory-id="${escapeHtml(item.id)}"
           ${stockCount && unitPrice !== null ? '' : 'disabled'}
         >Add to Cart</button>
-        <button
-          class="used-tire-card-cta"
-          type="button"
-          data-tire-cart-action="reserve"
-          data-inventory-id="${escapeHtml(item.id)}"
-          ${stockCount && unitPrice !== null ? '' : 'disabled'}
-        >Reserve</button>
       </div>
       <p class="used-tire-card-cart-status" data-tire-cart-status aria-live="polite"></p>
       </div>
@@ -1429,7 +1424,7 @@ function addUsedTireToCart(item, qty) {
 
 function handleTireCartAction(button) {
   const item = inventory.find((entry) => sameTireId(entry.id, button.dataset.inventoryId));
-  const card = button.closest('.used-tire-card, .used-markdown-row, .used-tire-list-row');
+  const card = button.closest('.used-tire-card, .used-markdown-row, .used-tire-list-row, .used-tire-detail');
   const qty = card?.querySelector('.used-tire-card-qty')?.value || 1;
   const status = card?.querySelector('[data-tire-cart-status]');
 
@@ -1452,7 +1447,7 @@ function handleTireCartAction(button) {
 }
 
 function updateTireCardSetTotal(select) {
-  const card = select.closest('.used-tire-card, .used-tire-list-row');
+  const card = select.closest('.used-tire-card, .used-tire-list-row, .used-tire-detail');
   const qty = Number(select.value);
   const setPrice = Number(select.dataset.setPrice);
   const setCount = Number(select.dataset.setCount);
@@ -1559,7 +1554,7 @@ function renderUsedTireListRow(item, cardIndex = 0) {
         </label>
         <p class="used-list-total">Total <strong data-line-total>${escapeHtml(formatPrice(linePrice))}</strong></p>
         <div class="used-list-actions">
-          <button type="button" data-used-list-details aria-expanded="false">View details</button>
+          <a class="used-view-details" href="/used-tire.html?id=${encodeURIComponent(item.id)}">View details</a>
           <button
             class="used-tire-card-cta"
             type="button"
@@ -1570,20 +1565,112 @@ function renderUsedTireListRow(item, cardIndex = 0) {
         </div>
         <p class="used-tire-card-cart-status" data-tire-cart-status aria-live="polite"></p>
       </div>
-      <div class="used-list-panel" data-used-list-panel hidden>
-        ${item.model ? `<p><span>Model</span> ${escapeHtml(item.model)}</p>` : ''}
-        ${item.dot ? `<p><span>DOT</span> ${escapeHtml(item.dot)}</p>` : ''}
-        ${item.note ? `<p><span>Note</span> ${escapeHtml(item.note)}</p>` : ''}
-        <button
-          class="used-tire-card-cta is-secondary"
-          type="button"
-          data-tire-cart-action="reserve"
-          data-inventory-id="${escapeHtml(item.id)}"
-          ${stockCount && unitPrice !== null ? '' : 'disabled'}
-        >Reserve</button>
+    </article>
+  `;
+}
+
+function renderUsedTireDetail(root) {
+  const id = new URLSearchParams(window.location.search).get('id');
+  const item = inventory.find((entry) => sameTireId(entry.id, id));
+  if (!item) {
+    root.innerHTML = `
+      <p class="used-tire-detail-missing">That tire is not in the current list.</p>
+      <p><a href="/used-tires.html">Back to used tires</a></p>
+    `;
+    return;
+  }
+
+  const brandLabel = formatBrandLabel(item.brand);
+  const brandLogo = getBrandLogoPath(item.brand);
+  const seasonLabel = formatSeasonLabel(item.season);
+  const stockCount = Math.max(0, Number(item.stock) || 0);
+  const maxQty = item.priceIsFinal
+    ? Math.max(1, stockCount || 1)
+    : Math.max(1, Math.min(stockCount || 1, 4));
+  const listPrice = item.price;
+  const unitPrice = getTireSalePrice(item);
+  const pricedSetCount = item.priceIsFinal ? (getPricing().listedSetCount?.(stockCount) || stockCount) : 0;
+  const defaultQty = item.priceIsFinal ? Math.max(1, pricedSetCount) : Math.min(4, maxQty);
+  const linePrice = item.priceIsFinal
+    ? listedSetPrice(listPrice, pricedSetCount, defaultQty)
+    : (unitPrice === null ? null : unitPrice * defaultQty);
+  const shownPrice = item.priceIsFinal ? linePrice : unitPrice;
+  const photoLink = isPhotoLink(item.details) ? item.details : '';
+  const title = [brandLabel, item.model].filter(Boolean).join(' ') || item.title;
+  document.title = `${title} | EastCord Tires`;
+
+  const facts = [
+    ['Size', item.size],
+    ['Season', seasonLabel],
+    ['Model', item.model],
+    ['DOT', item.dot],
+    ['Stock', stockCount ? `${stockCount} in stock` : 'Out of stock'],
+    ['Note', item.note],
+  ].filter(([, value]) => clean(value));
+
+  const qtyOptions = Array.from({ length: maxQty }, (_, index) => {
+    const value = index + 1;
+    return `<option value="${value}"${value === defaultQty ? ' selected' : ''}>${value}</option>`;
+  }).join('');
+
+  root.innerHTML = `
+    <article class="used-tire-detail">
+      <a class="used-tire-detail-back" href="/used-tires.html" aria-label="Back to used tires">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg>
+      </a>
+      <div class="used-tire-detail-layout">
+        <div class="used-tire-detail-photo">
+          ${photoLink
+    ? renderTirePhotoGallery(item, photoLink, 0)
+    : '<div class="used-list-photo-empty">No photo</div>'}
+        </div>
+        <div class="used-tire-detail-copy">
+          ${brandLogo
+    ? `<img class="used-list-brand" src="${escapeHtml(brandLogo)}" alt="${escapeHtml(brandLabel)}" />`
+    : `<p class="used-list-brand-name">${escapeHtml(brandLabel)}</p>`}
+          <h1>${escapeHtml(title)}</h1>
+          <p class="used-list-size">${escapeHtml(item.size || 'Size unavailable')}</p>
+          <p class="used-list-season ${item.seasonKey === 'winter' ? 'is-winter' : ''}">${escapeHtml(seasonLabel)} tires</p>
+          <dl class="used-tire-detail-facts">
+            ${facts.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}
+          </dl>
+          <p class="used-list-price"><strong class="used-tire-card-price">${escapeHtml(formatPrice(shownPrice))}</strong></p>
+          <label class="used-list-qty" for="used-tire-detail-qty">
+            <span>Quantity</span>
+            <select
+              id="used-tire-detail-qty"
+              class="used-tire-card-qty"
+              data-unit-price="${unitPrice ?? ''}"
+              ${item.priceIsFinal ? `data-set-price="${listPrice ?? ''}" data-set-count="${pricedSetCount}"` : ''}
+              ${stockCount ? '' : 'disabled'}
+            >${qtyOptions}</select>
+          </label>
+          <p class="used-list-total">Total <strong data-line-total>${escapeHtml(formatPrice(linePrice))}</strong></p>
+          <div class="used-tire-detail-actions">
+            <button
+              class="used-tire-card-cta"
+              type="button"
+              data-tire-cart-action="add"
+              data-inventory-id="${escapeHtml(item.id)}"
+              ${stockCount && unitPrice !== null ? '' : 'disabled'}
+            >Add to cart</button>
+            <button
+              class="used-tire-card-cta is-secondary"
+              type="button"
+              data-tire-cart-action="reserve"
+              data-inventory-id="${escapeHtml(item.id)}"
+              ${stockCount && unitPrice !== null ? '' : 'disabled'}
+            >Reserve</button>
+          </div>
+          <p class="used-tire-card-cart-status" data-tire-cart-status aria-live="polite"></p>
+        </div>
       </div>
     </article>
   `;
+
+  hydrateTireCardPhotos(root);
+  const pending = root.querySelector('[data-tire-photos].is-loading');
+  if (pending) loadCardPhotos(pending);
 }
 
 const drivePhotoCache = new Map();

@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="heading-balance.css" />
     <link rel="stylesheet" href="footer-section.css?v=5" />
     <link rel="stylesheet" href="auth.css" />
-    <link rel="stylesheet" href="used-tires.css?v=53" />
+    <link rel="stylesheet" href="used-tires.css?v=61" />
   </head>
   <body class="used-tires-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -213,7 +213,10 @@
               <div>
                 <p class="used-inventory-sale-note" data-inventory-sale-note hidden>DOT older than 2020. Prices are unchanged.</p>
                 <p class="used-inventory-status" data-inventory-status aria-live="polite"></p>
-                <button class="text-button" type="button" data-inventory-refresh>Refresh inventory</button>
+                <button class="text-button used-inventory-refresh" type="button" data-inventory-refresh>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+                  <span>Refresh inventory</span>
+                </button>
               </div>
             </div>
             <div id="inventory-list" class="inventory-list" aria-live="polite"></div>
@@ -305,7 +308,7 @@
         if (status) status.textContent = 'Connecting to inventory...';
 
         var inventory = document.createElement('script');
-        inventory.src = 'inventory.js?v=80';
+        inventory.src = 'inventory.js?v=84';
 
         var pricing = document.createElement('script');
         pricing.src = 'used-tire-pricing.js?v=4';

@@ -190,6 +190,21 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
     return { ok: false, statusCode: 500, message: payError.message, error: payError, order };
   }
 
+  const appointmentId = String(session?.metadata?.appointment_id || '').trim();
+  if (appointmentId) {
+    const { error: bookingError } = await supabaseAdmin
+      .from('appointment_bookings')
+      .update({
+        payment_status: 'paid_in_full',
+        booking_status: 'Confirmed',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', appointmentId);
+    if (bookingError) {
+      console.error('[EastCord used tires] Installation booking could not be marked paid.', bookingError.message || bookingError);
+    }
+  }
+
   if (order.customer_id) {
     await supabaseAdmin
       .from('customer_carts')
@@ -234,6 +249,7 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
       const label = [item.brand, item.size || item.tire_size].filter(Boolean).join(' ') || 'Used tire';
       return `${qty} x ${label}`;
     });
+    const booked = (items || []).find((item) => item?.installation);
     await sendEmail({
       ...buildBrandedEmail({
         to: CONTACT_EMAIL,
@@ -247,6 +263,8 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
           `Name: ${paidOrder.customer_name || ''}`,
           `Email: ${paidOrder.customer_email || ''}`,
           `Phone: ${paidOrder.customer_phone || ''}`,
+          booked ? `License plate: ${booked.installation.plate}` : '',
+          booked ? `Appointment: ${booked.installation.date} ${booked.installation.time}` : '',
           receipt.text,
         ].join('\n'),
         extraHtml: detailRowsHtml([
@@ -255,6 +273,10 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
           { label: 'Phone', value: paidOrder.customer_phone || '' },
           { label: 'Order', value: paidOrder.id },
           { label: 'Tires', value: tireLines.join(', ') },
+          ...(booked ? [
+            { label: 'License plate', value: booked.installation.plate },
+            { label: 'Appointment', value: `${booked.installation.date} ${booked.installation.time}` },
+          ] : []),
         ]),
       }),
       replyTo: paidOrder.customer_email || CONTACT_EMAIL,

@@ -28,6 +28,16 @@
   force = true
 
 [[redirects]]
+  from = "/used-tire"
+  to = "/used-tire.html"
+  status = 200
+
+[[redirects]]
+  from = "/used-tire/"
+  to = "/used-tire.html"
+  status = 200
+
+[[redirects]]
   from = "/new-tires"
   to = "/new-tires.html"
   status = 301

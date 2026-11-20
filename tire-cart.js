@@ -1,9 +1,26 @@
 const USED_TIRE_CART_KEY = 'eastcord_used_tire_cart_v1';
 const TIRE_CART_TAX_RATE = 0;
+const INSTALL_TAX_RATE = 0.13;
+const INSTALL_ARRIVAL_START_MINUTES = 13 * 60;
+const INSTALL_TIME_WINDOWS = [
+  '8:00 AM - 9:00 AM',
+  '9:00 AM - 10:00 AM',
+  '10:00 AM - 11:00 AM',
+  '11:00 AM - 12:00 PM',
+  '12:00 PM - 1:00 PM',
+  '1:00 PM - 2:00 PM',
+  '2:00 PM - 3:00 PM',
+  '3:00 PM - 4:00 PM',
+  '4:00 PM - 5:00 PM',
+  '5:00 PM - 6:00 PM',
+  '6:00 PM - 7:00 PM',
+  '7:00 PM - 8:00 PM',
+];
 
 let tireCart = [];
 let currentProfile = null;
 let authChecked = false;
+let installLocation = '';
 
 function cartItemsEl() {
   return document.querySelector('[data-tire-cart-items]');
@@ -45,11 +62,176 @@ function checkoutButtonEl() {
   return document.querySelector('[data-tire-checkout-button]');
 }
 
+function selectedFulfillment() {
+  const selected = reservationForm()?.querySelector('input[name="Fulfillment Preference"]:checked');
+  return selected?.value || '';
+}
+
+function shopInstallSelected() {
+  return selectedFulfillment() === 'Installation' && installLocation === 'shop';
+}
+
 function updateTireCheckoutButtonState() {
   const button = checkoutButtonEl();
   if (!button) return;
   const cartReady = Boolean(tireCart.length) && !tireCart.some((item) => item.unavailable);
-  button.disabled = !currentProfile || !cartReady;
+  const pickup = selectedFulfillment() === 'Pickup';
+  const quote = shopInstallSelected() ? offRimInstallQuote() : null;
+  button.hidden = !(pickup || shopInstallSelected());
+  button.disabled = !cartReady || (quote && !quote.ok);
+  if (!button.dataset.busy) button.textContent = 'ORDER';
+}
+
+function earliestInstallDateValue() {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 1);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function timeWindowStartMinutes(value) {
+  const match = String(value || '').split('-')[0].trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const period = match[3].toUpperCase();
+  if (period === 'AM' && hours === 12) hours = 0;
+  if (period === 'PM' && hours !== 12) hours += 12;
+  return (hours * 60) + minutes;
+}
+
+function offRimInstallQuote() {
+  const api = window.EastCordAppointmentServices;
+  const available = tireCart.filter((item) => !item.unavailable && Number(item.qty) > 0);
+  if (!available.length) return { ok: false, message: 'Add a tire so the off-rim swap can use its rim size and quantity.' };
+  const groups = new Map();
+  for (const item of available) {
+    const bandId = api?.sizeBandFromTireSize?.(item.size) || '';
+    const band = bandId ? api.SIZE_BANDS[bandId] : null;
+    if (!band) {
+      return { ok: false, message: `Off-rim swap prices cover 14 to 24 inch rims. The selected size is ${item.size || 'unknown'}.` };
+    }
+    const qty = Math.max(1, Math.min(4, Number(item.qty) || 1));
+    const current = groups.get(bandId) || { band, qty: 0, sizes: [] };
+    current.qty += qty;
+    if (!current.sizes.includes(item.size)) current.sizes.push(item.size);
+    groups.set(bandId, current);
+  }
+  const lines = [...groups.values()].map((group) => ({
+    ...group,
+    unitPrice: group.band.unitPrice,
+    subtotal: roundMoney(group.band.unitPrice * group.qty),
+  }));
+  const subtotal = roundMoney(lines.reduce((sum, line) => sum + line.subtotal, 0));
+  const hst = roundMoney(subtotal * INSTALL_TAX_RATE);
+  return {
+    ok: true,
+    lines,
+    subtotal,
+    hst,
+    total: roundMoney(subtotal + hst),
+  };
+}
+
+function renderInstallPrice() {
+  const box = document.querySelector('[data-install-price]');
+  if (!box) return;
+  const quote = offRimInstallQuote();
+  if (!quote.ok) {
+    box.innerHTML = `<p>${escapeHtml(quote.message)}</p>`;
+    return;
+  }
+  const rows = quote.lines.map((line) => `
+    <div><dt>Rim size</dt><dd>${escapeHtml(line.band.label)}</dd></div>
+    <div><dt>Tire size</dt><dd>${escapeHtml(line.sizes.join(', '))}</dd></div>
+    <div><dt>Price</dt><dd>${escapeHtml(formatMoney(line.unitPrice))} per tire</dd></div>
+    <div><dt>Quantity</dt><dd>${line.qty}</dd></div>
+  `).join('');
+  box.innerHTML = `
+    <p class="new-tire-install-price-title">Off-rim swap + balance</p>
+    <dl>
+      ${rows}
+      <div><dt>Subtotal</dt><dd>${escapeHtml(formatMoney(quote.subtotal))}</dd></div>
+      <div><dt>HST (13%)</dt><dd>${escapeHtml(formatMoney(quote.hst))}</dd></div>
+      <div class="is-total"><dt>Total</dt><dd>${escapeHtml(formatMoney(quote.total))}</dd></div>
+    </dl>
+  `;
+}
+
+function renderCheckoutSummary() {
+  const summary = document.querySelector('.tire-reservation-panel .new-tire-price-summary dl');
+  if (!summary) return;
+  const tires = getCartTotals();
+  if (!shopInstallSelected()) {
+    summary.innerHTML = `
+      <div><dt>Subtotal</dt><dd data-tire-cart-total>${escapeHtml(formatMoney(tires.subtotal))}</dd></div>
+      <div><dt>HST</dt><dd data-tire-cart-hst>${escapeHtml(formatMoney(tires.hstAmount))}</dd></div>
+      <div class="is-total"><dt>Total</dt><dd data-tire-cart-grand-total>${escapeHtml(formatMoney(tires.totalWithHst))}</dd></div>
+    `;
+    return;
+  }
+  const quote = offRimInstallQuote();
+  const install = quote.ok ? quote.subtotal : 0;
+  const hst = quote.ok ? quote.hst : 0;
+  const total = roundMoney(tires.subtotal + install + hst);
+  summary.innerHTML = `
+    <div><dt>Tires</dt><dd data-tire-cart-total>${escapeHtml(formatMoney(tires.subtotal))}</dd></div>
+    <div><dt>Off-rim swap + balance</dt><dd>${escapeHtml(formatMoney(install))}</dd></div>
+    <div><dt>HST (13%)</dt><dd data-tire-cart-hst>${escapeHtml(formatMoney(hst))}</dd></div>
+    <div class="is-total"><dt>Total</dt><dd data-tire-cart-grand-total>${escapeHtml(formatMoney(total))}</dd></div>
+  `;
+}
+
+function syncInstallTimes() {
+  const dateInput = document.querySelector('[data-install-date]');
+  const timeSelect = document.querySelector('[data-install-time]');
+  const list = document.querySelector('[data-install-time-list]');
+  const toggle = document.querySelector('[data-install-time-toggle]');
+  if (!dateInput || !timeSelect || !list || !toggle) return;
+  const min = earliestInstallDateValue();
+  dateInput.min = min;
+  if (dateInput.value && dateInput.value < min) dateInput.value = '';
+  const arrivalDay = dateInput.value === min;
+  const current = timeSelect.value;
+  timeSelect.innerHTML = ['<option value="">Select a time</option>'].concat(INSTALL_TIME_WINDOWS.map((slot) => {
+    const start = timeWindowStartMinutes(slot);
+    const tooEarly = arrivalDay && start !== null && start < INSTALL_ARRIVAL_START_MINUTES;
+    const label = tooEarly ? `${slot} (from 1:00 PM)` : slot;
+    return `<option value="${slot}"${tooEarly ? ' disabled' : ''}>${label}</option>`;
+  })).join('');
+  if ([...timeSelect.options].some((option) => option.value === current && !option.disabled)) timeSelect.value = current;
+  list.innerHTML = [...timeSelect.options].filter((option) => option.value).map((option) => (
+    `<button type="button" class="new-tire-time-option${option.disabled ? ' is-disabled' : ''}${option.selected ? ' is-selected' : ''}" data-time-value="${escapeHtml(option.value)}"${option.disabled ? ' disabled' : ''}>${escapeHtml(option.textContent)}</button>`
+  )).join('');
+  const selected = timeSelect.selectedOptions[0];
+  toggle.textContent = selected?.value ? selected.textContent : 'Select a time';
+}
+
+function syncInstallPanel() {
+  const installing = selectedFulfillment() === 'Installation';
+  const showShop = shopInstallSelected();
+  const locationPanel = document.querySelector('[data-install-location-panel]');
+  if (locationPanel) locationPanel.hidden = !installing;
+  document.querySelectorAll('[data-install-location-option]').forEach((button) => {
+    const selected = installing && button.dataset.installLocationOption === installLocation;
+    button.classList.toggle('is-selected', selected);
+    if (!button.disabled) button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+  });
+  const customer = document.querySelector('[data-summary-customer]');
+  const booking = document.querySelector('[data-shop-booking]');
+  const details = document.querySelector('[data-shop-install-details]');
+  if (customer) customer.hidden = !showShop;
+  if (booking) booking.hidden = !showShop;
+  if (details) details.hidden = !showShop;
+  if (showShop) {
+    syncInstallTimes();
+    renderInstallPrice();
+    if (currentProfile) fillCustomerFields(currentProfile);
+  }
+  renderCheckoutSummary();
+  updateTireCheckoutButtonState();
 }
 
 function readTireCart() {
@@ -282,32 +464,63 @@ function renderTireCart() {
     }
   }
 
-  const totals = getCartTotals();
-  if (cartTotalEl()) cartTotalEl().textContent = formatMoney(totals.subtotal);
-  if (cartHstEl()) cartHstEl().textContent = formatMoney(totals.hstAmount);
-  if (cartGrandTotalEl()) cartGrandTotalEl().textContent = formatMoney(totals.totalWithHst);
-  const submit = reservationSubmit();
-  if (submit) {
-    submit.disabled = !tireCart.length || tireCart.some((item) => item.unavailable);
-  }
-  updateTireCheckoutButtonState();
+  syncInstallPanel();
   updateCartCount();
 }
 
 function fillCustomerFields(profile) {
   const form = reservationForm();
   if (!form || !profile) return;
-  const values = {
-    'Full Name': profile.name || '',
-    'Email Address': profile.email || '',
-    'Phone Number': profile.phone || '',
-  };
+  const parts = String(profile.name || '').trim().split(/\s+/).filter(Boolean);
+  const first = form.querySelector('[data-customer-first]');
+  const last = form.querySelector('[data-customer-last]');
+  const email = form.querySelector('[data-customer-email]');
+  const phone = form.querySelector('[data-customer-phone]');
+  if (first && !first.value && parts[0]) first.value = parts[0];
+  if (last && !last.value && parts.length > 1) last.value = parts.slice(1).join(' ');
+  if (email && !email.value && profile.email) email.value = profile.email;
+  if (phone && !phone.value && profile.phone) phone.value = profile.phone;
+}
 
-  Object.entries(values).forEach(([name, value]) => {
-    if (!value) return;
-    const input = form.elements.namedItem(name);
-    if (input && 'value' in input) input.value = value;
-  });
+function readInstallCustomer(profile) {
+  const first = getFormValue('First Name');
+  const last = getFormValue('Last Name');
+  const email = getFormValue('Email Address') || profile?.email || '';
+  const phone = getFormValue('Phone Number') || profile?.phone || '';
+  const contact = getFormValue('Preferred Contact');
+  const name = `${first} ${last}`.trim();
+  if (!first || !last) return { ok: false, message: 'Enter your first and last name before payment.' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: 'Enter a valid email address before payment.' };
+  if (phone.replace(/\D/g, '').length < 10) return { ok: false, message: 'Enter a phone number with at least 10 digits before payment.' };
+  if (contact !== 'email' && contact !== 'phone') return { ok: false, message: 'Choose email or phone as the way to reach you.' };
+  const plate = getFormValue('Vehicle Plate Number').toUpperCase();
+  const date = getFormValue('Preferred Date');
+  const time = getFormValue('Preferred Time Window');
+  if (plate.length < 2) return { ok: false, message: 'Enter the license plate for this installation.' };
+  if (!date || date < earliestInstallDateValue() || !time) {
+    return { ok: false, message: 'Choose an appointment date and time before payment.' };
+  }
+  const arrivalDay = date === earliestInstallDateValue();
+  const start = timeWindowStartMinutes(time);
+  if (!INSTALL_TIME_WINDOWS.includes(time) || (arrivalDay && start !== null && start < INSTALL_ARRIVAL_START_MINUTES)) {
+    return { ok: false, message: 'The first installation day starts at 1:00 PM. Choose a later time.' };
+  }
+  return {
+    ok: true,
+    customer: {
+      customerId: profile.customerId || profile.id || '',
+      name,
+      email,
+      phone,
+    },
+    installation: {
+      location: 'shop',
+      plate,
+      date,
+      time,
+      contact,
+    },
+  };
 }
 
 async function hydrateCustomerAccount() {
@@ -417,18 +630,32 @@ async function startTireStripeCheckout() {
   }
 
   const profile = currentProfile || await window.EastCordAccount.getCurrentProfile();
+  let customer = {
+    customerId: profile?.customerId || profile?.id || '',
+    name: profile?.name || '',
+    email: profile?.email || '',
+    phone: profile?.phone || '',
+  };
+  let installation = null;
+  if (selectedFulfillment() === 'Installation') {
+    if (installLocation !== 'shop') {
+      setCartMessage('Choose the EastCord shop before ordering installation.');
+      return;
+    }
+    const ready = readInstallCustomer(profile || {});
+    if (!ready.ok) {
+      setCartMessage(ready.message);
+      return;
+    }
+    customer = ready.customer;
+    installation = ready.installation;
+  }
+
   if (!profile) {
     if (checkoutAuth()) checkoutAuth().hidden = false;
     setCartMessage('Please sign up or log in before paying.');
     return;
   }
-
-  const customer = {
-    customerId: profile.customerId || profile.id || '',
-    name: getFormValue('Full Name') || profile.name || '',
-    email: getFormValue('Email Address') || profile.email || '',
-    phone: getFormValue('Phone Number') || profile.phone || '',
-  };
 
   if (!customer.customerId || !customer.name || !customer.email || !customer.phone) {
     setCartMessage('Please complete your name, email, and phone before paying.');
@@ -453,7 +680,8 @@ async function startTireStripeCheckout() {
       body: JSON.stringify({
         customer,
         items: tireCart,
-        fulfillmentPreference: getFormValue('Fulfillment Preference') || 'Pickup',
+        fulfillmentPreference: selectedFulfillment() || 'Pickup',
+        installation,
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -464,38 +692,10 @@ async function startTireStripeCheckout() {
   } catch (error) {
     setCartMessage(error.message || 'Stripe checkout could not be started.');
     if (button) {
-      button.textContent = 'Pay with Stripe';
+      button.textContent = 'ORDER';
       updateTireCheckoutButtonState();
     }
   }
-}
-
-function openMailApp(mailto) {
-  const link = document.createElement('a');
-  link.href = mailto;
-  link.rel = 'noopener';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-}
-
-function showReservationFallback({ mailto, gmail, body, emailed }) {
-  const fallback = document.querySelector('[data-reservation-fallback]');
-  const status = document.querySelector('[data-reservation-fallback-status]');
-  const mailtoLink = document.querySelector('[data-reservation-mailto]');
-  const gmailLink = document.querySelector('[data-reservation-gmail]');
-  const bodyEl = document.querySelector('[data-reservation-body]');
-  if (!fallback) return;
-
-  fallback.hidden = false;
-  if (status) {
-    status.textContent = emailed
-      ? 'EastCord Tires has received this request. You can still copy it for your records.'
-      : 'This computer has no email app set as default. Open Gmail or copy the message and send it to info@eastcordtires.ca.';
-  }
-  if (mailtoLink) mailtoLink.href = mailto;
-  if (gmailLink) gmailLink.href = gmail;
-  if (bodyEl) bodyEl.value = `To: info@eastcordtires.ca\nSubject: Used tire reservation request\n\n${body}`;
 }
 
 function sameCartItemId(left, right) {
@@ -505,103 +705,51 @@ function sameCartItemId(left, right) {
 function bindCartEvents() {
   checkoutButtonEl()?.addEventListener('click', startTireStripeCheckout);
 
-  reservationForm()?.addEventListener('submit', async (event) => {
+  reservationForm()?.addEventListener('submit', (event) => {
     event.preventDefault();
+    startTireStripeCheckout();
+  });
 
-    if (!tireCart.length || tireCart.some((item) => item.unavailable)) {
-      setCartMessage(tireCart.length
-        ? 'Remove unavailable tires before sending this request.'
-        : 'Add at least one tire before sending this request.');
+  reservationForm()?.addEventListener('click', (event) => {
+    const info = event.target.closest('[data-choice-info]');
+    if (info) {
+      event.preventDefault();
+      event.stopPropagation();
+      const tip = document.getElementById(info.getAttribute('aria-controls'));
+      if (!tip) return;
+      const open = tip.hidden;
+      tip.hidden = !open;
+      info.setAttribute('aria-expanded', open ? 'true' : 'false');
       return;
     }
 
-    const customer = {
-      name: getFormValue('Full Name') || currentProfile?.name || '',
-      email: getFormValue('Email Address') || currentProfile?.email || '',
-      phone: getFormValue('Phone Number') || currentProfile?.phone || '',
-    };
-
-    if (!customer.name || !customer.email || !customer.phone) {
-      setCartMessage('Please complete your name, email, and phone.');
+    const location = event.target.closest('[data-install-location-option]');
+    if (location && !location.disabled) {
+      installLocation = location.dataset.installLocationOption === 'shop' ? 'shop' : '';
+      syncInstallPanel();
       return;
     }
 
-    const totals = getCartTotals();
-    const itemLines = tireCart.map((item) => (
-      `${item.qty} x ${item.brand || ''} ${item.size || ''} (ID ${item.inventoryId})`
-    ));
-    const body = [
-      `Name: ${customer.name}`,
-      `Email: ${customer.email}`,
-      `Phone: ${customer.phone}`,
-      `Fulfillment: ${getFormValue('Fulfillment Preference') || 'Pickup'}`,
-      '',
-      'Tires:',
-      ...itemLines,
-      '',
-      `Subtotal: ${formatMoney(totals.subtotal)}`,
-      `Total: ${formatMoney(totals.totalWithHst)}`,
-    ].join('\n');
-
-    const subject = 'Used tire reservation request';
-    const mailto = [
-      'mailto:info@eastcordtires.ca',
-      '?subject=',
-      encodeURIComponent(subject),
-      '&body=',
-      encodeURIComponent(body),
-    ].join('');
-    const gmail = [
-      'https://mail.google.com/mail/?view=cm&fs=1&tf=1',
-      '&to=',
-      encodeURIComponent('info@eastcordtires.ca'),
-      '&su=',
-      encodeURIComponent(subject),
-      '&body=',
-      encodeURIComponent(body),
-    ].join('');
-
-    const submit = reservationSubmit();
-    if (submit) {
-      submit.disabled = true;
-      submit.textContent = 'Sending request...';
+    const timeToggle = event.target.closest('[data-install-time-toggle]');
+    if (timeToggle) {
+      const list = document.querySelector('[data-install-time-list]');
+      if (!list) return;
+      const open = list.hidden;
+      list.hidden = !open;
+      timeToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      return;
     }
 
-    let emailed = false;
-    try {
-      const response = await fetch('/.netlify/functions/request-used-tire-reservation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customer,
-          fulfillment: getFormValue('Fulfillment Preference') || 'Pickup',
-          items: tireCart,
-          totals: {
-            subtotal: formatMoney(totals.subtotal),
-            hst: formatMoney(totals.hstAmount),
-            total: formatMoney(totals.totalWithHst),
-          },
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      emailed = Boolean(response.ok && data.emailed);
-    } catch (error) {
-      emailed = false;
+    const timeOption = event.target.closest('[data-time-value]');
+    if (timeOption && !timeOption.disabled) {
+      const timeSelect = document.querySelector('[data-install-time]');
+      const list = document.querySelector('[data-install-time-list]');
+      const toggle = document.querySelector('[data-install-time-toggle]');
+      if (timeSelect) timeSelect.value = timeOption.dataset.timeValue || '';
+      if (list) list.hidden = true;
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      syncInstallTimes();
     }
-
-    showReservationFallback({ mailto, gmail, body, emailed });
-    if (!emailed) {
-      openMailApp(mailto);
-    }
-    setCartMessage(emailed
-      ? 'Reservation request sent to EastCord Tires.'
-      : 'If your email app did not open, use Gmail or copy the message below.');
-
-    if (submit) {
-      submit.disabled = !tireCart.length;
-      submit.textContent = 'Email reservation request';
-    }
-    renderTireCart();
   });
 
   cartItemsEl()?.addEventListener('change', (event) => {
@@ -632,21 +780,11 @@ function bindCartEvents() {
   });
 
   reservationForm()?.addEventListener('change', (event) => {
-    if (event.target.name !== 'Fulfillment Preference') return;
-    const directions = installationDirections();
-    if (directions) directions.hidden = event.target.value !== 'Installation';
-  });
-
-  document.querySelector('[data-reservation-copy]')?.addEventListener('click', async () => {
-    const bodyEl = document.querySelector('[data-reservation-body]');
-    const text = bodyEl?.value || '';
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCartMessage('Message copied. Paste it into an email to info@eastcordtires.ca.');
-    } catch (error) {
-      bodyEl?.select();
-      setCartMessage('Select the message and copy it, then email info@eastcordtires.ca.');
+    if (event.target.name === 'Fulfillment Preference' && event.target.value !== 'Installation') {
+      installLocation = '';
+    }
+    if (event.target.name === 'Fulfillment Preference' || event.target.matches('[data-install-date]')) {
+      syncInstallPanel();
     }
   });
 }
