@@ -205,6 +205,10 @@
   gap: 16px;
 }
 
+.account-form-grid > .form-field {
+  align-content: start;
+}
+
 .account-message {
   min-height: 1.4em;
   margin: 8px 0 0;
