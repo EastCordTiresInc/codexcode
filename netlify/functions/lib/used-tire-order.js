@@ -263,6 +263,7 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
           `Name: ${paidOrder.customer_name || ''}`,
           `Email: ${paidOrder.customer_email || ''}`,
           `Phone: ${paidOrder.customer_phone || ''}`,
+          `Preferred contact: ${paidOrder.preferred_contact || ''}`,
           booked ? `License plate: ${booked.installation.plate}` : '',
           booked ? `Appointment: ${booked.installation.date} ${booked.installation.time}` : '',
           receipt.text,
@@ -271,6 +272,7 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
           { label: 'Name', value: paidOrder.customer_name || '' },
           { label: 'Email', value: paidOrder.customer_email || '' },
           { label: 'Phone', value: paidOrder.customer_phone || '' },
+          { label: 'Preferred contact', value: paidOrder.preferred_contact || '' },
           { label: 'Order', value: paidOrder.id },
           { label: 'Tires', value: tireLines.join(', ') },
           ...(booked ? [

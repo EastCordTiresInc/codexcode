@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex" />
     <title>Tire Cart Unavailable | EastCord Tires</title>
     <link rel="stylesheet" href="styles.css?v=8" />
-    <link rel="stylesheet" href="tire-cart.css?v=18" />
+    <link rel="stylesheet" href="tire-cart.css?v=23" />
     <link rel="stylesheet" href="/footer-section.css?v=5" />
   </head>
   <body class="tire-cart-page">
@@ -88,13 +88,6 @@
                 <div><dt>HST</dt><dd data-tire-cart-hst>$0.00</dd></div>
                 <div class="is-total"><dt>Total</dt><dd data-tire-cart-grand-total>$0.00</dd></div>
               </dl>
-            </div>
-            <div class="tire-checkout-auth" data-tire-checkout-auth hidden>
-              <strong>Please sign up or log in before paying.</strong>
-              <div class="tire-checkout-auth-actions">
-                <a class="button button-primary" href="/login.html?redirect=/tire-cart.html">Log In</a>
-                <a class="button button-secondary" href="/signup.html?redirect=/tire-cart.html">Create Account</a>
-              </div>
             </div>
             <form data-tire-reservation-form>
               <fieldset class="new-tire-choice">
@@ -179,7 +172,15 @@
                 </div>
               </div>
               <div class="new-tire-shop-details" data-shop-install-details hidden>
-                <div class="new-tire-install-price" data-install-price aria-live="polite"></div>
+                <div class="new-tire-shop-compare">
+                  <article class="new-tire-selected" data-used-tire-selected>
+                    <span>Selected tire</span>
+                    <dl class="new-tire-selected-facts" data-used-tire-selected-label></dl>
+                  </article>
+                  <p class="new-tire-shop-plus" aria-hidden="true">+</p>
+                  <div class="new-tire-install-price" data-install-price aria-live="polite"></div>
+                </div>
+                <div class="new-tire-price-summary" data-install-price-summary hidden></div>
               </div>
               <p class="tire-cart-message" data-tire-cart-message></p>
               <button class="button button-primary new-tire-submit tire-checkout-submit" type="button" data-tire-checkout-button hidden>ORDER</button>
@@ -267,7 +268,7 @@
           services.src = 'appointment-services.js?v=5';
           services.onload = function () {
             var cart = document.createElement('script');
-            cart.src = 'tire-cart.js?v=12';
+            cart.src = 'tire-cart.js?v=16';
             document.body.appendChild(cart);
           };
           document.body.appendChild(services);

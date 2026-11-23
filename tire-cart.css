@@ -39,6 +39,15 @@
   margin-top: 0;
 }
 
+.tire-cart-panel h1,
+.tire-cart-panel h2 {
+  max-width: none;
+  font-size: clamp(1.55rem, 2vw, 1.9rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+}
+
 .tire-order-success h1 {
   margin: 0 0 14px;
   max-width: none;
@@ -234,11 +243,13 @@
 
 .tire-reservation-panel .new-tire-choice-card input {
   position: absolute;
-  top: 16px;
+  top: 50%;
   left: 14px;
   width: 18px;
   height: 18px;
+  margin: 0;
   accent-color: #df1f2d;
+  transform: translateY(-50%);
 }
 
 .tire-reservation-panel .new-tire-choice-title {
@@ -282,17 +293,17 @@
 
 .tire-reservation-panel .new-tire-price-summary {
   display: grid;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid rgba(223, 31, 45, 0.22);
-  border-radius: 14px;
-  background: #fff8f8;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #d8dade;
+  border-radius: 8px;
+  background: #fff;
 }
 
 .tire-reservation-panel .new-tire-install-price-title {
   margin: 0;
   color: #111317;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 800;
 }
 
@@ -324,8 +335,8 @@
 }
 
 .tire-reservation-panel .new-tire-price-summary .is-total {
-  padding-top: 6px;
-  border-top: 1px solid rgba(223, 31, 45, 0.18);
+  padding-top: 8px;
+  border-top: 1px solid #d8dade;
 }
 
 .tire-reservation-panel .new-tire-price-summary .is-total dt,
@@ -776,10 +787,97 @@
   background: #f4f5f7;
 }
 
+.tire-reservation-panel .new-tire-shop-compare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.tire-reservation-panel .new-tire-shop-compare:has(.new-tire-selected[hidden]) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.tire-reservation-panel .new-tire-shop-compare:has(.new-tire-selected[hidden]) .new-tire-shop-plus {
+  display: none;
+}
+
+.tire-reservation-panel .new-tire-shop-plus {
+  margin: 0;
+  align-self: center;
+  color: #111317;
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.tire-reservation-panel .new-tire-shop-plus[hidden],
+.tire-reservation-panel .new-tire-selected[hidden] {
+  display: none;
+}
+
+.tire-reservation-panel .new-tire-selected {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 2px solid #df1f2d;
+  border-radius: 14px;
+  background: #fff8f8;
+}
+
+.tire-reservation-panel .new-tire-selected > span {
+  color: #8a2430;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tire-reservation-panel .new-tire-selected-facts {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 6px 0 2px;
+  border-top: 1px solid rgba(223, 31, 45, 0.12);
+}
+
+.tire-reservation-panel .new-tire-selected-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  width: 100%;
+}
+
+.tire-reservation-panel .new-tire-selected-facts dt {
+  margin: 0;
+  color: #8a2430;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tire-reservation-panel .new-tire-selected-facts dd {
+  margin: 0;
+  min-width: 0;
+  color: #111317;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
 .tire-reservation-panel .new-tire-install-price {
   display: grid;
-  gap: 8px;
-  padding: 14px;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
   border: 1px solid rgba(223, 31, 45, 0.22);
   border-radius: 14px;
   background: #fff8f8;
@@ -807,8 +905,9 @@
 }
 
 .tire-reservation-panel .new-tire-install-price dt {
-  color: #5b616b;
-  font-size: 0.88rem;
+  color: #34363a;
+  font-size: 0.92rem;
+  font-weight: 650;
 }
 
 .tire-reservation-panel .new-tire-install-price dd {
@@ -817,7 +916,153 @@
   text-align: right;
 }
 
+.tire-reservation-panel .new-tire-shop-compare .new-tire-install-price dt {
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.tire-reservation-panel .new-tire-shop-compare .new-tire-install-price dd {
+  font-size: 0.9rem;
+}
+
 .tire-reservation-panel .new-tire-install-price .is-total {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(223, 31, 45, 0.18);
+}
+
+.shell.tire-cart-layout:has(.tire-reservation-panel.is-installing) {
+  width: min(calc(100% - 32px), 1360px);
+}
+
+[data-tire-cart-shop].tire-cart-layout:has(.tire-reservation-panel.is-installing) {
+  grid-template-columns: minmax(320px, 0.72fr) minmax(560px, 1.28fr);
+  gap: 28px;
+}
+
+.tire-reservation-panel.is-installing {
+  gap: 22px;
+  padding: 28px;
+}
+
+.tire-reservation-panel form {
+  display: grid;
+  gap: 20px;
+}
+
+.tire-reservation-panel.is-installing .new-tire-choice {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.tire-reservation-panel.is-installing .new-tire-choice legend {
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+  font-size: 1.15rem;
+}
+
+.tire-reservation-panel.is-installing .new-tire-choice-card {
+  min-height: 0;
+  padding: 10px 14px 10px 44px;
+  align-content: center;
+}
+
+.tire-reservation-panel.is-shop-booking form {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.92fr);
+  column-gap: 32px;
+  row-gap: 24px;
+  align-items: start;
+}
+
+.tire-reservation-panel.is-shop-booking form > .new-tire-choice,
+.tire-reservation-panel.is-shop-booking form > .new-tire-shop-details,
+.tire-reservation-panel.is-shop-booking form > .tire-cart-message,
+.tire-reservation-panel.is-shop-booking form > .tire-checkout-submit {
+  grid-column: 1 / -1;
+}
+
+.tire-reservation-panel.is-shop-booking form > .new-tire-install-location,
+.tire-reservation-panel.is-shop-booking form > .new-tire-shop-booking {
+  grid-column: 1;
+}
+
+.tire-reservation-panel.is-shop-booking form > .new-tire-customer {
+  grid-column: 2;
+  grid-row: 2 / span 2;
+}
+
+.tire-reservation-panel.is-shop-booking .new-tire-location-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: none;
+}
+
+.tire-reservation-panel.is-shop-booking > .new-tire-price-summary {
+  display: none;
+}
+
+.tire-reservation-panel .new-tire-shop-details > .new-tire-price-summary {
+  border: 1px solid rgba(223, 31, 45, 0.22);
+  border-radius: 14px;
+  background: #fff8f8;
+}
+
+.tire-reservation-panel .new-tire-shop-details > .new-tire-price-summary .is-total {
   padding-top: 6px;
   border-top: 1px solid rgba(223, 31, 45, 0.18);
+}
+
+.tire-reservation-panel.is-shop-booking .new-tire-location-option,
+.tire-reservation-panel.is-installing .new-tire-location-option {
+  min-height: 92px;
+  padding: 16px 18px;
+}
+
+.tire-reservation-panel.is-shop-booking .new-tire-customer-person,
+.tire-reservation-panel.is-shop-booking .new-tire-shop-booking {
+  gap: 16px;
+}
+
+.tire-reservation-panel.is-shop-booking .new-tire-customer legend,
+.tire-reservation-panel.is-shop-booking .new-tire-customer-subhead,
+.tire-reservation-panel.is-shop-booking .new-tire-location-menu legend {
+  margin-bottom: 8px;
+  font-size: 1.15rem;
+}
+
+.tire-reservation-panel.is-installing .new-tire-price-summary {
+  padding: 18px 20px;
+  gap: 12px;
+}
+
+.tire-reservation-panel.is-installing .new-tire-price-summary dl {
+  gap: 10px;
+}
+
+@media (max-width: 760px) {
+  .tire-reservation-panel .new-tire-shop-compare,
+  .tire-reservation-panel .new-tire-shop-compare:has(.new-tire-selected[hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tire-reservation-panel .new-tire-shop-plus {
+    justify-self: center;
+  }
+}
+
+@media (max-width: 980px) {
+  [data-tire-cart-shop].tire-cart-layout:has(.tire-reservation-panel.is-installing) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tire-reservation-panel.is-shop-booking form,
+  .tire-reservation-panel.is-installing .new-tire-choice {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tire-reservation-panel.is-shop-booking form > .new-tire-install-location,
+  .tire-reservation-panel.is-shop-booking form > .new-tire-shop-booking,
+  .tire-reservation-panel.is-shop-booking form > .new-tire-customer {
+    grid-column: 1;
+    grid-row: auto;
+  }
 }

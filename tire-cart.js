@@ -54,10 +54,6 @@ function installationDirections() {
   return document.querySelector('[data-installation-directions]');
 }
 
-function checkoutAuth() {
-  return document.querySelector('[data-tire-checkout-auth]');
-}
-
 function checkoutButtonEl() {
   return document.querySelector('[data-tire-checkout-button]');
 }
@@ -139,6 +135,7 @@ function renderInstallPrice() {
   const box = document.querySelector('[data-install-price]');
   if (!box) return;
   const quote = offRimInstallQuote();
+  renderSelectedTires();
   if (!quote.ok) {
     box.innerHTML = `<p>${escapeHtml(quote.message)}</p>`;
     return;
@@ -160,11 +157,37 @@ function renderInstallPrice() {
   `;
 }
 
+function renderSelectedTires() {
+  const article = document.querySelector('[data-used-tire-selected]');
+  const label = document.querySelector('[data-used-tire-selected-label]');
+  const plus = document.querySelector('.tire-reservation-panel .new-tire-shop-plus');
+  if (!article || !label) return;
+  const items = tireCart.filter((item) => !item.unavailable && Number(item.qty) > 0);
+  article.hidden = !items.length;
+  if (plus) plus.hidden = !items.length;
+  const title = article.querySelector('span');
+  if (title) title.textContent = items.length > 1 ? 'Selected tires' : 'Selected tire';
+  label.innerHTML = items.map((item) => {
+    const rows = [
+      ['Brand', item.brand || '—'],
+      ...(item.model ? [['Model', item.model]] : []),
+      ['Size', item.size || '—'],
+      ['Quantity', String(item.qty)],
+      ['Price', formatMoney(itemLineTotal(item))],
+    ];
+    return rows.map(([name, value]) => (
+      `<div class="new-tire-selected-row"><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(value)}</dd></div>`
+    )).join('');
+  }).join('');
+}
+
 function renderCheckoutSummary() {
-  const summary = document.querySelector('.tire-reservation-panel .new-tire-price-summary dl');
-  if (!summary) return;
+  const summary = document.querySelector('.tire-reservation-panel > .new-tire-price-summary dl');
+  const installSummary = document.querySelector('[data-install-price-summary]');
   const tires = getCartTotals();
   if (!shopInstallSelected()) {
+    if (installSummary) installSummary.hidden = true;
+    if (!summary) return;
     summary.innerHTML = `
       <div><dt>Subtotal</dt><dd data-tire-cart-total>${escapeHtml(formatMoney(tires.subtotal))}</dd></div>
       <div><dt>HST</dt><dd data-tire-cart-hst>${escapeHtml(formatMoney(tires.hstAmount))}</dd></div>
@@ -173,14 +196,25 @@ function renderCheckoutSummary() {
     return;
   }
   const quote = offRimInstallQuote();
-  const install = quote.ok ? quote.subtotal : 0;
-  const hst = quote.ok ? quote.hst : 0;
-  const total = roundMoney(tires.subtotal + install + hst);
-  summary.innerHTML = `
-    <div><dt>Tires</dt><dd data-tire-cart-total>${escapeHtml(formatMoney(tires.subtotal))}</dd></div>
-    <div><dt>Off-rim swap + balance</dt><dd>${escapeHtml(formatMoney(install))}</dd></div>
-    <div><dt>HST (13%)</dt><dd data-tire-cart-hst>${escapeHtml(formatMoney(hst))}</dd></div>
-    <div class="is-total"><dt>Total</dt><dd data-tire-cart-grand-total>${escapeHtml(formatMoney(total))}</dd></div>
+  const install = quote.ok ? quote.total : 0;
+  const total = roundMoney(tires.subtotal + install);
+  if (summary) {
+    summary.innerHTML = `
+      <div><dt>Selected tire</dt><dd data-tire-cart-total>${escapeHtml(formatMoney(tires.subtotal))}</dd></div>
+      <div><dt>Off-rim swap + balance</dt><dd>${escapeHtml(formatMoney(install))}</dd></div>
+      <div class="is-total"><dt>Total</dt><dd data-tire-cart-grand-total>${escapeHtml(formatMoney(total))}</dd></div>
+    `;
+  }
+  if (!installSummary) return;
+  installSummary.hidden = !quote.ok;
+  if (!quote.ok) return;
+  installSummary.innerHTML = `
+    <p class="new-tire-install-price-title">Price summary</p>
+    <dl>
+      <div><dt>${tires.subtotal && tireCart.filter((item) => !item.unavailable && Number(item.qty) > 0).length > 1 ? 'Selected tires' : 'Selected tire'}</dt><dd>${escapeHtml(formatMoney(tires.subtotal))}</dd></div>
+      <div><dt>Off-rim swap + balance</dt><dd>${escapeHtml(formatMoney(install))}</dd></div>
+      <div class="is-total"><dt>Total</dt><dd>${escapeHtml(formatMoney(total))}</dd></div>
+    </dl>
   `;
 }
 
@@ -219,16 +253,19 @@ function syncInstallPanel() {
     button.classList.toggle('is-selected', selected);
     if (!button.disabled) button.setAttribute('aria-pressed', selected ? 'true' : 'false');
   });
+  document.querySelector('.tire-reservation-panel')?.classList.toggle('is-installing', installing);
+  document.querySelector('.tire-reservation-panel')?.classList.toggle('is-shop-booking', showShop);
   const customer = document.querySelector('[data-summary-customer]');
   const booking = document.querySelector('[data-shop-booking]');
   const details = document.querySelector('[data-shop-install-details]');
-  if (customer) customer.hidden = !showShop;
+  const showCustomer = installing || selectedFulfillment() === 'Pickup';
+  if (customer) customer.hidden = !showCustomer;
   if (booking) booking.hidden = !showShop;
   if (details) details.hidden = !showShop;
+  if (showCustomer && currentProfile) fillCustomerFields(currentProfile);
   if (showShop) {
     syncInstallTimes();
     renderInstallPrice();
-    if (currentProfile) fillCustomerFields(currentProfile);
   }
   renderCheckoutSummary();
   updateTireCheckoutButtonState();
@@ -482,43 +519,53 @@ function fillCustomerFields(profile) {
   if (phone && !phone.value && profile.phone) phone.value = profile.phone;
 }
 
-function readInstallCustomer(profile) {
+function readCheckoutCustomer(profile) {
   const first = getFormValue('First Name');
   const last = getFormValue('Last Name');
   const email = getFormValue('Email Address') || profile?.email || '';
   const phone = getFormValue('Phone Number') || profile?.phone || '';
   const contact = getFormValue('Preferred Contact');
   const name = `${first} ${last}`.trim();
-  if (!first || !last) return { ok: false, message: 'Enter your first and last name before payment.' };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: 'Enter a valid email address before payment.' };
-  if (phone.replace(/\D/g, '').length < 10) return { ok: false, message: 'Enter a phone number with at least 10 digits before payment.' };
-  if (contact !== 'email' && contact !== 'phone') return { ok: false, message: 'Choose email or phone as the way to reach you.' };
+  if (!first || !last) return { ok: false, message: 'Enter your first and last name before payment.', focus: '[data-customer-first]' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: 'Enter a valid email address before payment.', focus: '[data-customer-email]' };
+  if (phone.replace(/\D/g, '').length < 10) return { ok: false, message: 'Enter a phone number with at least 10 digits before payment.', focus: '[data-customer-phone]' };
+  if (contact !== 'email' && contact !== 'phone') return { ok: false, message: 'Choose email or phone as the way to reach you.', focus: '[data-customer-contact]' };
+  return {
+    ok: true,
+    customer: {
+      customerId: profile?.customerId || profile?.id || '',
+      name,
+      email,
+      phone,
+      contact,
+    },
+  };
+}
+
+function readInstallCustomer(profile) {
+  const ready = readCheckoutCustomer(profile);
+  if (!ready.ok) return ready;
   const plate = getFormValue('Vehicle Plate Number').toUpperCase();
   const date = getFormValue('Preferred Date');
   const time = getFormValue('Preferred Time Window');
-  if (plate.length < 2) return { ok: false, message: 'Enter the license plate for this installation.' };
+  if (plate.length < 2) return { ok: false, message: 'Enter the license plate for this installation.', focus: '[data-install-plate]' };
   if (!date || date < earliestInstallDateValue() || !time) {
-    return { ok: false, message: 'Choose an appointment date and time before payment.' };
+    return { ok: false, message: 'Choose an appointment date and time before payment.', focus: '[data-install-date]' };
   }
   const arrivalDay = date === earliestInstallDateValue();
   const start = timeWindowStartMinutes(time);
   if (!INSTALL_TIME_WINDOWS.includes(time) || (arrivalDay && start !== null && start < INSTALL_ARRIVAL_START_MINUTES)) {
-    return { ok: false, message: 'The first installation day starts at 1:00 PM. Choose a later time.' };
+    return { ok: false, message: 'The first installation day starts at 1:00 PM. Choose a later time.', focus: '[data-install-time-toggle]' };
   }
   return {
     ok: true,
-    customer: {
-      customerId: profile.customerId || profile.id || '',
-      name,
-      email,
-      phone,
-    },
+    customer: ready.customer,
     installation: {
       location: 'shop',
       plate,
       date,
       time,
-      contact,
+      contact: ready.customer.contact,
     },
   };
 }
@@ -549,7 +596,6 @@ async function hydrateCustomerAccount() {
     }
   }
 
-  if (checkoutAuth()) checkoutAuth().hidden = Boolean(currentProfile);
   if (currentProfile) fillCustomerFields(currentProfile);
   renderTireCart();
 }
@@ -624,43 +670,23 @@ async function startTireStripeCheckout() {
     return;
   }
 
-  if (!window.EastCordAccount?.isAuthConfigured?.()) {
-    setCartMessage(window.EastCordAccount?.setupMessage || 'Account system is being connected. Please check back soon.');
-    return;
-  }
-
-  const profile = currentProfile || await window.EastCordAccount.getCurrentProfile();
-  let customer = {
-    customerId: profile?.customerId || profile?.id || '',
-    name: profile?.name || '',
-    email: profile?.email || '',
-    phone: profile?.phone || '',
-  };
+  const profile = currentProfile || await window.EastCordAccount?.getCurrentProfile?.().catch(() => null);
   let installation = null;
+  let ready = readCheckoutCustomer(profile);
   if (selectedFulfillment() === 'Installation') {
     if (installLocation !== 'shop') {
       setCartMessage('Choose the EastCord shop before ordering installation.');
       return;
     }
-    const ready = readInstallCustomer(profile || {});
-    if (!ready.ok) {
-      setCartMessage(ready.message);
-      return;
-    }
-    customer = ready.customer;
-    installation = ready.installation;
+    ready = readInstallCustomer(profile);
   }
-
-  if (!profile) {
-    if (checkoutAuth()) checkoutAuth().hidden = false;
-    setCartMessage('Please sign up or log in before paying.');
+  if (!ready.ok) {
+    setCartMessage(ready.message);
+    document.querySelector(ready.focus || '[data-customer-first]')?.focus();
     return;
   }
-
-  if (!customer.customerId || !customer.name || !customer.email || !customer.phone) {
-    setCartMessage('Please complete your name, email, and phone before paying.');
-    return;
-  }
+  const customer = ready.customer;
+  installation = ready.installation || null;
 
   const button = checkoutButtonEl();
   if (button) {
@@ -670,7 +696,7 @@ async function startTireStripeCheckout() {
   setCartMessage('Saving the order and opening Stripe test checkout...');
 
   try {
-    const token = await window.EastCordAccount.getAccessToken();
+    const token = await window.EastCordAccount?.getAccessToken?.();
     const response = await fetch('/.netlify/functions/create-used-tire-checkout-session', {
       method: 'POST',
       headers: {

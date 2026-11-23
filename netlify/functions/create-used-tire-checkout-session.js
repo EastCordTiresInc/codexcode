@@ -18,10 +18,6 @@ function json(statusCode, payload) {
   };
 }
 
-function required(value) {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
 function getBearerToken(event) {
   const header = event.headers.authorization || event.headers.Authorization || '';
   return header.startsWith('Bearer ') ? header.slice(7) : '';
@@ -138,6 +134,7 @@ function readInstallation(payload) {
 
 async function insertInstallBooking(supabaseAdmin, row) {
   const payload = { ...row };
+  if (!payload.customer_id) delete payload.customer_id;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const { data, error } = await supabaseAdmin.from('appointment_bookings').insert(payload).select('id').single();
     if (!error) return data?.id || '';
@@ -150,6 +147,22 @@ async function insertInstallBooking(supabaseAdmin, row) {
     return '';
   }
   return '';
+}
+
+async function insertUsedTireOrder(supabaseAdmin, row) {
+  const payload = { ...row };
+  if (!payload.customer_id) delete payload.customer_id;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const { data, error } = await supabaseAdmin.from('used_tire_orders').insert(payload).select('id').single();
+    if (!error) return { order: data };
+    const missing = String(error.message || '').match(/Could not find the '([^']+)' column/i)?.[1];
+    if (missing && Object.prototype.hasOwnProperty.call(payload, missing)) {
+      delete payload[missing];
+      continue;
+    }
+    return { error };
+  }
+  return { error: { message: 'The used tire order could not be created.' } };
 }
 
 function normalizeCartItems(items) {
@@ -185,14 +198,21 @@ exports.handler = async (event) => {
   const fulfillmentPreference = payload.fulfillmentPreference === 'Installation' ? 'Installation' : 'Pickup';
 
   if (!cartItems.length) return json(400, { message: 'Add at least one used tire before checkout.' });
-  if (!required(customer.customerId) || !required(customer.email) || !required(customer.name) || !required(customer.phone)) {
-    return json(400, { message: 'Please complete your name, email, and phone before checkout.' });
+  const customerName = String(customer.name || '').trim();
+  const customerEmail = String(customer.email || '').trim();
+  const customerPhone = String(customer.phone || '').trim();
+  const preferredContact = customer.contact === 'phone' ? 'phone' : 'email';
+  if (customerName.split(/\s+/).filter(Boolean).length < 2) {
+    return json(400, { message: 'Enter your first and last name before checkout.' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+    return json(400, { message: 'Enter a valid email address before checkout.' });
+  }
+  if (customerPhone.replace(/\D/g, '').length < 10) {
+    return json(400, { message: 'Enter a phone number with at least 10 digits before checkout.' });
   }
 
   const verifiedUser = await getVerifiedUser(event, supabaseAdmin);
-  if (!verifiedUser || verifiedUser.id !== customer.customerId) {
-    return json(401, { message: 'Please log in before buying used tires.' });
-  }
 
   const preparedItems = [];
   for (const item of cartItems) {
@@ -279,36 +299,41 @@ exports.handler = async (event) => {
     }])
     : preparedItems;
 
-  const { data: order, error: orderError } = await supabaseAdmin
-    .from('used_tire_orders')
-    .insert({
-      customer_id: verifiedUser.id,
-      customer_name: customer.name,
-      customer_email: customer.email,
-      customer_phone: customer.phone,
-      fulfillment_preference: fulfillmentPreference,
-      items: orderItems,
-      subtotal: amounts.subtotal,
-      hst_amount: amounts.hstAmount,
-      total_with_hst: amounts.totalWithHst,
-      tax_rate: amounts.taxRate,
-      payment_status: 'pending_checkout',
-      fulfillment_status: 'unfulfilled',
-    })
-    .select('id')
-    .single();
+  const orderInsert = await insertUsedTireOrder(supabaseAdmin, {
+    customer_id: verifiedUser?.id || '',
+    customer_name: customerName,
+    customer_email: customerEmail,
+    customer_phone: customerPhone,
+    preferred_contact: preferredContact,
+    fulfillment_preference: fulfillmentPreference,
+    items: orderItems,
+    subtotal: amounts.subtotal,
+    hst_amount: amounts.hstAmount,
+    total_with_hst: amounts.totalWithHst,
+    tax_rate: amounts.taxRate,
+    payment_status: 'pending_checkout',
+    fulfillment_status: 'unfulfilled',
+  });
+  const order = orderInsert.order;
+  const orderError = orderInsert.error;
 
   if (orderError || !order) {
-    return json(500, { message: orderError?.message || 'The used tire order could not be created. Run supabase/used-tire-orders-schema.sql in Supabase first.' });
+    const detail = orderError?.message || 'The used tire order could not be created.';
+    const needsGuestColumn = /customer_id/i.test(detail) && /null|not-null/i.test(detail);
+    return json(500, {
+      message: needsGuestColumn
+        ? 'Used tire orders still require an account in the database. Run supabase/used-tire-guest-checkout.sql in the Supabase SQL editor, then try again.'
+        : detail,
+    });
   }
 
   let appointmentId = '';
   if (install) {
     appointmentId = await insertInstallBooking(supabaseAdmin, {
-      customer_id: verifiedUser.id,
-      customer_name: customer.name,
-      customer_email: customer.email,
-      customer_phone: customer.phone,
+      customer_id: verifiedUser?.id || '',
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
       service_id: 'off-rim-swap',
       service_name: 'Off-rim swap + balance',
       starting_price: install.subtotal,
@@ -357,7 +382,7 @@ exports.handler = async (event) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
-      customer_email: customer.email,
+      customer_email: customerEmail,
       line_items: [
         ...preparedItems.map((item) => ({
           price_data: {
@@ -398,7 +423,11 @@ exports.handler = async (event) => {
       metadata: {
         order_type: 'used_tire',
         order_id: order.id,
-        customer_id: verifiedUser.id,
+        customer_id: verifiedUser?.id || '',
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        preferred_contact: preferredContact,
         appointment_id: appointmentId,
       },
     });

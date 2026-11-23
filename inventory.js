@@ -1634,35 +1634,33 @@ function renderUsedTireDetail(root) {
           <dl class="used-tire-detail-facts">
             ${facts.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}
           </dl>
-          <p class="used-list-price"><strong class="used-tire-card-price">${escapeHtml(formatPrice(shownPrice))}</strong></p>
-          <label class="used-list-qty" for="used-tire-detail-qty">
-            <span>Quantity</span>
-            <select
-              id="used-tire-detail-qty"
-              class="used-tire-card-qty"
-              data-unit-price="${unitPrice ?? ''}"
-              ${item.priceIsFinal ? `data-set-price="${listPrice ?? ''}" data-set-count="${pricedSetCount}"` : ''}
-              ${stockCount ? '' : 'disabled'}
-            >${qtyOptions}</select>
-          </label>
-          <p class="used-list-total">Total <strong data-line-total>${escapeHtml(formatPrice(linePrice))}</strong></p>
-          <div class="used-tire-detail-actions">
-            <button
-              class="used-tire-card-cta"
-              type="button"
-              data-tire-cart-action="add"
-              data-inventory-id="${escapeHtml(item.id)}"
-              ${stockCount && unitPrice !== null ? '' : 'disabled'}
-            >Add to cart</button>
-            <button
-              class="used-tire-card-cta is-secondary"
-              type="button"
-              data-tire-cart-action="reserve"
-              data-inventory-id="${escapeHtml(item.id)}"
-              ${stockCount && unitPrice !== null ? '' : 'disabled'}
-            >Reserve</button>
+          <div class="used-tire-detail-buy">
+            <p class="used-list-price">
+              <span class="used-tire-card-price-label">${item.priceIsFinal ? `Set of ${defaultQty}` : 'Per tire'}</span>
+              <strong class="used-tire-card-price">${escapeHtml(formatPrice(shownPrice))}</strong>
+            </p>
+            <label class="used-list-qty" for="used-tire-detail-qty">
+              <span>Quantity</span>
+              <select
+                id="used-tire-detail-qty"
+                class="used-tire-card-qty"
+                data-unit-price="${unitPrice ?? ''}"
+                ${item.priceIsFinal ? `data-set-price="${listPrice ?? ''}" data-set-count="${pricedSetCount}"` : ''}
+                ${stockCount ? '' : 'disabled'}
+              >${qtyOptions}</select>
+            </label>
+            <p class="used-list-total"><span>Total</span><strong data-line-total>${escapeHtml(formatPrice(linePrice))}</strong></p>
+            <div class="used-tire-detail-actions">
+              <button
+                class="used-tire-card-cta"
+                type="button"
+                data-tire-cart-action="add"
+                data-inventory-id="${escapeHtml(item.id)}"
+                ${stockCount && unitPrice !== null ? '' : 'disabled'}
+              >Add to cart</button>
+            </div>
+            <p class="used-tire-card-cart-status" data-tire-cart-status aria-live="polite"></p>
           </div>
-          <p class="used-tire-card-cart-status" data-tire-cart-status aria-live="polite"></p>
         </div>
       </div>
     </article>
