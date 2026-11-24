@@ -252,8 +252,6 @@
     <script src="account.js?v=73"></script>
     <script>
       (function () {
-        var isLocal = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
-        if (!isLocal) return;
         document.title = 'Tire Cart | EastCord Tires';
         var unavailable = document.querySelector('[data-tire-cart-unavailable]');
         var shop = document.querySelector('[data-tire-cart-shop]');

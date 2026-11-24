@@ -288,9 +288,6 @@
     <script src="account.js?v=59"></script>
     <script>
       (function () {
-        var isLocal = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
-        if (!isLocal) return;
-
         document.title = 'Used Tires | EastCord Tires';
         var description = document.querySelector('meta[name="description"]');
         if (description) {
@@ -308,7 +305,7 @@
         if (status) status.textContent = 'Connecting to inventory...';
 
         var inventory = document.createElement('script');
-        inventory.src = 'inventory.js?v=84';
+        inventory.src = 'inventory.js?v=91';
 
         var pricing = document.createElement('script');
         pricing.src = 'used-tire-pricing.js?v=4';

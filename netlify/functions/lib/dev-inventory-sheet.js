@@ -7,7 +7,7 @@ const {
 } = require('./google-sheets-inventory');
 
 const DEV_TABLE = 'usedtireinventory_dev';
-const DEV_SPREADSHEET_ID = '1XT8rJkLNrfAz4Ud4M3DBa116JFABN0dQk2ZhCNPTJLw';
+const DEV_SPREADSHEET_ID = '1OckNV-6TOhdOpq2vMhdprxpOy-w5GIPEEOuu32JIaG8';
 
 function devSpreadsheetId() {
   return String(process.env.GOOGLE_SHEETS_DEV_ID || DEV_SPREADSHEET_ID).trim();

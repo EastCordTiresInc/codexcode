@@ -21,33 +21,52 @@ exports.handler = async function getUsedInventory(event) {
   params.append('order', 'tire_size.asc');
 
   const url = `${supabaseUrl}/rest/v1/${inventoryTableName()}?${params.toString()}`;
+  const headers = {
+    apikey: supabaseAnonKey,
+    Authorization: `Bearer ${supabaseAnonKey}`,
+    Accept: 'application/json',
+  };
 
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
-        Accept: 'application/json',
-      },
-    });
-
-    const body = await response.text();
-
-    return {
-      statusCode: response.status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store',
-      },
-      body,
-    };
+    const rows = await fetchAllInventoryRows(url, headers);
+    return jsonResponse(200, rows);
   } catch (error) {
     return jsonResponse(502, {
       message: error.message || 'Could not reach Supabase from the server.',
     });
   }
 };
+
+async function fetchAllInventoryRows(url, headers) {
+  const pageSize = 1000;
+  const rows = [];
+
+  for (let offset = 0; offset < 20000; offset += pageSize) {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        ...headers,
+        Range: `${offset}-${offset + pageSize - 1}`,
+      },
+    });
+
+    if (response.status === 416) break;
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(`Inventory request failed (${response.status}): ${detail.slice(0, 240)}`);
+    }
+
+    const page = await response.json();
+    if (!Array.isArray(page)) {
+      throw new Error('Unexpected inventory response format.');
+    }
+    if (page.length && rows.some((row) => row.id === page[0].id)) break;
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  return rows;
+}
 
 function jsonResponse(statusCode, body) {
   return {

@@ -468,6 +468,10 @@ function isOlderDot(value) {
   return years.every((year) => year < DOT_SALE_BEFORE_YEAR);
 }
 
+function tirePhotoLink(item) {
+  return isPhotoLink(item?.details) ? item.details : '';
+}
+
 function bindInventoryControls() {
   const { form, width, profile, rim, brand } = getElements();
 
@@ -576,7 +580,7 @@ function setSearchReadyState() {
 
 function listingInventory() {
   const saleOnly = getElements().listing?.value === 'sale';
-  return inventory.filter((item) => isInStock(item) && Boolean(item.dotSale) === saleOnly);
+  return inventory.filter((item) => isInStock(item) && (!saleOnly || item.dotSale));
 }
 
 function populateSearchOptions() {
@@ -716,7 +720,7 @@ function matchesSearchFilters(item, filters) {
     return false;
   }
 
-  if ((filters.listing === 'sale') !== Boolean(item.dotSale)) return false;
+  if (filters.listing === 'sale' && !item.dotSale) return false;
 
   return true;
 }
@@ -807,11 +811,8 @@ function countInStockMatches(filters) {
   return inventory.filter((item) => isInStock(item) && matchesSearchFilters(item, filters)).length;
 }
 
-function saleListingHint(filters) {
-  if (filters.listing === 'sale') return '';
-  const saleCount = countInStockMatches({ ...filters, listing: 'sale' });
-  if (!saleCount) return '';
-  return ` ${saleCount} in Sale.`;
+function saleListingHint() {
+  return '';
 }
 
 function syncListingHeading(filters) {
@@ -1162,7 +1163,7 @@ function renderMarkdownRow(item) {
   }).join('');
   const lastClass = stockCount === 1 ? ' is-last' : '';
   const canBuy = stockCount > 0 && unitPrice !== null;
-  const photoLink = isPhotoLink(item.details) ? item.details : '';
+  const photoLink = tirePhotoLink(item);
 
   return `
     <article class="used-markdown-row">
@@ -1228,7 +1229,7 @@ function renderUsedTireCard(item, cardIndex = 0, options = {}) {
   const setTotal = item.priceIsFinal
     ? listedSetPrice(listPrice, pricedSetCount, defaultQty)
     : (unitPrice === null ? null : unitPrice * defaultQty);
-  const photoLink = isPhotoLink(item.details) ? item.details : '';
+  const photoLink = tirePhotoLink(item);
   const qtyId = `used-tire-qty-${idPrefix}${item.id}`;
 
   const qtyOptions = Array.from({ length: maxQty }, (_, index) => {
@@ -1514,7 +1515,7 @@ function renderUsedTireListRow(item, cardIndex = 0) {
     ? listedSetPrice(listPrice, pricedSetCount, defaultQty)
     : (unitPrice === null ? null : unitPrice * defaultQty);
   const shownPrice = item.priceIsFinal ? linePrice : unitPrice;
-  const photoLink = isPhotoLink(item.details) ? item.details : '';
+  const photoLink = tirePhotoLink(item);
   const qtyId = `used-list-qty-${item.id}`;
   const title = [brandLabel, item.model].filter(Boolean).join(' ') || item.title;
   const qtyOptions = Array.from({ length: maxQty }, (_, index) => {
@@ -1595,7 +1596,7 @@ function renderUsedTireDetail(root) {
     ? listedSetPrice(listPrice, pricedSetCount, defaultQty)
     : (unitPrice === null ? null : unitPrice * defaultQty);
   const shownPrice = item.priceIsFinal ? linePrice : unitPrice;
-  const photoLink = isPhotoLink(item.details) ? item.details : '';
+  const photoLink = tirePhotoLink(item);
   const title = [brandLabel, item.model].filter(Boolean).join(' ') || item.title;
   document.title = `${title} | EastCord Tires`;
 
@@ -1603,7 +1604,7 @@ function renderUsedTireDetail(root) {
     ['Size', item.size],
     ['Season', seasonLabel],
     ['Model', item.model],
-    ['DOT', item.dot],
+    ['DOT', 'N/A'],
     ['Stock', stockCount ? `${stockCount} in stock` : 'Out of stock'],
     ['Note', item.note],
   ].filter(([, value]) => clean(value));
@@ -1679,6 +1680,7 @@ const PHOTO_LIST_ENDPOINTS = [
   '/.netlify/functions/get-tire-photos',
   '/.netlify/functions/get-drive-photos',
 ];
+const PHOTO_REQUEST_VERSION = '4';
 const PHOTO_PROXY_ENDPOINTS = [
   '/.netlify/functions/get-tire-image',
   '/.netlify/functions/get-drive-photo',
@@ -1885,6 +1887,7 @@ function buildPhotoProxyUrl(photoId, size = `w${CARD_PHOTO_PIXELS}`, endpointInd
   const params = new URLSearchParams({
     id: photoId,
     sz: size,
+    v: PHOTO_REQUEST_VERSION,
   });
   return `${endpoint}?${params.toString()}`;
 }
@@ -1908,20 +1911,20 @@ function toPhotoEntry(file) {
 function buildCardPhotoSources(photo) {
   const id = photo.id;
   return [...new Set([
+    buildPhotoProxyUrl(id, `w${CARD_PHOTO_PIXELS}`, 0),
+    buildPhotoProxyUrl(id, `w${CARD_PHOTO_PIXELS}`, 1),
     photo.url,
     buildGoogleThumbUrl(id, CARD_PHOTO_PIXELS),
     buildDriveThumbUrl(id, CARD_PHOTO_PIXELS),
-    buildPhotoProxyUrl(id, `w${CARD_PHOTO_PIXELS}`, 0),
-    buildPhotoProxyUrl(id, `w${CARD_PHOTO_PIXELS}`, 1),
   ].filter(Boolean))];
 }
 
 function buildZoomSources(photoId) {
   return [
-    buildGoogleThumbUrl(photoId, ZOOM_PHOTO_PIXELS),
-    buildDriveThumbUrl(photoId, ZOOM_PHOTO_PIXELS),
     buildPhotoProxyUrl(photoId, `w${ZOOM_PHOTO_PIXELS}`, 0),
     buildPhotoProxyUrl(photoId, `w${ZOOM_PHOTO_PIXELS}`, 1),
+    buildGoogleThumbUrl(photoId, ZOOM_PHOTO_PIXELS),
+    buildDriveThumbUrl(photoId, ZOOM_PHOTO_PIXELS),
   ].filter(Boolean);
 }
 
@@ -2087,7 +2090,7 @@ async function fetchFromDriveClient(folderId) {
 async function fetchFromPhotoServer(folderId) {
   for (const endpoint of PHOTO_LIST_ENDPOINTS) {
     try {
-      const response = await fetch(`${endpoint}?folderId=${encodeURIComponent(folderId)}`);
+      const response = await fetch(`${endpoint}?folderId=${encodeURIComponent(folderId)}&v=${PHOTO_REQUEST_VERSION}`);
       let payload = {};
       try {
         payload = await response.json();

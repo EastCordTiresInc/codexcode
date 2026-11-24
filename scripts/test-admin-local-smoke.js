@@ -176,7 +176,7 @@ async function runHttpTests(base = 'http://localhost:8888') {
     { path: '/admin', mustInclude: ['data-admin-status-filter', 'admin.js?v=17', 'admin.css?v=34'] },
     { path: '/admin/calendar', mustInclude: ['data-admin-calendar', 'data-admin-calendar-grid="shop"', 'data-admin-calendar-grid="mobile"', 'admin-calendar.js?v=5'] },
     { path: '/admin/inventory', mustInclude: ['Low stock', 'data-admin-inventory-search', 'data-sync-to-sheet', 'admin-inventory.js?v=25'] },
-    { path: '/admin/orders', mustInclude: ['Waiting for tires', 'data-admin-orders-filter', 'admin-orders.js?v=6'] },
+    { path: '/admin/orders', mustInclude: ['Waiting for tires', 'data-admin-orders-filter', 'admin-orders.js?v=7'] },
     { path: '/admin/blog', mustInclude: ['Publish to site', 'data-admin-blog-form', 'admin-blog.js?v=1', '/admin/installers'] },
     { path: '/admin/installers', mustInclude: ['data-admin-installers-form', 'admin-installers.js?v=1', 'Public form'] },
     { path: '/admin/job-photos', mustInclude: ['Upcoming appointments are listed here', 'Blurry or shaky photos are not accepted', 'data-admin-finished', 'data-admin-car-map', 'admin-job-photos.js?v=20', 'Job photos'] },
@@ -208,7 +208,7 @@ async function runHttpTests(base = 'http://localhost:8888') {
     '/admin.js?v=17',
     '/admin-calendar.js?v=5',
     '/admin-inventory.js?v=25',
-    '/admin-orders.js?v=6',
+    '/admin-orders.js?v=7',
   ];
 
   for (const asset of assets) {

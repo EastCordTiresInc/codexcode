@@ -329,8 +329,7 @@
     }
 
     showDashboard(email);
-    const liveOrders = Array.isArray(payload.orders) ? payload.orders : [];
-    allOrders = [...MOCK_USED_ORDERS, ...liveOrders];
+    allOrders = Array.isArray(payload.orders) ? payload.orders : [];
     applyView();
   }
 

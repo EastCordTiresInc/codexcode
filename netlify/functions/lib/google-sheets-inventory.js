@@ -19,10 +19,22 @@ const SYNC_COLUMNS = [
   'is_flotation',
 ];
 
+function loadLocalProjectEnv() {
+  for (const envFile of [path.join(process.cwd(), '.env'), path.join(process.cwd(), '.netlify', '.env')]) {
+    if (!fs.existsSync(envFile)) continue;
+    fs.readFileSync(envFile, 'utf8').split(/\r?\n/).forEach((line) => {
+      const match = line.match(/^\s*([^#=\s]+)\s*=(.*)$/);
+      if (!match || process.env[match[1]]) return;
+      process.env[match[1]] = match[2].trim().replace(/^"|"$/g, '');
+    });
+  }
+}
+
 function getConfig() {
+  loadLocalProjectEnv();
   let serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
   let serviceAccountPrivateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '';
-  const credentialsPath = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_PATH || '';
+  const credentialsPath = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_PATH || '.netlify/google-service-account.json';
 
   if (credentialsPath) {
     try {
@@ -56,12 +68,15 @@ function missingGoogleConfig(config) {
   ].filter((key) => !config[key]);
 }
 
-async function getGoogleAccessToken(config) {
+const DRIVE_READONLY_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+let driveTokenCache = { token: '', expiresAt: 0 };
+
+async function getGoogleAccessToken(config, scope = GOOGLE_SCOPE) {
   const now = Math.floor(Date.now() / 1000);
   const header = base64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claims = base64Url(JSON.stringify({
     iss: config.googleServiceAccountEmail,
-    scope: GOOGLE_SCOPE,
+    scope,
     aud: GOOGLE_TOKEN_URL,
     iat: now,
     exp: now + 3600,
@@ -91,6 +106,18 @@ async function getGoogleAccessToken(config) {
   }
 
   return payload.access_token;
+}
+
+async function getDriveAccessToken(config = getConfig()) {
+  if (driveTokenCache.token && Date.now() < driveTokenCache.expiresAt) {
+    return driveTokenCache.token;
+  }
+  if (!config.googleServiceAccountEmail || !config.googleServiceAccountPrivateKey) {
+    throw httpError(501, 'Google account is not configured for Drive photos.');
+  }
+  const token = await getGoogleAccessToken(config, DRIVE_READONLY_SCOPE);
+  driveTokenCache = { token, expiresAt: Date.now() + 45 * 60 * 1000 };
+  return token;
 }
 
 async function getSheetValues(config, accessToken, valueRenderOption = 'FORMATTED_VALUE') {
@@ -755,9 +782,11 @@ async function pullSheetInventoryRows() {
 
 module.exports = {
   SYNC_COLUMNS,
+  loadLocalProjectEnv,
   getConfig,
   missingGoogleConfig,
   getGoogleAccessToken,
+  getDriveAccessToken,
   getSheetValues,
   parseSheet,
   toInventoryRecord,

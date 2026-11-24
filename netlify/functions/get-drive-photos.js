@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const { getDriveAccessToken } = require('./lib/google-sheets-inventory');
+
 
 const IMAGE_MIME_PREFIX = 'image/';
 const IMAGE_NAME_PATTERN = /\.(jpe?g|png|webp|gif|heic|bmp)$/i;
@@ -53,7 +55,17 @@ function getQueryParam(event, key) {
 }
 
 async function listFolderPhotos(folderId) {
-  const debug = { hasApiKey: false, apiStatus: null, apiFileCount: 0, apiError: null, scrapeIdCount: 0, cacheHit: false };
+  const debug = {
+    hasApiKey: false,
+    apiStatus: null,
+    apiFileCount: 0,
+    apiError: null,
+    accountStatus: null,
+    accountFileCount: 0,
+    accountError: null,
+    scrapeIdCount: 0,
+    cacheHit: false,
+  };
   const cache = loadPhotoCache();
   if (Array.isArray(cache[folderId]) && cache[folderId].length) {
     debug.cacheHit = true;
@@ -74,8 +86,51 @@ async function listFolderPhotos(folderId) {
     }
   }
 
-  const scrapedPhotos = await scrapePublicFolderPhotos(folderId, debug);
-  return { photos: scrapedPhotos, debug };
+  try {
+    const sharedPhotos = await listPhotosWithServiceAccount(folderId, debug);
+    if (sharedPhotos.length) {
+      return { photos: sharedPhotos, debug };
+    }
+  } catch (error) {
+    debug.accountError = error.message;
+  }
+
+  try {
+    const scrapedPhotos = await scrapePublicFolderPhotos(folderId, debug);
+    return { photos: scrapedPhotos, debug };
+  } catch (error) {
+    if (debug.accountError) {
+      throw new Error(debug.accountError);
+    }
+    throw error;
+  }
+}
+
+async function listPhotosWithServiceAccount(folderId, debug) {
+  const accessToken = await getDriveAccessToken();
+  const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+  const url = [
+    'https://www.googleapis.com/drive/v3/files',
+    `?q=${query}`,
+    '&fields=files(id,name,mimeType,thumbnailLink)',
+    '&pageSize=20',
+    '&supportsAllDrives=true',
+    '&includeItemsFromAllDrives=true',
+  ].join('');
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const payload = await response.json().catch(() => ({}));
+  debug.accountStatus = response.status;
+
+  if (!response.ok) {
+    throw new Error(payload.error?.message || `Google Drive account ${response.status}`);
+  }
+
+  const files = payload.files || [];
+  debug.accountFileCount = files.length;
+  return files.filter(isImageFile).map(toPhotoEntry);
 }
 
 async function listPhotosWithDriveApi(folderId, apiKey, debug) {
@@ -187,11 +242,12 @@ function toPhotoEntry(file) {
 }
 
 function jsonResponse(statusCode, body) {
+  const hasPhotos = Array.isArray(body?.photos) && body.photos.length > 0;
   return {
     statusCode,
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': statusCode === 200 && hasPhotos ? 'public, max-age=3600' : 'no-store',
     },
     body: JSON.stringify(body),
   };

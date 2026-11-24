@@ -1,5 +1,6 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
+const { loadLocalProjectEnv } = require('./lib/google-sheets-inventory');
 const { calculateTax, roundMoney } = require('./lib/used-tire-order');
 const appointmentServices = require('../../appointment-services');
 const { slotTakenBySomeoneElse, SLOT_TAKEN_MESSAGE } = require('./lib/payment-window');
@@ -177,7 +178,19 @@ function normalizeCartItems(items) {
     .filter((item) => item.inventoryId);
 }
 
+function stripeQuantityPrice(total, qty) {
+  const totalCents = Math.round(Number(total) * 100);
+  const count = Math.max(1, Math.round(Number(qty) || 1));
+  if (!Number.isFinite(totalCents) || totalCents <= 0) return null;
+  const unitCents = Math.round(totalCents / count);
+  if (unitCents * count === totalCents) {
+    return { unit_amount: unitCents, quantity: count };
+  }
+  return { unit_amount: totalCents, quantity: 1 };
+}
+
 exports.handler = async (event) => {
+  loadLocalProjectEnv();
   if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
   if (!process.env.STRIPE_SECRET_KEY) {
     return json(500, { message: 'Stripe checkout is missing STRIPE_SECRET_KEY. Add your test secret key to .netlify/.env and restart npm run dev.' });
@@ -373,6 +386,11 @@ exports.handler = async (event) => {
   }
 
   const siteUrl = getSiteUrl(event);
+  const chargeable = preparedItems.every((item) => stripeQuantityPrice(item.lineTotal, item.qty))
+    && (!install || install.lines.every((line) => stripeQuantityPrice(line.subtotal, line.qty)));
+  if (!chargeable) {
+    return json(400, { message: 'A selected tire does not have a price that Stripe can charge.' });
+  }
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
   const installDescription = install
     ? `License plate ${installation.plate}. Appointment ${installation.date} ${installation.time}. EastCord shop, 600 Harrop Drive, Milton.`
@@ -384,29 +402,35 @@ exports.handler = async (event) => {
       payment_method_types: ['card'],
       customer_email: customerEmail,
       line_items: [
-        ...preparedItems.map((item) => ({
-          price_data: {
-            currency: 'cad',
-            product_data: {
-              name: `${item.brand} ${item.size} used tire${item.markdown ? ` — ${MARKDOWN_PERCENT}% off` : ''}`,
-              description: `Quantity ${item.qty}${item.markdown ? ' · low-stock markdown' : ''}`,
+        ...preparedItems.map((item) => {
+          const price = stripeQuantityPrice(item.lineTotal, item.qty);
+          return {
+            price_data: {
+              currency: 'cad',
+              product_data: {
+                name: `${item.brand} ${item.size} used tire${item.markdown ? ` — ${MARKDOWN_PERCENT}% off` : ''}`,
+                description: `Quantity ${item.qty}${item.markdown ? ' · low-stock markdown' : ''}`,
+              },
+              unit_amount: price.unit_amount,
             },
-            unit_amount: Math.round(item.unitPrice * 100),
-          },
-          quantity: item.qty,
-        })),
-        ...(install ? install.lines.map((line) => ({
-          price_data: {
-            currency: 'cad',
-            product_data: {
-              name: `Off-rim swap + balance — ${line.band.label}`,
-              description: installDescription,
+            quantity: price.quantity,
+          };
+        }),
+        ...(install ? install.lines.map((line) => {
+          const price = stripeQuantityPrice(line.subtotal, line.qty);
+          return {
+            price_data: {
+              currency: 'cad',
+              product_data: {
+                name: `Off-rim swap + balance — ${line.band.label}`,
+                description: installDescription,
+              },
+              unit_amount: price.unit_amount,
             },
-            unit_amount: Math.round(line.unitPrice * 100),
-          },
-          quantity: line.qty,
-        })) : []),
-        ...(install ? [{
+            quantity: price.quantity,
+          };
+        }) : []),
+        ...(install && install.hst > 0 ? [{
           price_data: {
             currency: 'cad',
             product_data: {

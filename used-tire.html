@@ -144,9 +144,6 @@
     <script src="account.js?v=59"></script>
     <script>
       (function () {
-        var isLocal = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
-        if (!isLocal) return;
-
         var comingSoon = document.querySelector('[data-used-coming-soon]');
         var shop = document.querySelector('[data-used-shop]');
         var tireCart = document.querySelector('[data-local-used-tire-cart]');
@@ -155,7 +152,7 @@
         if (tireCart) tireCart.hidden = false;
 
         var inventory = document.createElement('script');
-        inventory.src = 'inventory.js?v=86';
+        inventory.src = 'inventory.js?v=91';
 
         var pricing = document.createElement('script');
         pricing.src = 'used-tire-pricing.js?v=4';

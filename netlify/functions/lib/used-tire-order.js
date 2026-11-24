@@ -1,7 +1,7 @@
 const { applyWebsiteSalesToSheet } = require('./google-sheets-inventory');
 const { inventoryTableName, isDevInventoryTable } = require('./inventory-table');
 const { updateDevSheetStock } = require('./dev-inventory-sheet');
-const { sendEmail, CONTACT_EMAIL, buildBrandedEmail, detailRowsHtml } = require('./send-email');
+const { sendEmail, CONTACT_EMAIL } = require('./send-email');
 
 const TAX_RATE = 0;
 
@@ -226,14 +226,16 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
   }
 
   try {
-    const { buildUsedTireReceipt } = require('./used-tire-receipt');
+    const { buildUsedTireReceipt, buildUsedTireShopEmail } = require('./used-tire-receipt');
+    const installation = (items || []).find((item) => item?.installation)?.installation;
     const receipt = buildUsedTireReceipt({
       customer: {
         name: paidOrder.customer_name,
         email: paidOrder.customer_email,
+        fulfillment: paidOrder.fulfillment_preference,
+        installation,
       },
       items,
-      websiteUpdates: saleResult.websiteUpdates || [],
     });
     if (paidOrder.customer_email) {
       await sendEmail({
@@ -244,43 +246,14 @@ async function fulfillPaidUsedTireOrder({ supabaseAdmin, session }) {
         html: receipt.html,
       });
     }
-    const tireLines = (items || []).map((item) => {
-      const qty = Math.max(1, Number(item.qty) || 1);
-      const label = [item.brand, item.size || item.tire_size].filter(Boolean).join(' ') || 'Used tire';
-      return `${qty} x ${label}`;
+    const shopEmail = buildUsedTireShopEmail({
+      to: CONTACT_EMAIL,
+      order: paidOrder,
+      items,
+      websiteUpdates: saleResult.websiteUpdates || [],
     });
-    const booked = (items || []).find((item) => item?.installation);
     await sendEmail({
-      ...buildBrandedEmail({
-        to: CONTACT_EMAIL,
-        subject: `Paid used tire order — ${paidOrder.customer_name || 'Customer'}`,
-        heading: 'Paid used tire order',
-        body: [
-          `${paidOrder.customer_name || 'A customer'} paid for used tires.`,
-        ],
-        extraText: [
-          `Order: ${paidOrder.id}`,
-          `Name: ${paidOrder.customer_name || ''}`,
-          `Email: ${paidOrder.customer_email || ''}`,
-          `Phone: ${paidOrder.customer_phone || ''}`,
-          `Preferred contact: ${paidOrder.preferred_contact || ''}`,
-          booked ? `License plate: ${booked.installation.plate}` : '',
-          booked ? `Appointment: ${booked.installation.date} ${booked.installation.time}` : '',
-          receipt.text,
-        ].join('\n'),
-        extraHtml: detailRowsHtml([
-          { label: 'Name', value: paidOrder.customer_name || '' },
-          { label: 'Email', value: paidOrder.customer_email || '' },
-          { label: 'Phone', value: paidOrder.customer_phone || '' },
-          { label: 'Preferred contact', value: paidOrder.preferred_contact || '' },
-          { label: 'Order', value: paidOrder.id },
-          { label: 'Tires', value: tireLines.join(', ') },
-          ...(booked ? [
-            { label: 'License plate', value: booked.installation.plate },
-            { label: 'Appointment', value: `${booked.installation.date} ${booked.installation.time}` },
-          ] : []),
-        ]),
-      }),
+      ...shopEmail,
       replyTo: paidOrder.customer_email || CONTACT_EMAIL,
     });
   } catch (error) {

@@ -1,5 +1,6 @@
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
+const { loadLocalProjectEnv } = require('./lib/google-sheets-inventory');
 const { fulfillPaidUsedTireOrder } = require('./lib/used-tire-order');
 
 function json(statusCode, payload) {
@@ -23,6 +24,7 @@ function getSupabaseAdmin() {
 }
 
 exports.handler = async (event) => {
+  loadLocalProjectEnv();
   if (event.httpMethod !== 'POST') return json(405, { message: 'Method not allowed.' });
   if (!process.env.STRIPE_SECRET_KEY) {
     return json(500, { message: 'Stripe secret key is missing.' });
