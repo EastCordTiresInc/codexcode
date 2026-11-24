@@ -58,7 +58,7 @@ function nextStepCopy(customer, demo) {
   if (customer?.fulfillment === 'Installation') {
     return 'We will email you when the tires arrive for installation at 600 Harrop Drive in Milton.';
   }
-  return 'We will email you when the tires are ready for pickup at 600 Harrop Drive in Milton. Shop hours are 8:00 AM to 8:00 PM.';
+  return 'If you chose pick up, your tires are ready to be picked up at the shop.';
 }
 
 function buildUsedTireReceipt({ customer, items, demo = false }) {
